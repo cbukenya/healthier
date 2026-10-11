@@ -10,7 +10,7 @@ export default defineConfig(() => {
     build: { outDir: 'dist/client' },
     resolve: {
       alias: {
-        '@': path.resolve(__dirname, '.'),
+        '@': path.resolve(import.meta.dirname, '.'),
       },
     },
   };
