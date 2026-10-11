@@ -123,7 +123,12 @@ npm test
   reassembled. It runs on the server for live data and in the browser for demo mode.
 - `src/`: the React dashboard.
 
-The architecture and roadmap are in [BACKEND_PLAN.md](BACKEND_PLAN.md).
+How it works and why: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
+## Roadmap
+
+Planned work is tracked as [milestones](https://github.com/cbukenya/healthier/milestones) on GitHub.
+Ideas and bug reports are welcome as [issues](https://github.com/cbukenya/healthier/issues).
 
 ## Security
 
