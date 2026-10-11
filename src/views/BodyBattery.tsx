@@ -1,7 +1,8 @@
 import React from 'react';
 
 interface BodyBatteryProps {
-  score: number;
+  /** Null when readiness can't be computed yet (too little history). */
+  score: number | null;
   parts: { label: string; contribution: number; detail: string }[];
   confidence: string;
   label: string;
@@ -11,7 +12,11 @@ interface BodyBatteryProps {
 export function BodyBattery({ score, parts, confidence, label, className = '' }: BodyBatteryProps) {
   let batteryState = '';
   let batteryColor = '';
-  if (score < 17) {
+  if (score === null) {
+    // Too little data is not the same as being drained.
+    batteryState = '[NO DATA]';
+    batteryColor = 'text-zinc-500';
+  } else if (score < 17) {
     batteryState = '[DRAINED]';
     batteryColor = 'text-zinc-200';
   } else if (score < 50) {
@@ -28,8 +33,9 @@ export function BodyBattery({ score, parts, confidence, label, className = '' }:
 
   const TOP = 9;
   const BOTTOM = 462;
-  const fillY = BOTTOM - (score / 100) * (BOTTOM - TOP);
-  const fillHeight = (score / 100) * (BOTTOM - TOP);
+  const level = score ?? 0;
+  const fillY = BOTTOM - (level / 100) * (BOTTOM - TOP);
+  const fillHeight = (level / 100) * (BOTTOM - TOP);
 
   const maxAbs = Math.max(...parts.map(p => Math.abs(p.contribution)), 1);
 
@@ -46,7 +52,7 @@ export function BodyBattery({ score, parts, confidence, label, className = '' }:
           <div className="mt-[30px] inline-block bg-[#17171a] rounded-[20px] px-[30px] pt-[10px] pb-[14px]">
             <div className="flex items-baseline gap-1">
               <span className="text-[64px] md:text-[84px] font-bold tracking-[-0.03em] tabular-nums leading-[1.1] text-[#f4f4f5]">
-                {score}
+                {score ?? '—'}
               </span>
               <span className="text-[17px] text-[#9ca0a8]">
                 / 100
@@ -114,7 +120,7 @@ export function BodyBattery({ score, parts, confidence, label, className = '' }:
               <g clipPath="url(#clipLevel)">
                 <rect x="20" y="9" width="200" height="453" fill="url(#charge)"/>
               </g>
-              <rect id="fillLine" x="20" y={fillY - 1} width="200" height="2" fill="#ffffff" opacity={score > 0 && score < 100 ? 0.35 : 0}/>
+              <rect id="fillLine" x="20" y={fillY - 1} width="200" height="2" fill="#ffffff" opacity={level > 0 && level < 100 ? 0.35 : 0}/>
             </g>
 
             <g strokeDasharray="1.5 5" strokeLinecap="round" strokeWidth="1.5" stroke="#3f3f46">
