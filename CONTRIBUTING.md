@@ -30,6 +30,8 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
 
 ## Ground rules
 
+Read [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) first if you're changing sync or storage.
+
 - **Insights must be accurate.** Changes to how data is normalised or interpreted need tests, and
   new insights should cite the research behind them.
 - **Changing normalisation means bumping `PIPELINE_VERSION`** in `src/pipeline/incremental.ts`.
