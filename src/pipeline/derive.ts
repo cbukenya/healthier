@@ -107,7 +107,7 @@ export interface Comparison {
 }
 
 const NEUTRAL: Comparison = {
-  value: null, date: null, baseline: null, spread: null, delta: null,
+  value: null, baseline: null, spread: null, delta: null,
   deltaPct: null, z: null, band: null, n: 0,
 };
 
@@ -1104,10 +1104,10 @@ export function bodyComposition(days: DailyRecord[]): BodyComposition | null {
   //      make that claim false.
   const weights = days
     .map((d, i) => ({ i, date: d.date, kg: d.weightKg, src: d.sourceByType?.weight ?? null }))
-    .filter((p): p is { i: number; date: CivilDate; kg: number; src: string | null } => p.kg !== null);
+    .filter((p): p is typeof p & { kg: number } => p.kg !== null);
   const fats = days
     .map((d, i) => ({ i, pct: d.bodyFatPct, src: d.sourceByType?.['body-fat'] ?? null }))
-    .filter((p): p is { i: number; pct: number; src: string | null } => p.pct !== null);
+    .filter((p): p is typeof p & { pct: number } => p.pct !== null);
   if (!weights.length || !fats.length) return null;
 
   const usedFat = new Set<number>();

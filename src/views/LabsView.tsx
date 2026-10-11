@@ -141,7 +141,7 @@ function SdbCard({ data }: { data: SyncResult }) {
         </EmptyEvidence>
       ) : (
         <Evidence>
-          {r.flags.map((f) => (
+          {r.flags.map((f: any) => (
             <div key={f.id} className="flex items-baseline gap-2.5 py-1.5 border-t border-zinc-800/60 first:border-t-0 text-[11px]">
               <span className={`text-[8px] ${f.fired ? 'text-rose-400' : 'text-zinc-700'}`}>●</span>
               <span className={`min-w-[140px] ${f.fired ? 'text-zinc-200 font-semibold' : 'text-zinc-500'}`}>{f.label}</span>
@@ -175,8 +175,8 @@ function DipCard({ data, intraday }: { data: SyncResult; intraday: IntradayDays 
   const latestNonRem = [...data.days].reverse().find((d) => d.nonRemHr !== null)?.nonRemHr ?? null;
   const latestRhr = [...data.days].reverse().find((d) => d.restingHr !== null)?.restingHr ?? null;
   const day7 = r.nights.slice(-7);
-  const dayMean = day7.length ? Math.round(day7.reduce((a, n) => a + n.dayMean, 0) / day7.length) : null;
-  const nightMean = day7.length ? Math.round(day7.reduce((a, n) => a + n.nightMean, 0) / day7.length) : null;
+  const dayMean = day7.length ? Math.round(day7.reduce((a: number, n: any) => a + n.dayMean, 0) / day7.length) : null;
+  const nightMean = day7.length ? Math.round(day7.reduce((a: number, n: any) => a + n.nightMean, 0) / day7.length) : null;
 
   const badge =
     r.status === 'pattern' ? <Badge kind="alert">Pattern · {r.riser ? 'riser' : 'blunted dip'}</Badge>
@@ -259,8 +259,8 @@ function EntropyCard({ data }: { data: SyncResult }) {
 
   const W = 470; const H = 74;
   const xs = (i: number, n: number) => 4 + i * ((W - 8) / Math.max(1, n - 1));
-  const lo = Math.min(...r.recent.map((p) => p.value), (r.baselineMedian ?? 2.5) - 3 * (r.baselineSd ?? 0.1));
-  const hi = Math.max(...r.recent.map((p) => p.value), (r.baselineMedian ?? 2.5) + 3 * (r.baselineSd ?? 0.1));
+  const lo = Math.min(...r.recent.map((p: any) => p.value), (r.baselineMedian ?? 2.5) - 3 * (r.baselineSd ?? 0.1));
+  const hi = Math.max(...r.recent.map((p: any) => p.value), (r.baselineMedian ?? 2.5) + 3 * (r.baselineSd ?? 0.1));
   const ys = (v: number) => H - 8 - ((v - lo) / Math.max(0.001, hi - lo)) * (H - 18);
 
   return (
@@ -301,14 +301,14 @@ function EntropyCard({ data }: { data: SyncResult }) {
                   stroke="#34d399" strokeWidth="1" strokeDasharray="3 4" opacity="0.4" />
               </>
             )}
-            {r.recent.map((p, i) => (
+            {r.recent.map((p: any, i: number) => (
               <circle key={p.date} cx={xs(i, r.recent.length)} cy={ys(p.value)} r="2.6"
                 fill={p.shifted ? '#fb7185' : '#4b4f58'} />
             ))}
           </svg>
           <div className="flex flex-wrap items-center gap-1.5 mt-2.5">
             <span className="text-[9px] font-semibold tracking-[0.12em] uppercase text-zinc-600">Same nights, cross-checked:</span>
-            {r.crossChecks.map((c) => (
+            {r.crossChecks.map((c: any) => (
               <span key={c.label}
                 className={`text-[10px] px-2 py-0.5 rounded-full border ${c.steady ? 'text-emerald-300 border-emerald-400/25' : 'text-amber-300 border-amber-400/30'}`}>
                 {c.label} {c.steady ? 'steady' : 'moved'}
@@ -316,7 +316,7 @@ function EntropyCard({ data }: { data: SyncResult }) {
             ))}
           </div>
           <Callout lead={`The night-time texture of your heartbeat spacing has sat clearly outside your baseline for ${r.shiftNights} nights`}>
-            {r.crossChecks.every((c) => c.steady) ? ' — while everything else stayed ordinary.' : '.'} This
+            {r.crossChecks.every((c: any) => c.steady) ? ' — while everything else stayed ordinary.' : '.'} This
             number also moves with mundane things: illness, alcohol, rough sleep. It is not a diagnosis of
             anything. If it persists with nothing in your life to explain it, it becomes a specific, dated
             observation worth showing a doctor.

@@ -194,7 +194,7 @@ export function SleepWindowChart({
               <line x1={x(m as number)} x2={x(m as number)} y1={PT - 8} y2={H - PB + 8}
                 stroke={lineColor} strokeWidth={1.2} strokeDasharray="4 4" opacity={0.85} />
               <text x={x(m as number) + (anchor === 'end' ? -6 : 6)} y={PT - 12}
-                textAnchor={anchor as string} fontSize={10} fill={lineColor} opacity={0.95}>
+                textAnchor={anchor as 'start' | 'end'} fontSize={10} fill={lineColor} opacity={0.95}>
                 {String(lbl)}
               </text>
             </g>

@@ -132,7 +132,7 @@ export function TrendChart({
         <Tooltip
           contentStyle={tooltipStyle} itemStyle={{ color: '#a1a1aa' }}
           labelStyle={{ color: '#e4e4e7', fontWeight: 600, marginBottom: 2 }}
-          formatter={(v: any, name: string) => [
+          formatter={(v: any, name?: string | number) => [
             v === null ? 'not recorded' : `${format(Number(v))}${unit ? ` ${unit}` : ''}`,
             name === 'mean' ? `${meanWindow}-day mean` : 'reading',
           ]}
@@ -257,9 +257,9 @@ export function StackedBars({
         <Tooltip
           contentStyle={tooltipStyle} itemStyle={{ color: '#a1a1aa' }}
           labelStyle={{ color: '#e4e4e7', fontWeight: 600, marginBottom: 2 }}
-          formatter={(v: any, name: string) => {
+          formatter={(v: any, name?: string | number) => {
             const k = keys.find((x) => x.key === name);
-            return [v === null ? '—' : `${v}${unit ? ` ${unit}` : ''}`, k?.label ?? name];
+            return [v === null ? '—' : `${v}${unit ? ` ${unit}` : ''}`, k?.label ?? name ?? ''];
           }}
         />
         {keys.map((k, i) => (
@@ -319,12 +319,12 @@ export function RangeBandChart({
         <Tooltip
           contentStyle={tooltipStyle} itemStyle={{ color: '#a1a1aa' }}
           labelStyle={{ color: '#e4e4e7', fontWeight: 600, marginBottom: 2 }}
-          formatter={(v: any, name: string) => {
+          formatter={(v: any, name?: string | number) => {
             if (name === 'band') {
               return Array.isArray(v) ? [`${v[0]}–${v[1]}${unit}`, 'nightly range'] : ([null, null] as any);
             }
             const map: Record<string, string> = { avg: 'average', low: 'nightly low', high: 'nightly high' };
-            return [v === null ? '—' : `${v}${unit}`, map[name] ?? name];
+            return [v === null ? '—' : `${v}${unit}`, map[String(name)] ?? name ?? ''];
           }}
         />
         <Area
