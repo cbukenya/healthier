@@ -50,7 +50,8 @@ async function startServer(config: Config) {
   } else {
     const distPath = path.join(process.cwd(), 'dist', 'client');
     app.use(express.static(distPath));
-    app.get('*', (req, res) => {
+    // Every other path is a client-side route. (Express 5 path syntax: a bare '*' no longer parses.)
+    app.get('/{*path}', (req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }
@@ -62,7 +63,12 @@ async function startServer(config: Config) {
   };
   app.use(onError);
 
-  app.listen(config.port, "0.0.0.0", () => {
+  app.listen(config.port, "0.0.0.0", (err?: Error) => {
+    // Express 5 reports listen failures (e.g. port in use) here instead of throwing.
+    if (err) {
+      console.error(`Cannot listen on port ${config.port}:`, err.message);
+      process.exit(1);
+    }
     console.log(`Server running on port ${config.port} (${config.appUrl})`);
   });
   startScheduler(deps);
