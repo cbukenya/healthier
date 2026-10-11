@@ -1,0 +1,13 @@
+# Local development, layered over docker-compose.yml:
+#   Build the app image from this checkout instead of pulling a release:
+#     docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+#   Or run only Postgres, exposed on localhost, for `npm run dev`:
+#     docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d db
+services:
+  app:
+    build: .
+    image: healthier:dev
+
+  db:
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"

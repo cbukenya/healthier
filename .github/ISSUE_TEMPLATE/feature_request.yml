@@ -1,0 +1,19 @@
+name: Feature request
+description: Suggest an improvement or a new insight.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What would you like to do that you can't today?
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: How do you imagine it working?
+  - type: textarea
+    id: evidence
+    attributes:
+      label: For new health insights, what's the evidence?
+      description: Insights should be grounded in research. Links to papers or guidelines help a lot.
