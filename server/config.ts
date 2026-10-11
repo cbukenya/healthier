@@ -1,0 +1,104 @@
+/**
+ * Runtime configuration.
+ *
+ * Every setting the app needs is read here, once, from the environment, so a
+ * self-hoster has exactly one place to look (`.env.example`) and one image that
+ * works for everyone. Nothing is baked in at build time.
+ *
+ * Missing or malformed values stop the server at boot with a list of what to
+ * fix, rather than surfacing later as a failed sign-in or an opaque crypto error.
+ */
+
+import { parseAccessList, type AccessList } from './access';
+
+type Env = Record<string, string | undefined>;
+
+export interface Config {
+  port: number;
+  /** Public base URL the app is reached at; OAuth redirects are built from it. */
+  appUrl: string;
+  isProduction: boolean;
+  databaseUrl: string;
+  /** 32-byte key for encrypting Google tokens at rest. */
+  encryptionKey: Buffer;
+  google: {
+    clientId: string;
+    clientSecret: string;
+  };
+  /** Minutes between background syncs per user. 0 turns background sync off. */
+  syncIntervalMinutes: number;
+  /** Who may sign up; null lets anyone through Google's consent screen. */
+  allowedEmails: AccessList | null;
+}
+
+export class ConfigError extends Error {
+  constructor(readonly missing: string[], readonly invalid: string[]) {
+    super(
+      [
+        'Invalid configuration.',
+        ...missing.map((name) => `  missing: ${name}`),
+        ...invalid.map((msg) => `  invalid: ${msg}`),
+        'Copy .env.example to .env and fill in the required values.',
+      ].join('\n'),
+    );
+    this.name = 'ConfigError';
+  }
+}
+
+export function loadConfig(env: Env = process.env): Config {
+  const missing: string[] = [];
+  const invalid: string[] = [];
+
+  const optional = (name: string) => env[name]?.trim() || undefined;
+  const required = (name: string) => {
+    const value = optional(name);
+    if (!value) missing.push(name);
+    return value ?? '';
+  };
+  const integer = (name: string, fallback: number, min: number, max: number) => {
+    const raw = optional(name);
+    const value = raw === undefined ? fallback : Number(raw);
+    if (!Number.isInteger(value) || value < min || value > max) {
+      invalid.push(`${name} must be a whole number from ${min} to ${max}, got "${raw}"`);
+    }
+    return value;
+  };
+
+  const port = integer('PORT', 3000, 1, 65535);
+
+  const appUrl = (optional('APP_URL') ?? `http://localhost:${port}`).replace(/\/+$/, '');
+  if (!/^https?:\/\//.test(appUrl)) {
+    invalid.push(`APP_URL must start with http:// or https://, got "${appUrl}"`);
+  }
+
+  const rawKey = required('ENCRYPTION_KEY');
+  const encryptionKey = Buffer.from(rawKey, 'base64');
+  if (rawKey && encryptionKey.length !== 32) {
+    invalid.push('ENCRYPTION_KEY must be 32 bytes, base64-encoded. Generate one with: openssl rand -base64 32');
+  }
+
+  let allowedEmails: AccessList | null = null;
+  const rawAllowed = optional('ALLOWED_EMAILS');
+  if (rawAllowed) {
+    const parsed = parseAccessList(rawAllowed);
+    if (parsed.invalid.length) invalid.push(`ALLOWED_EMAILS has entries that are neither an email nor @domain: ${parsed.invalid.join(', ')}`);
+    allowedEmails = parsed.list;
+  }
+
+  const config: Config = {
+    port,
+    appUrl,
+    isProduction: env.NODE_ENV === 'production',
+    databaseUrl: required('DATABASE_URL'),
+    encryptionKey,
+    google: {
+      clientId: required('GOOGLE_CLIENT_ID'),
+      clientSecret: required('GOOGLE_CLIENT_SECRET'),
+    },
+    syncIntervalMinutes: integer('SYNC_INTERVAL_MINUTES', 60, 0, 24 * 60),
+    allowedEmails,
+  };
+
+  if (missing.length || invalid.length) throw new ConfigError(missing, invalid);
+  return config;
+}

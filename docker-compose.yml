@@ -1,0 +1,37 @@
+# Healthier, self-hosted. Settings live in .env (see .env.example).
+#   docker compose up -d                              start
+#   docker compose pull && docker compose up -d       upgrade
+services:
+  app:
+    image: ghcr.io/cbukenya/healthier:${HEALTHIER_VERSION:-latest}
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      # Fixed inside the container; PORT in .env only picks the host port.
+      PORT: 3000
+      DATABASE_URL: postgres://healthier:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@db:5432/healthier
+    ports:
+      # Set BIND_ADDRESS=127.0.0.1 when a reverse proxy on the same machine serves HTTPS:
+      # Docker-published ports bypass host firewalls such as ufw.
+      - "${BIND_ADDRESS:-0.0.0.0}:${PORT:-3000}:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: healthier
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: healthier
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U healthier -d healthier"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  db-data:
