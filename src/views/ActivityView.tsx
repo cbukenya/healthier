@@ -186,9 +186,9 @@ export function ActivityView({ data }: { data: SyncResult }) {
             }
             right={
               latestMixRow?.activeMinutes ? (() => {
-                const lightMean = stats(values(series(window, d => d.activeMinutes?.light)))?.mean ?? 0;
-                const modMean = stats(values(series(window, d => d.activeMinutes?.moderate)))?.mean ?? 0;
-                const vigMean = stats(values(series(window, d => d.activeMinutes?.vigorous)))?.mean ?? 0;
+                const lightMean = stats(values(series(window, d => d.activeMinutes?.light ?? null)))?.mean ?? 0;
+                const modMean = stats(values(series(window, d => d.activeMinutes?.moderate ?? null)))?.mean ?? 0;
+                const vigMean = stats(values(series(window, d => d.activeMinutes?.vigorous ?? null)))?.mean ?? 0;
                 return (
                   <div className="flex items-center gap-2.5 text-[11px] font-medium text-zinc-300">
                     <span className="text-zinc-500">{latestMixRow.date === todayCivil() ? 'avg vs today (min):' : 'avg vs latest (min):'}</span>
