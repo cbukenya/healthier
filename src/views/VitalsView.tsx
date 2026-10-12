@@ -8,6 +8,7 @@ import {
 import { DivergingBars, IntradayTrace, RangeBandChart, Spark, TrendChart } from '../charts';
 import { BandPill, Card, CardHead, DOMAIN, Delta, EmptyState, Value, fmtNum } from '../ui/primitives';
 import { Tile } from '../ui/Tile';
+import { ChartChips } from '../ui/ChartChips';
 import type { SyncResult } from '../pipeline/sync';
 import { groupRange, groupSeries } from '../pipeline/aggregate';
 import { emptyRecord } from '../pipeline/normalize';
@@ -224,21 +225,7 @@ export function VitalsView({ data }: { data: SyncResult }) {
       </div>
 
       {!wide && (
-        <div role="group" aria-label="Metric" className="grid grid-cols-3 gap-2">
-          {metrics.map((m) => (
-            <button
-              key={m.key}
-              type="button"
-              onClick={() => setPicked(m.key)}
-              aria-pressed={picked === m.key}
-              className={`min-h-11 px-2 rounded-xl border text-[13px] font-medium transition-colors ${
-                picked === m.key ? 'bg-zinc-800 border-zinc-700 text-zinc-50' : 'border-zinc-800 text-zinc-400 hover:text-zinc-200'
-              }`}
-            >
-              {m.chip}
-            </button>
-          ))}
-        </div>
+        <ChartChips label="Metric" options={metrics.map((m) => ({ key: m.key, label: m.chip }))} value={picked} onChange={setPicked} />
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">

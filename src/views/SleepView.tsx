@@ -52,14 +52,21 @@ import { scoreSleep } from '../pipeline/sleep';
 import { BarSeries, Hypnogram, StageBar, StageLegend, TrendChart, SleepWindowChart } from '../charts';
 import { BandPill, Card, CardHead, DOMAIN, Delta, EmptyState, Label, Row, Segmented, Value, fmtDuration, CardSummary } from '../ui/primitives';
 import { SpanSelector, useSpan } from '../ui/span';
+import { ChartChips } from '../ui/ChartChips';
+import { useMediaQuery } from '../hooks/useMediaQuery';
 import { groupSeries } from '../pipeline/aggregate';
 import type { SyncResult } from '../pipeline/sync';
 import type { SleepSession } from '../types/health';
+
+type SleepChart = 'window' | 'duration' | 'rem' | 'deep';
 
 export function SleepView({ data }: { data: SyncResult }) {
   const days = data.days;
   const spanState = useSpan(data, '30');
   const { days: window, bucket } = spanState;
+  // A phone shows one chart at a time behind chips; wider screens show them all.
+  const wide = useMediaQuery('(min-width: 768px)');
+  const [chart, setChart] = useState<SleepChart>('window');
 
   const sleepAll = series(days, (d) => d.sleep?.minutesAsleep ?? null);
   const sleepWin = series(window, (d) => d.sleep?.minutesAsleep ?? null);
@@ -84,6 +91,49 @@ export function SleepView({ data }: { data: SyncResult }) {
   const latestRow = [...days].reverse().find((d) => d.sleep !== null);
   const latest = latestRow?.sleep ?? null;
   const score = latest ? scoreSleep(latest) : null;
+
+  // The over-time charts: side by side on wider screens, one at a time behind chips on a phone.
+  const windowCard = <SleepWindowChart days={window} bucket={bucket} />;
+  const durationCard = (
+    <Card>
+      <CardHead
+        domain="sleep"
+        title="Sleep duration"
+        hint="Time asleep each night, not counting time awake in bed."
+        right={<CardSummary isSleep data={sleepWin} color={DOMAIN.sleep.hex} format={(v) => fmtDuration(v)} />}
+      />
+      <div className="px-2 pb-3">
+        <TrendChart
+          series={groupSeries(sleepWin, bucket)} bucket={bucket} color={DOMAIN.sleep.hex} height={190}
+          format={(v) => fmtDuration(v)} area={false}
+          baseline={sleepCmp.baseline ? { centre: sleepCmp.baseline, spread: sleepCmp.spread! } : null}
+        />
+      </div>
+    </Card>
+  );
+  const remCard = (
+    <Card>
+      <CardHead domain="sleep" title="REM sleep" hint="Usually about 20–25% of a night." right={<CardSummary isSleep data={remWin} color="#a78bfa" format={(v) => fmtDuration(v)} />} />
+      <div className="px-2 pb-3">
+        <BarSeries series={groupSeries(remWin, bucket)} bucket={bucket} color="#a78bfa" unit="min" height={150} />
+      </div>
+    </Card>
+  );
+  const deepCard = (
+    <Card>
+      <CardHead domain="sleep" title="Deep sleep" hint="Usually about 15–20% of a night, most of it early." right={<CardSummary isSleep data={deepWin} color="#4338ca" format={(v) => fmtDuration(v)} />} />
+      <div className="px-2 pb-3">
+        <BarSeries series={groupSeries(deepWin, bucket)} bucket={bucket} color="#4338ca" unit="min" height={150} />
+      </div>
+    </Card>
+  );
+  const charts: { key: SleepChart; label: string; card: React.ReactNode }[] = [
+    { key: 'window', label: 'Window', card: windowCard },
+    { key: 'duration', label: 'Duration', card: durationCard },
+    { key: 'rem', label: 'REM', card: remCard },
+    { key: 'deep', label: 'Deep', card: deepCard },
+  ];
+  const shownChart = charts.find((c) => c.key === chart) ?? charts[0];
 
   return (
     <div className="space-y-3">
@@ -473,41 +523,21 @@ export function SleepView({ data }: { data: SyncResult }) {
         <SpanSelector state={spanState} />
       </div>
 
-      <SleepWindowChart days={window} bucket={bucket} />
-
-      <Card>
-        <CardHead
-          domain="sleep"
-          title="Sleep duration"
-          hint="Time asleep each night, not counting time awake in bed."
-          right={<CardSummary isSleep data={sleepWin} color={DOMAIN.sleep.hex} format={(v) => fmtDuration(v)} />}
-        />
-        <div className="px-2 pb-3">
-          <TrendChart
-            series={groupSeries(sleepWin, bucket)} bucket={bucket} color={DOMAIN.sleep.hex} height={190}
-            format={(v) => fmtDuration(v)} area={false}
-            baseline={sleepCmp.baseline ? { centre: sleepCmp.baseline, spread: sleepCmp.spread! } : null}
-          />
-        </div>
-      </Card>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-        <Card>
-          <CardHead domain="sleep" title="REM sleep" hint="Usually about 20–25% of a night." right={<CardSummary isSleep data={remWin} color="#a78bfa" format={(v) => fmtDuration(v)} />} />
-          <div className="px-2 pb-3">
-            <BarSeries series={groupSeries(remWin, bucket)} bucket={bucket} color="#a78bfa" unit="min" height={150} />
+      {wide ? (
+        <>
+          {windowCard}
+          {durationCard}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+            {remCard}
+            {deepCard}
           </div>
-        </Card>
-        <Card>
-          <CardHead domain="sleep" title="Deep sleep" hint="Usually about 15–20% of a night, most of it early." right={<CardSummary isSleep data={deepWin} color="#4338ca" format={(v) => fmtDuration(v)} />} />
-          <div className="px-2 pb-3">
-            <BarSeries series={groupSeries(deepWin, bucket)} bucket={bucket} color="#4338ca" unit="min" height={150} />
-          </div>
-        </Card>
-      </div>
-
-
-
+        </>
+      ) : (
+        <>
+          <ChartChips label="Chart" options={charts} value={shownChart.key} onChange={setChart} />
+          {shownChart.card}
+        </>
+      )}
     </div>
   );
 }
