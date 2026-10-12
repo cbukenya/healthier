@@ -2,7 +2,7 @@
 export function getScoreTier(total: number) {
   if (total >= 85) {
     return {
-      name: "Emerald",
+      name: "Excellent",
       color: "#10b981",
       dotColor: "#22c55e",
       bg: "bg-emerald-500/10",
@@ -13,7 +13,7 @@ export function getScoreTier(total: number) {
   }
   if (total >= 70) {
     return {
-      name: "Indigo",
+      name: "Good",
       color: "#818cf8",
       dotColor: "#818cf8",
       bg: "bg-indigo-500/10",
@@ -24,7 +24,7 @@ export function getScoreTier(total: number) {
   }
   if (total >= 50) {
     return {
-      name: "Amber",
+      name: "Fair",
       color: "#f59e0b",
       dotColor: "#fbbf24",
       bg: "bg-amber-500/10",
@@ -34,7 +34,7 @@ export function getScoreTier(total: number) {
     };
   }
   return {
-    name: "Rose",
+    name: "Poor",
     color: "#f43f5e",
     dotColor: "#ef4444",
     bg: "bg-rose-500/10",
@@ -111,7 +111,7 @@ export function SleepView({ data }: { data: SyncResult }) {
                   points: score.duration,
                   max: 50,
                   color: "#818cf8", // Light Indigo
-                  detail: latest ? `${fmtDuration(latest.minutesAsleep)} asleep (target 7–9h)` : "",
+                  detail: latest ? `${fmtDuration(latest.minutesAsleep)} asleep · full marks at 7–9h` : "",
                 },
                 {
                   label: "Restoration",
@@ -119,7 +119,7 @@ export function SleepView({ data }: { data: SyncResult }) {
                   points: score.restoration,
                   max: 25,
                   color: "#6366f1", // Indigo / Purple
-                  detail: score.restorativePct !== null ? `${score.restorativePct}% deep+REM (target ≥40%)` : "",
+                  detail: score.restorativePct !== null ? `${score.restorativePct}% deep + REM · full marks at 45%` : "no stage data · scored at the midpoint",
                 },
                 {
                   label: "Efficiency",
@@ -127,7 +127,7 @@ export function SleepView({ data }: { data: SyncResult }) {
                   points: score.efficiency,
                   max: 25,
                   color: "#10b981", // Emerald
-                  detail: latest ? `${Math.round(latest.efficiency)}% asleep in bed (target ≥90%)` : "",
+                  detail: latest ? `${Math.round(latest.efficiency)}% of time in bed asleep · full marks at 100%` : "",
                 },
               ];
 
@@ -207,10 +207,11 @@ export function SleepView({ data }: { data: SyncResult }) {
                     <div className="text-[10px] font-semibold tracking-[0.14em] uppercase text-zinc-500 mb-2.5">
                       Contributors
                     </div>
-                    <div className="space-y-3">
+                    <div className="space-y-2.5">
                       {contributors.map((c, i) => (
-                        <div key={i} className="flex items-center text-xs">
-                          <span className="w-28 text-zinc-300 truncate pr-2 text-[11.5px] font-medium" title={c.detail}>
+                        <div key={i}>
+                        <div className="flex items-center text-xs">
+                          <span className="w-28 text-zinc-300 truncate pr-2 text-[11.5px] font-medium">
                             {c.label}
                           </span>
                           <div className="flex-1 flex items-center h-3 relative mx-2">
@@ -226,6 +227,8 @@ export function SleepView({ data }: { data: SyncResult }) {
                             <span className="text-zinc-500 font-normal">/{c.max}</span>
                           </div>
                         </div>
+                        {c.detail && <p className="mt-0.5 text-[10.5px] text-zinc-500">{c.detail}</p>}
+                        </div>
                       ))}
                     </div>
                   </div>
@@ -239,8 +242,8 @@ export function SleepView({ data }: { data: SyncResult }) {
                         </div>
                         <div className="flex items-center gap-2 text-[9px] font-medium text-zinc-500">
                           <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-[#22c55e]" />≥85</span>
-                          <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-[#818cf8]" />70-84</span>
-                          <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-[#fbbf24]" />50-69</span>
+                          <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-[#818cf8]" />70–84</span>
+                          <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-[#fbbf24]" />50–69</span>
                           <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-[#ef4444]" />&lt;50</span>
                         </div>
                       </div>
@@ -377,9 +380,9 @@ export function SleepView({ data }: { data: SyncResult }) {
       {/* ── 2. The trends ────────────────────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
         <Card>
-          <CardHead title="Sleep summary" hint={`${recorded} recorded nights of ${days.length}.`} />
+          <CardHead title="Sleep summary" hint={`${recorded} nights recorded in the last ${days.length} days.`} />
           <div className="px-5 pb-5">
-            <Row label="Typical duration (median)">
+            <Row label="Typical night">
               {(() => {
                 const s = stats(values(sleepAll));
                 return s ? fmtDuration(s.median) : '—';
@@ -397,14 +400,14 @@ export function SleepView({ data }: { data: SyncResult }) {
                 return s ? `${Math.round(s.median)} bpm` : '—';
               })()}
             </Row>
-            <Row label="Across the window">
-              <Delta value={windowShift(sleepAll, 7).delta} goodWhen="up" digits={0} suffix="min/night" />
+            <Row label="Latest 7 nights vs first 7">
+              <Delta value={windowShift(sleepAll, 7).delta} goodWhen="up" digits={0} suffix="min a night" />
             </Row>
           </div>
         </Card>
 
         <Card>
-          <CardHead title="Your latest naps" hint="Sleep outside the main overnight session." />
+          <CardHead title="Naps" hint="Sleep outside your main night." />
           <div className="px-5 pb-5 space-y-2">
             {(() => {
               const naps = days.flatMap((d) => d.naps).sort((a, b) => b.date.localeCompare(a.date));
@@ -427,16 +430,16 @@ export function SleepView({ data }: { data: SyncResult }) {
         <Card>
           <div className="px-4 py-4 space-y-5">
             <div>
-              <Label>Week on week</Label>
+              <Label>Last 7 nights</Label>
               <div className="mt-2">
                 <Value value={shift.current ? fmtDuration(shift.current) : null} size="lg" />
               </div>
               <div className="mt-2">
-                <Delta value={shift.delta} goodWhen="up" digits={0} suffix="min vs previous 7 days" />
+                <Delta value={shift.delta} goodWhen="up" digits={0} suffix="min a night vs the 7 before" />
               </div>
             </div>
             <div>
-              <Label>Debt (7 nights before last)</Label>
+              <Label>Sleep debt</Label>
               <div className="mt-2">
                 <Value
                   value={debt === null ? null : (Math.abs(debt.netMin) / 60).toFixed(1)}
@@ -445,17 +448,17 @@ export function SleepView({ data }: { data: SyncResult }) {
                   tone={debt !== null && debt.netMin > 0 ? 'text-amber-400' : 'text-emerald-400'}
                 />
               </div>
-              <p className="text-[10px] text-zinc-500 mt-2">Against your {Math.round(targetMin / 60)}h target, longer nights counted against shorter ones.</p>
+              <p className="text-[10px] text-zinc-500 mt-2 leading-relaxed">Over the 7 nights before last night, against your ~{Math.round(targetMin / 60)}h need. Longer nights pay back shorter ones.</p>
             </div>
             <div>
-              <Label>Bedtime consistency</Label>
+              <Label>Bedtime spread</Label>
               <div className="mt-2">
                 <Value value={consistency?.sdMin} size="lg" unit="min" digits={0} />
               </div>
               <p className="text-[10px] text-zinc-500 mt-2 leading-relaxed">
                 {consistency
-                  ? `Standard deviation over 14 nights (average bedtime ${formatClock(consistency.meanMin)}). Under 30 is tight; over 60 means social jetlag.`
-                  : 'Not enough data.'}
+                  ? `How far your bedtime strayed from its ${formatClock(consistency.meanMin)} average over ${consistency.n} nights. Under 30 min is steady; over 60 is social jetlag.`
+                  : 'Needs three nights in the last two weeks.'}
               </p>
             </div>
           </div>
@@ -476,7 +479,7 @@ export function SleepView({ data }: { data: SyncResult }) {
         <CardHead
           domain="sleep"
           title="Sleep duration"
-          hint="Total time actually asleep (excluding brief awakenings)."
+          hint="Time asleep each night, not counting time awake in bed."
           right={<CardSummary isSleep data={sleepWin} color={DOMAIN.sleep.hex} format={(v) => fmtDuration(v)} />}
         />
         <div className="px-2 pb-3">
@@ -490,13 +493,13 @@ export function SleepView({ data }: { data: SyncResult }) {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
         <Card>
-          <CardHead domain="sleep" title="REM sleep" hint="Usually ~20-25% of total sleep." right={<CardSummary isSleep data={remWin} color="#a78bfa" format={(v) => fmtDuration(v)} />} />
+          <CardHead domain="sleep" title="REM sleep" hint="Usually about 20–25% of a night." right={<CardSummary isSleep data={remWin} color="#a78bfa" format={(v) => fmtDuration(v)} />} />
           <div className="px-2 pb-3">
             <BarSeries series={groupSeries(remWin, bucket)} bucket={bucket} color="#a78bfa" unit="min" height={150} />
           </div>
         </Card>
         <Card>
-          <CardHead domain="sleep" title="Deep sleep" hint="Usually ~15-20% of total sleep, concentrated early in the night." right={<CardSummary isSleep data={deepWin} color="#4338ca" format={(v) => fmtDuration(v)} />} />
+          <CardHead domain="sleep" title="Deep sleep" hint="Usually about 15–20% of a night, most of it early." right={<CardSummary isSleep data={deepWin} color="#4338ca" format={(v) => fmtDuration(v)} />} />
           <div className="px-2 pb-3">
             <BarSeries series={groupSeries(deepWin, bucket)} bucket={bucket} color="#4338ca" unit="min" height={150} />
           </div>
