@@ -62,6 +62,16 @@ export function useSpan(data: SyncResult, initial: SpanId = '30'): SpanState {
   };
 }
 
+/**
+ * The selected span as a card names it: "30-day", "1-year" or "All-time". While stored history
+ * is shorter than the span, it names the days actually shown.
+ */
+export function spanName({ span, days }: SpanState): string {
+  if (span === 'all') return 'All-time';
+  if (days.length < Number(span)) return `${days.length}-day`;
+  return span === '365' ? '1-year' : `${span}-day`;
+}
+
 /** 14d · 30d · 90d · 1y · All. Spans longer than the stored history are greyed out. */
 export function SpanSelector({ state }: { state: SpanState }) {
   const history = useHistory();

@@ -9,7 +9,7 @@ import type { SyncResult } from '../pipeline/sync';
 import type { DailyRecord } from '../types/health';
 import { groupMean, groupSeries } from '../pipeline/aggregate';
 import { emptyRecord } from '../pipeline/normalize';
-import { SpanSelector, useSpan } from '../ui/span';
+import { SpanSelector, spanName, useSpan } from '../ui/span';
 import { ChartChips } from '../ui/ChartChips';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 import { LastSevenDays, STEP_GOAL, TodaySoFar, briskOf } from './ActivityCards';
@@ -171,7 +171,7 @@ export function ActivityView({ data }: { data: SyncResult }) {
   const total = (s: Point[]) => stats(values(s))?.sum;
   const summaryCard = (
     <Card>
-      <CardHead domain="movement" title={`Last ${window.length} days`} />
+      <CardHead domain="movement" title={`${spanName(spanState)} summary`} />
       <div className="px-5 pb-4 md:pb-5">
         <Row dense={!wide} label="Typical day">{fmtNum(stats(spanSteps)?.median, 0)} steps</Row>
         {best && (
