@@ -99,7 +99,7 @@ export interface NormalizeInput {
 
 export interface NormalizeResult {
   days: Map<CivilDate, DailyRecord>;
-  /** Observations actually written, per dataType. */
+  /** Days with an observation written, per dataType. */
   counts: Map<string, number>;
   latest: Map<string, CivilDate>;
   sources: Map<string, SourceRef>;
@@ -108,7 +108,11 @@ export interface NormalizeResult {
 /**
  * Fold every stream into one date-keyed map.
  *
- * Order matters for two streams: sleep (main session vs naps) and SpO₂ (prefer a reading that carries a min/max envelope). Both are handled inside their descriptors' `apply`, which is why `apply` receives the row rather than returning a patch to be blindly merged.
+ * A day can hold several readings of one stream: two devices, a partial reading
+ * beside a full one, a night and a nap. They are applied best first (the stream's
+ * `rank`, then its source), and `apply` only fills what's still empty, so the
+ * result never depends on the order the API listed them in, and an incremental
+ * sync agrees with a full one.
  */
 export function normalize(inputs: NormalizeInput[]): NormalizeResult {
   const days = new Map<CivilDate, DailyRecord>();
@@ -126,8 +130,8 @@ export function normalize(inputs: NormalizeInput[]): NormalizeResult {
   };
 
   for (const { stream, points } of inputs) {
-    let written = 0;
-    for (const dp of points ?? []) {
+    const parsed: { c: any; dp: any; date: CivilDate; source?: SourceRef; rank: number }[] = [];
+    for (const dp of stream.prepare ? stream.prepare(points ?? []) : points ?? []) {
       const container = dp?.[stream.container];
       // Rollup points nest values under the container; some list points are flat.
       const c = container ?? (stream.mode === 'list' ? dp : undefined);
@@ -138,20 +142,26 @@ export function normalize(inputs: NormalizeInput[]): NormalizeResult {
 
       const source = parseSource(dp?.dataSource);
       if (source) sources.set(source.id, source);
+      parsed.push({ c, dp, date, source, rank: stream.rank?.(c) ?? 0 });
+    }
+    // Best reading first; a stable sort keeps the API's order among equals.
+    parsed.sort((a, b) => b.rank - a.rank || compareIds(a.source?.id, b.source?.id));
 
+    const written = new Set<CivilDate>();
+    for (const { c, dp, date, source } of parsed) {
       const row = rowFor(date);
-      const ok = stream.apply({ row, source }, c, dp);
-      if (!ok) continue;
-
-      written++;
+      if (!stream.apply({ row, source }, c, dp)) continue;
+      written.add(date);
       const prev = latest.get(stream.dataType);
       if (!prev || date > prev) latest.set(stream.dataType, date);
     }
-    counts.set(stream.dataType, written);
+    counts.set(stream.dataType, written.size);
   }
 
   return { days, counts, latest, sources };
 }
+
+const compareIds = (a = '', b = '') => (a < b ? -1 : a > b ? 1 : 0);
 
 /**
  * Materialise a contiguous, ascending array of rows covering `from`..`to`.
