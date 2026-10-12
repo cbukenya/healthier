@@ -60,6 +60,12 @@ function labels(date: CivilDate, bucket: Bucket) {
 /** Recharts passes the axis label; show the row's full heading instead. */
 const tooltipHeading = (label: unknown, payload: readonly any[] | undefined) => payload?.[0]?.payload?.full ?? String(label ?? '');
 
+/**
+ * Y-axis ticks: thousands as "18k" or "4.5k". The axis column is about 28px wide, so a full
+ * "18,000" lost its first digits and read as "000".
+ */
+export const axisTick = (v: number) => (Math.abs(v) >= 1000 ? `${Number((v / 1000).toFixed(2))}k` : `${v}`);
+
 /** Sparse x-axis labels: roughly one per week, always including the last day. */
 function tickInterval(n: number): number {
   if (n <= 10) return 0;
@@ -119,7 +125,7 @@ export function TrendChart({
 
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <ComposedChart data={rows} margin={{ top: 8, right: 8, left: -24, bottom: 0 }}>
+      <ComposedChart data={rows} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
         <defs>
           <linearGradient id={id} x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor={color} stopOpacity={0.28} />
@@ -147,6 +153,7 @@ export function TrendChart({
           axisLine={false}
           tickLine={false}
           tick={{ fill: AXIS, fontSize: 10 }}
+          tickFormatter={axisTick}
           domain={domain ?? ['auto', 'auto']}
           width={52}
         />
@@ -215,16 +222,16 @@ export function BarSeries({
   if (!values(series).length) return <NoSeries height={height} />;
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <BarChart data={rows} margin={{ top: 8, right: 8, left: -24, bottom: 0 }}>
+      <BarChart data={rows} margin={{ top: 8, right: goal !== undefined ? 28 : 8, left: -16, bottom: 0 }}>
         <CartesianGrid stroke={GRID} strokeDasharray="2 4" vertical={false} />
         {goal !== undefined && (
           <ReferenceLine
             y={goal} stroke="#a1a1aa" strokeDasharray="4 3" strokeWidth={1}
-            label={{ value: format(goal), position: 'right', fill: AXIS, fontSize: 9 }}
+            label={{ value: axisTick(goal), position: 'right', fill: AXIS, fontSize: 9 }}
           />
         )}
         <XAxis dataKey="label" axisLine={false} tickLine={false} interval={tickInterval(rows.length)} tick={{ fill: AXIS, fontSize: 10 }} dy={6} />
-        <YAxis axisLine={false} tickLine={false} tick={{ fill: AXIS, fontSize: 10 }} width={52} />
+        <YAxis axisLine={false} tickLine={false} tick={{ fill: AXIS, fontSize: 10 }} tickFormatter={axisTick} width={52} />
         <Tooltip
           contentStyle={tooltipStyle} itemStyle={{ color: '#a1a1aa' }}
           labelStyle={{ color: '#e4e4e7', fontWeight: 600 }}
@@ -281,10 +288,10 @@ export function StackedBars({
   if (!rows.some((r) => r.__any)) return <NoSeries height={height} />;
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <BarChart data={rows} margin={{ top: 8, right: 8, left: -24, bottom: 0 }}>
+      <BarChart data={rows} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
         <CartesianGrid stroke={GRID} strokeDasharray="2 4" vertical={false} />
         <XAxis dataKey="label" axisLine={false} tickLine={false} interval={tickInterval(rows.length)} tick={{ fill: AXIS, fontSize: 10 }} dy={6} />
-        <YAxis axisLine={false} tickLine={false} tick={{ fill: AXIS, fontSize: 10 }} width={52} />
+        <YAxis axisLine={false} tickLine={false} tick={{ fill: AXIS, fontSize: 10 }} tickFormatter={axisTick} width={52} />
         <Tooltip
           contentStyle={tooltipStyle} itemStyle={{ color: '#a1a1aa' }}
           labelStyle={{ color: '#e4e4e7', fontWeight: 600, marginBottom: 2 }}
@@ -348,10 +355,10 @@ export function RangeBandChart({
   const period = bucket === 'day' ? 'nightly' : `${bucket}'s`;
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <ComposedChart data={rows} margin={{ top: 8, right: 8, left: -24, bottom: 0 }}>
+      <ComposedChart data={rows} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
         <CartesianGrid stroke={GRID} strokeDasharray="2 4" vertical={false} />
         <XAxis dataKey="label" axisLine={false} tickLine={false} interval={tickInterval(rows.length)} tick={{ fill: AXIS, fontSize: 10 }} dy={6} />
-        <YAxis axisLine={false} tickLine={false} tick={{ fill: AXIS, fontSize: 10 }} domain={domain ?? ['auto', 'auto']} width={52} />
+        <YAxis axisLine={false} tickLine={false} tick={{ fill: AXIS, fontSize: 10 }} tickFormatter={axisTick} domain={domain ?? ['auto', 'auto']} width={52} />
         <Tooltip
           contentStyle={tooltipStyle} itemStyle={{ color: '#a1a1aa' }}
           labelStyle={{ color: '#e4e4e7', fontWeight: 600, marginBottom: 2 }}
@@ -395,11 +402,11 @@ export function DivergingBars({
   if (!values(series).length) return <NoSeries height={height} />;
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <BarChart data={rows} margin={{ top: 8, right: 8, left: -24, bottom: 0 }}>
+      <BarChart data={rows} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
         <CartesianGrid stroke={GRID} strokeDasharray="2 4" vertical={false} />
         <ReferenceLine y={0} stroke="#52525b" strokeWidth={1} />
         <XAxis dataKey="label" axisLine={false} tickLine={false} interval={tickInterval(rows.length)} tick={{ fill: AXIS, fontSize: 10 }} dy={6} />
-        <YAxis axisLine={false} tickLine={false} tick={{ fill: AXIS, fontSize: 10 }} width={52} />
+        <YAxis axisLine={false} tickLine={false} tick={{ fill: AXIS, fontSize: 10 }} tickFormatter={axisTick} width={52} />
         <Tooltip
           contentStyle={tooltipStyle} itemStyle={{ color: '#a1a1aa' }}
           labelStyle={{ color: '#e4e4e7', fontWeight: 600 }}
@@ -662,10 +669,13 @@ export function WeekdayProfile({
   data,
   color,
   format = (v: number) => fmtNum(v, 0),
+  className = 'h-[112px]',
 }: {
   data: { weekday: number; mean: number | null; n: number }[];
   color: string;
   format?: (v: number) => string;
+  /** Its height; pass a flex-1 to let it fill a stretched card. */
+  className?: string;
 }) {
   // Monday-first reads better for weekly habits than the JS Sunday-first order.
   const order = [1, 2, 3, 4, 5, 6, 0];
@@ -673,7 +683,7 @@ export function WeekdayProfile({
   const full = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   const max = Math.max(...data.map((d) => d.mean ?? 0), 1);
   return (
-    <div className="flex items-end gap-1.5 px-5 pb-5 h-[112px]">
+    <div className={`flex items-end gap-1.5 px-5 pb-5 ${className}`}>
       {order.map((wd) => {
         const d = data.find((x) => x.weekday === wd)!;
         const h = d.mean === null ? 0 : (d.mean / max) * 100;
@@ -777,7 +787,7 @@ export function IntradayTrace({
 
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <AreaChart data={rows} margin={{ top: 8, right: 8, left: -24, bottom: 0 }}>
+      <AreaChart data={rows} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
         <defs>
           <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
             <stop offset="5%" stopColor={color} stopOpacity={0.6} />
@@ -786,7 +796,7 @@ export function IntradayTrace({
         </defs>
         <CartesianGrid stroke={GRID} strokeDasharray="2 4" vertical={false} />
         <XAxis dataKey="label" axisLine={false} tickLine={false} interval={Math.floor(rows.length / 6)} tick={{ fill: AXIS, fontSize: 10 }} dy={6} />
-        <YAxis axisLine={false} tickLine={false} tick={{ fill: AXIS, fontSize: 10 }} domain={['auto', 'auto']} width={52} />
+        <YAxis axisLine={false} tickLine={false} tick={{ fill: AXIS, fontSize: 10 }} tickFormatter={axisTick} domain={['auto', 'auto']} width={52} />
         <Tooltip contentStyle={tooltipStyle} itemStyle={{ color: '#a1a1aa' }} labelStyle={{ color: '#e4e4e7', fontWeight: 600 }} formatter={(v: any) => [`${v} bpm`, '']} cursor={{ stroke: '#52525b', strokeWidth: 1, strokeDasharray: '4 4', fill: 'transparent' }} />
         <Area type="monotone" dataKey="value" stroke={color} strokeWidth={1.5} fill={`url(#${gradientId})`} isAnimationActive={false} dot={false} />
       </AreaChart>
