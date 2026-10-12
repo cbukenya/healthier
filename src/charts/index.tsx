@@ -468,6 +468,47 @@ export function Hypnogram({ session, height = 200 }: { session: SleepSession; he
   const x = (min: number) => PL + (min / total) * w;
   const rowY = (stage: keyof typeof STAGE_STYLE) => PT + STAGE_STYLE[stage].row * rowH + rowH / 2;
 
+  // Consecutive pieces of one stage draw as a single block.
+  const runs: { stage: keyof typeof STAGE_STYLE; from: number; to: number; clockMin: number }[] = [];
+  for (const sg of segs) {
+    const last = runs[runs.length - 1];
+    if (last && last.stage === sg.stage && Math.abs(last.to - sg.offsetMin) < 0.5) last.to = sg.offsetMin + sg.durationMin;
+    else runs.push({ stage: sg.stage, from: sg.offsetMin, to: sg.offsetMin + sg.durationMin, clockMin: sg.clockMin });
+  }
+  // Each change of stage is a thin link that sits flush inside the end of one block and the start
+  // of the next, whose touching corners are square, so block, link and block join without a seam.
+  // The outer corners stay rounded. Blocks are at least MIN_W wide, so a one-minute stage still
+  // shows; the extra width pushes the next block along until a longer one absorbs it.
+  const LINK = 1.25, MIN_W = 5, RADIUS = 6;
+  const linked = (i: number) => i > 0 && Math.abs(runs[i - 1].to - runs[i].from) < 0.5;
+  const laid: { x0: number; x1: number }[] = [];
+  runs.forEach((r, i) => {
+    const x0 = linked(i) ? laid[i - 1].x1 - LINK : x(r.from);
+    laid.push({ x0, x1: Math.min(PL + w, Math.max(x(r.to), x0 + MIN_W)) });
+  });
+  const above = (a: keyof typeof STAGE_STYLE, b: keyof typeof STAGE_STYLE) => STAGE_STYLE[a].row < STAGE_STYLE[b].row;
+  /** A block's outline, square at the corners a link leaves from or arrives at. */
+  const blockPath = (i: number) => {
+    const r = runs[i];
+    const { x0, x1 } = laid[i];
+    const y0 = rowY(r.stage) - barH / 2;
+    const y1 = y0 + barH;
+    const rad = Math.min(RADIUS, (x1 - x0) / 2, barH / 2);
+    const prev = linked(i) ? runs[i - 1].stage : null;
+    const next = i + 1 < runs.length && linked(i + 1) ? runs[i + 1].stage : null;
+    const tl = prev && above(prev, r.stage) ? 0 : rad;
+    const bl = prev && !above(prev, r.stage) ? 0 : rad;
+    const tr = next && above(next, r.stage) ? 0 : rad;
+    const br = next && !above(next, r.stage) ? 0 : rad;
+    const arc = (rr: number, ex: number, ey: number) => (rr ? `A${rr},${rr} 0 0 1 ${ex},${ey}` : '');
+    return [
+      `M${x0 + tl},${y0}`, `H${x1 - tr}`, arc(tr, x1, y0 + tr),
+      `V${y1 - br}`, arc(br, x1 - br, y1),
+      `H${x0 + bl}`, arc(bl, x0, y1 - bl),
+      `V${y0 + tl}`, arc(tl, x0 + tl, y0), 'Z',
+    ].join(' ');
+  };
+
   // An hour label wherever there's room for one; every other hour on a long night on a phone.
   const startClock = segs[0].clockMin;
   const hourStep = (60 / total) * w < 44 ? 120 : 60;
@@ -483,14 +524,15 @@ export function Hypnogram({ session, height = 200 }: { session: SleepSession; he
           <svg width={W} height={height} viewBox={`0 0 ${W} ${height}`} className="block" role="img"
             aria-label={`Sleep stages, ${fmtDuration(session.minutesAsleep)} asleep`}>
             <defs>
-              {segs.map((s, i) => {
-                const prev = i > 0 ? segs[i - 1] : null;
-                if (!prev || prev.stage === s.stage) return null;
+              {runs.map((r, i) => {
+                if (!linked(i)) return null;
+                const prev = runs[i - 1];
+                const down = above(prev.stage, r.stage);
                 return (
-                  <linearGradient key={i} id={`${uid}-t${i}`} gradientUnits="userSpaceOnUse"
-                    x1={0} y1={rowY(prev.stage)} x2={0} y2={rowY(s.stage)}>
+                  <linearGradient key={i} id={`${uid}-t${i}`} gradientUnits="userSpaceOnUse" x1={0} x2={0}
+                    y1={rowY(prev.stage) + (down ? barH / 2 : -barH / 2)} y2={rowY(r.stage) + (down ? -barH / 2 : barH / 2)}>
                     <stop offset="0" stopColor={STAGE_STYLE[prev.stage].color} />
-                    <stop offset="1" stopColor={STAGE_STYLE[s.stage].color} />
+                    <stop offset="1" stopColor={STAGE_STYLE[r.stage].color} />
                   </linearGradient>
                 );
               })}
@@ -504,24 +546,22 @@ export function Hypnogram({ session, height = 200 }: { session: SleepSession; he
                 </g>
               );
             })}
-            {/* Transitions first, so each stage's block sits over the ends of its links. */}
-            {segs.map((s, i) => {
-              const prev = i > 0 ? segs[i - 1] : null;
-              if (!prev || prev.stage === s.stage) return null;
+            {/* Links first; each block covers the part of its links that runs inside it. */}
+            {runs.map((r, i) => {
+              if (!linked(i)) return null;
+              const ya = rowY(runs[i - 1].stage);
+              const yb = rowY(r.stage);
               return (
-                <line key={i} x1={x(s.offsetMin)} x2={x(s.offsetMin)} y1={rowY(prev.stage)} y2={rowY(s.stage)}
-                  stroke={`url(#${uid}-t${i})`} strokeWidth={2.5} strokeLinecap="round" />
+                <rect key={i} x={laid[i - 1].x1 - LINK} width={LINK} y={Math.min(ya, yb)} height={Math.abs(yb - ya)}
+                  fill={`url(#${uid}-t${i})`} />
               );
             })}
-            {segs.map((s, i) => {
-              const st = STAGE_STYLE[s.stage];
-              // At least 4px, so a two-minute stage still reads as a block rather than a hairline.
-              const bw = Math.max(4, (s.durationMin / total) * w);
+            {runs.map((r, i) => {
+              const st = STAGE_STYLE[r.stage];
               return (
-                <rect key={i} x={x(s.offsetMin)} y={rowY(s.stage) - barH / 2} width={bw} height={barH}
-                  rx={Math.min(6, bw / 2, barH / 2)} fill={st.color}>
-                  <title>{`${st.label} · ${Math.round(s.durationMin)} min · from ${formatClock(s.clockMin)}`}</title>
-                </rect>
+                <path key={i} d={blockPath(i)} fill={st.color}>
+                  <title>{`${st.label} · ${Math.round(r.to - r.from)} min · from ${formatClock(r.clockMin)}`}</title>
+                </path>
               );
             })}
             {session.shortAwakeningsMin.map((m, i) => (
