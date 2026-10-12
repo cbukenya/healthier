@@ -1,31 +1,40 @@
 import React from 'react';
-import { Footprints, Heart, Moon, Activity, Database } from 'lucide-react';
+import { Footprints, Heart, Moon, Wind } from 'lucide-react';
 import { formatCivilLong, formatClock, type CivilDate } from '../lib/date';
 import {
-  compareToBaseline, completedDays, coverage, goal, isRecent, latestPoint, loadRatio, series, values,
+  compareToBaseline, goal, isRecent, latestPoint, series, NOISE_FLOOR,
   type Point,
 } from '../pipeline/derive';
 import { todaySummary } from '../pipeline/insights';
 import type { IntradayDays } from '../pipeline/labs';
-import { STREAMS } from '../pipeline/registry';
 import { Spark } from '../charts';
 import {
-  BandPill, Card, CardHead, DOMAIN, Delta, EmptyState, Label, Meter, Row, Value,
+  BandPill, Card, DOMAIN, EmptyState, Label, Meter, Row, Value,
   fmtDuration, fmtNum,
 } from '../ui/primitives';
 import type { SyncResult } from '../pipeline/sync';
-import { BodyBattery } from './BodyBattery';
+import { BodyBattery, BodyBatteryCompact } from './BodyBattery';
+import { ThisWeek } from './ThisWeek';
 import { InsightsCarousel } from '../components/InsightsCarousel';
+
+/** Breathing's colour on the Vitals page. */
+const BREATHING_HEX = '#a855f7';
+
+const and = (items: string[]) =>
+  items.length <= 1 ? items.join('') : `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`;
 
 export function TodayView({
   data,
   intraday,
   clock,
+  onOpenData,
 }: {
   data: SyncResult;
   intraday?: IntradayDays;
   /** Demo mode runs on the fixture's clock and zone; live data on this device's. */
   clock?: { now: Date; timeZone: string };
+  /** Opens the Data tab from the sources line. */
+  onOpenData?: () => void;
 }) {
   const s = todaySummary(data, clock?.now, { intraday, timeZone: clock?.timeZone });
   const days = data.days;
@@ -35,6 +44,7 @@ export function TodayView({
   const stepsSeries = series(days, (d) => d.steps);
   const sleepSeries = series(days, (d) => d.sleep?.minutesAsleep ?? null);
   const rhrSeries = series(days, (d) => d.restingHr);
+  const respSeries = series(days, (d) => d.respiratoryRate);
 
   const stepsCmp = compareToBaseline(stepsSeries);
   const sleepCmp = compareToBaseline(sleepSeries);
@@ -44,37 +54,94 @@ export function TodayView({
   const slDay = s.sleepDay;
   const sl = slDay?.sleep ?? null;
   const stepGoal = goal(mv?.steps ?? null, 10000);
-  // Today's steps are still counting, so the ramp compares finished days.
-  const load = loadRatio(series(completedDays(days), (d) => d.steps));
   const movementIsToday = mv?.date === today;
 
   // Each overnight vital from last night or the one before, never further back.
   const rhrNow = isRecent(s.rhr.date, today) ? s.rhr : null;
   const hrvNow = isRecent(s.hrv.date, today) ? s.hrv : null;
-  const respNow = recentPoint(series(days, (d) => d.respiratoryRate), today);
+  const resp = compareToBaseline(respSeries, 28, 8, NOISE_FLOOR.respiratoryRate);
+  const respNow = isRecent(resp.date, today) ? resp : null;
   const spo2Now = recentPoint(series(days, (d) => d.spo2?.avg ?? null), today);
   const vitalsDate = [rhrNow?.date, hrvNow?.date, respNow?.date, spo2Now?.date]
     .filter((d): d is CivilDate => !!d)
     .sort()
     .at(-1) ?? null;
 
-  const cov = coverage(days, STREAMS.map((x) => ({ dataType: x.dataType, label: x.label })));
-  const freshToday = cov.filter((c) => c.staleDays === 0).length;
+  const battery = {
+    score: s.readiness.score,
+    parts: s.readiness.parts,
+    confidence: s.readiness.confidence,
+    label: s.readiness.label,
+    missing: s.readiness.missing,
+    calibrating: s.readiness.calibrating,
+  };
+  const sources = [...new Set(data.meta.sources.map((x) => x.label))];
+  const streamsOk = data.meta.streams.filter((x) => x.status === 'ok').length;
+  // A tile's date note, when its reading isn't today's.
+  const from = (date: CivilDate | null | undefined) => (date && date !== today ? `From ${formatCivilLong(date)}` : null);
 
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-start">
-        <BodyBattery
-          score={s.readiness.score}
-          parts={s.readiness.parts}
-          confidence={s.readiness.confidence}
-          label={s.readiness.label}
-          missing={s.readiness.missing}
-          calibrating={s.readiness.calibrating}
-          className="lg:col-span-8 h-full"
-        />
+        {/* Phones get the compact battery and four tiles; wider screens the full card and its column. */}
+        <BodyBatteryCompact {...battery} className="md:hidden" />
+        <BodyBattery {...battery} className="hidden md:block lg:col-span-8 h-full" />
 
-        <div className="lg:col-span-4 grid grid-cols-1 gap-3">
+        <div className="grid grid-cols-2 gap-2.5 md:hidden">
+          <Tile
+            label="Last night"
+            icon={<Moon size={14} className={DOMAIN.sleep.text} />}
+            value={<Value value={sl ? fmtDuration(sl.minutesAsleep) : null} size="md" />}
+            pill={sl && <BandPill c={sleepCmp} />}
+            chart={sl && <Spark series={sleepSeries.slice(-21)} color={DOMAIN.sleep.hex} height={28} />}
+            lines={sl ? [
+              [s.sleepScore && `Score ${s.sleepScore.total}`, sl.stages && `Deep+REM ${Math.round(((sl.stages.deep + sl.stages.rem) / sl.minutesAsleep) * 100)}%`]
+                .filter(Boolean).join(' · '),
+              `${formatClock(sl.bedtimeMin)} → ${formatClock(sl.wakeMin)}`,
+            ] : ['Nothing synced for last night or the night before']}
+            note={from(slDay?.date)}
+          />
+          <Tile
+            label={movementIsToday ? 'Activity today' : 'Latest activity'}
+            icon={<Footprints size={14} className={DOMAIN.movement.text} />}
+            value={<Value value={mv?.steps ?? null} size="md" unit="steps" />}
+            pill={mv && <BandPill c={stepsCmp} partial={movementIsToday} />}
+            chart={mv && <Meter pct={stepGoal.pct} color={DOMAIN.movement.hex} className="my-3" />}
+            lines={mv ? [
+              [stepGoal.pct !== null && `${Math.round(stepGoal.pct)}% of 10,000`, mv.distanceKm !== null && `${fmtNum(mv.distanceKm, 2)} km`]
+                .filter(Boolean).join(' · '),
+              [mv.activeMinutes && `${mv.activeMinutes.moderate + mv.activeMinutes.vigorous} min brisk`, mv.activeKcal !== null && `${fmtNum(mv.activeKcal, 0)} kcal`]
+                .filter(Boolean).join(' · '),
+            ] : ['No steps synced today or yesterday']}
+            note={mv && !movementIsToday ? `${formatCivilLong(mv.date)} · today hasn't synced yet` : null}
+          />
+          <Tile
+            label="Resting HR"
+            icon={<Heart size={14} className={DOMAIN.cardio.text} />}
+            value={<Value value={rhrNow?.value ?? null} size="md" unit="bpm" />}
+            pill={rhrNow && <BandPill c={rhrNow} />}
+            chart={rhrNow && <Spark series={rhrSeries.slice(-21)} color={DOMAIN.cardio.hex} height={28} />}
+            lines={rhrNow || hrvNow ? [
+              hrvNow && `HRV ${fmtNum(hrvNow.value)} ms`,
+              hrvNow && hrvNow.baseline !== null && `usual ${fmtNum(hrvNow.baseline)} ms`,
+            ] : ['No reading for last night or the night before']}
+            note={from(rhrNow?.date)}
+          />
+          <Tile
+            label="Breathing"
+            icon={<Wind size={14} style={{ color: BREATHING_HEX }} />}
+            value={<Value value={respNow?.value ?? null} size="md" digits={1} unit="/min" />}
+            pill={respNow && <BandPill c={respNow} />}
+            chart={respNow && <Spark series={respSeries.slice(-21)} color={BREATHING_HEX} height={28} />}
+            lines={respNow || spo2Now ? [
+              respNow && respNow.baseline !== null && `usual ${fmtNum(respNow.baseline)} /min`,
+              spo2Now && `Blood oxygen ${fmtNum(spo2Now.value)}%`,
+            ] : ['No reading for last night or the night before']}
+            note={from(respNow?.date)}
+          />
+        </div>
+
+        <div className="hidden md:grid lg:col-span-4 grid-cols-1 gap-3">
           <Card className="flex flex-col">
             <div className="px-4 pt-4 pb-3 flex-1 flex flex-col">
               <div className="flex items-start justify-between">
@@ -212,57 +279,53 @@ export function TodayView({
           <InsightsCarousel observations={s.observations} />
         </div>
 
-        <div className="lg:col-span-4 flex flex-col h-full">
-          <Card className="flex-1 flex flex-col">
-            <CardHead
-              title="Where these numbers came from"
-              hint={`${data.meta.streams.filter((x) => x.status === 'ok').length} of ${data.meta.streams.length} streams returned data across ${days.length} days.`}
-              domain="data"
-            />
-            <div className="px-5 pb-5">
-            <div className="grid grid-cols-3 gap-3 pb-4 border-b border-zinc-800/60">
-              <div>
-                <Value value={freshToday} size="md" />
-                <p className="text-[10px] text-zinc-500 mt-0.5">streams current</p>
-              </div>
-              <div>
-                <Value value={values(stepsSeries).length} size="md" />
-                <p className="text-[10px] text-zinc-500 mt-0.5">days of movement</p>
-              </div>
-              <div>
-                <Value value={values(sleepSeries).length} size="md" />
-                <p className="text-[10px] text-zinc-500 mt-0.5">nights of sleep</p>
-              </div>
-            </div>
-            <div className="pt-3 space-y-0">
-              {data.meta.sources.map((src) => (
-                <Row key={src.id} label={src.label}>
-                  <span className="text-zinc-500 text-[11px]">
-                    {src.platform.replace('_', ' ').toLowerCase()} · {src.method.replace('_', ' ').toLowerCase()}
-                  </span>
-                </Row>
-              ))}
-              <Row label="Activity ramp (this week vs prior 3)">
-                {load.ratio === null ? '—' : `${load.ratio.toFixed(2)}×`}
-              </Row>
-              <Row label={`Sleep vs your ~${Math.round((s.sleepTargetMin / 60) * 10) / 10}h target, the 7 nights before last`}>
-                {s.debt === null ? (
-                  <span className="text-zinc-500">too few nights</span>
-                ) : s.debt.netMin > 0 ? (
-                  <span className="text-amber-300">
-                    {(s.debt.netMin / 60).toFixed(1)}h short
-                    {s.debt.coverage === 'partial' && <span className="text-zinc-500"> (est.)</span>}
-                  </span>
-                ) : (
-                  <span className="text-emerald-400">on target</span>
-                )}
-              </Row>
-            </div>
+        {s.week && (
+          <div className="lg:col-span-4 flex flex-col h-full">
+            <ThisWeek week={s.week} needMin={s.sleepTargetMin} className="flex-1" />
           </div>
-        </Card>
+        )}
       </div>
-      </div>
+
+      <p className="px-1 pt-1 text-[12px] leading-[1.5] text-[#6b6f78]">
+        {sources.length > 0 && <>From {and(sources)} · </>}
+        {streamsOk} of {data.meta.streams.length} streams
+        {onOpenData && (
+          <>
+            {' · '}
+            <button type="button" onClick={onOpenData} className="underline underline-offset-2 decoration-zinc-700 hover:text-zinc-300 transition-colors">
+              Data
+            </button>
+          </>
+        )}
+      </p>
     </div>
+  );
+}
+
+/** One of the phone layout's four at-a-glance tiles: the number, its verdict, a trend, the details in grey. */
+function Tile({ label, icon, value, pill, chart, lines, note }: {
+  label: string;
+  icon: React.ReactNode;
+  value: React.ReactNode;
+  pill?: React.ReactNode;
+  chart?: React.ReactNode;
+  lines: (string | false | null | undefined)[];
+  note?: string | null;
+}) {
+  return (
+    <article className="min-w-0 bg-[#0c0c0e] border border-[#1e1e22] rounded-[18px] p-3.5 flex flex-col gap-1.5">
+      <div className="flex items-center justify-between gap-2">
+        <Label className="truncate">{label}</Label>
+        {icon}
+      </div>
+      <div>{value}</div>
+      {pill && <div className="flex">{pill}</div>}
+      {chart}
+      <p className="text-[11.5px] leading-[1.5] text-zinc-500">
+        {lines.filter(Boolean).map((line, i) => <span key={i} className="block">{line}</span>)}
+      </p>
+      {note && <p className="text-[10px] text-amber-400/80">{note}</p>}
+    </article>
   );
 }
 

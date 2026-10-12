@@ -290,13 +290,14 @@ export function NavButton({
   return (
     <button
       onClick={onClick}
-      className={`shrink-0 flex items-center gap-2 px-3 py-1.5 rounded-xl text-[11px] font-medium transition-all ${
+      // Phones get finger-sized tabs; the labels carry the domain colour, so the icons can go.
+      className={`shrink-0 flex items-center gap-2 min-h-10 md:min-h-0 px-3.5 md:px-3 py-1.5 rounded-xl text-[13px] md:text-[11px] font-medium transition-all ${
         active 
           ? 'bg-zinc-800 text-white' 
           : `hover:bg-zinc-800/50 ${color || 'text-zinc-400 hover:text-zinc-200'}`
       }`}
     >
-      {icon && <span className={active ? color || 'text-zinc-200' : 'opacity-70'}>{icon}</span>}
+      {icon && <span className={`hidden md:inline ${active ? color || 'text-zinc-200' : 'opacity-70'}`}>{icon}</span>}
       {label}
     </button>
   );
