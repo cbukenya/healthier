@@ -1,6 +1,6 @@
 export * from './SleepWindowChart';
 
-import React, { useMemo } from 'react';
+import React, { useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, ComposedChart, Line, ReferenceArea,
   ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis,
@@ -432,8 +432,24 @@ const STAGE_STYLE = {
  * Hand-drawn SVG rather than a chart library: a hypnogram is a step function
  * across four ordered categories, which no generic chart type expresses well.
  * Rows run awake → deep so downward reads as deeper, matching sleep-lab convention.
+ *
+ * Drawn at its true pixel width: a fixed 1000-unit viewBox shrank the whole
+ * drawing to fit, so on a phone the bars were a few pixels tall and the stage
+ * names unreadable.
  */
-export function Hypnogram({ session, height = 172 }: { session: SleepSession; height?: number }) {
+export function Hypnogram({ session, height = 200 }: { session: SleepSession; height?: number }) {
+  const box = useRef<HTMLDivElement>(null);
+  const [W, setW] = useState(0);
+  const uid = useId().replace(/[^\w-]/g, '');
+  useLayoutEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    setW(el.clientWidth);
+    const ro = new ResizeObserver(() => setW(el.clientWidth));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
   const segs = session.segments;
   if (!segs.length) {
     return (
@@ -445,64 +461,84 @@ export function Hypnogram({ session, height = 172 }: { session: SleepSession; he
     );
   }
   const total = segs.reduce((a, s) => a + s.durationMin, 0);
-  const PL = 46, PR = 12, PT = 16, PB = 26;
-  const W = 1000; // viewBox width; scales to the container
-  const w = W - PL - PR;
+  const PL = 46, PR = 6, PT = 16, PB = 26;
+  const w = Math.max(0, W - PL - PR);
   const rowH = (height - PT - PB) / 4;
+  const barH = Math.round(rowH * 0.62);
   const x = (min: number) => PL + (min / total) * w;
+  const rowY = (stage: keyof typeof STAGE_STYLE) => PT + STAGE_STYLE[stage].row * rowH + rowH / 2;
 
-  const hourTicks: number[] = [];
+  // An hour label wherever there's room for one; every other hour on a long night on a phone.
   const startClock = segs[0].clockMin;
-  for (let m = (60 - (startClock % 60)) % 60; m < total; m += 60) hourTicks.push(m);
+  const hourStep = (60 / total) * w < 44 ? 120 : 60;
+  const hourTicks: number[] = [];
+  for (let m = (60 - (startClock % 60)) % 60; m < total; m += 60) {
+    if ((startClock + m) % hourStep === 0) hourTicks.push(m);
+  }
 
   return (
     <div className="px-3 pb-2">
-      <svg viewBox={`0 0 ${W} ${height}`} className="w-full" style={{ height }} role="img"
-        aria-label={`Sleep stages, ${fmtDuration(session.minutesAsleep)} asleep`}>
-        {Object.entries(STAGE_STYLE).map(([k, st]) => {
-          const y = PT + st.row * rowH + rowH / 2;
-          return (
-            <g key={k}>
-              <line x1={PL} x2={W - PR} y1={y} y2={y} stroke={GRID} strokeWidth={1} />
-              <text x={PL - 8} y={y + 3.5} textAnchor="end" fontSize={10} fill={AXIS}>{st.label}</text>
-            </g>
-          );
-        })}
-        {segs.map((s, i) => {
-          const st = STAGE_STYLE[s.stage];
-          const y = PT + st.row * rowH + rowH / 2 - 6;
-          const bw = Math.max(1.5, (s.durationMin / total) * w);
-          const prev = i > 0 ? segs[i - 1] : null;
-          return (
-            <g key={i}>
-              {prev && (
-                <line
-                  x1={x(s.offsetMin)} x2={x(s.offsetMin)}
-                  y1={PT + STAGE_STYLE[prev.stage].row * rowH + rowH / 2}
-                  y2={y + 6}
-                  stroke={st.color} strokeWidth={1} opacity={0.35}
-                />
-              )}
-              <rect x={x(s.offsetMin)} y={y} width={bw} height={12} rx={2} fill={st.color}>
-                <title>{`${st.label} · ${Math.round(s.durationMin)} min · from ${formatClock(s.clockMin)}`}</title>
-              </rect>
-            </g>
-          );
-        })}
-        {session.shortAwakeningsMin.map((m, i) => (
-          <line key={i} x1={x(m)} x2={x(m)} y1={PT - 6} y2={PT + 1} stroke="#e4e4e7" strokeWidth={1.6}>
-            <title>{`Brief awakening at ${formatClock(segs[0].clockMin + m)}`}</title>
-          </line>
-        ))}
-        {hourTicks.map((m) => (
-          <g key={m}>
-            <line x1={x(m)} x2={x(m)} y1={height - PB + 2} y2={height - PB + 6} stroke={GRID} />
-            <text x={x(m)} y={height - PB + 18} textAnchor="middle" fontSize={10} fill={AXIS}>
-              {formatClock(startClock + m)}
-            </text>
-          </g>
-        ))}
-      </svg>
+      <div ref={box} style={{ height }}>
+        {W > 0 && (
+          <svg width={W} height={height} viewBox={`0 0 ${W} ${height}`} className="block" role="img"
+            aria-label={`Sleep stages, ${fmtDuration(session.minutesAsleep)} asleep`}>
+            <defs>
+              {segs.map((s, i) => {
+                const prev = i > 0 ? segs[i - 1] : null;
+                if (!prev || prev.stage === s.stage) return null;
+                return (
+                  <linearGradient key={i} id={`${uid}-t${i}`} gradientUnits="userSpaceOnUse"
+                    x1={0} y1={rowY(prev.stage)} x2={0} y2={rowY(s.stage)}>
+                    <stop offset="0" stopColor={STAGE_STYLE[prev.stage].color} />
+                    <stop offset="1" stopColor={STAGE_STYLE[s.stage].color} />
+                  </linearGradient>
+                );
+              })}
+            </defs>
+            {Object.entries(STAGE_STYLE).map(([k, st]) => {
+              const y = PT + st.row * rowH + rowH / 2;
+              return (
+                <g key={k}>
+                  <line x1={PL} x2={W - PR} y1={y} y2={y} stroke={GRID} strokeWidth={1} />
+                  <text x={PL - 10} y={y + 3.5} textAnchor="end" fontSize={10.5} fill={AXIS}>{st.label}</text>
+                </g>
+              );
+            })}
+            {/* Transitions first, so each stage's block sits over the ends of its links. */}
+            {segs.map((s, i) => {
+              const prev = i > 0 ? segs[i - 1] : null;
+              if (!prev || prev.stage === s.stage) return null;
+              return (
+                <line key={i} x1={x(s.offsetMin)} x2={x(s.offsetMin)} y1={rowY(prev.stage)} y2={rowY(s.stage)}
+                  stroke={`url(#${uid}-t${i})`} strokeWidth={2} strokeLinecap="round" opacity={0.7} />
+              );
+            })}
+            {segs.map((s, i) => {
+              const st = STAGE_STYLE[s.stage];
+              const bw = Math.max(2, (s.durationMin / total) * w);
+              return (
+                <rect key={i} x={x(s.offsetMin)} y={rowY(s.stage) - barH / 2} width={bw} height={barH}
+                  rx={Math.min(6, bw / 2, barH / 2)} fill={st.color}>
+                  <title>{`${st.label} · ${Math.round(s.durationMin)} min · from ${formatClock(s.clockMin)}`}</title>
+                </rect>
+              );
+            })}
+            {session.shortAwakeningsMin.map((m, i) => (
+              <line key={i} x1={x(m)} x2={x(m)} y1={PT - 12} y2={PT - 4} stroke="#e4e4e7" strokeWidth={1.6} strokeLinecap="round">
+                <title>{`Brief awakening at ${formatClock(segs[0].clockMin + m)}`}</title>
+              </line>
+            ))}
+            {hourTicks.map((m) => (
+              <g key={m}>
+                <line x1={x(m)} x2={x(m)} y1={height - PB + 2} y2={height - PB + 6} stroke={GRID} />
+                <text x={x(m)} y={height - PB + 19} textAnchor="middle" fontSize={10.5} fill={AXIS}>
+                  {formatClock(startClock + m)}
+                </text>
+              </g>
+            ))}
+          </svg>
+        )}
+      </div>
     </div>
   );
 }
