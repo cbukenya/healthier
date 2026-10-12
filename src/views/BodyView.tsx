@@ -4,13 +4,13 @@ import { bodyComposition, slopePerDay, stats, theilSen, values, series, windowSh
 import { TrendChart } from '../charts';
 import { Card, CardHead, DOMAIN, Delta, EmptyState, Label, Row, Segmented, Value, fmtNum } from '../ui/primitives';
 import type { SyncResult } from '../pipeline/sync';
+import { bucketForSeries, groupSeries } from '../pipeline/aggregate';
+import { SpanSelector, useSpan } from '../ui/span';
 
 export function BodyView({ data }: { data: SyncResult }) {
   const days = data.days;
-  const [span, setSpan] = useState<'30' | '90' | '365'>('90');
-  
-  const windowDays = Number(span);
-  const window = days.slice(-Math.min(days.length, windowDays));
+  const spanState = useSpan(data, '90');
+  const window = spanState.days;
 
   const weightWin = series(window, (d) => d.weightKg);
   const fatWin = series(window, (d) => d.bodyFatPct);
@@ -20,10 +20,20 @@ export function BodyView({ data }: { data: SyncResult }) {
   
   const latestWeight = weightWin.filter(p => p.value !== null).at(-1);
 
+  // Weigh-ins are sparse: keep every reading on the chart unless there are too many to show.
+  const weightBucket = bucketForSeries(weightWin, window.length);
+  const fatBucket = bucketForSeries(fatWin, window.length);
+
   if (!recorded) {
     return (
       <Card>
-        <EmptyState title="No body measurements" detail="Weight and body fat come from manual entries or smart scales." />
+        <EmptyState
+          title={spanState.loading ? 'Loading history…' : 'No body measurements in this span'}
+          detail="Weight and body fat come from manual entries or smart scales. Older readings may be in a longer span."
+        />
+        <div className="flex justify-center pb-5">
+          <SpanSelector state={spanState} />
+        </div>
       </Card>
     );
   }
@@ -91,7 +101,7 @@ export function BodyView({ data }: { data: SyncResult }) {
         <h2 className="text-[11px] font-bold text-zinc-500 uppercase tracking-widest">
           Your body over time
         </h2>
-        <Segmented value={span} onChange={setSpan} size="sm" options={[{ id: '30', label: '30d' }, { id: '90', label: '90d' }, { id: '365', label: '365d' }]} />
+        <SpanSelector state={spanState} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
@@ -112,7 +122,7 @@ export function BodyView({ data }: { data: SyncResult }) {
             hint="Hand-logged series are sparse; dashed lines connect readings separated by gaps."
           />
           <div className="px-2 pb-3">
-            <TrendChart series={weightWin} color={DOMAIN.body.hex} height={240} unit="kg" format={(v) => fmtNum(v, 1)} meanWindow={null} />
+            <TrendChart series={groupSeries(weightWin, weightBucket)} bucket={weightBucket} color={DOMAIN.body.hex} height={240} unit="kg" format={(v) => fmtNum(v, 1)} meanWindow={null} />
           </div>
         </Card>
       </div>
@@ -121,7 +131,7 @@ export function BodyView({ data }: { data: SyncResult }) {
         <Card>
           <CardHead domain="body" title="Body fat" />
           <div className="px-2 pb-3">
-            <TrendChart series={fatWin} color="#a1a1aa" height={160} unit="%" format={(v) => fmtNum(v, 1)} meanWindow={null} />
+            <TrendChart series={groupSeries(fatWin, fatBucket)} bucket={fatBucket} color="#a1a1aa" height={160} unit="%" format={(v) => fmtNum(v, 1)} meanWindow={null} />
           </div>
         </Card>
       )}

@@ -1,6 +1,6 @@
 import type pg from 'pg';
 import type { CivilDate } from '../src/lib/date';
-import type { StreamDay, StreamState, SyncOutput, SyncRun } from '../src/pipeline/incremental';
+import type { StreamDay, StreamState, StreamWrite, SyncOutput, SyncRun } from '../src/pipeline/incremental';
 import type { IntradayDay } from '../src/pipeline/intraday';
 import type { ProfileFacts } from '../src/pipeline/registry';
 import type { ApiUser } from '../src/types/api';
@@ -209,28 +209,11 @@ export async function getIntradayDays(db: Db, userId: string, from: CivilDate, t
 /**
  * Store a sync, atomically. Mirrors MemoryStore.apply in src/pipeline/incremental.ts,
  * whose tests define the semantics: purge, delete each replaced range, insert the
- * new days, save state, drop days before the window.
+ * new days, save state, drop days past the retention limits.
  */
 export async function applySyncOutput(db: Db, userId: string, out: SyncOutput, pipelineVersion: number): Promise<void> {
   await withTransaction(db, async (tx) => {
-    for (const w of out.streams) {
-      if (w.purge) await tx.query('DELETE FROM stream_days WHERE user_id = $1 AND data_type = $2', [userId, w.dataType]);
-      for (const r of w.replace) {
-        await tx.query(
-          'DELETE FROM stream_days WHERE user_id = $1 AND data_type = $2 AND date BETWEEN $3 AND $4',
-          [userId, w.dataType, r.from, r.to],
-        );
-      }
-      if (Object.keys(w.days).length) {
-        await tx.query(
-          `INSERT INTO stream_days (user_id, data_type, date, value)
-           SELECT $1, $2, e.key::date, e.value FROM jsonb_each($3::jsonb) AS e
-           ON CONFLICT (user_id, data_type, date) DO UPDATE SET value = EXCLUDED.value`,
-          [userId, w.dataType, JSON.stringify(w.days)],
-        );
-      }
-      await saveStreamState(tx, userId, w.state);
-    }
+    await writeStreams(tx, userId, out.streams);
 
     if (out.intraday) {
       const w = out.intraday;
@@ -250,7 +233,7 @@ export async function applySyncOutput(db: Db, userId: string, out: SyncOutput, p
     }
 
     await tx.query('DELETE FROM stream_days WHERE user_id = $1 AND date < $2', [userId, out.keepFrom]);
-    await tx.query('DELETE FROM intraday_heart_rate WHERE user_id = $1 AND date < $2', [userId, out.keepFrom]);
+    await tx.query('DELETE FROM intraday_heart_rate WHERE user_id = $1 AND date < $2', [userId, out.keepIntradayFrom]);
 
     await tx.query(
       `INSERT INTO sync_state (user_id, pipeline_version, last_sync_at, last_full_sync_at, run, profile)
@@ -271,6 +254,41 @@ export async function applySyncOutput(db: Db, userId: string, out: SyncOutput, p
       ],
     );
   });
+}
+
+/** Store backfilled history: stream writes only, without touching the sync run or retention. */
+export async function applyStreamWrites(db: Db, userId: string, writes: StreamWrite[]): Promise<void> {
+  await withTransaction(db, (tx) => writeStreams(tx, userId, writes));
+}
+
+async function writeStreams(tx: pg.PoolClient, userId: string, writes: StreamWrite[]): Promise<void> {
+  for (const w of writes) {
+    if (w.purge) await tx.query('DELETE FROM stream_days WHERE user_id = $1 AND data_type = $2', [userId, w.dataType]);
+    for (const r of w.replace) {
+      await tx.query(
+        'DELETE FROM stream_days WHERE user_id = $1 AND data_type = $2 AND date BETWEEN $3 AND $4',
+        [userId, w.dataType, r.from, r.to],
+      );
+    }
+    if (Object.keys(w.days).length) {
+      await tx.query(
+        `INSERT INTO stream_days (user_id, data_type, date, value)
+         SELECT $1, $2, e.key::date, e.value FROM jsonb_each($3::jsonb) AS e
+         ON CONFLICT (user_id, data_type, date) DO UPDATE SET value = EXCLUDED.value`,
+        [userId, w.dataType, JSON.stringify(w.days)],
+      );
+    }
+    await saveStreamState(tx, userId, w.state);
+  }
+}
+
+/** The oldest day with any stored data, or null. */
+export async function getOldestStreamDay(db: Db, userId: string): Promise<CivilDate | null> {
+  const { rows } = await db.query<{ oldest: CivilDate | null }>(
+    `SELECT to_char(min(date), 'YYYY-MM-DD') AS oldest FROM stream_days WHERE user_id = $1`,
+    [userId],
+  );
+  return rows[0]?.oldest ?? null;
 }
 
 async function saveStreamState(tx: pg.PoolClient, userId: string, state: StreamState): Promise<void> {

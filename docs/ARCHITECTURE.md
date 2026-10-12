@@ -13,10 +13,15 @@ How Healthier works and why, for contributors. What's planned lives in the
    mirrors data.
 3. **Data minimisation.** Google's payloads are normalised into the app's own types
    (`DailyRecord`, `SleepSession`, minute-level heart rate) before anything is stored. Raw API
-   JSON is never kept, and only the dashboard's 62-day window is retained.
+   JSON is never kept. Daily records are retained for `HISTORY_DAYS` (default two years);
+   minute-level heart rate only for the 62-day window.
 4. **Settled history.** Older days rarely change, so they are fetched once and kept; only the most
    recent days are polled. "Rarely" isn't "never", so a weekly full rebuild catches late
    corrections.
+5. **History is for looking, baselines are for judging.** Long history feeds descriptive views
+   (charts over 90 days, a year, all time). Everything that judges today (baselines, readiness,
+   insights, labs) keeps its fixed recent window, so a reading from years ago never shifts what
+   "your usual" means now.
 
 ## Components
 
@@ -52,8 +57,8 @@ browser (React)  ──/api──▶  Express server  ──▶  Postgres
 | `users` | Google subject, profile, IANA time zone (decides what "today" means on the server) |
 | `google_tokens` | encrypted tokens and granted scopes |
 | `sessions` | hashed session ids |
-| `stream_days (user_id, data_type, date)` | what one stream (steps, sleep, HRV…) contributed to one civil day: only the `DailyRecord` fields it set, plus provenance |
-| `intraday_heart_rate (user_id, date)` | one civil day of minute-level heart rate, column-wise |
+| `stream_days (user_id, data_type, date)` | what one stream (steps, sleep, HRV…) contributed to one civil day: only the `DailyRecord` fields it set, plus provenance. Kept for `HISTORY_DAYS` |
+| `intraday_heart_rate (user_id, date)` | one civil day of minute-level heart rate, column-wise. Kept for the 62-day window |
 | `stream_state (user_id, data_type)` | per-stream coverage and the outcome of its last fetch (shown on the Data tab) |
 | `sync_state (user_id)` | pipeline version, last sync and last full sync, profile facts |
 
@@ -82,7 +87,14 @@ without knowing where. The server applies that to Postgres; demo mode and the te
   fully succeeded. A failure (429, 5xx, network, a failed rollup chunk) replaces nothing and leaves
   coverage where it was, so the next sync retries the same range.
 - **Full rebuilds** run weekly (`FULL_RESYNC_DAYS`), after every sign-in (granted scopes may have
-  changed), from "Force full sync" on the Data tab, and whenever `PIPELINE_VERSION` changes.
+  changed), from "Force full sync" on the Data tab, and whenever `PIPELINE_VERSION` changes. They
+  refetch the window; history older than the window is kept, except after a `PIPELINE_VERSION`
+  change, when it is dropped and backfilled again by the new code.
+- **History backfills in the background.** After a sync stores the window, each stream's coverage
+  is extended back to `HISTORY_DAYS`, one stream per step (`backfillStream`). Every write for a
+  user, sync or backfill step, runs under that user's lock, so they never interleave and a sync
+  waits behind at most one step. A failed step leaves coverage unchanged and retries after the
+  next sync. Window sync plus backfill is tested to store exactly what one long full sync would.
 - **Lists page by date.** List endpoints return newest first; paging stops once a page reaches past
   the requested start.
 - **Intraday heart rate uses `rollUp`.** Google rolls raw samples into one-minute averages
@@ -93,6 +105,15 @@ without knowing where. The server applies that to Postgres; demo mode and the te
 - **Failures are surfaced.** Revoked or expired Google access (`invalid_grant`) asks the user to
   reconnect. A sync in which every request fails (for example, the Google Health API isn't
   enabled) reports Google's error instead of storing an empty dashboard.
+
+## Long spans in the UI
+
+`GET /api/history` serves every stored day, trimmed of per-minute sleep detail, and the browser
+loads it only when a screen's span selector goes past the window (`src/ui/span.tsx`). Charts over
+long spans are grouped (`src/pipeline/aggregate.ts`): daily up to 120 days, weekly up to two
+years, monthly beyond, as averages per recorded day. Sparse series such as weigh-ins stay raw
+unless they would exceed 120 points. Baseline bands are hidden on grouped charts, because they
+describe the last 28 days.
 
 ### `PIPELINE_VERSION`
 

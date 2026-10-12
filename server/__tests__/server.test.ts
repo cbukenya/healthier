@@ -30,6 +30,7 @@ describe('config', () => {
     assert.equal(config.port, 3000);
     assert.equal(config.appUrl, 'http://localhost:3000');
     assert.equal(config.syncIntervalMinutes, 60);
+    assert.equal(config.historyDays, 730);
     assert.equal(config.encryptionKey.length, 32);
   });
 
@@ -42,6 +43,14 @@ describe('config', () => {
       () => loadConfig({ ...VALID_ENV, ENCRYPTION_KEY: randomBytes(16).toString('base64') }),
       (err: unknown) => err instanceof ConfigError && err.invalid.some((m) => m.startsWith('ENCRYPTION_KEY')),
     );
+  });
+
+  it('keeps at least the dashboard window of history', () => {
+    assert.throws(
+      () => loadConfig({ ...VALID_ENV, HISTORY_DAYS: '30' }),
+      (err: unknown) => err instanceof ConfigError && err.invalid.some((m) => m.startsWith('HISTORY_DAYS')),
+    );
+    assert.equal(loadConfig({ ...VALID_ENV, HISTORY_DAYS: '3650' }).historyDays, 3650);
   });
 
   it('rejects malformed numbers and URLs', () => {

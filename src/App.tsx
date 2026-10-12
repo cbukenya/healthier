@@ -3,6 +3,7 @@ import type { IntradaySample } from './types/health';
 import { FileCode2, FlaskConical, Footprints, Heart, Moon, RefreshCw, User, ShieldAlert, PersonStanding } from 'lucide-react';
 import { useAuth } from './hooks/useAuth';
 import { useHealth } from './hooks/useHealth';
+import { HistoryProvider } from './hooks/useHistory';
 import { DASHBOARD_WINDOW_DAYS } from './pipeline/sync';
 
 import { DOMAIN, NavButton } from './ui/primitives';
@@ -236,6 +237,7 @@ export default function App() {
         )}
 
         {health.data && (
+          <HistoryProvider data={health.data} info={health.history} live={!demo}>
           <main className="mt-6 animate-in fade-in duration-500">
             {view === 'today' && <TodayView data={health.data} intraday={intradayDays} />}
             {view === 'activity' && <ActivityView data={health.data} />}
@@ -245,6 +247,7 @@ export default function App() {
             {view === 'labs' && <LabsView data={health.data} intraday={intradayDays} />}
             {view === 'data' && <DataView data={health.data} onFullSync={health.fullSync} onDisconnect={demo ? undefined : disconnect} />}
           </main>
+          </HistoryProvider>
         )}
       </div>
     </div>

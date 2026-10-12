@@ -9,6 +9,7 @@
  * fix, rather than surfacing later as a failed sign-in or an opaque crypto error.
  */
 
+import { DASHBOARD_WINDOW_DAYS, DEFAULT_HISTORY_DAYS } from '../src/pipeline/incremental';
 import { parseAccessList, type AccessList } from './access';
 
 type Env = Record<string, string | undefined>;
@@ -27,6 +28,8 @@ export interface Config {
   };
   /** Minutes between background syncs per user. 0 turns background sync off. */
   syncIntervalMinutes: number;
+  /** Days of daily history kept and backfilled per user. */
+  historyDays: number;
   /** Who may sign up; null lets anyone through Google's consent screen. */
   allowedEmails: AccessList | null;
 }
@@ -96,6 +99,7 @@ export function loadConfig(env: Env = process.env): Config {
       clientSecret: required('GOOGLE_CLIENT_SECRET'),
     },
     syncIntervalMinutes: integer('SYNC_INTERVAL_MINUTES', 60, 0, 24 * 60),
+    historyDays: integer('HISTORY_DAYS', DEFAULT_HISTORY_DAYS, DASHBOARD_WINDOW_DAYS, 3650),
     allowedEmails,
   };
 

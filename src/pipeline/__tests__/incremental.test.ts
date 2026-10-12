@@ -5,8 +5,12 @@ import { addDays, civilClock, startOfCivilDay, todayCivilIn, type CivilDate } fr
 import { buildFixturePayloads, createFixtureFetch } from '../fixtures';
 import {
   assembleDays,
+  assembleHistory,
+  backfillStream,
   DASHBOARD_WINDOW_DAYS,
   fetchStreamPoints,
+  historyDue,
+  historyStart,
   MemoryStore,
   planFrom,
   REFETCH_DAYS,
@@ -40,12 +44,13 @@ function transport(fetchImpl: FetchLike = createFixtureFetch(payloads)) {
 async function syncInto(
   store: MemoryStore,
   now: Date,
-  opts: { full: boolean; fetchImpl?: FetchLike; grantedScopes?: ScopeKey[] },
+  opts: { full: boolean; fetchImpl?: FetchLike; grantedScopes?: ScopeKey[]; windowDays?: number; historyDays?: number },
 ) {
   const out = await syncIncremental({
     transport: transport(opts.fetchImpl),
     today: todayCivilIn(ZONE, now),
-    windowDays: WINDOW,
+    windowDays: opts.windowDays ?? WINDOW,
+    historyDays: opts.historyDays,
     timeZone: ZONE,
     now,
     states: new Map(store.stateMap),
@@ -196,6 +201,88 @@ describe('incremental sync', () => {
     for (const days of [...store.rows.values(), store.intradayDays]) {
       for (const date of days.keys()) assert.ok(date >= from, `${date} is before ${from}`);
     }
+  });
+});
+
+describe('history', () => {
+  const HISTORY = 180;
+  const today = todayCivilIn(ZONE, D1);
+  const start = historyStart(today, HISTORY, WINDOW);
+
+  /** Backfill every stream that is due, as the server's background job does. */
+  async function backfill(store: MemoryStore, fetchImpl?: FetchLike) {
+    for (const stream of historyDue(store.stateMap, start)) {
+      const write = await backfillStream(transport(fetchImpl), stream, store.stateMap.get(stream.dataType)!, start);
+      if (write) store.applyWrites([write]);
+    }
+  }
+
+  const asJson = (v: unknown) => JSON.parse(JSON.stringify(v));
+
+  it('window sync plus backfill stores exactly what one long full sync does', async () => {
+    const backfilled = new MemoryStore();
+    await syncInto(backfilled, D1, { full: true, historyDays: HISTORY });
+    assert.ok(historyDue(backfilled.stateMap, start).length > 0, 'history starts out due');
+    await backfill(backfilled);
+    assert.deepEqual(historyDue(backfilled.stateMap, start), [], 'and is complete after one pass');
+
+    const oneShot = new MemoryStore();
+    await syncInto(oneShot, D1, { full: true, windowDays: HISTORY });
+    assert.deepStrictEqual(
+      asJson(assembleHistory(backfilled.rows, start, today)),
+      asJson(assembleHistory(oneShot.rows, start, today)),
+    );
+  });
+
+  it('keeps history through incremental and weekly full syncs', async () => {
+    const store = new MemoryStore();
+    await syncInto(store, D1, { full: true, historyDays: HISTORY });
+    await backfill(store);
+    const weight = (s: MemoryStore) => [...s.rows.get('weight')!.keys()].sort();
+    const before = weight(store);
+    assert.ok(before[0] < addDays(today, -(WINDOW - 1)), 'backfill reached past the window');
+
+    await syncInto(store, D1, { full: false, historyDays: HISTORY });
+    await syncInto(store, D1, { full: true, historyDays: HISTORY });
+    assert.deepEqual(historyDue(store.stateMap, start), [], 'coverage still reaches the history start');
+    assert.deepEqual(weight(store), before, 'history rows survive');
+  });
+
+  it('keeps minute-level heart rate to the window only', async () => {
+    const store = new MemoryStore();
+    await syncInto(store, D1, { full: true, historyDays: HISTORY });
+    const windowStart = addDays(today, -(WINDOW - 1));
+    for (const date of store.intradayDays.keys()) assert.ok(date >= windowStart);
+  });
+
+  it('drops history when a sync keeps only the window (a pipeline upgrade)', async () => {
+    const store = new MemoryStore();
+    await syncInto(store, D1, { full: true, historyDays: HISTORY });
+    await backfill(store);
+    const reset = new MemoryStore();
+    for (const [k, v] of store.rows) reset.rows.set(k, new Map(v));
+    await syncInto(reset, D1, { full: true });
+    const windowStart = addDays(today, -(WINDOW - 1));
+    for (const days of reset.rows.values()) for (const date of days.keys()) assert.ok(date >= windowStart);
+  });
+
+  it('leaves coverage alone when a backfill fails, so it is retried', async () => {
+    const store = new MemoryStore();
+    await syncInto(store, D1, { full: true, historyDays: HISTORY });
+    const before = store.stateMap.get('steps')!.coveredFrom;
+    await backfill(store, failing('/steps/'));
+    assert.equal(store.stateMap.get('steps')!.coveredFrom, before);
+    assert.match(store.stateMap.get('steps')!.backfillError ?? '', /date chunks failed: socket hang up/);
+    assert.equal(store.stateMap.get('sleep')!.backfillError, undefined, 'successful streams carry no error');
+    assert.ok(historyDue(store.stateMap, start).some((s) => s.dataType === 'steps'));
+  });
+
+  it('strips per-minute sleep detail from history', async () => {
+    const store = new MemoryStore();
+    await syncInto(store, D1, { full: true, historyDays: HISTORY });
+    const nights = assembleHistory(store.rows, start, today).filter((d) => d.sleep);
+    assert.ok(nights.length > 0);
+    assert.ok(nights.every((d) => d.sleep!.segments.length === 0 && d.sleep!.minutesAsleep > 0));
   });
 });
 
