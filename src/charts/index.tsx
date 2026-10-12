@@ -713,7 +713,7 @@ export function Spark({
   color: string;
   height?: number;
   width?: number;
-  /** Your usual range, shaded behind the line as on the full charts: centre ± spread. */
+  /** Your usual range, shaded behind the line: centre ± spread, as the full charts shade it. */
   baseline?: { centre: number; spread: number } | null;
 }) {
   const v = series.map((p) => p.value);
@@ -741,14 +741,10 @@ export function Spark({
   const lastIdx = v.length - 1 - [...v].reverse().findIndex((x) => x !== null);
   return (
     <svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" className="w-full" style={{ height }}>
-      {band && baseline && (
+      {band && (
         <>
           <title>Shaded: your usual range</title>
           <rect x={0} y={y(band.hi)} width={width} height={Math.max(0, y(band.lo) - y(band.hi))} fill="#a1a1aa" opacity={0.12} />
-          <line
-            x1={0} x2={width} y1={y(baseline.centre)} y2={y(baseline.centre)}
-            stroke="#71717a" strokeWidth={1} strokeDasharray="3 3" vectorEffect="non-scaling-stroke"
-          />
         </>
       )}
       {paths.map((d, i) => (
