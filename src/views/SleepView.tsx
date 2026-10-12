@@ -46,7 +46,7 @@ export function getScoreTier(total: number) {
 import React, { useState } from 'react';
 import { formatCivil, formatCivilLong, formatClock } from '../lib/date';
 import {
-  bedtimeConsistency, compareToBaseline, estimatedSleepTarget, periodShift, series, sleepArchitecture, sleepDebt, stats, values, windowShift,
+  bedtimeConsistency, compareToBaseline, estimatedSleepTarget, isRecent, periodShift, series, sleepArchitecture, sleepDebt, stats, values, windowShift,
 } from '../pipeline/derive';
 import { scoreSleep } from '../pipeline/sleep';
 import { BarSeries, Hypnogram, StageBar, StageLegend, TrendChart, SleepWindowChart } from '../charts';
@@ -89,8 +89,9 @@ export function SleepView({ data }: { data: SyncResult }) {
       {/* ── 1. The headline night ─────────────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
         <Card className="lg:col-span-4 flex flex-col">
+          {/* Older than yesterday, it's the latest night on record, not last night. */}
           <CardHead
-            title="Last night"
+            title={latestRow && isRecent(latestRow.date, days.at(-1)?.date) ? 'Last night' : 'Latest night'}
             hint={latestRow ? formatCivilLong(latestRow.date) : ''}
             domain="sleep"
           />

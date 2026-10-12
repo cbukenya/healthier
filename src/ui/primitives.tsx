@@ -1,6 +1,5 @@
 import React from 'react';
 import { type Band, type Comparison, stats, type Point } from '../pipeline/derive';
-import { todayCivil } from '../lib/date';
 
 /**
  * Design tokens and primitives.
@@ -129,8 +128,16 @@ const BAND_COPY: Record<Band, { label: string; cls: string }> = {
  * Where the latest reading sits against its own 28-day history. Deliberately
  * says "above usual" rather than "good" — for HRV that's good, for resting heart
  * rate it isn't, and the app shouldn't pretend to know which you want.
+ *
+ * `partial` marks a day still in progress: half a day's steps against whole
+ * days always reads "below usual", so it gets no verdict yet.
  */
-export function BandPill({ c, invert = false }: { c: Comparison; invert?: boolean }) {
+export function BandPill({ c, invert = false, partial = false }: { c: Comparison; invert?: boolean; partial?: boolean }) {
+  if (partial) {
+    return (
+      <span className="text-[10px] px-2 py-0.5 rounded-full border border-zinc-800 text-zinc-500">so far today</span>
+    );
+  }
   if (!c.band || c.n < 8) {
     return (
       <span className="text-[10px] px-2 py-0.5 rounded-full border border-zinc-800 text-zinc-500">
@@ -325,6 +332,8 @@ export function CardSummary({
   const latestDate = isPoints 
     ? (source as Point[]).filter(p => p.value !== null).pop()?.date
     : undefined;
+  // Span series end on the user's today, so the latest reading is today's when it sits on the last day.
+  const lastDate = isPoints ? (source as Point[])[source.length - 1].date : undefined;
 
   const st = stats(numbers);
   const latest = numbers.length > 0 ? numbers[numbers.length - 1] : null;
@@ -333,7 +342,7 @@ export function CardSummary({
   const unitStr = unit ? ` ${unit}` : '';
   const fmt = format || ((v: number) => fmtNum(v, digits));
   
-  const isToday = latestDate === todayCivil();
+  const isToday = latestDate !== undefined && latestDate === lastDate;
   const latestLabel = isToday ? (isSleep ? 'last night: ' : 'today: ') : 'latest: ';
   
   return (

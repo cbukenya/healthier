@@ -1,8 +1,9 @@
 import React from 'react';
 import { Footprints, Heart, Moon, Activity, Database } from 'lucide-react';
-import { formatCivilLong, formatClock, daysBetween } from '../lib/date';
+import { formatCivilLong, formatClock, type CivilDate } from '../lib/date';
 import {
-  compareToBaseline, coverage, goal, loadRatio, series, values,
+  compareToBaseline, completedDays, coverage, goal, isRecent, latestPoint, loadRatio, series, values,
+  type Point,
 } from '../pipeline/derive';
 import { todaySummary } from '../pipeline/insights';
 import type { IntradayDays } from '../pipeline/labs';
@@ -16,29 +17,49 @@ import type { SyncResult } from '../pipeline/sync';
 import { BodyBattery } from './BodyBattery';
 import { InsightsCarousel } from '../components/InsightsCarousel';
 
-export function TodayView({ data, intraday }: { data: SyncResult; intraday?: IntradayDays }) {
-  const s = todaySummary(data, undefined, { intraday });
+export function TodayView({
+  data,
+  intraday,
+  clock,
+}: {
+  data: SyncResult;
+  intraday?: IntradayDays;
+  /** Demo mode runs on the fixture's clock and zone; live data on this device's. */
+  clock?: { now: Date; timeZone: string };
+}) {
+  const s = todaySummary(data, clock?.now, { intraday, timeZone: clock?.timeZone });
   const days = data.days;
   const last = days[days.length - 1];
+  const today = last.date;
 
   const stepsSeries = series(days, (d) => d.steps);
   const sleepSeries = series(days, (d) => d.sleep?.minutesAsleep ?? null);
-  const hrvSeries = series(days, (d) => d.hrv);
   const rhrSeries = series(days, (d) => d.restingHr);
 
   const stepsCmp = compareToBaseline(stepsSeries);
   const sleepCmp = compareToBaseline(sleepSeries);
 
-  const mv = s.movementDay && daysBetween(s.movementDay.date, last.date) <= 2 ? s.movementDay : null;
-  const slDay = s.sleepDay && daysBetween(s.sleepDay.date, last.date) <= 2 ? s.sleepDay : null;
+  // The summary keeps only today's or yesterday's movement and sleep; older days aren't "now".
+  const mv = s.movementDay;
+  const slDay = s.sleepDay;
   const sl = slDay?.sleep ?? null;
-  const latestVitalsDay = [...days].reverse().find(d => (d.restingHr !== null || d.hrv !== null) && daysBetween(d.date, last.date) <= 2) ?? null;
   const stepGoal = goal(mv?.steps ?? null, 10000);
-  const load = loadRatio(stepsSeries);
+  // Today's steps are still counting, so the ramp compares finished days.
+  const load = loadRatio(series(completedDays(days), (d) => d.steps));
+  const movementIsToday = mv?.date === today;
+
+  // Each overnight vital from last night or the one before, never further back.
+  const rhrNow = isRecent(s.rhr.date, today) ? s.rhr : null;
+  const hrvNow = isRecent(s.hrv.date, today) ? s.hrv : null;
+  const respNow = recentPoint(series(days, (d) => d.respiratoryRate), today);
+  const spo2Now = recentPoint(series(days, (d) => d.spo2?.avg ?? null), today);
+  const vitalsDate = [rhrNow?.date, hrvNow?.date, respNow?.date, spo2Now?.date]
+    .filter((d): d is CivilDate => !!d)
+    .sort()
+    .at(-1) ?? null;
 
   const cov = coverage(days, STREAMS.map((x) => ({ dataType: x.dataType, label: x.label })));
   const freshToday = cov.filter((c) => c.staleDays === 0).length;
-  const movementIsToday = mv?.date === last.date;
 
   return (
     <div className="space-y-3">
@@ -80,14 +101,14 @@ export function TodayView({ data, intraday }: { data: SyncResult; intraday?: Int
                       {formatClock(sl.bedtimeMin)} → {formatClock(sl.wakeMin)}
                     </Row>
                   </div>
-                  {slDay!.date !== last.date && (
+                  {slDay!.date !== today && (
                     <p className="text-[10px] text-amber-400/80 mt-2">
                       Most recent night on record: {formatCivilLong(slDay!.date)}
                     </p>
                   )}
                 </>
               ) : (
-                <EmptyState title="No sleep recorded" detail="Nothing has synced for last night yet." />
+                <EmptyState title="No sleep recorded" detail="Nothing has synced for last night or the night before." />
               )}
             </div>
           </Card>
@@ -104,7 +125,7 @@ export function TodayView({ data, intraday }: { data: SyncResult; intraday?: Int
                     <Value value={mv.steps} size="lg" unit="steps" />
                   </div>
                   <div className="mt-1.5 flex items-center gap-2">
-                    <BandPill c={stepsCmp} />
+                    <BandPill c={stepsCmp} partial={movementIsToday} />
                   </div>
                   <div className="mt-3">
                     <Meter pct={stepGoal.pct} color={DOMAIN.movement.hex} />
@@ -130,7 +151,7 @@ export function TodayView({ data, intraday }: { data: SyncResult; intraday?: Int
                   )}
                 </>
               ) : (
-                <EmptyState title="No movement data" detail="No steps have synced in this window." />
+                <EmptyState title="No movement data" detail="No steps have synced today or yesterday." />
               )}
             </div>
           </Card>
@@ -141,41 +162,42 @@ export function TodayView({ data, intraday }: { data: SyncResult; intraday?: Int
                 <Label>Overnight vitals</Label>
                 <Heart size={14} className={DOMAIN.cardio.text} />
               </div>
-              {latestVitalsDay ? (
+              {vitalsDate ? (
                 <>
                   <div className="mt-3">
-                    <Value value={s.rhr.value} size="lg" unit="bpm" />
+                    <Value value={rhrNow?.value ?? null} size="lg" unit="bpm" />
                   </div>
-                  <div className="mt-1.5 flex items-center gap-2">
-                    <BandPill c={s.rhr} />
-                  </div>
+                  {rhrNow && (
+                    <div className="mt-1.5 flex items-center gap-2">
+                      <BandPill c={rhrNow} />
+                    </div>
+                  )}
                   <div className="mt-3">
                     <Spark series={rhrSeries.slice(-21)} color={DOMAIN.cardio.hex} />
                   </div>
                   <div className="mt-2 space-y-0">
                     <Row label="HRV">
-                      {fmtNum(s.hrv.value)} ms{' '}
-                      <span className="text-zinc-500">
-                        (usual {fmtNum(s.hrv.baseline)})
-                      </span>
+                      {hrvNow ? (
+                        <>
+                          {fmtNum(hrvNow.value)} ms{' '}
+                          <span className="text-zinc-500">
+                            (usual {fmtNum(hrvNow.baseline)})
+                          </span>
+                        </>
+                      ) : '—'}
                     </Row>
-                    <Row label="Breathing">{fmtNum(latestVitalsDay.respiratoryRate ?? lastKnown(days, (d) => d.respiratoryRate))} /min</Row>
-                    <Row label="Blood oxygen">
-                      {(() => {
-                        const sp = latestVitalsDay.spo2 ?? lastKnownObj(days, (d) => d.spo2);
-                        return sp ? `${fmtNum(sp.avg)}%` : '—';
-                      })()}
-                    </Row>
+                    <Row label="Breathing">{respNow ? `${fmtNum(respNow.value)} /min` : '—'}</Row>
+                    <Row label="Blood oxygen">{spo2Now ? `${fmtNum(spo2Now.value)}%` : '—'}</Row>
                   </div>
-                  {latestVitalsDay.date !== last.date && (
+                  {vitalsDate !== today && (
                     <p className="text-[10px] text-amber-400/80 mt-2">
-                      Most recent vitals on record: {formatCivilLong(latestVitalsDay.date)}
+                      Most recent vitals on record: {formatCivilLong(vitalsDate)}
                     </p>
                   )}
                 </>
               ) : (
                 <div className="mt-3">
-                  <EmptyState title="No vitals recorded" detail="No overnight vitals have synced." />
+                  <EmptyState title="No vitals recorded" detail="No overnight vitals have synced for last night or the night before." />
                 </div>
               )}
             </div>
@@ -242,18 +264,8 @@ export function TodayView({ data, intraday }: { data: SyncResult; intraday?: Int
   );
 }
 
-function lastKnown(days: SyncResult['days'], get: (d: SyncResult['days'][number]) => number | null) {
-  for (let i = days.length - 1; i >= 0; i--) {
-    const v = get(days[i]);
-    if (v !== null) return v;
-  }
-  return null;
-}
-
-function lastKnownObj<T>(days: SyncResult['days'], get: (d: SyncResult['days'][number]) => T | null): T | null {
-  for (let i = days.length - 1; i >= 0; i--) {
-    const v = get(days[i]);
-    if (v !== null) return v;
-  }
-  return null;
+/** A series' latest reading, if it's from today or yesterday. */
+function recentPoint(s: Point[], today: CivilDate): Point | null {
+  const p = latestPoint(s);
+  return p && isRecent(p.date, today) ? p : null;
 }

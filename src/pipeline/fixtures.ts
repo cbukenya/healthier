@@ -20,6 +20,16 @@ import { HYPNOGRAM, SHORT_AWAKENINGS, parseFixtureSeries, type FixtureDay } from
  */
 
 const OFF = '7200s'; // Europe/Stockholm, CEST
+
+/**
+ * When and where the fixture was exported. Demo mode runs on this clock, in this zone, so it shows the
+ * same window and the same insights wherever and whenever it's opened.
+ */
+export const FIXTURE_CLOCK: { readonly now: Date; readonly timeZone: string } = {
+  now: new Date('2026-08-19T01:39:00+02:00'),
+  timeZone: 'Europe/Stockholm',
+};
+
 const FITBIT = { recordingMethod: 'DERIVED', device: { displayName: 'Google Fitbit Air' }, platform: 'FITBIT' };
 const FITBIT_PASSIVE = { recordingMethod: 'PASSIVELY_MEASURED', device: { displayName: 'Google Fitbit Air' }, platform: 'FITBIT' };
 const FITBIT_MANUAL = { recordingMethod: 'MANUAL', platform: 'FITBIT' };

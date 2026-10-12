@@ -1,4 +1,4 @@
-import { addDays, daysBetween, weekdayIndex, type CivilDate } from '../lib/date';
+import { addDays, daysBetween, formatCivil, weekdayIndex, type CivilDate } from '../lib/date';
 import type { DailyRecord, HealthDataset, SleepSession } from '../types/health';
 import { scoreSleep } from './sleep';
 
@@ -122,9 +122,9 @@ export function compareToBaseline(s: Point[], window = 28, minPoints = 8, floor 
   if (lastIdx < 0) return NEUTRAL;
   const value = s[lastIdx].value!;
   const priors = values(s.slice(Math.max(0, lastIdx - window), lastIdx));
+  const date = s[lastIdx].date;
   if (priors.length < minPoints) {
-    return { ...NEUTRAL, value,
-    date: s[lastIdx].date, n: priors.length };
+    return { ...NEUTRAL, value, date, n: priors.length };
   }
   const st = stats(priors)!;
   // max(robust, classical, floor): a flat baseline must not turn a genuine
@@ -133,6 +133,7 @@ export function compareToBaseline(s: Point[], window = 28, minPoints = 8, floor 
   const delta = value - st.median;
   const z = spread > 0 ? delta / spread : 0;
   return {
+    date,
     value,
     baseline: st.median,
     spread,
@@ -161,6 +162,22 @@ export const latestPoint = (s: Point[]): Point | null => {
   const i = lastIndexWithValue(s);
   return i < 0 ? null : s[i];
 };
+
+/**
+ * Whether a reading is current on `today`: from that day or the one before. Last night's sleep and
+ * overnight vitals are keyed to the morning they ended, so "yesterday" still covers a device that hasn't
+ * synced this morning; anything older is history, not last night.
+ */
+export function isRecent(date: CivilDate | null | undefined, today: CivilDate | null | undefined): boolean {
+  return !!date && !!today && daysBetween(date, today) <= 1;
+}
+
+/**
+ * The window without its last day. The window ends on the user's today, which is still in progress, so
+ * movement read as whole days (averages, streaks, week on week, ramp) uses only finished ones. Overnight
+ * readings are keyed to the morning they ended and don't need this.
+ */
+export const completedDays = (days: DailyRecord[]): DailyRecord[] => days.slice(0, -1);
 
 /** Mean of the most recent `n` observations (not the most recent n *days*). */
 export function recentMean(s: Point[], n: number): number | null {
@@ -261,6 +278,15 @@ export function currentStreak(s: Point[], meets: (v: number) => boolean): number
     streak++;
   }
   return streak;
+}
+
+/**
+ * Days in a row meeting a daily goal, up to today. Today joins the streak once it meets the goal, and
+ * while it's still in progress it never breaks it.
+ */
+export function goalStreak(s: Point[], meets: (v: number) => boolean): number {
+  const today = s[s.length - 1];
+  return currentStreak(today && today.value !== null && meets(today.value) ? s : s.slice(0, -1), meets);
 }
 
 /**
@@ -378,6 +404,11 @@ export function readiness(days: DailyRecord[]): Readiness {
   const parts: ReadinessPart[] = [];
   const flags: string[] = [];
   let score = 70;
+  // Only last night counts. The window ends on the user's today, and a reading from before yesterday is
+  // history: with the watch on its charger for three days the honest answer is no score, not a confident
+  // one built from the last night it happened to see.
+  const today = days.length ? days[days.length - 1].date : null;
+  const recent = (date: CivilDate | null | undefined) => isRecent(date, today);
 
   // ── 1. HRV, in the log domain, acute + trend blended ──────────────────────
   const deepSeries = series(days, (d) => d.hrvDeepSleep);
@@ -395,7 +426,7 @@ export function readiness(days: DailyRecord[]): Readiness {
     date: p.date,
     value: p.value === null || p.value <= 0 ? null : Math.log(p.value),
   }));
-  const hrv = lnComparison(hrvLn);
+  const hrv = recent(latestPoint(hrvLn)?.date) ? lnComparison(hrvLn) : null;
   let hrvOk = false;
   if (hrv) {
     hrvOk = true;
@@ -422,7 +453,7 @@ export function readiness(days: DailyRecord[]): Readiness {
 
   // ── 2. Resting heart rate, asymmetric ──────────────────────────────────────
   const rhr = compareToBaseline(series(days, (d) => d.restingHr), 28, 8, NOISE_FLOOR.restingHr);
-  const rhrOk = rhr.z !== null && rhr.n >= 8;
+  const rhrOk = rhr.z !== null && rhr.n >= 8 && recent(rhr.date);
   if (rhrOk) {
     const z = rhr.z!;
     const c = z <= 0 ? Math.min(-z, 1.5) * 4 : -Math.min(z, 2.5) * 6;
@@ -436,7 +467,8 @@ export function readiness(days: DailyRecord[]): Readiness {
 
   // ── 3. Sleep: Holistic Quality & Need from scoreSleep() ──────────────────
   const need = estimatedSleepTarget(days);
-  const lastNight = [...days].reverse().find((d) => d.sleep)?.sleep ?? null;
+  const latestNight = [...days].reverse().find((d) => d.sleep)?.sleep ?? null;
+  const lastNight = latestNight && recent(latestNight.date) ? latestNight : null;
   const sleepOk = lastNight !== null;
   if (lastNight) {
     const durationDeltaH = (lastNight.minutesAsleep - need) / 60;
@@ -491,8 +523,9 @@ export function readiness(days: DailyRecord[]): Readiness {
 
   // ── 5. Breathing rate: penalty-only illness signal ─────────────────────────
   const resp = compareToBaseline(series(days, (d) => d.respiratoryRate));
-  if (resp.z !== null && resp.n >= 8 && resp.z > 1.25) {
-    const c = -Math.min((resp.z - 1.25) * 4, 8);
+  const respOk = resp.z !== null && resp.n >= 8 && recent(resp.date);
+  if (respOk && resp.z! > 1.25) {
+    const c = -Math.min((resp.z! - 1.25) * 4, 8);
     score += c;
     parts.push({
       label: 'Breathing rate',
@@ -502,7 +535,8 @@ export function readiness(days: DailyRecord[]): Readiness {
   }
 
   // ── 6. Skin temperature deviation: penalty-only illness signal ─────────────
-  const tempDev = latestPoint(series(days, (d) => d.skinTempDeviationC))?.value ?? null;
+  const tempPoint = latestPoint(series(days, (d) => d.skinTempDeviationC));
+  const tempDev = tempPoint && recent(tempPoint.date) ? tempPoint.value : null;
   if (tempDev !== null && tempDev > 0.3) {
     const c = -Math.min((tempDev - 0.3) * 10, 8);
     score += c;
@@ -520,8 +554,9 @@ export function readiness(days: DailyRecord[]): Readiness {
       : d.steps,
   );
   const load = compareToBaseline(loadSeries);
-  
-  if (loadSeries.length >= 4) {
+  const loadRecent = recent(load.date);
+
+  if (loadRecent && loadSeries.length >= 4) {
     const validPoints = loadSeries.filter((p) => p.value !== null);
     if (validPoints.length >= 8) {
       const p1 = validPoints[validPoints.length - 1]?.value ?? 0;
@@ -548,7 +583,7 @@ export function readiness(days: DailyRecord[]): Readiness {
         });
       }
     }
-  } else if (load.z !== null && load.n >= 8 && load.z > 1.25) {
+  } else if (loadRecent && load.z !== null && load.n >= 8 && load.z > 1.25) {
     const c = -Math.min((load.z - 1.25) * 3.5, 7);
     score += c;
     parts.push({
@@ -561,7 +596,7 @@ export function readiness(days: DailyRecord[]): Readiness {
   // ── 8. Cross-signal illness pattern ───────────────────────────────────────
   const offSignals = [
     rhrOk && rhr.z! >= 1.5,
-    resp.z !== null && resp.n >= 8 && resp.z >= 1.5,
+    respOk && resp.z! >= 1.5,
     tempDev !== null && tempDev >= 0.5,
     hrv !== null && hrv.zAcute <= -1.5,
   ].filter(Boolean).length;
@@ -573,7 +608,18 @@ export function readiness(days: DailyRecord[]): Readiness {
 
   const coreSignals = (hrvOk ? 1 : 0) + (rhrOk ? 1 : 0) + (sleepOk ? 1 : 0);
   if (coreSignals === 0) {
-    return { score: null, parts: [], label: 'Not enough data', confidence: 'low', flags: [] };
+    // Readings that exist but stopped before yesterday mean "not current", not "not enough".
+    const newest = [latestPoint(overnightSeries)?.date, rhr.date, latestNight?.date]
+      .filter((d): d is CivilDate => !!d)
+      .sort()
+      .at(-1);
+    return {
+      score: null,
+      parts: [],
+      label: newest && !recent(newest) ? `No readings since ${formatCivil(newest)}` : 'Not enough data',
+      confidence: 'low',
+      flags: [],
+    };
   }
 
   const final = Math.round(clamp(score, 1, 100));
@@ -1071,6 +1117,25 @@ export function theilSen(points: { x: number; y: number }[]): number | null {
     }
   }
   return stats(slopes)?.median ?? null;
+}
+
+export interface WeightTrend {
+  kgPerWeek: number;
+  readings: number;
+  spanDays: number;
+}
+
+/**
+ * Weekly weight trend from sparse weigh-ins, by Theil–Sen so one odd reading can't tilt it. Silent below
+ * three readings spanning three weeks: two weigh-ins a few days apart are mostly water and noise.
+ */
+export function weightTrend(s: Point[]): WeightTrend | null {
+  const pts = s.filter((p): p is { date: CivilDate; value: number } => p.value !== null);
+  if (pts.length < 3) return null;
+  const spanDays = daysBetween(pts[0].date, pts[pts.length - 1].date);
+  if (spanDays < 21) return null;
+  const slope = theilSen(pts.map((p) => ({ x: daysBetween(pts[0].date, p.date), y: p.value })));
+  return slope === null ? null : { kgPerWeek: slope * 7, readings: pts.length, spanDays };
 }
 
 export interface BodyComposition {

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { formatCivil } from '../lib/date';
-import { bodyComposition, slopePerDay, stats, theilSen, values, series, windowShift } from '../pipeline/derive';
+import { bodyComposition, stats, values, series, weightTrend, windowShift } from '../pipeline/derive';
 import { TrendChart } from '../charts';
 import { Card, CardHead, DOMAIN, Delta, EmptyState, Label, Row, Segmented, Value, fmtNum } from '../ui/primitives';
 import type { SyncResult } from '../pipeline/sync';
@@ -39,12 +39,9 @@ export function BodyView({ data }: { data: SyncResult }) {
   }
 
   // Theil–Sen, not OLS: hand-logged weight series are sparse and a single bad
-  // scale reading should not tilt the headline trend.
-  const weightPairs = weightWin
-    .map((p, i) => (p.value === null ? null : { x: i, y: p.value }))
-    .filter((v): v is { x: number; y: number } => v !== null);
-  const slope = theilSen(weightPairs) ?? slopePerDay(weightWin);
-  const weeklyChange = slope !== null ? slope * 7 : null;
+  // scale reading should not tilt the headline trend. Same rule as the weight
+  // insight: at least three readings spanning three weeks, or no trend at all.
+  const trend = weightTrend(weightWin);
 
   return (
     <div className="space-y-3">
@@ -64,18 +61,13 @@ export function BodyView({ data }: { data: SyncResult }) {
           <div className="px-4 py-4">
             <Label>Weekly trend</Label>
             <div className="mt-2">
-              <Value 
-                value={weeklyChange !== null ? Math.abs(weeklyChange) : null} 
-                size="lg" 
-                unit="kg/wk" 
-                digits={2} 
-                tone={weeklyChange !== null && weeklyChange < 0 ? "text-emerald-400" : "text-amber-400"}
-              />
+              {/* Neutral on purpose: whether up or down is welcome is the person's call, not the app's. */}
+              <Value value={trend ? Math.abs(trend.kgPerWeek) : null} size="lg" unit="kg/wk" digits={2} />
             </div>
             <p className="text-[10px] text-zinc-500 mt-2">
-              {weeklyChange !== null 
-                ? (weeklyChange < 0 ? 'Trending down.' : 'Trending up.') 
-                : 'Not enough data for trend.'}
+              {trend
+                ? `${trend.kgPerWeek < 0 ? 'Down' : trend.kgPerWeek > 0 ? 'Up' : 'Flat'} across ${trend.readings} readings over ${trend.spanDays} days.`
+                : 'A trend needs 3 readings spanning 3 weeks.'}
             </p>
           </div>
         </Card>
