@@ -86,11 +86,12 @@ export function TodayView({
             value={<Value value={sl ? fmtDuration(sl.minutesAsleep) : null} size="md" />}
             pill={sl && <BandPill c={sleepCmp} />}
             chart={sl && <Spark series={sleepSeries.slice(-21)} color={DOMAIN.sleep.hex} height={28} />}
-            lines={sl ? [
-              [s.sleepScore && `Score ${s.sleepScore.total}`, sl.stages && `Deep+REM ${Math.round(((sl.stages.deep + sl.stages.rem) / sl.minutesAsleep) * 100)}%`]
-                .filter(Boolean).join(' · '),
-              `${formatClock(sl.bedtimeMin)} → ${formatClock(sl.wakeMin)}`,
-            ] : ['Nothing synced for last night or the night before']}
+            rows={sl ? [
+              ['Score', s.sleepScore && `${s.sleepScore.total}`],
+              ['Deep+REM', sl.stages && `${Math.round(((sl.stages.deep + sl.stages.rem) / sl.minutesAsleep) * 100)}%`],
+              ['Window', `${formatClock(sl.bedtimeMin)} → ${formatClock(sl.wakeMin)}`],
+            ] : []}
+            empty={sl ? null : 'Nothing synced for last night or the night before'}
             note={from(slDay?.date)}
           />
           <Tile
@@ -99,12 +100,13 @@ export function TodayView({
             value={<Value value={mv?.steps ?? null} size="md" unit="steps" />}
             pill={mv && <BandPill c={stepsCmp} partial={movementIsToday} />}
             chart={mv && <Meter pct={stepGoal.pct} color={DOMAIN.movement.hex} className="my-3" />}
-            lines={mv ? [
-              [stepGoal.pct !== null && `${Math.round(stepGoal.pct)}% of 10,000`, mv.distanceKm !== null && `${fmtNum(mv.distanceKm, 2)} km`]
-                .filter(Boolean).join(' · '),
-              [mv.activeMinutes && `${mv.activeMinutes.moderate + mv.activeMinutes.vigorous} min brisk`, mv.activeKcal !== null && `${fmtNum(mv.activeKcal, 0)} kcal`]
-                .filter(Boolean).join(' · '),
-            ] : ['No steps synced today or yesterday']}
+            rows={mv ? [
+              ['Goal', stepGoal.pct !== null && `${Math.round(stepGoal.pct)}% of 10,000`],
+              ['Distance', mv.distanceKm !== null && `${fmtNum(mv.distanceKm, 2)} km`],
+              ['Active', mv.activeMinutes && `${mv.activeMinutes.moderate + mv.activeMinutes.vigorous} min brisk`],
+              ['Energy', mv.activeKcal !== null && `${fmtNum(mv.activeKcal, 0)} kcal`],
+            ] : []}
+            empty={mv ? null : 'No steps synced today or yesterday'}
             note={mv && !movementIsToday ? `${formatCivilLong(mv.date)} · today hasn't synced yet` : null}
           />
           <Tile
@@ -113,10 +115,11 @@ export function TodayView({
             value={<Value value={rhrNow?.value ?? null} size="md" unit="bpm" />}
             pill={rhrNow && <BandPill c={rhrNow} />}
             chart={rhrNow && <Spark series={rhrSeries.slice(-21)} color={DOMAIN.cardio.hex} height={28} />}
-            lines={rhrNow || hrvNow ? [
-              hrvNow && `HRV ${fmtNum(hrvNow.value)} ms`,
-              hrvNow && hrvNow.baseline !== null && `usual ${fmtNum(hrvNow.baseline)} ms`,
-            ] : ['No reading for last night or the night before']}
+            rows={[
+              ['HRV', hrvNow && `${fmtNum(hrvNow.value)} ms`],
+              ['Usual HRV', hrvNow && hrvNow.baseline !== null && `${fmtNum(hrvNow.baseline)} ms`],
+            ]}
+            empty={rhrNow || hrvNow ? null : 'No reading for last night or the night before'}
             note={from(rhrNow?.date)}
           />
           <Tile
@@ -125,10 +128,11 @@ export function TodayView({
             value={<Value value={respNow?.value ?? null} size="md" digits={1} unit="/min" />}
             pill={respNow && <BandPill c={respNow} />}
             chart={respNow && <Spark series={respSeries.slice(-21)} color={BREATHING_HEX} height={28} />}
-            lines={respNow || spo2Now ? [
-              respNow && respNow.baseline !== null && `usual ${fmtNum(respNow.baseline)} /min`,
-              spo2Now && `Blood oxygen ${fmtNum(spo2Now.value)}%`,
-            ] : ['No reading for last night or the night before']}
+            rows={[
+              ['Usual', respNow && respNow.baseline !== null && `${fmtNum(respNow.baseline)} /min`],
+              ['Blood oxygen', spo2Now && `${fmtNum(spo2Now.value)}%`],
+            ]}
+            empty={respNow || spo2Now ? null : 'No reading for last night or the night before'}
             note={from(respNow?.date)}
           />
         </div>
@@ -281,16 +285,20 @@ export function TodayView({
   );
 }
 
-/** One of the phone layout's four at-a-glance tiles: the number, its verdict, a trend, the details in grey. */
-function Tile({ label, icon, value, pill, chart, lines, note }: {
+/** One of the phone layout's four at-a-glance tiles: the number, its verdict, a trend, then the details as label–value rows. */
+function Tile({ label, icon, value, pill, chart, rows, empty, note }: {
   label: string;
   icon: React.ReactNode;
   value: React.ReactNode;
   pill?: React.ReactNode;
   chart?: React.ReactNode;
-  lines: (string | false | null | undefined)[];
+  /** Rows without a value are left out. */
+  rows: [string, string | false | null | undefined][];
+  /** Shown instead when the tile has nothing to report. */
+  empty?: string | null;
   note?: string | null;
 }) {
+  const shown = rows.filter((r): r is [string, string] => !!r[1]);
   return (
     <article className="min-w-0 bg-[#0c0c0e] border border-[#1e1e22] rounded-[18px] p-3.5 flex flex-col gap-1.5">
       <div className="flex items-center justify-between gap-2">
@@ -300,9 +308,12 @@ function Tile({ label, icon, value, pill, chart, lines, note }: {
       <div>{value}</div>
       {pill && <div className="flex">{pill}</div>}
       {chart}
-      <p className="text-[11.5px] leading-[1.5] text-zinc-500">
-        {lines.filter(Boolean).map((line, i) => <span key={i} className="block">{line}</span>)}
-      </p>
+      {shown.length > 0 && (
+        <div>
+          {shown.map(([k, v]) => <Row key={k} label={k} dense>{v}</Row>)}
+        </div>
+      )}
+      {empty && <p className="text-[11.5px] leading-[1.5] text-zinc-500">{empty}</p>}
       {note && <p className="text-[10px] text-amber-400/80">{note}</p>}
     </article>
   );
