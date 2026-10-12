@@ -3,7 +3,7 @@ import { Footprints, Heart, Moon, Wind } from 'lucide-react';
 import { formatCivilLong, formatClock, type CivilDate } from '../lib/date';
 import {
   compareToBaseline, goal, isRecent, latestPoint, series, NOISE_FLOOR,
-  type Point,
+  type Comparison, type Point,
 } from '../pipeline/derive';
 import { todaySummary } from '../pipeline/insights';
 import type { IntradayDays } from '../pipeline/labs';
@@ -19,6 +19,10 @@ import { InsightsCarousel } from '../components/InsightsCarousel';
 
 /** Breathing's colour on the Vitals page. */
 const BREATHING_HEX = '#a855f7';
+
+/** A comparison's usual range for a sparkline's band, once it has a baseline. */
+const usual = (c: Comparison | null) =>
+  c && c.baseline !== null && c.spread !== null ? { centre: c.baseline, spread: c.spread } : null;
 
 export function TodayView({
   data,
@@ -85,7 +89,7 @@ export function TodayView({
             icon={<Moon size={14} className={DOMAIN.sleep.text} />}
             value={<Value value={sl ? fmtDuration(sl.minutesAsleep) : null} size="md" />}
             pill={sl && <BandPill c={sleepCmp} />}
-            chart={sl && <Spark series={sleepSeries.slice(-21)} color={DOMAIN.sleep.hex} height={28} />}
+            chart={sl && <Spark series={sleepSeries.slice(-21)} color={DOMAIN.sleep.hex} height={28} baseline={usual(sleepCmp)} />}
             rows={sl ? [
               ['Score', s.sleepScore && `${s.sleepScore.total}`],
               ['Deep+REM', sl.stages && `${Math.round(((sl.stages.deep + sl.stages.rem) / sl.minutesAsleep) * 100)}%`],
@@ -120,7 +124,7 @@ export function TodayView({
             icon={<Heart size={14} className={DOMAIN.cardio.text} />}
             value={<Value value={rhrNow?.value ?? null} size="md" unit="bpm" />}
             pill={rhrNow && <BandPill c={rhrNow} />}
-            chart={rhrNow && <Spark series={rhrSeries.slice(-21)} color={DOMAIN.cardio.hex} height={28} />}
+            chart={rhrNow && <Spark series={rhrSeries.slice(-21)} color={DOMAIN.cardio.hex} height={28} baseline={usual(rhrNow)} />}
             rows={[
               ['HRV', hrvNow && `${fmtNum(hrvNow.value)} ms`],
               ['Usual HRV', hrvNow && hrvNow.baseline !== null && `${fmtNum(hrvNow.baseline)} ms`],
@@ -133,7 +137,7 @@ export function TodayView({
             icon={<Wind size={14} style={{ color: BREATHING_HEX }} />}
             value={<Value value={respNow?.value ?? null} size="md" digits={1} unit="/min" />}
             pill={respNow && <BandPill c={respNow} />}
-            chart={respNow && <Spark series={respSeries.slice(-21)} color={BREATHING_HEX} height={28} />}
+            chart={respNow && <Spark series={respSeries.slice(-21)} color={BREATHING_HEX} height={28} baseline={usual(respNow)} />}
             rows={[
               ['Usual', respNow && respNow.baseline !== null && `${fmtNum(respNow.baseline)} /min`],
               ['Blood oxygen', spo2Now && `${fmtNum(spo2Now.value)}%`],
@@ -159,7 +163,7 @@ export function TodayView({
                     <BandPill c={sleepCmp} />
                   </div>
                   <div className="mt-3">
-                    <Spark series={sleepSeries.slice(-21)} color={DOMAIN.sleep.hex} />
+                    <Spark series={sleepSeries.slice(-21)} color={DOMAIN.sleep.hex} baseline={usual(sleepCmp)} />
                   </div>
                   <div className="mt-2 space-y-0">
                     <Row label="Score">
@@ -244,7 +248,7 @@ export function TodayView({
                     </div>
                   )}
                   <div className="mt-3">
-                    <Spark series={rhrSeries.slice(-21)} color={DOMAIN.cardio.hex} />
+                    <Spark series={rhrSeries.slice(-21)} color={DOMAIN.cardio.hex} baseline={usual(rhrNow)} />
                   </div>
                   <div className="mt-2 space-y-0">
                     <Row label="HRV">
