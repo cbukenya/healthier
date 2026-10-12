@@ -1,4 +1,4 @@
-import { civilClock, daysBetween, isoWeekdayIndex, type CivilDate } from '../lib/date';
+import { addDays, civilClock, dateRange, daysBetween, isoWeekdayIndex, type CivilDate } from '../lib/date';
 import type { DailyRecord, HealthDataset } from '../types/health';
 import { scoreSleep } from './sleep';
 import {
@@ -79,8 +79,11 @@ const isWorkday = (d: CivilDate) => isoWeekdayIndex(d) <= 4;
 
 const hm = (mins: number) =>
   `${Math.floor(mins / 60)}h ${String(Math.round(mins) % 60).padStart(2, '0')}m`;
-const needLabel = (need: number) =>
-  `${Math.floor(need / 60)}h${need % 60 ? ` ${String(need % 60).padStart(2, '0')}m` : ''}`;
+/** A sleep need as "7h" or "7h 18m"; the median behind it can land on a half minute. */
+export const needLabel = (need: number) => {
+  const m = Math.round(need);
+  return `${Math.floor(m / 60)}h${m % 60 ? ` ${String(m % 60).padStart(2, '0')}m` : ''}`;
+};
 const clk = (m: number) => {
   const t = ((Math.round(m) % 1440) + 1440) % 1440;
   return `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`;
@@ -89,6 +92,15 @@ const fmtInt = (v: number) => Math.round(v).toLocaleString('en-US');
 const circDelta = (a: number, b: number) => ((a - b + 720 + 1440) % 1440) - 720;
 const sleepMins = (slice: DailyRecord[], get: (s: NonNullable<DailyRecord['sleep']>) => number) =>
   slice.map((d) => (d.sleep ? get(d.sleep) : null)).filter((m): m is number => m !== null);
+/**
+ * A day's minutes in the WHO's currency, where vigorous counts double. Active Zone Minutes
+ * already weight it that way (1/min in fat burn, 2/min in cardio and peak); the fallback,
+ * moderate + 2 × vigorous, keeps the same currency.
+ */
+const zoneMins = (d: DailyRecord) =>
+  d.zoneMinutes ? d.zoneMinutes.fatBurn + 2 * (d.zoneMinutes.cardio + d.zoneMinutes.peak) : 0;
+const briskMins = (d: DailyRecord) =>
+  d.activeMinutes ? d.activeMinutes.moderate + 2 * d.activeMinutes.vigorous : 0;
 
 /** Truncate the grid by n days — the heart of the yesterday test. */
 const cut = (days: DailyRecord[], n: number) => days.slice(0, Math.max(0, days.length - n));
@@ -743,19 +755,9 @@ export function observations(
   if (weekStartIdx >= 0) {
     // WHO counts 150 min moderate OR 75 min vigorous, i.e. vigorous minutes
     // are worth double — summing raw minutes equally overstated the week.
-    // Active Zone Minutes already encode exactly that weighting (1/min in fat
-    // burn, 2/min in cardio and peak), so AZM is the preferred input and the
-    // moderate + 2 × vigorous fallback keeps the same currency.
-    const azmWeek = (upto: number) =>
-      days.slice(weekStartIdx, upto).reduce(
-        (a, d) => a + (d.zoneMinutes ? d.zoneMinutes.fatBurn + 2 * (d.zoneMinutes.cardio + d.zoneMinutes.peak) : 0),
-        0,
-      );
-    const fallbackWeek = (upto: number) =>
-      days.slice(weekStartIdx, upto).reduce(
-        (a, d) => a + (d.activeMinutes ? d.activeMinutes.moderate + 2 * d.activeMinutes.vigorous : 0),
-        0,
-      );
+    // AZM is the preferred input; see zoneMins.
+    const azmWeek = (upto: number) => days.slice(weekStartIdx, upto).reduce((a, d) => a + zoneMins(d), 0);
+    const fallbackWeek = (upto: number) => days.slice(weekStartIdx, upto).reduce((a, d) => a + briskMins(d), 0);
     const hasAzm = days.slice(weekStartIdx).some((d) => d.zoneMinutes !== null);
     const weekEquivalent = hasAzm ? azmWeek : fallbackWeek;
     const total = weekEquivalent(days.length);
@@ -1202,6 +1204,52 @@ export function todaySummary(ds: HealthDataset, now: Date = new Date(), extras?:
     readiness: readiness(days),
     sleepTargetMin: estimatedSleepTarget(days),
     debt: sleepDebt(days, estimatedSleepTarget(days)),
+    week: weekSummary(days),
     observations: observations(ds, now, extras),
+  };
+}
+
+// ─────────────────────────────────────────────────────────── this week
+
+/** The seven days ending today, as Today's week card reads them. */
+export interface WeekSummary {
+  /** Each morning's battery, scored on the data up to that day; oldest first, null where there was no score. */
+  battery: { date: CivilDate; score: number | null }[];
+  /** Mean time asleep across the week's recorded nights. */
+  sleep: { avgMin: number; nights: number } | null;
+  /** Minutes in the WHO's currency, today's so far included: Active Zone Minutes when the week has them. */
+  activeMinutes: { total: number; unit: 'azm' | 'brisk' } | null;
+  /** Finished days only: today's count is still climbing. */
+  steps: { avg: number; days: number; atGoal: number } | null;
+}
+
+export function weekSummary(days: DailyRecord[]): WeekSummary | null {
+  const today = days.at(-1)?.date;
+  if (!today) return null;
+  const from = addDays(today, -6);
+  const week = days.filter((d) => d.date >= from);
+  const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
+
+  const battery = dateRange(from, today).map((date) => {
+    const i = days.findIndex((d) => d.date === date);
+    return { date, score: i < 0 ? null : readiness(days.slice(0, i + 1)).score };
+  });
+  const nights = sleepMins(week, (s) => s.minutesAsleep);
+  const azm = week.some((d) => d.zoneMinutes !== null);
+  const brisk = week.some((d) => d.activeMinutes !== null);
+  const steps = week
+    .filter((d) => d.date !== today)
+    .map((d) => d.steps)
+    .filter((s): s is number => s !== null);
+
+  return {
+    battery,
+    sleep: nights.length ? { avgMin: mean(nights), nights: nights.length } : null,
+    activeMinutes: azm || brisk
+      ? { total: week.reduce((a, d) => a + (azm ? zoneMins(d) : briskMins(d)), 0), unit: azm ? 'azm' : 'brisk' }
+      : null,
+    steps: steps.length
+      ? { avg: mean(steps), days: steps.length, atGoal: steps.filter((s) => s >= STEP_GOAL).length }
+      : null,
   };
 }
