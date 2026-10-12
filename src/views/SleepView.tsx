@@ -462,16 +462,16 @@ export function SleepView({ data }: { data: SyncResult }) {
               </div>
             </div>
             <div>
-              <Label>Debt (last 7 nights)</Label>
+              <Label>Debt (7 nights before last)</Label>
               <div className="mt-2">
                 <Value
-                  value={debt === null ? null : (debt.deficitMin / 60).toFixed(1)}
+                  value={debt === null ? null : (Math.abs(debt.netMin) / 60).toFixed(1)}
                   size="lg"
-                  unit={debt === null ? '' : 'h short'}
-                  tone={debt !== null && debt.deficitMin > 0 ? 'text-amber-400' : 'text-emerald-400'}
+                  unit={debt === null ? '' : debt.netMin > 0 ? 'h short' : 'h banked'}
+                  tone={debt !== null && debt.netMin > 0 ? 'text-amber-400' : 'text-emerald-400'}
                 />
               </div>
-              <p className="text-[10px] text-zinc-500 mt-2">Against your {Math.round(targetMin / 60)}h target.</p>
+              <p className="text-[10px] text-zinc-500 mt-2">Against your {Math.round(targetMin / 60)}h target, longer nights counted against shorter ones.</p>
             </div>
             <div>
               <Label>Bedtime consistency</Label>

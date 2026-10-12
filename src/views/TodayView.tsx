@@ -245,12 +245,12 @@ export function TodayView({
               <Row label="Activity ramp (this week vs prior 3)">
                 {load.ratio === null ? '—' : `${load.ratio.toFixed(2)}×`}
               </Row>
-              <Row label={`Sleep vs your ~${Math.round((s.sleepTargetMin / 60) * 10) / 10}h target, last 7 nights`}>
+              <Row label={`Sleep vs your ~${Math.round((s.sleepTargetMin / 60) * 10) / 10}h target, the 7 nights before last`}>
                 {s.debt === null ? (
                   <span className="text-zinc-500">too few nights</span>
-                ) : s.debt.deficitMin > 0 ? (
+                ) : s.debt.netMin > 0 ? (
                   <span className="text-amber-300">
-                    {(s.debt.deficitMin / 60).toFixed(1)}h short
+                    {(s.debt.netMin / 60).toFixed(1)}h short
                     {s.debt.coverage === 'partial' && <span className="text-zinc-500"> (est.)</span>}
                   </span>
                 ) : (
