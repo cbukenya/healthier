@@ -189,7 +189,7 @@ export function Delta({
           : 'text-rose-400';
   return (
     <span className={`text-[11px] font-medium tabular-nums ${tone}`}>
-      {up ? '↑' : value < 0 ? '↓' : ''} {Math.abs(value).toFixed(digits)}
+      {up ? '↑' : value < 0 ? '↓' : ''} {Math.abs(value).toLocaleString('en-GB', { minimumFractionDigits: digits, maximumFractionDigits: digits })}
       {unit}
       {suffix ? <span className="text-zinc-500 font-normal"> {suffix}</span> : null}
     </span>

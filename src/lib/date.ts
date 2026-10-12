@@ -191,6 +191,11 @@ export function formatCivilDay(date: CivilDate): string {
   return `${weekdayShort(date)} ${MON[m - 1]} ${d} ${y}`;
 }
 
+/** "12–18 Aug", or "29 Jul – 4 Aug" across a month. */
+export function formatCivilRange(from: CivilDate, to: CivilDate): string {
+  return from.slice(0, 7) === to.slice(0, 7) ? `${Number(from.slice(8))}–${formatCivil(to)}` : `${formatCivil(from)} – ${formatCivil(to)}`;
+}
+
 /** Minutes past midnight → "01:57". Wraps past 24h so late bedtimes read correctly. */
 export function formatClock(minutesOfDay: number): string {
   const m = ((Math.round(minutesOfDay) % 1440) + 1440) % 1440;
