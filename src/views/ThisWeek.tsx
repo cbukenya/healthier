@@ -20,8 +20,7 @@ const gap = (mins: number) => (Math.round(mins) < 60 ? `${Math.round(mins)} min`
 
 /**
  * The last seven days at a glance: the battery each morning, then the week's sleep, WHO minutes
- * and steps against their bars. Replaces the card listing where the numbers came from, which
- * now sits as one line under the page.
+ * and steps against their bars. Where the numbers came from lives on the Data tab.
  */
 export function ThisWeek({ week, needMin, className = '' }: { week: WeekSummary; needMin: number; className?: string }) {
   const first = week.battery[0].date;

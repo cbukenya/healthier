@@ -20,21 +20,15 @@ import { InsightsCarousel } from '../components/InsightsCarousel';
 /** Breathing's colour on the Vitals page. */
 const BREATHING_HEX = '#a855f7';
 
-const and = (items: string[]) =>
-  items.length <= 1 ? items.join('') : `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`;
-
 export function TodayView({
   data,
   intraday,
   clock,
-  onOpenData,
 }: {
   data: SyncResult;
   intraday?: IntradayDays;
   /** Demo mode runs on the fixture's clock and zone; live data on this device's. */
   clock?: { now: Date; timeZone: string };
-  /** Opens the Data tab from the sources line. */
-  onOpenData?: () => void;
 }) {
   const s = todaySummary(data, clock?.now, { intraday, timeZone: clock?.timeZone });
   const days = data.days;
@@ -75,8 +69,6 @@ export function TodayView({
     missing: s.readiness.missing,
     calibrating: s.readiness.calibrating,
   };
-  const sources = [...new Set(data.meta.sources.map((x) => x.label))];
-  const streamsOk = data.meta.streams.filter((x) => x.status === 'ok').length;
   // A tile's date note, when its reading isn't today's.
   const from = (date: CivilDate | null | undefined) => (date && date !== today ? `From ${formatCivilLong(date)}` : null);
 
@@ -285,19 +277,6 @@ export function TodayView({
           </div>
         )}
       </div>
-
-      <p className="px-1 pt-1 text-[12px] leading-[1.5] text-[#6b6f78]">
-        {sources.length > 0 && <>From {and(sources)} · </>}
-        {streamsOk} of {data.meta.streams.length} streams
-        {onOpenData && (
-          <>
-            {' · '}
-            <button type="button" onClick={onOpenData} className="underline underline-offset-2 decoration-zinc-700 hover:text-zinc-300 transition-colors">
-              Data
-            </button>
-          </>
-        )}
-      </p>
     </div>
   );
 }

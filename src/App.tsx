@@ -169,7 +169,7 @@ export default function App() {
       </header>
 
       {/* Navigation & Status */}
-      <div className="max-w-5xl mx-auto px-4 py-3 md:py-6">
+      <div className="max-w-5xl mx-auto px-4 pt-3 pb-6 md:pt-6">
         <nav className="flex items-center gap-1 overflow-x-auto pb-2 scrollbar-hide">
           <NavButton 
             active={view === 'today'} onClick={() => setView('today')} 
@@ -251,9 +251,7 @@ export default function App() {
         {health.data && (
           <HistoryProvider data={health.data} info={health.history} live={!demo}>
           <main className="mt-3 md:mt-6 animate-in fade-in duration-500">
-            {view === 'today' && (
-              <TodayView data={health.data} intraday={intradayDays} clock={demo ? FIXTURE_CLOCK : undefined} onOpenData={() => { setView('data'); window.scrollTo({ top: 0 }); }} />
-            )}
+            {view === 'today' && <TodayView data={health.data} intraday={intradayDays} clock={demo ? FIXTURE_CLOCK : undefined} />}
             {view === 'activity' && <ActivityView data={health.data} />}
             {view === 'sleep' && <SleepView data={health.data} />}
             {view === 'vitals' && <VitalsView data={health.data} />}
