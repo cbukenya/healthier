@@ -594,7 +594,7 @@ function ArchitectureMeasures({ session }: { session: SleepSession }) {
   }
   if (session.onsetLatencyMin != null) {
     measures.push({
-      label: 'Fell asleep in', short: 'Fell asleep in', value: `${session.onsetLatencyMin} min`,
+      label: 'Fell asleep in', short: 'Asleep in', value: `${session.onsetLatencyMin} min`,
       hint: 'near zero night after night can mean sleep debt',
       more: `${session.onsetLatencyMin} min to fall asleep. Near zero night after night can be a sign of sleep debt.`,
     });
