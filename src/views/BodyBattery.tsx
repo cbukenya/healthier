@@ -1,5 +1,5 @@
 import React, { useId, useState } from 'react';
-import { BATTERY_TIERS, batteryTier, type Readiness } from '../pipeline/derive';
+import { BATTERY_TIERS, batteryTier, type Readiness, type ReadinessPart } from '../pipeline/derive';
 
 interface BodyBatteryProps {
   /** Null when readiness can't be computed yet (too little history). */
@@ -163,6 +163,35 @@ function BatteryFigure({ score, labelled, className }: { score: number | null; l
   );
 }
 
+/** Contributors in order of how far each moved the score, either way. */
+const byImpact = (parts: ReadinessPart[]) => [...parts].sort((a, b) => Math.abs(b.contribution) - Math.abs(a.contribution));
+
+/**
+ * One contributor: its name with its evidence underneath, a bar out from the centre line, and the
+ * points it added or took. `large` sizes it for the desktop card.
+ */
+function ContributorRow({ part, maxAbs, large = false }: { part: ReadinessPart; maxAbs: number; large?: boolean }) {
+  const pos = part.contribution >= 0;
+  return (
+    <div className={`grid items-center border-t border-[#18181b] ${large ? 'grid-cols-[minmax(0,1fr)_minmax(96px,140px)_56px] gap-4 py-3' : 'grid-cols-[minmax(0,1fr)_72px_40px] gap-2.5 py-[9px]'}`}>
+      <div className="min-w-0">
+        <div className={`${large ? 'text-[17px]' : 'text-[14px]'} text-[#d4d6db]`}>{part.label}</div>
+        <div className={`mt-px ${large ? 'text-[14px]' : 'text-[12px]'} leading-[1.4] text-[#6b6f78]`}>{part.detail}</div>
+      </div>
+      <div className={`relative ${large ? 'h-[10px]' : 'h-1.5'}`}>
+        <div className={`absolute left-1/2 ${large ? '-top-[7px] -bottom-[7px] w-[1.5px]' : '-top-[5px] -bottom-[5px] w-px'} bg-[#3f3f46]`} />
+        <div
+          className={`absolute top-0 h-full rounded-full transition-all duration-700 ${pos ? 'bg-[#22c55e]' : 'bg-[#f43f5e]'}`}
+          style={{ width: `${(Math.abs(part.contribution) / maxAbs) * 45}%`, ...(pos ? { left: '50%' } : { right: '50%' }) }}
+        />
+      </div>
+      <span className={`${large ? 'text-[17px]' : 'text-[14px]'} font-semibold text-right tabular-nums ${pos ? 'text-[#22c55e]' : 'text-[#f43f5e]'}`}>
+        {pos ? '+' : '−'}{Math.abs(part.contribution).toFixed(1)}
+      </span>
+    </div>
+  );
+}
+
 export function BodyBattery({ score, parts, confidence, label, missing, calibrating, className = '' }: BodyBatteryProps) {
   const z = batteryText({ score, confidence, missing, calibrating });
   const cautions = parts.filter((p) => p.note);
@@ -200,61 +229,34 @@ export function BodyBattery({ score, parts, confidence, label, missing, calibrat
         </div>
       </div>
 
-      <div className="mt-[26px]">
-        <div className="text-[13px] font-semibold tracking-[0.22em] uppercase text-[#6b6f78] mb-[14px]">
-          How it was reached
+      {parts.length > 0 && (
+        <div className="mt-[26px]">
+          <div className="text-[13px] font-semibold tracking-[0.22em] uppercase text-[#6b6f78] mb-2">
+            How it was reached
+          </div>
+          {byImpact(parts).map((p) => <ContributorRow key={p.label} part={p} maxAbs={maxAbs} large />)}
         </div>
-        <div className="space-y-0">
-          {parts.map(p => {
-            const pos = p.contribution >= 0;
-            const pct = (Math.abs(p.contribution) / maxAbs) * 45; // max 45% of width
-            return (
-              <div key={p.label} className="grid grid-cols-1 md:grid-cols-[230px_1fr_76px] items-center gap-[6px] md:gap-4 py-[5px]">
-                <span className="text-[17px] text-[#d4d6db]">{p.label}</span>
-                <div className="relative h-[12px] order-3 md:order-none">
-                  <div className="absolute left-1/2 top-[-7px] bottom-[-7px] w-[1.5px] bg-[#3f3f46]" />
-                  <div
-                    className={`absolute top-[1px] h-[10px] rounded-full transition-all duration-700 ${pos ? 'bg-[#22c55e]' : 'bg-[#f43f5e]'}`}
-                    style={{
-                      width: `${pct}%`,
-                      ...(pos ? { left: '50%' } : { right: '50%' })
-                    }}
-                  />
-                </div>
-                <span className={`text-[17px] font-semibold tabular-nums text-left md:text-right ${pos ? 'text-[#22c55e]' : 'text-[#f43f5e]'}`}>
-                  {pos ? '+' : '−'}{Math.abs(p.contribution).toFixed(1)}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-      </div>
+      )}
 
-      <p className="mt-[26px] text-[15px] text-[#6b6f78] leading-[1.5]">
-        {parts.map((p) => p.detail).join(' · ')}
-      </p>
       {cautions.map((p) => (
-        <p key={p.label} className="mt-3 text-[15px] text-amber-300/80 leading-[1.5]">{p.note}</p>
+        <p key={p.label} className="mt-4 text-[15px] text-amber-300/80 leading-[1.5]">{p.note}</p>
       ))}
     </div>
   );
 }
 
-/** Factors a phone shows before "Show all". */
-const TOP_FACTORS = 3;
+/** Contributors a phone shows before "Show all". */
+const TOP_CONTRIBUTORS = 3;
 
-/**
- * The battery on a phone: the score beside a small figure, then the factors that moved it most,
- * each with its own evidence underneath, instead of one paragraph of details at the bottom.
- */
+/** The battery on a phone: the score beside a small figure, then the contributors that moved it most. */
 export function BodyBatteryCompact({ score, parts, confidence, label, missing, calibrating, className = '' }: BodyBatteryProps) {
   const [showAll, setShowAll] = useState(false);
   const z = batteryText({ score, confidence, missing, calibrating });
   const tierIndex = z.tier ? BATTERY_TIERS.findIndex((t) => t.tag === z.tier!.tag) : -1;
   const stage = z.tier ? `${TIER_STYLE[z.tier.tag].name} is ${z.tier.min}–${tierMax(tierIndex)}` : null;
   const cautions = parts.filter((p) => p.note);
-  const ranked = [...parts].sort((a, b) => Math.abs(b.contribution) - Math.abs(a.contribution));
-  const shown = showAll ? ranked : ranked.slice(0, TOP_FACTORS);
+  const ranked = byImpact(parts);
+  const shown = showAll ? ranked : ranked.slice(0, TOP_CONTRIBUTORS);
   const maxAbs = Math.max(...parts.map((p) => Math.abs(p.contribution)), 1);
 
   return (
@@ -284,35 +286,15 @@ export function BodyBatteryCompact({ score, parts, confidence, label, missing, c
       {parts.length > 0 && (
         <div>
           <div className="text-[11px] font-semibold tracking-[0.22em] uppercase text-[#6b6f78] mb-1">How it was reached</div>
-          {shown.map((p) => {
-            const pos = p.contribution >= 0;
-            return (
-              <div key={p.label} className="grid grid-cols-[minmax(0,1fr)_72px_40px] items-center gap-2.5 py-[9px] border-t border-[#18181b]">
-                <div className="min-w-0">
-                  <div className="text-[14px] text-[#d4d6db]">{p.label}</div>
-                  <div className="mt-px text-[12px] leading-[1.4] text-[#6b6f78]">{p.detail}</div>
-                </div>
-                <div className="relative h-1.5">
-                  <div className="absolute left-1/2 -top-[5px] -bottom-[5px] w-px bg-[#3f3f46]" />
-                  <div
-                    className={`absolute top-0 h-1.5 rounded-[3px] ${pos ? 'bg-[#22c55e]' : 'bg-[#f43f5e]'}`}
-                    style={{ width: `${(Math.abs(p.contribution) / maxAbs) * 45}%`, ...(pos ? { left: '50%' } : { right: '50%' }) }}
-                  />
-                </div>
-                <span className={`text-[14px] font-semibold text-right tabular-nums ${pos ? 'text-[#22c55e]' : 'text-[#f43f5e]'}`}>
-                  {pos ? '+' : '−'}{Math.abs(p.contribution).toFixed(1)}
-                </span>
-              </div>
-            );
-          })}
-          {parts.length > TOP_FACTORS && (
+          {shown.map((p) => <ContributorRow key={p.label} part={p} maxAbs={maxAbs} />)}
+          {parts.length > TOP_CONTRIBUTORS && (
             <button
               type="button"
               onClick={() => setShowAll(!showAll)}
               aria-expanded={showAll}
               className="mt-1.5 w-full min-h-11 rounded-xl border border-[#27272a] text-[13px] text-[#a1a1aa] hover:text-zinc-100 hover:bg-zinc-900 transition-colors"
             >
-              {showAll ? `Show the top ${TOP_FACTORS}` : `Show all ${parts.length} factors`}
+              {showAll ? `Show the top ${TOP_CONTRIBUTORS}` : `Show all ${parts.length} contributors`}
             </button>
           )}
         </div>
