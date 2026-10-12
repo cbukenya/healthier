@@ -510,12 +510,13 @@ export function Hypnogram({ session, height = 200 }: { session: SleepSession; he
               if (!prev || prev.stage === s.stage) return null;
               return (
                 <line key={i} x1={x(s.offsetMin)} x2={x(s.offsetMin)} y1={rowY(prev.stage)} y2={rowY(s.stage)}
-                  stroke={`url(#${uid}-t${i})`} strokeWidth={2} strokeLinecap="round" opacity={0.7} />
+                  stroke={`url(#${uid}-t${i})`} strokeWidth={2.5} strokeLinecap="round" />
               );
             })}
             {segs.map((s, i) => {
               const st = STAGE_STYLE[s.stage];
-              const bw = Math.max(2, (s.durationMin / total) * w);
+              // At least 4px, so a two-minute stage still reads as a block rather than a hairline.
+              const bw = Math.max(4, (s.durationMin / total) * w);
               return (
                 <rect key={i} x={x(s.offsetMin)} y={rowY(s.stage) - barH / 2} width={bw} height={barH}
                   rx={Math.min(6, bw / 2, barH / 2)} fill={st.color}>
