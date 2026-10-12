@@ -13,11 +13,11 @@ interface BodyBatteryProps {
 }
 
 /** One colour per tier; the thresholds themselves live in BATTERY_TIERS. */
-const TIER_STYLE: Record<(typeof BATTERY_TIERS)[number]['tag'], { text: string; hex: string; name: string; legend: string }> = {
-  CHARGED: { text: 'text-emerald-500', hex: '#22c55e', name: 'Charged', legend: '80+' },
-  BALANCED: { text: 'text-yellow-500', hex: '#eab308', name: 'Balanced', legend: '65+' },
-  LOW: { text: 'text-amber-500', hex: '#f59e0b', name: 'Low', legend: '50+' },
-  DRAINED: { text: 'text-rose-500', hex: '#f43f5e', name: 'Drained', legend: '<50' },
+const TIER_STYLE: Record<(typeof BATTERY_TIERS)[number]['tag'], { text: string; hex: string; name: string }> = {
+  CHARGED: { text: 'text-emerald-500', hex: '#22c55e', name: 'Charged' },
+  BALANCED: { text: 'text-yellow-500', hex: '#eab308', name: 'Balanced' },
+  LOW: { text: 'text-amber-500', hex: '#f59e0b', name: 'Low' },
+  DRAINED: { text: 'text-rose-500', hex: '#f43f5e', name: 'Drained' },
 };
 
 const list = (items: string[], joiner: string) =>
@@ -74,13 +74,13 @@ export function BodyBattery({ score, parts, confidence, label, missing, calibrat
         </div>
 
         <div className="w-full max-w-[340px] md:max-w-none mx-auto md:mx-0 mt-2 md:mt-0">
-          <svg viewBox="0 0 470 480" role="img" aria-label="Body battery level" className="w-full h-auto block">
+          <svg viewBox="0 0 470 480" role="img" aria-label="Body battery level on a scale of its four stages" className="w-full h-auto block">
             <defs>
               <linearGradient id="charge" x1="0" y1="1" x2="0" y2="0">
                 <stop offset="0"    stopColor={TIER_STYLE.DRAINED.hex}/>
-                <stop offset="0.50" stopColor={TIER_STYLE.LOW.hex}/>
-                <stop offset="0.65" stopColor={TIER_STYLE.BALANCED.hex}/>
-                <stop offset="0.80" stopColor={TIER_STYLE.CHARGED.hex}/>
+                <stop offset="0.30" stopColor={TIER_STYLE.LOW.hex}/>
+                <stop offset="0.55" stopColor={TIER_STYLE.BALANCED.hex}/>
+                <stop offset="0.82" stopColor={TIER_STYLE.CHARGED.hex}/>
                 <stop offset="1"    stopColor={TIER_STYLE.CHARGED.hex}/>
               </linearGradient>
 
@@ -132,18 +132,34 @@ export function BodyBattery({ score, parts, confidence, label, missing, calibrat
               <rect id="fillLine" x="20" y={fillY - 1} width="200" height="2" fill="#ffffff" opacity={level > 0 && level < 100 ? 0.35 : 0}/>
             </g>
 
-            {/* The legend marks where each tier starts; "drained" sits mid-band, below 50. */}
-            {BATTERY_TIERS.map((t) => {
-              const y = yOf(t.min > 0 ? t.min : 25);
+            {/* The stages as a rail beside the figure, each band at its true height, the current one lit. */}
+            {BATTERY_TIERS.map((t, i) => {
+              const max = i === 0 ? 100 : BATTERY_TIERS[i - 1].min;
+              const top = yOf(max);
+              const bottom = yOf(t.min);
+              const centre = (top + bottom) / 2;
               const style = TIER_STYLE[t.tag];
+              const on = tier?.tag === t.tag;
               return (
                 <g key={t.tag}>
-                  <line x1="200" y1={y} x2="330" y2={y} strokeDasharray="1.5 5" strokeLinecap="round" strokeWidth="1.5" stroke="#3f3f46" />
-                  <text className="font-bold tabular-nums text-[21px]" x="342" y={y + 6} fill={style.hex}>{style.legend}</text>
-                  <text className="text-[15px]" x="342" y={y + 28} fill="#6b6f78">{style.name}</text>
+                  <rect
+                    x="240" width="8" rx="4" fill={style.hex} opacity={on ? 1 : 0.22}
+                    y={top + (max === 100 ? 0 : 0.75)}
+                    height={bottom - top - (max === 100 ? 0 : 0.75) - (t.min === 0 ? 0 : 0.75)}
+                  />
+                  <text className="font-bold text-[18px]" x="264" y={centre - 2} fill={on ? style.hex : '#71717a'}>{style.name}</text>
+                  <text className="tabular-nums text-[13.5px]" x="264" y={centre + 17} fill={on ? '#9ca0a8' : '#52525b'}>
+                    {t.min} – {max === 100 ? 100 : max - 1}
+                  </text>
                 </g>
               );
             })}
+            {score !== null && (
+              <g>
+                <line x1="210" y1={fillY} x2="234" y2={fillY} strokeDasharray="1.5 5" strokeLinecap="round" strokeWidth="1.5" stroke="#52525b" />
+                <rect x="235" y={fillY - 1.5} width="18" height="3" rx="1.5" fill="#f4f4f5" />
+              </g>
+            )}
           </svg>
         </div>
       </div>
