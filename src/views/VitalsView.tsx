@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { todayCivil } from '../lib/date';
 import { formatCivil } from '../lib/date';
 import { compareToBaseline, periodShift, series, stats, values, windowShift } from '../pipeline/derive';
 import { DivergingBars, IntradayTrace, RangeBandChart, TrendChart } from '../charts';
@@ -16,6 +15,7 @@ const spo2Of = (d: DailyRecord) => (d.spo2 ? { avg: d.spo2.avg, low: d.spo2.ciLo
 
 export function VitalsView({ data }: { data: SyncResult }) {
   const days = data.days;
+  const today = days.at(-1)?.date ?? null;
   const spanState = useSpan(data, '30');
   const { days: window, bucket } = spanState;
   // Grouped spans: the week's average SpO₂, with its lowest low and highest high.
@@ -61,9 +61,9 @@ export function VitalsView({ data }: { data: SyncResult }) {
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-        <StatCard label="Heart rate variability" value={hrvCmp.value} unit="ms" cmp={hrvCmp} />
-        <StatCard label="Resting heart rate" value={rhrCmp.value} unit="bpm" cmp={rhrCmp} />
-        <StatCard label="Cardio fitness (VO₂ max)" value={vo2Cmp.value} unit="" cmp={vo2Cmp} />
+        <StatCard label="Heart rate variability" value={hrvCmp.value} unit="ms" cmp={hrvCmp} today={today} />
+        <StatCard label="Resting heart rate" value={rhrCmp.value} unit="bpm" cmp={rhrCmp} today={today} />
+        <StatCard label="Cardio fitness (VO₂ max)" value={vo2Cmp.value} unit="" cmp={vo2Cmp} today={today} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
@@ -112,7 +112,7 @@ export function VitalsView({ data }: { data: SyncResult }) {
           <CardHead
             domain="cardio"
             title="HRV baseline"
-            hint="The grey band is 1.5× MAD around your 28-day median. Readings above it mean readiness; readings below mean load."
+            hint="The grey band is your usual range: 1.5× MAD around the 28-day median. Nights outside it are unusual for you, in either direction."
             right={<CardSummary data={hrvWin} color={DOMAIN.cardio.hex} unit="ms" />}
           />
           <div className="px-2 pb-3">
@@ -126,7 +126,7 @@ export function VitalsView({ data }: { data: SyncResult }) {
           <CardHead
             domain="cardio"
             title="RHR baseline"
-            hint="For resting heart rate, lower is better. A spike above the grey band often precedes feeling ill."
+            hint="The grey band is your usual range. Nights above it often follow hard training, alcohol, heat or short sleep, and sometimes a cold coming on."
             right={<CardSummary data={rhrWin} color={DOMAIN.cardio.hex} unit="bpm" />}
           />
           <div className="px-2 pb-3">
@@ -187,8 +187,8 @@ export function VitalsView({ data }: { data: SyncResult }) {
   );
 }
 
-function StatCard({ label, value, unit, cmp }: { label: string; value: number | null; unit: string; cmp: ReturnType<typeof compareToBaseline> }) {
-  const isToday = cmp.date === todayCivil();
+function StatCard({ label, value, unit, cmp, today }: { label: string; value: number | null; unit: string; cmp: ReturnType<typeof compareToBaseline>; today: string | null }) {
+  const isToday = cmp.date !== undefined && cmp.date === today;
   return (
     <Card>
       <div className="px-4 py-4">

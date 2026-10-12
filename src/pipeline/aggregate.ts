@@ -1,4 +1,4 @@
-import { addDays, weekdayIndex, type CivilDate } from '../lib/date';
+import { addDays, isoWeekdayIndex, type CivilDate } from '../lib/date';
 import type { DailyRecord } from '../types/health';
 import { circularMeanMinutes, type Point } from './derive';
 
@@ -35,7 +35,7 @@ export function bucketForSeries(points: Point[], spanDays: number): Bucket {
 
 /** First day of the bucket a date falls in: the day itself, its Monday, or the 1st. */
 export function bucketStart(date: CivilDate, bucket: Bucket): CivilDate {
-  if (bucket === 'week') return addDays(date, -((weekdayIndex(date) + 6) % 7));
+  if (bucket === 'week') return addDays(date, -isoWeekdayIndex(date));
   if (bucket === 'month') return `${date.slice(0, 7)}-01`;
   return date;
 }

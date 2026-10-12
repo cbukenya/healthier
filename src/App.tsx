@@ -5,6 +5,7 @@ import { useAuth } from './hooks/useAuth';
 import { useHealth } from './hooks/useHealth';
 import { HistoryProvider } from './hooks/useHistory';
 import { DASHBOARD_WINDOW_DAYS } from './pipeline/sync';
+import { FIXTURE_CLOCK } from './pipeline/fixtures';
 
 import { DOMAIN, NavButton } from './ui/primitives';
 import { TodayView } from './views/TodayView';
@@ -250,7 +251,7 @@ export default function App() {
         {health.data && (
           <HistoryProvider data={health.data} info={health.history} live={!demo}>
           <main className="mt-6 animate-in fade-in duration-500">
-            {view === 'today' && <TodayView data={health.data} intraday={intradayDays} />}
+            {view === 'today' && <TodayView data={health.data} intraday={intradayDays} clock={demo ? FIXTURE_CLOCK : undefined} />}
             {view === 'activity' && <ActivityView data={health.data} />}
             {view === 'sleep' && <SleepView data={health.data} />}
             {view === 'vitals' && <VitalsView data={health.data} />}
