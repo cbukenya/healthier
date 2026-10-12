@@ -118,7 +118,7 @@ function SdbCard({ data }: { data: SyncResult }) {
 
   return (
     <LabCard
-      title="Night breathing & oxygen" gloss="how your night signals move together" badge={badge}
+      title="Sleep-disordered breathing patterns" gloss="breathing during sleep" badge={badge}
       footer="Uses nightly average oxygen saturation, breathing rate and time awake as your device reports them. Wrist sensors miss a lot during sleep, so a quiet card doesn't rule anything out."
     >
       <Explainer>
@@ -194,7 +194,7 @@ function DipCard({ data, intraday }: { data: SyncResult; intraday: IntradayDays 
 
   return (
     <LabCard
-      title="Day-to-night heart rate" gloss="how much it drops while you sleep" badge={badge}
+      title="Nocturnal HR dipping" gloss="day-to-night heart rate" badge={badge}
       footer="Daytime is the 08:00–20:00 average of your minute-level heart rate; night is your non-REM sleeping heart rate. A 10% drop is a night/day ratio of 0.90. The 10% and 20% lines come from overnight blood-pressure research and are only a rough guide for heart rate."
     >
       <Explainer>
@@ -341,7 +341,7 @@ function TachyCard({ data, intraday }: { data: SyncResult; intraday: IntradayDay
 
   return (
     <LabCard
-      title="High heart rate during sleep" gloss="one-minute averages above 100 bpm" badge={badge}
+      title="Nocturnal tachycardia" gloss="high heart rate during sleep" badge={badge}
       footer="Uses the one-minute heart-rate averages synced from your watch. Wrist readings during sleep can be noisy, and movement or waking raises them."
     >
       <Explainer>
