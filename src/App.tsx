@@ -170,7 +170,7 @@ export default function App() {
 
       {/* Navigation & Status */}
       <div className="max-w-5xl mx-auto px-4 pt-3 pb-6 md:pt-6">
-        <nav className="flex items-center gap-1 overflow-x-auto pb-2 scrollbar-hide">
+        <nav className="flex items-center justify-between md:justify-start gap-0.5 md:gap-1 overflow-x-auto pb-2 no-scrollbar">
           <NavButton 
             active={view === 'today'} onClick={() => setView('today')} 
             icon={<User size={14} />} label="Today" 
@@ -195,7 +195,7 @@ export default function App() {
             active={view === 'labs'} onClick={() => setView('labs')} 
             icon={<FlaskConical size={14} />} label="Labs" color="text-yellow-400" 
           />
-          <div className="w-px h-4 bg-zinc-800 mx-2 shrink-0" />
+          <div className="hidden md:block w-px h-4 bg-zinc-800 mx-2 shrink-0" />
           <NavButton 
             active={view === 'data'} onClick={() => setView('data')} 
             icon={<FileCode2 size={14} />} label="Data" color="text-zinc-400" 

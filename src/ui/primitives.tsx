@@ -290,15 +290,21 @@ export function NavButton({
   return (
     <button
       onClick={onClick}
-      // Phones get finger-sized tabs; the labels carry the domain colour, so the icons can go.
-      className={`shrink-0 flex items-center gap-2 min-h-10 md:min-h-0 px-3.5 md:px-3 py-1.5 rounded-xl text-[13px] md:text-[11px] font-medium transition-all ${
+      aria-label={label}
+      aria-current={active ? 'page' : undefined}
+      // Phones fit every section in one row of finger-sized icons and name only the open one.
+      className={`shrink-0 flex items-center justify-center gap-1.5 md:gap-2 h-10 md:h-auto ${active ? 'px-3' : 'w-[38px] md:w-auto'} md:px-3 md:py-1.5 rounded-xl text-[13px] md:text-[11px] font-medium transition-all ${
         active 
           ? 'bg-zinc-800 text-white' 
           : `hover:bg-zinc-800/50 ${color || 'text-zinc-400 hover:text-zinc-200'}`
       }`}
     >
-      {icon && <span className={`hidden md:inline ${active ? color || 'text-zinc-200' : 'opacity-70'}`}>{icon}</span>}
-      {label}
+      {icon && (
+        <span className={`flex ${active ? `[&>svg]:size-4 ${color || 'text-zinc-200'}` : '[&>svg]:size-[18px] md:opacity-70'} md:[&>svg]:size-3.5`}>
+          {icon}
+        </span>
+      )}
+      <span className={active ? '' : 'hidden md:inline'}>{label}</span>
     </button>
   );
 }
