@@ -14,8 +14,8 @@ interface BodyBatteryProps {
 
 /** One colour per tier; the thresholds themselves live in BATTERY_TIERS. */
 const TIER_STYLE: Record<(typeof BATTERY_TIERS)[number]['tag'], { text: string; hex: string; name: string }> = {
-  CHARGED: { text: 'text-emerald-500', hex: '#22c55e', name: 'Charged' },
-  BALANCED: { text: 'text-indigo-400', hex: '#818cf8', name: 'Balanced' },
+  CHARGED: { text: 'text-emerald-500', hex: '#10b981', name: 'Charged' },
+  BALANCED: { text: 'text-lime-300', hex: '#bef264', name: 'Balanced' },
   LOW: { text: 'text-amber-500', hex: '#f59e0b', name: 'Low' },
   DRAINED: { text: 'text-rose-500', hex: '#f43f5e', name: 'Drained' },
 };
@@ -81,7 +81,7 @@ export function BodyBattery({ score, parts, confidence, label, missing, calibrat
         <div className="w-full max-w-[340px] md:max-w-none mx-auto md:mx-0 mt-2 md:mt-0">
           <svg viewBox="0 0 470 480" role="img" aria-label="Body battery level on a scale of its four stages" className="w-full h-auto block">
             <defs>
-              <linearGradient id="charge" x1="0" y1="1" x2="0" y2="0" colorInterpolation="linearRGB">
+              <linearGradient id="charge" x1="0" y1="1" x2="0" y2="0">
                 <stop offset="0" stopColor={TIER_STYLE.DRAINED.hex}/>
                 {gradientStops.map((s) => <stop key={s.tag} offset={s.offset} stopColor={TIER_STYLE[s.tag].hex}/>)}
                 <stop offset="1" stopColor={TIER_STYLE.CHARGED.hex}/>
