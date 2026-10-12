@@ -262,7 +262,7 @@ export const STREAMS: StreamDescriptor[] = [
     mode: 'list',
     container: 'electrocardiogram',
     scope: 'ecg',
-    note: 'FDA-cleared ECG reading.',
+    note: 'ECG classifications as reported by the recording device; shown as reported, never interpreted.',
     dateOf: sampleDate,
     apply(ctx, c) {
       if (c === null) return false;
@@ -280,7 +280,7 @@ export const STREAMS: StreamDescriptor[] = [
     mode: 'list',
     container: 'irregularRhythmNotification',
     scope: 'irn',
-    note: 'FDA-cleared IRN reading.',
+    note: 'Irregular-rhythm notifications as reported by the device; shown as reported, never interpreted.',
     dateOf: sampleDate,
     apply(ctx, c) {
       if (c === null) return false;
