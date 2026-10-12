@@ -155,7 +155,10 @@ function BatteryFigure({ score, labelled, className }: { score: number | null; l
       })}
       {score !== null && (
         <g>
-          {labelled && <line x1="210" y1={fillY} x2="234" y2={fillY} strokeDasharray="1.5 5" strokeLinecap="round" strokeWidth="1.5" stroke="#52525b" />}
+          <line
+            x1="210" y1={fillY} x2={rail.tickX - 1} y2={fillY} strokeLinecap="round" stroke="#52525b"
+            strokeDasharray={labelled ? '1.5 5' : '4 8'} strokeWidth={labelled ? 1.5 : 3}
+          />
           <rect x={rail.tickX} y={fillY - rail.tickHeight / 2} width={rail.tickWidth} height={rail.tickHeight} rx={rail.tickHeight / 2} fill="#f4f4f5" />
         </g>
       )}
@@ -252,8 +255,6 @@ const TOP_CONTRIBUTORS = 3;
 export function BodyBatteryCompact({ score, parts, confidence, label, missing, calibrating, className = '' }: BodyBatteryProps) {
   const [showAll, setShowAll] = useState(false);
   const z = batteryText({ score, confidence, missing, calibrating });
-  const tierIndex = z.tier ? BATTERY_TIERS.findIndex((t) => t.tag === z.tier!.tag) : -1;
-  const stage = z.tier ? `${TIER_STYLE[z.tier.tag].name} is ${z.tier.min}–${tierMax(tierIndex)}` : null;
   const cautions = parts.filter((p) => p.note);
   const ranked = byImpact(parts);
   const shown = showAll ? ranked : ranked.slice(0, TOP_CONTRIBUTORS);
@@ -265,21 +266,32 @@ export function BodyBatteryCompact({ score, parts, confidence, label, missing, c
         Body battery <span className={`text-[14px] font-bold tracking-[0.02em] ${z.color}`}>{z.tag}</span>
       </h1>
 
-      <div className="flex items-center gap-3.5">
-        <BatteryFigure score={score} labelled={false} className="w-[104px] h-auto shrink-0 block" />
+      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
         <div className="min-w-0">
-          <div className="inline-flex items-baseline gap-1 bg-[#17171a] rounded-2xl px-4 pt-1 pb-2">
-            <span className="text-[64px] font-bold leading-[1.05] tracking-[-0.03em] tabular-nums text-[#f4f4f5]">{score ?? '—'}</span>
-            <span className="text-[14px] text-[#9ca0a8]">/ 100</span>
+          <div className="inline-flex items-baseline gap-1 bg-[#17171a] rounded-2xl px-3.5 pt-1 pb-2">
+            {/* A full 100 is the one three-digit score; a size down keeps it inside its column on narrow phones. */}
+            <span className={`${score === 100 ? 'text-[44px]' : 'text-[56px]'} font-bold leading-[1.05] tracking-[-0.03em] tabular-nums text-[#f4f4f5]`}>{score ?? '—'}</span>
+            <span className="text-[13px] text-[#9ca0a8] whitespace-nowrap">/ 100</span>
           </div>
-          <div className="mt-2.5 text-[19px] font-bold leading-[1.25] text-[#f4f4f5]">{label}</div>
-          {(z.basis || stage) && (
-            <p className="mt-1.5 text-[12.5px] leading-[1.45] text-[#6b6f78]">
-              {z.basis}
-              {z.basis && stage && ' · '}
-              {stage && <span className="whitespace-nowrap">{stage}</span>}
-            </p>
-          )}
+          <div className="mt-2.5 text-[18px] font-bold leading-[1.25] text-[#f4f4f5]">{label}</div>
+          {z.basis && <p className="mt-1.5 text-[12px] leading-[1.45] text-[#6b6f78]">{z.basis}</p>}
+        </div>
+        {/* The figure and its rail on the right, as on desktop, with each stage's range beside its band. */}
+        <div className="flex items-stretch gap-1.5">
+          <BatteryFigure score={score} labelled={false} className="w-[84px] h-auto shrink-0 block" />
+          <div aria-hidden="true" className="relative w-[60px]">
+            {BATTERY_TIERS.map((t, i) => {
+              const centre = (yOf(i === 0 ? 100 : BATTERY_TIERS[i - 1].min) + yOf(t.min)) / 2;
+              const style = TIER_STYLE[t.tag];
+              const on = z.tier?.tag === t.tag;
+              return (
+                <div key={t.tag} className="absolute left-0 -translate-y-1/2 leading-[1.2]" style={{ top: `${(centre / 480) * 100}%` }}>
+                  <div className="text-[12px] font-bold" style={{ color: on ? style.hex : '#71717a' }}>{style.name}</div>
+                  <div className="text-[10.5px] tabular-nums" style={{ color: on ? '#9ca0a8' : '#52525b' }}>{t.min}–{tierMax(i)}</div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
 
