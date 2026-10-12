@@ -1,5 +1,5 @@
 import { addDays, dateRange, type CivilDate } from '../lib/date';
-import type { DailyRecord, HealthDataset, SourceRef, StreamReport, StreamStatus } from '../types/health';
+import type { DailyRecord, HealthDataset, SleepSession, SourceRef, StreamReport, StreamStatus } from '../types/health';
 import { fetchIntradayHeartRate, sampleCount, unpackIntraday, type IntradayDay } from './intraday';
 import { emptyRecord, normalize } from './normalize';
 import {
@@ -45,8 +45,11 @@ export const PIPELINE_VERSION = 1;
 /** Trailing days re-fetched on every sync, today included. */
 export const REFETCH_DAYS = 3;
 
-/** A full rebuild at least this often, to pick up late corrections to older days. */
+/** A full rebuild of the window at least this often, to pick up late corrections. */
 export const FULL_RESYNC_DAYS = 7;
+
+/** Default days of daily history kept and backfilled; the server reads HISTORY_DAYS. */
+export const DEFAULT_HISTORY_DAYS = 730;
 
 /** Safety cap for list paging; sleep pages hold 25 sessions. */
 const MAX_LIST_PAGES = 40;
@@ -81,6 +84,8 @@ export interface StreamState {
   sources: SourceRef[];
   /** Outcome of the last fetch. Observation counts are recomputed on read. */
   report: StreamReport;
+  /** Why the last history backfill of this stream failed, if it did; cleared on success. */
+  backfillError?: string;
 }
 
 export interface DateRange {
@@ -120,8 +125,10 @@ export interface SyncOutput {
   intraday: IntradayWrite | null;
   /** Set when the height stream was read; otherwise the stored profile stands. */
   profile?: ProfileFacts;
-  /** Stored days before this date are outside the window and can be dropped. */
+  /** Stored daily rows before this date are past the history limit and can be dropped. */
   keepFrom: CivilDate;
+  /** Minute-level heart rate is only kept for the dashboard window. */
+  keepIntradayFrom: CivilDate;
 }
 
 export interface IncrementalOptions {
@@ -136,6 +143,11 @@ export interface IncrementalOptions {
   states: ReadonlyMap<string, StreamState>;
   /** Refetch the whole window regardless of what is settled. */
   full: boolean;
+  /**
+   * Days of daily history to keep (defaults to the window). Older history is
+   * fetched by `backfillStream`, not here; this only bounds what is retained.
+   */
+  historyDays?: number;
   grantedScopes?: ScopeKey[];
   includeIntraday?: boolean;
   onProgress?: (done: number, total: number, label: string) => void;
@@ -152,10 +164,22 @@ export function planFrom(prev: StreamState | undefined, today: CivilDate, window
   return from < windowStart ? windowStart : from;
 }
 
-/** After a fetch: on success the whole window is covered; on failure nothing changes. */
-function settle(prev: StreamState | undefined, ok: boolean, windowStart: CivilDate, today: CivilDate) {
-  if (!ok) return { coveredFrom: prev?.coveredFrom ?? null, finalThrough: prev?.finalThrough ?? null };
-  return { coveredFrom: windowStart, finalThrough: addDays(today, -REFETCH_DAYS) };
+/**
+ * Coverage after fetching [from, today]. On success, everything from the window
+ * start is covered, plus any older history still joined to it without a gap;
+ * on failure nothing changes. Never claims days older than `keepFrom`, since
+ * those are dropped.
+ */
+function settle(
+  prev: StreamState | undefined,
+  ok: boolean,
+  plan: { from: CivilDate; today: CivilDate; windowStart: CivilDate; keepFrom: CivilDate },
+) {
+  const clamp = (d: CivilDate | null) => (d && d < plan.keepFrom ? plan.keepFrom : d);
+  if (!ok) return { coveredFrom: clamp(prev?.coveredFrom ?? null), finalThrough: prev?.finalThrough ?? null };
+  const joined = !!(prev?.coveredFrom && prev.finalThrough && addDays(prev.finalThrough, 1) >= plan.from);
+  const oldest = joined && prev!.coveredFrom! < plan.windowStart ? prev!.coveredFrom! : plan.windowStart;
+  return { coveredFrom: clamp(oldest), finalThrough: addDays(plan.today, -REFETCH_DAYS) };
 }
 
 // ──────────────────────────────────────────────────────────────── fetching
@@ -202,13 +226,9 @@ export function toStreamDay(row: DailyRecord): StreamDay {
   return { fields, present: row.present, sources: row.sources, sourceByType: row.sourceByType };
 }
 
-async function syncStream(
-  transport: HealthTransport,
-  stream: StreamDescriptor,
-  prev: StreamState | undefined,
-  plan: { from: CivilDate; to: CivilDate; windowStart: CivilDate; full: boolean },
-): Promise<{ write: StreamWrite; points: any[] }> {
-  const res = await fetchStreamPoints(transport, stream, plan.from, plan.to);
+/** Fetch one stream for [from, to] and split it into storable days, by the ranges that fully succeeded. */
+async function fetchStreamDays(transport: HealthTransport, stream: StreamDescriptor, from: CivilDate, to: CivilDate) {
+  const res = await fetchStreamPoints(transport, stream, from, to);
   const points: any[] = res.body?.rollupDataPoints ?? res.body?.dataPoints ?? [];
 
   // Only ranges fetched completely may replace stored days.
@@ -216,7 +236,7 @@ async function syncStream(
     stream.mode === 'rollup'
       ? (res.chunks ?? []).filter((c) => c.ok).map((c) => ({ from: c.start, to: c.end }))
       : res.ok
-        ? [{ from: plan.from, to: plan.to }]
+        ? [{ from, to }]
         : [];
 
   const { days: rows, counts, latest, sources } = normalize([{ stream, points }]);
@@ -226,6 +246,21 @@ async function syncStream(
     const part = toStreamDay(row);
     if (part.present.length || Object.keys(part.fields).length) days[date] = part;
   }
+  return { res, points, okRanges, days, counts, latest, sources };
+}
+
+async function syncStream(
+  transport: HealthTransport,
+  stream: StreamDescriptor,
+  prev: StreamState | undefined,
+  plan: { from: CivilDate; to: CivilDate; windowStart: CivilDate; keepFrom: CivilDate; full: boolean },
+): Promise<{ write: StreamWrite; points: any[] }> {
+  const { res, points, okRanges, days, counts, latest, sources } = await fetchStreamDays(
+    transport,
+    stream,
+    plan.from,
+    plan.to,
+  );
 
   const parsed = counts.get(stream.dataType) ?? 0;
   const status: StreamStatus = !res.ok ? httpStatusToStatus(res.status) : parsed ? 'ok' : 'empty';
@@ -234,7 +269,7 @@ async function syncStream(
 
   const state: StreamState = {
     dataType: stream.dataType,
-    ...settle(prev, res.ok, plan.windowStart, plan.to),
+    ...settle(prev, res.ok, { from: plan.from, today: plan.to, windowStart: plan.windowStart, keepFrom: plan.keepFrom }),
     latestDate: newer(carry ? prev?.latestDate : null, latest.get(stream.dataType)) ?? null,
     parsed,
     sources: mergeSources(carry ? prev?.sources ?? [] : [], [...sources.values()]),
@@ -261,6 +296,7 @@ export async function syncIncremental(opts: IncrementalOptions): Promise<SyncOut
   const startedAt = new Date();
   const requestsBefore = opts.transport.requestCount;
   const windowStart = addDays(opts.today, -(opts.windowDays - 1));
+  const keepFrom = addDays(opts.today, -(Math.max(opts.historyDays ?? opts.windowDays, opts.windowDays) - 1));
   const allowed = (scope: ScopeKey) => !opts.grantedScopes || opts.grantedScopes.includes(scope);
 
   const planned = STREAMS.filter((s) => allowed(s.scope));
@@ -277,6 +313,7 @@ export async function syncIncremental(opts: IncrementalOptions): Promise<SyncOut
       from,
       to: opts.today,
       windowStart,
+      keepFrom,
       full: opts.full,
     });
     // Lists are newest-first, so even an incremental fetch sees the latest height.
@@ -310,7 +347,7 @@ export async function syncIncremental(opts: IncrementalOptions): Promise<SyncOut
       days: Object.fromEntries(res.days),
       state: {
         dataType: INTRADAY_HEART_RATE.dataType,
-        ...settle(prev, ok, windowStart, opts.today),
+        ...settle(prev, ok, { from, today: opts.today, windowStart, keepFrom: windowStart }),
         latestDate: newer(carry ? prev?.latestDate : null, fetchedDays.map((d) => d.date).sort().at(-1)) ?? null,
         parsed: samples,
         sources: [],
@@ -347,8 +384,68 @@ export async function syncIncremental(opts: IncrementalOptions): Promise<SyncOut
     streams,
     intraday,
     profile,
-    keepFrom: windowStart,
+    keepFrom,
+    keepIntradayFrom: windowStart,
   };
+}
+
+// ─────────────────────────────────────────────────────────────── history
+
+/** The oldest day kept for daily records. */
+export const historyStart = (today: CivilDate, historyDays: number, windowDays: number) =>
+  addDays(today, -(Math.max(historyDays, windowDays) - 1));
+
+/** Streams whose stored history doesn't yet reach back to `historyStart`. */
+export function historyDue(states: ReadonlyMap<string, StreamState>, start: CivilDate): StreamDescriptor[] {
+  return STREAMS.filter((s) => {
+    const st = states.get(s.dataType);
+    return !!st?.coveredFrom && st.report.status !== 'skipped' && st.coveredFrom > start;
+  });
+}
+
+/**
+ * Extend one stream's stored history back to `start`: fetch the days before its
+ * current coverage and store them. Runs after the window is in place, in the
+ * background, so a long backfill never delays the dashboard. The stream's last
+ * report (what the Data tab shows) is left alone; only coverage moves.
+ */
+export async function backfillStream(
+  transport: HealthTransport,
+  stream: StreamDescriptor,
+  prev: StreamState,
+  start: CivilDate,
+): Promise<StreamWrite | null> {
+  if (!prev.coveredFrom || prev.coveredFrom <= start) return null;
+  const to = addDays(prev.coveredFrom, -1);
+  const { res, okRanges, days, sources } = await fetchStreamDays(transport, stream, start, to);
+  const failed = res.chunks?.filter((c) => !c.ok).length;
+  return {
+    dataType: stream.dataType,
+    replace: okRanges,
+    days,
+    state: {
+      ...prev,
+      coveredFrom: res.ok ? start : prev.coveredFrom,
+      sources: mergeSources(prev.sources, [...sources.values()]),
+      backfillError: res.ok
+        ? undefined
+        : `${failed ? `${failed} of ${res.chunks!.length} date chunks failed: ` : ''}${summariseError(res.error ?? `HTTP ${res.status}`)}`,
+    },
+  };
+}
+
+/** Daily records for a long span, without the per-minute detail only "last night" views need. */
+export function assembleHistory(
+  rows: ReadonlyMap<string, ReadonlyMap<CivilDate, StreamDay>>,
+  from: CivilDate,
+  to: CivilDate,
+): DailyRecord[] {
+  const trim = (s: SleepSession): SleepSession => ({ ...s, segments: [], shortAwakeningsMin: [] });
+  return assembleDays(rows, from, to).map((d) => ({
+    ...d,
+    sleep: d.sleep && trim(d.sleep),
+    naps: d.naps.map(trim),
+  }));
 }
 
 function skippedState(s: Pick<StreamDescriptor, 'dataType' | 'label' | 'domain' | 'mode' | 'scope'>): StreamState {
@@ -485,21 +582,27 @@ export class MemoryStore implements StoredData {
   }
 
   apply(out: SyncOutput): void {
-    for (const w of out.streams) {
+    this.applyWrites(out.streams);
+    if (out.intraday) {
+      replaceRows(this.intradayDays, out.intraday);
+      this.stateMap.set(out.intraday.state.dataType, out.intraday.state);
+    }
+    for (const rows of this.rows.values()) {
+      for (const date of [...rows.keys()]) if (date < out.keepFrom) rows.delete(date);
+    }
+    for (const date of [...this.intradayDays.keys()]) if (date < out.keepIntradayFrom) this.intradayDays.delete(date);
+    if (out.profile) this.profile = out.profile;
+    this.run = out.run;
+  }
+
+  /** Stream writes alone, as a backfill step produces them. */
+  applyWrites(writes: StreamWrite[]): void {
+    for (const w of writes) {
       let rows = this.rows.get(w.dataType);
       if (!rows) this.rows.set(w.dataType, (rows = new Map()));
       replaceRows(rows, w);
       this.stateMap.set(w.dataType, w.state);
     }
-    if (out.intraday) {
-      replaceRows(this.intradayDays, out.intraday);
-      this.stateMap.set(out.intraday.state.dataType, out.intraday.state);
-    }
-    for (const rows of [...this.rows.values(), this.intradayDays]) {
-      for (const date of [...rows.keys()]) if (date < out.keepFrom) rows.delete(date);
-    }
-    if (out.profile) this.profile = out.profile;
-    this.run = out.run;
   }
 
   assemble(from: CivilDate, to: CivilDate): PackedDataset {

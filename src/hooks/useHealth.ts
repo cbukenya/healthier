@@ -3,7 +3,7 @@ import { DASHBOARD_WINDOW_DAYS, syncHealthData, type SyncResult } from '../pipel
 import { unpackDataset } from '../pipeline/incremental';
 import { buildFixturePayloads, createFixtureFetch } from '../pipeline/fixtures';
 import { api, ApiError } from '../lib/api';
-import type { DatasetResponse, SyncResponse } from '../types/api';
+import type { DatasetResponse, HistoryInfo, SyncResponse } from '../types/api';
 
 /**
  * The one place the UI talks to the pipeline.
@@ -25,6 +25,8 @@ export interface HealthState {
   error: string | null;
   progress: { done: number; total: number; label: string } | null;
   isDemo: boolean;
+  /** How far back stored history reaches (live mode). */
+  history: HistoryInfo | null;
 }
 
 export interface UseHealthOptions {
@@ -53,7 +55,11 @@ function wait(ms: number, signal: AbortSignal) {
 }
 
 /** Start (or join) a server sync, follow it to completion, then read the assembled dataset. */
-async function serverSync(signal: AbortSignal, onProgress: Progress, full: boolean): Promise<SyncResult> {
+async function serverSync(
+  signal: AbortSignal,
+  onProgress: Progress,
+  full: boolean,
+): Promise<{ data: SyncResult; history: HistoryInfo | null }> {
   const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   let { sync } = await api<SyncResponse>('/api/sync', { method: 'POST', body: { timeZone, full }, signal });
   while (sync.running) {
@@ -62,9 +68,9 @@ async function serverSync(signal: AbortSignal, onProgress: Progress, full: boole
     ({ sync } = await api<SyncResponse>('/api/sync', { signal }));
   }
   if (sync.error) throw new ApiError(409, sync.errorCode ?? 'sync_failed', sync.error);
-  const { dataset } = await api<DatasetResponse>('/api/dataset', { signal });
+  const { dataset, history } = await api<DatasetResponse>('/api/dataset', { signal });
   if (!dataset) throw new Error('Sync finished but stored no data');
-  return unpackDataset(dataset);
+  return { data: unpackDataset(dataset), history };
 }
 
 /** Demo: the real pipeline against fixture payloads, so it exercises the same code as live data. */
@@ -89,6 +95,7 @@ export function useHealth({ live, demo = false, onSignInRequired }: UseHealthOpt
     error: null,
     progress: null,
     isDemo: demo,
+    history: null,
   });
   const abortRef = useRef<AbortController | null>(null);
   const lastSyncRef = useRef(0);
@@ -116,10 +123,12 @@ export function useHealth({ live, demo = false, onSignInRequired }: UseHealthOpt
 
       try {
         const onProgress: Progress = (progress) => setState((s) => ({ ...s, progress }));
-        const data = demo ? await demoSync(ctl.signal, onProgress) : await serverSync(ctl.signal, onProgress, full);
+        const result = demo
+          ? { data: await demoSync(ctl.signal, onProgress), history: null }
+          : await serverSync(ctl.signal, onProgress, full);
         if (ctl.signal.aborted) return;
         lastSyncRef.current = Date.now();
-        setState((s) => ({ ...s, phase: 'ready', data, progress: null, error: null }));
+        setState((s) => ({ ...s, phase: 'ready', data: result.data, history: result.history, progress: null, error: null }));
       } catch (err) {
         if (!ctl.signal.aborted) fail(err);
       }
@@ -130,7 +139,7 @@ export function useHealth({ live, demo = false, onSignInRequired }: UseHealthOpt
   // Open: paint what the server has, then sync if it is stale. No dataset yet
   // means a first sync (or a rebuild after an upgrade): show onboarding until done.
   useEffect(() => {
-    setState({ phase: 'idle', data: null, error: null, progress: null, isDemo: demo });
+    setState({ phase: 'idle', data: null, error: null, progress: null, isDemo: demo, history: null });
     if (demo) {
       void run('cold');
       return () => abortRef.current?.abort();
@@ -148,7 +157,7 @@ export function useHealth({ live, demo = false, onSignInRequired }: UseHealthOpt
           return;
         }
         lastSyncRef.current = Date.parse(res.syncedAt!);
-        setState((s) => ({ ...s, phase: 'ready', data: unpackDataset(res.dataset!) }));
+        setState((s) => ({ ...s, phase: 'ready', data: unpackDataset(res.dataset!), history: res.history }));
         if (res.sync.running || Date.now() - lastSyncRef.current > FRESH_MS) void run('revalidate');
       } catch (err) {
         if (!ctl.signal.aborted) fail(err);
@@ -167,6 +176,21 @@ export function useHealth({ live, demo = false, onSignInRequired }: UseHealthOpt
     document.addEventListener('visibilitychange', onVisible);
     return () => document.removeEventListener('visibilitychange', onVisible);
   }, [run]);
+
+  // While older history imports in the background, follow it so longer spans unlock as it lands.
+  const backfilling = !demo && live && !!state.history?.backfilling;
+  useEffect(() => {
+    if (!backfilling) return;
+    const timer = setInterval(async () => {
+      try {
+        const { history } = await api<SyncResponse>('/api/sync');
+        if (history) setState((s) => ({ ...s, history }));
+      } catch {
+        /* the next tick retries */
+      }
+    }, 10_000);
+    return () => clearInterval(timer);
+  }, [backfilling]);
 
   const refresh = useCallback(() => run(state.data ? 'revalidate' : 'cold'), [run, state.data]);
   /** Refetch the whole window from Google, not just the unsettled tail. */

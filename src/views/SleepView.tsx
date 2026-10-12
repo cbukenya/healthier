@@ -51,12 +51,14 @@ import {
 import { scoreSleep } from '../pipeline/sleep';
 import { BarSeries, Hypnogram, StageBar, StageLegend, TrendChart, SleepWindowChart } from '../charts';
 import { BandPill, Card, CardHead, DOMAIN, Delta, EmptyState, Label, Row, Segmented, Value, fmtDuration, CardSummary } from '../ui/primitives';
+import { SpanSelector, useSpan } from '../ui/span';
+import { groupSeries } from '../pipeline/aggregate';
 import type { SyncResult } from '../pipeline/sync';
 
 export function SleepView({ data }: { data: SyncResult }) {
   const days = data.days;
-  const [span, setSpan] = useState<'14' | '30' | '90'>('30');
-  const window = days.slice(-Number(span));
+  const spanState = useSpan(data, '30');
+  const { days: window, bucket } = spanState;
 
   const sleepAll = series(days, (d) => d.sleep?.minutesAsleep ?? null);
   const sleepWin = series(window, (d) => d.sleep?.minutesAsleep ?? null);
@@ -490,10 +492,10 @@ export function SleepView({ data }: { data: SyncResult }) {
         <h2 className="text-[11px] font-bold text-zinc-500 uppercase tracking-widest">
           Your sleep over time
         </h2>
-        <Segmented value={span} onChange={setSpan} size="sm" options={[{ id: '14', label: '14d' }, { id: '30', label: '30d' }, { id: '90', label: '90d' }]} />
+        <SpanSelector state={spanState} />
       </div>
 
-      <SleepWindowChart days={days.slice(-Number(span))} />
+      <SleepWindowChart days={window} bucket={bucket} />
 
       <Card>
         <CardHead
@@ -504,7 +506,7 @@ export function SleepView({ data }: { data: SyncResult }) {
         />
         <div className="px-2 pb-3">
           <TrendChart
-            series={sleepWin} color={DOMAIN.sleep.hex} height={190}
+            series={groupSeries(sleepWin, bucket)} bucket={bucket} color={DOMAIN.sleep.hex} height={190}
             format={(v) => fmtDuration(v)} area={false}
             baseline={sleepCmp.baseline ? { centre: sleepCmp.baseline, spread: sleepCmp.spread! } : null}
           />
@@ -515,13 +517,13 @@ export function SleepView({ data }: { data: SyncResult }) {
         <Card>
           <CardHead domain="sleep" title="REM sleep" hint="Usually ~20-25% of total sleep." right={<CardSummary isSleep data={remWin} color="#a78bfa" format={(v) => fmtDuration(v)} />} />
           <div className="px-2 pb-3">
-            <BarSeries series={remWin} color="#a78bfa" unit="min" height={150} />
+            <BarSeries series={groupSeries(remWin, bucket)} bucket={bucket} color="#a78bfa" unit="min" height={150} />
           </div>
         </Card>
         <Card>
           <CardHead domain="sleep" title="Deep sleep" hint="Usually ~15-20% of total sleep, concentrated early in the night." right={<CardSummary isSleep data={deepWin} color="#4338ca" format={(v) => fmtDuration(v)} />} />
           <div className="px-2 pb-3">
-            <BarSeries series={deepWin} color="#4338ca" unit="min" height={150} />
+            <BarSeries series={groupSeries(deepWin, bucket)} bucket={bucket} color="#4338ca" unit="min" height={150} />
           </div>
         </Card>
       </div>

@@ -1,8 +1,10 @@
 import React, { useMemo } from 'react';
 import { formatCivil, formatClock } from '../lib/date';
 import { sleepRegularity, typicalSleepWindow } from '../pipeline/derive';
+import { bucketLabel, groupNights, type Bucket } from '../pipeline/aggregate';
+import { emptyRecord } from '../pipeline/normalize';
 import { Card, CardHead, fmtDuration } from '../ui/primitives';
-import type { DailyRecord } from '../types/health';
+import type { DailyRecord, SleepSession } from '../types/health';
 
 /**
  * Sleep window: one row per calendar day, bars positioned at real clock time,
@@ -18,7 +20,22 @@ import type { DailyRecord } from '../types/health';
  * Days with no recorded night stay as visible empty rows: the vertical axis is
  * calendar time, and hiding gaps would misrepresent the rhythm this chart
  * exists to show.
+ *
+ * Over long spans a row per night would run to hundreds of rows, so each row
+ * becomes a week (or month): median bedtime for the median time in bed, filled
+ * by the average stage share. The regularity score and the average window are
+ * still computed from every real night in the span.
  */
+
+/** One drawable row per bucket, newest first, shaped like a day so the drawing code is shared. */
+function bucketRows(days: DailyRecord[], bucket: Bucket): DailyRecord[] {
+  return groupNights(days, bucket)
+    .reverse()
+    .map((g) => ({
+      ...emptyRecord(g.date),
+      sleep: g.night ? ({ ...g.night, date: g.date } as unknown as SleepSession) : null,
+    }));
+}
 
 const STAGE_FILL: [key: 'deep' | 'rem' | 'light' | 'awake', color: string][] = [
   ['deep', '#4338ca'],
@@ -54,9 +71,12 @@ export function SleepWindowChart({
   mode = 'average',
   targetStart = '23:30',
   targetEnd = '07:30',
+  bucket = 'day',
 }: {
   /** Already sliced to the page's selected span — newest day last. */
   days: DailyRecord[];
+  /** Draw one row per week or month instead of per night. */
+  bucket?: Bucket;
   /** 'average' plots your own mean bed/wake; 'target' plots a fixed goal window. */
   mode?: 'average' | 'target';
   targetStart?: string;
@@ -75,7 +95,9 @@ export function SleepWindowChart({
   const labelB = useAvg ? `avg wake ${formatClock(typical!.wakeMean)}` : targetEnd;
 
   // Rows render newest-first, matching the nights list beside this chart.
-  const rows = useMemo(() => [...days].reverse(), [days]);
+  const rows = useMemo(() => (bucket === 'day' ? [...days].reverse() : bucketRows(days, bucket)), [days, bucket]);
+  const rowLabel = (date: string) => (bucket === 'day' ? formatCivil(date) : bucketLabel(date, bucket));
+  const unitName = bucket === 'day' ? 'night' : bucket;
   const nights = rows.filter((d) => d.sleep);
 
   // ── adaptive geometry
@@ -128,15 +150,17 @@ export function SleepWindowChart({
           <p className="text-[11px] text-zinc-500 mt-1 leading-relaxed max-w-none sm:max-w-md">
             {useAvg ? (
               <>
-                Each bar is one night, bed to wake, filled by stage share. The lines are your own
-                average bedtime and wake time over these {typical!.nights} nights (±{' '}
-                {Math.round(sdA)}m / ± {Math.round(sdB)}m); the annotations are each night's
-                bedtime against that average. Empty rows are nights with no record.
+                {bucket === 'day'
+                  ? 'Each bar is one night, bed to wake, filled by stage share.'
+                  : `Each bar is one ${unitName}: its median bedtime for its median time in bed, filled by average stage share.`}{' '}
+                The lines are your own average bedtime and wake time over these {typical!.nights} nights (±{' '}
+                {Math.round(sdA)}m / ± {Math.round(sdB)}m); the annotations are each {unitName}'s
+                bedtime against that average. Empty rows are {unitName}s with no record.
               </>
             ) : (
               <>
-                Each bar is one night, bed to wake, filled by stage share. The band is your target
-                window, {targetStart} → {targetEnd}. Empty rows are nights with no record.
+                Each bar is one {unitName}, bed to wake, filled by stage share. The band is your target
+                window, {targetStart} → {targetEnd}. Empty rows are {unitName}s with no record.
               </>
             )}
           </p>
@@ -223,7 +247,7 @@ export function SleepWindowChart({
               rowEls.push(
                 <text key="lbl" x={PL - 10} y={cy + 3} textAnchor="end"
                   fontSize={dense ? 8.5 : 10.5} fill="#9ca0a8">
-                  {formatCivil(d.date)}
+                  {rowLabel(d.date)}
                 </text>,
               );
             }
@@ -256,7 +280,7 @@ export function SleepWindowChart({
                           if (wpx <= 0) return null;
                           const el = (
                             <rect key={k} x={cursor} y={y} width={wpx + 0.5} height={BAR} fill={color}>
-                              <title>{`${formatCivil(d.date)} · ${k} ${s.stages![k]} min`}</title>
+                              <title>{`${bucket === 'day' ? formatCivil(d.date) : bucketLabel(d.date, bucket, 'full')} · ${k} ${s.stages![k]} min${bucket === 'day' ? '' : ' a night'}`}</title>
                             </rect>
                           );
                           cursor += wpx;

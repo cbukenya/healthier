@@ -1,4 +1,5 @@
 import type { PackedDataset } from '../pipeline/incremental';
+import type { DailyRecord } from './health';
 
 /** The JSON contract between server.ts and the browser. */
 
@@ -22,16 +23,34 @@ export interface SyncStatus {
   /** `reconnect_required` when the failure needs the user to sign in again. */
   errorCode: string | null;
   finishedAt: string | null;
+  /** Older history is being fetched in the background. */
+  backfilling: boolean;
+}
+
+export interface HistoryInfo {
+  /** Oldest day with stored data. */
+  from: string | null;
+  /** History reaches back as far as the server keeps it (HISTORY_DAYS). */
+  complete: boolean;
+  backfilling: boolean;
+}
+
+export interface HistoryResponse {
+  /** Every stored day, oldest first, without per-minute sleep detail. */
+  days: DailyRecord[];
 }
 
 export interface SyncResponse {
   sync: SyncStatus;
+  /** Present on GET; lets the browser follow a background history import. */
+  history?: HistoryInfo | null;
 }
 
 export interface DatasetResponse {
   /** Null until the first sync completes (or a pipeline upgrade has rebuilt it). */
   dataset: PackedDataset | null;
   syncedAt: string | null;
+  history: HistoryInfo | null;
   sync: SyncStatus;
 }
 
