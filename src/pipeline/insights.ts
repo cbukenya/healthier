@@ -6,7 +6,7 @@ import {
   type IntradayDays,
 } from './labs';
 import {
-  circularMeanMinutes, compareToBaseline, completedDays, coverage, findGaps,
+  BATTERY_TIERS, circularMeanMinutes, compareToBaseline, completedDays, coverage, findGaps,
   firstObserved, goalStreak, isRecent, latestPoint, loadRatio, periodShift, estimatedSleepTarget,
   readiness, series, sleepDebt, sleepRegularity, stats, values, weightTrend,
   NOISE_FLOOR,
@@ -58,6 +58,9 @@ export interface Observation {
 /** Show state-entry insights for up to this many days after the entry. */
 const ENTRY_WINDOW = 2;
 const STEP_GOAL = 10000;
+/** The battery's own scale: "fully charged" from here, "a breather" below the other. */
+const CHARGED = BATTERY_TIERS[0].min;
+const DRAINED_BELOW = BATTERY_TIERS[2].min;
 
 const daypartOf = (minutesOfDay: number): Daypart => {
   const h = minutesOfDay / 60;
@@ -262,10 +265,10 @@ export function observations(
       });
     }
 
-    if (rNow.score < 50) {
+    if (rNow.score < DRAINED_BELOW) {
       // M4 / A-battery-low — alert with trailing-day escalation.
-      const lowDays = rPrev.score !== null && rPrev.score < 50
-        ? (readiness(beforeLatestMorning(prevDays)).score ?? 99) < 50 ? 3 : 2
+      const lowDays = rPrev.score !== null && rPrev.score < DRAINED_BELOW
+        ? (readiness(beforeLatestMorning(prevDays)).score ?? 99) < DRAINED_BELOW ? 3 : 2
         : 1;
       add(82, 'battery', {
         id: 'battery-low',
@@ -278,9 +281,9 @@ export function observations(
           : undefined,
       });
     } else if (
-      rNow.score >= 80 &&
+      rNow.score >= CHARGED &&
       topPos !== null && topPos.contribution > 0 &&
-      entered(days, (w) => (readiness(w).score ?? 0) >= 80)
+      entered(days, (w) => (readiness(w).score ?? 0) >= CHARGED)
     ) {
       // M3 — the honest "primed", morning-only where the action makes sense.
       add(74, 'battery', {
