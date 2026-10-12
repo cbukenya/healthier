@@ -578,31 +578,29 @@ export function CoverageGrid({
     return out;
   }, [dates, bucket]);
 
-  // Month labels (years, for monthly cells), placed over the cell where each begins.
-  const marks = useMemo(() => {
-    const out: { i: number; label: string }[] = [];
-    let last = '';
-    cells.forEach((c, i) => {
-      const key = bucket === 'month' ? c.date.slice(0, 4) : c.date.slice(0, 7);
-      if (key === last) return;
-      last = key;
-      const label = bucket === 'day' ? formatCivil(dates[c.from]) : bucket === 'month' ? key : bucketLabel(c.date, 'month');
-      out.push({ i, label });
-    });
-    // Keep labels from colliding when cells are narrow.
-    const minGap = Math.ceil(cells.length / 10);
-    return out.filter((m, k) => k === 0 || m.i - out[k - 1].i >= minGap);
-  }, [cells, bucket, dates]);
+  const labels = useMemo(() => {
+    const out = cells.map((_, i) => coverageLabel(cells, i, bucket));
+    // The first column is labelled so the grid never starts unnamed, unless the next label is right beside it.
+    const next = out.findIndex((l, i) => i > 0 && l !== null);
+    if (cells.length > 31 && next > 0 && next < 4) out[0] = null;
+    return out;
+  }, [cells, bucket]);
+  const gap = cells.length > 120 ? 'gap-0' : 'gap-[1.5px]';
 
   return (
     <div className="overflow-x-auto px-5 pb-5">
       <div className="min-w-[560px]">
+        {/* Column labels share the cells' flex layout, so each sits exactly over its column. */}
         <div className="flex gap-2 mb-1.5">
           <span className="w-[144px] shrink-0" />
-          <div className="relative flex-1 h-3 text-[9.5px] text-zinc-600">
-            {marks.map((m) => (
-              <span key={m.i} className="absolute whitespace-nowrap" style={{ left: `${(m.i / cells.length) * 100}%` }}>
-                {m.label}
+          <div className={`flex flex-1 ${gap} h-11`}>
+            {cells.map((c, i) => (
+              <span key={c.date} className="flex-1 min-w-0 flex items-end justify-center">
+                {labels[i] && (
+                  <span className="text-[9.5px] leading-none text-zinc-500 whitespace-nowrap [writing-mode:vertical-rl] rotate-180">
+                    {labels[i]}
+                  </span>
+                )}
               </span>
             ))}
           </div>
@@ -613,7 +611,7 @@ export function CoverageGrid({
             <span className="w-[144px] shrink-0 text-[11px] text-zinc-400 truncate" title={r.dataType}>
               {r.label}
             </span>
-            <div className={`flex flex-1 ${cells.length > 120 ? 'gap-0' : 'gap-[1.5px]'}`}>
+            <div className={`flex flex-1 ${gap}`}>
               {cells.map((c) => {
                 const total = c.to - c.from + 1;
                 let recorded = 0;
@@ -639,6 +637,23 @@ export function CoverageGrid({
       </div>
     </div>
   );
+}
+
+/**
+ * Which coverage columns get a date label: every day up to a month, Mondays up
+ * to ~4 months, the first week of each month for weekly cells, and months (or
+ * years, past three years) for monthly ones.
+ */
+function coverageLabel(cells: { date: CivilDate }[], i: number, bucket: Bucket): string | null {
+  const c = cells[i];
+  const prev = cells[i - 1];
+  if (bucket === 'day') {
+    if (cells.length <= 31) return formatCivil(c.date);
+    return i === 0 || weekdayLetter(c.date) === 'M' ? formatCivil(c.date) : null;
+  }
+  if (bucket === 'week') return !prev || prev.date.slice(0, 7) !== c.date.slice(0, 7) ? bucketLabel(c.date, 'month') : null;
+  if (cells.length <= 36) return bucketLabel(c.date, 'month');
+  return i === 0 || c.date.slice(5, 7) === '01' ? c.date.slice(0, 4) : null;
 }
 
 // ─────────────────────────────────────────────────────── weekday profile
