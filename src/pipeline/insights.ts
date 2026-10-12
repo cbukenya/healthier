@@ -938,7 +938,7 @@ export function observations(
       id: 'labs-sdb-pattern',
       domain: 'sleep',
       tone: 'watch',
-      title: 'Night signals off together',
+      title: 'Sleep-disordered breathing patterns',
       text: `On ${sdb.firedCount} of the last 14 nights (${lit}), oxygen, breathing rate or time awake were outside your usual range together. A cold, alcohol or a stuffy room can all do this.`,
       action: 'The nights are in Labs. If you also snore heavily or feel very sleepy during the day, mention it to a clinician.',
     });
@@ -951,7 +951,7 @@ export function observations(
       id: 'labs-entropy-shift',
       domain: 'cardio',
       tone: 'watch',
-      title: 'HRV entropy shifted',
+      title: 'HRV entropy',
       text: `A nightly HRV metric your device reports has been outside your usual range on ${ent.shiftNights} nights (${ent.lastNight} vs ${ent.baselineMedian} ± ${ent.baselineSd}). It moves with everyday things: a cold, alcohol, poor sleep, hard training.`,
       action: 'The nights are in Labs.',
     });
@@ -966,8 +966,8 @@ export function observations(
         id: 'labs-dip-pattern',
         domain: 'cardio',
         tone: 'watch',
-        title: dip.riser ? 'Heart rate higher at night than by day' : 'A smaller overnight heart-rate drop',
-        text: `${dip.nightsUnder10} of ${dip.measurableNights} measured nights dropped less than 10% (median ${dip.medianDipPct}%)${dip.excludedIllnessNights > 0 ? `, leaving out ${dip.excludedIllnessNights} night${dip.excludedIllnessNights > 1 ? 's' : ''} with several signals off` : ''}. Late meals, alcohol, heat and evening exercise all reduce the drop.`,
+        title: 'Nocturnal HR dipping',
+        text: `${dip.riser ? 'Heart rate ran higher at night than by day. ' : ''}${dip.nightsUnder10} of ${dip.measurableNights} measured nights dropped less than 10% (median ${dip.medianDipPct}%)${dip.excludedIllnessNights > 0 ? `, leaving out ${dip.excludedIllnessNights} night${dip.excludedIllnessNights > 1 ? 's' : ''} with several signals off` : ''}. Late meals, alcohol, heat and evening exercise all reduce the drop.`,
         action: 'Labs has the nights. If it persists for weeks alongside symptoms, you could mention it to a clinician.',
       });
     }
@@ -981,7 +981,7 @@ export function observations(
         id: 'labs-tachy-event',
         domain: 'cardio',
         tone: 'watch',
-        title: 'Heart rate stayed high during sleep',
+        title: 'Nocturnal tachycardia',
         text: `${e.durationMin} minutes above 100 bpm (peak ${e.peakBpm}) during ${e.sleepWindow ? e.sleepWindow : e.stage ?? 'sleep'} on ${e.date}.${recur ? ` ${tachy.events.length} such stretches in ${tachy.nightsScanned} nights.` : ''} Fever, alcohol, vivid dreams, waking and movement can all raise heart rate.`,
         action: recur ? 'Labs lists them. If you notice palpitations, chest pain, dizziness or breathlessness, seek medical care.' : undefined,
       });
