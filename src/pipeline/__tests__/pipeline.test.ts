@@ -11,7 +11,7 @@ import { scoreSleep } from '../sleep';
 import {
   compareToBaseline, coverage, findGaps, periodShift, rollingMean, series, stats, values,
   bedtimeConsistency, currentStreak, readiness, windowShift, firstObserved, sleepRegularity, circularMeanMinutes, typicalSleepWindow,
-  personalSleepNeed, goalStreak, weightTrend,
+  personalSleepNeed, goalStreak, weightTrend, batteryTier,
 } from '../derive';
 import { STREAMS } from '../registry';
 import { emptyRecord } from '../normalize';
@@ -739,8 +739,10 @@ describe('readiness v2', () => {
   });
 
   it('drags the score slightly for unusually hard recent activity', () => {
-    const hard = readiness(syntheticDays(28, { steps: 24000 }));
-    const p = part(hard, 'Recent strain')!;
+    const days = syntheticDays(28);
+    days[25].steps = 24000; // two hard finished days
+    days[26].steps = 24000;
+    const p = part(readiness(days), 'Recent strain')!;
     assert.ok(p.contribution < 0 && p.contribution >= -7.01);
   });
 
@@ -792,6 +794,122 @@ describe('readiness v2', () => {
     // 5h32m sleep against a 7h-clamped need → sleep drags, HRV lifts.
     assert.ok(part(r, 'Last night’s sleep')!.contribution < 0);
     assert.ok(part(r, 'HRV vs baseline')!.contribution > 0);
+  });
+});
+
+describe('battery arithmetic', () => {
+  const hrvPart = (r: ReturnType<typeof readiness>) => part(r, 'HRV vs baseline')?.contribution ?? null;
+
+  it("doesn't fall as today's steps climb", () => {
+    const morning = syntheticDays(28, { steps: 500 });
+    const evening = syntheticDays(28, { steps: 30000 });
+    assert.equal(readiness(morning).score, readiness(evening).score);
+  });
+
+  it('gives a new account no strain verdict instead of a baseline of zero', () => {
+    const days = syntheticDays(8);
+    days[6].steps = 20000; // a big yesterday, but too little history to judge it by
+    assert.equal(part(readiness(days), 'Recent strain'), undefined);
+  });
+
+  it('never mixes zone minutes and steps in one series', () => {
+    // Zone minutes for three weeks, then a week without: steps must not be judged against minutes.
+    const days = syntheticDays(28);
+    days.forEach((d, i) => { d.zoneMinutes = i < 20 ? { fatBurn: 20, cardio: 5, peak: 0 } : null; });
+    assert.equal(part(readiness(days), 'Recent strain'), undefined);
+  });
+
+  it('pays no more for an HRV spike than its own blend, so there is no cliff at the guard', () => {
+    // A very low week, then last night swept up through the 2.5-spread guard. The
+    // blend sits near zero where the guard engages; a flat +8 jumped there.
+    const night = (hrv: number) => {
+      const days = syntheticDays(28, { hrv });
+      for (let i = 21; i < 27; i++) days[i].hrv = 20;
+      return part(readiness(days), 'HRV vs baseline')!;
+    };
+    let prev: number | null = null;
+    let guarded = false;
+    for (let hrv = 40; hrv <= 60; hrv++) {
+      const p = night(hrv);
+      if (prev !== null) assert.ok(Math.abs(p.contribution - prev) < 1.5, `${hrv - 1} → ${hrv} ms moved ${prev} → ${p.contribution}`);
+      if (p.note) {
+        guarded = true;
+        assert.ok(p.contribution <= 8, `a spike earned ${p.contribution}`);
+      }
+      prev = p.contribution;
+    }
+    assert.ok(guarded, 'the guard engages within the sweep, caution attached');
+  });
+
+  it("doesn't let an HRV spike make the battery fully charged", () => {
+    const r = readiness(syntheticDays(28, { hrv: 80, restingHr: 58, sleepMin: 500 }));
+    assert.ok(r.score! < 80, `scored ${r.score}`);
+    assert.notEqual(r.label, "You're fully charged");
+  });
+
+  it("doesn't let one outlier night mute a real resting-HR rise", () => {
+    const clean = syntheticDays(28, { restingHr: 66 });
+    const withOutlier = syntheticDays(28, { restingHr: 66 });
+    withOutlier[10].restingHr = 85;
+    const a = part(readiness(clean), 'Resting HR vs baseline')!.contribution;
+    const b = part(readiness(withOutlier), 'Resting HR vs baseline')!.contribution;
+    assert.ok(Math.abs(a - b) < 2, `${a} without the outlier, ${b} with it`);
+  });
+
+  it('gives breathing rate a noise floor', () => {
+    // A near-flat baseline must not turn a tenth of a breath into a big penalty.
+    const days = syntheticDays(28, { resp: 14.35 });
+    days.forEach((d, i) => { if (i < 27) d.respiratoryRate = 14 + (i % 2) * 0.05; });
+    const p = part(readiness(days), 'Breathing rate');
+    assert.ok(!p || p.contribution > -1.5, `penalty ${p?.contribution}`);
+  });
+
+  it('never turns the sleep-quality penalty into a bonus', () => {
+    // Shallow (20% deep + REM) but unbroken (99% efficiency): no reward for it.
+    const staged = syntheticDays(28);
+    const plain = syntheticDays(28);
+    const night = staged[27].sleep!;
+    night.efficiency = 99;
+    plain[27].sleep!.efficiency = 99;
+    night.stages = { deep: 40, rem: 50, light: night.minutesAsleep - 90, awake: 10 };
+    const withStages = part(readiness(staged), 'Last night’s sleep')!.contribution;
+    const without = part(readiness(plain), 'Last night’s sleep')!.contribution;
+    assert.ok(withStages <= without, `${withStages} > ${without}`);
+  });
+
+  it('falls back to the overnight HRV when deep-sleep RMSSD is too new for a baseline', () => {
+    const days = syntheticDays(28);
+    for (let i = 13; i < 28; i++) days[i].hrvDeepSleep = 30;
+    const p = part(readiness(days), 'HRV vs baseline');
+    assert.ok(p, 'HRV must not drop out');
+    assert.match(p!.detail, /overnight RMSSD/);
+  });
+
+  it('restarts the baselines when the watch changes, instead of reading it as a change in you', () => {
+    const days = syntheticDays(28);
+    days.forEach((d, i) => {
+      const watch = i < 23 ? 'FITBIT:Old watch' : 'FITBIT:New watch';
+      d.sourceByType['daily-heart-rate-variability'] = watch;
+      d.sourceByType['daily-resting-heart-rate'] = watch;
+      if (i >= 23) {
+        d.hrv = 52; // the new watch reads HRV higher and resting HR lower
+        d.restingHr = 55;
+      }
+    });
+    const r = readiness(days);
+    assert.equal(part(r, 'HRV vs baseline'), undefined);
+    assert.equal(part(r, 'Resting HR vs baseline'), undefined);
+    assert.deepEqual(r.calibrating, ['HRV', 'resting heart rate']);
+    assert.equal(r.confidence, 'low');
+  });
+
+  it('uses one scale for the tag, the label and the legend', () => {
+    assert.equal(batteryTier(80).tag, 'CHARGED');
+    assert.equal(batteryTier(79).tag, 'BALANCED');
+    assert.equal(batteryTier(65).tag, 'BALANCED');
+    assert.equal(batteryTier(64).tag, 'LOW');
+    assert.equal(batteryTier(49).tag, 'DRAINED');
+    assert.equal(readiness(syntheticDays(28)).label, batteryTier(readiness(syntheticDays(28)).score!).label);
   });
 });
 

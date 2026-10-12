@@ -64,11 +64,13 @@ export function TodayView({
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-start">
-        <BodyBattery 
-          score={s.readiness.score} 
-          parts={s.readiness.parts} 
-          confidence={s.readiness.confidence} 
+        <BodyBattery
+          score={s.readiness.score}
+          parts={s.readiness.parts}
+          confidence={s.readiness.confidence}
           label={s.readiness.label}
+          missing={s.readiness.missing}
+          calibrating={s.readiness.calibrating}
           className="lg:col-span-8 h-full"
         />
 

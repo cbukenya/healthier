@@ -127,9 +127,7 @@ export function compareToBaseline(s: Point[], window = 28, minPoints = 8, floor 
     return { ...NEUTRAL, value, date, n: priors.length };
   }
   const st = stats(priors)!;
-  // max(robust, classical, floor): a flat baseline must not turn a genuine
-  // jump into z = 0 ("typical"), nor a rounding wiggle into a huge z.
-  const spread = Math.max(st.mad * 1.4826, st.sd, floor);
+  const spread = spreadOf(priors, st, floor);
   const delta = value - st.median;
   const z = spread > 0 ? delta / spread : 0;
   return {
@@ -143,6 +141,20 @@ export function compareToBaseline(s: Point[], window = 28, minPoints = 8, floor 
     band: bandFor(z),
     n: priors.length,
   };
+}
+
+/**
+ * The spread a baseline claims: max(robust, classical, floor). A flat baseline
+ * must not turn a genuine jump into z = 0 ("typical"), nor a rounding wiggle into
+ * a huge z. The classical SD is taken after clipping values beyond three robust
+ * spreads, so one outlier night can't inflate it and mute a real change.
+ */
+function spreadOf(priors: number[], st: Stats, floor: number): number {
+  const robust = st.mad * 1.4826;
+  const lo = st.median - 3 * robust;
+  const hi = st.median + 3 * robust;
+  const sd = robust > 0 ? stats(priors.map((v) => Math.min(hi, Math.max(lo, v))))!.sd : st.sd;
+  return Math.max(robust, sd, floor);
 }
 
 function bandFor(z: number): Band {
@@ -178,6 +190,24 @@ export function isRecent(date: CivilDate | null | undefined, today: CivilDate | 
  * readings are keyed to the morning they ended and don't need this.
  */
 export const completedDays = (days: DailyRecord[]): DailyRecord[] => days.slice(0, -1);
+
+/**
+ * A metric's series keeping only readings from the device behind the latest one.
+ * A new watch measures HRV and resting HR its own way; judged against the old
+ * one's numbers it reads as a physiological change for weeks. Filtered like this,
+ * the baseline restarts with the device. Days with no recorded source are kept.
+ */
+export function sameDevice(days: DailyRecord[], dataType: string, get: Accessor): Point[] {
+  let device: string | undefined;
+  for (let i = days.length - 1; i >= 0 && device === undefined; i--) {
+    if (get(days[i]) !== null) device = days[i].sourceByType?.[dataType] ?? '';
+  }
+  return days.map((d) => {
+    const value = get(d);
+    const source = d.sourceByType?.[dataType];
+    return { date: d.date, value: value === null || (device && source && source !== device) ? null : value };
+  });
+}
 
 /** Mean of the most recent `n` observations (not the most recent n *days*). */
 export function recentMean(s: Point[], n: number): number | null {
@@ -357,9 +387,23 @@ export interface Readiness {
   label: string;
   /** How much of the score rests on real data. */
   confidence: 'low' | 'medium' | 'high';
+  /** Core signals (HRV, resting heart rate, sleep) with nothing current to score. */
+  missing: string[];
+  /** Core signals waiting for enough nights from a new device. */
+  calibrating: string[];
   /** Cross-signal patterns worth surfacing, e.g. an illness-like deviation. */
   flags: string[];
 }
+
+/** The battery's one scale: its tag, label, colour and legend all read from these. */
+export const BATTERY_TIERS = [
+  { min: 80, tag: 'CHARGED', label: "You're fully charged" },
+  { min: 65, tag: 'BALANCED', label: "You've got plenty in the tank" },
+  { min: 50, tag: 'LOW', label: 'Go a little easier today' },
+  { min: 0, tag: 'DRAINED', label: 'Your body wants a breather' },
+] as const;
+
+export const batteryTier = (score: number) => BATTERY_TIERS.find((t) => score >= t.min) ?? BATTERY_TIERS[3];
 
 /**
  * Readiness v2 — grounded in the published literature rather than intuition.
@@ -377,7 +421,8 @@ export interface Readiness {
  *   3. Abnormally HIGH HRV is not simply "better". Parasympathetic saturation —
  *      elevated HRV during heavy overload — is documented in overreached
  *      athletes (Le Meur et al. 2013). So the upside is capped, and a reading
- *      far above baseline earns a *reduced* bonus plus a caution, not a jackpot.
+ *      far above baseline earns at most +8 (never more than its blend would),
+ *      carries a caution, and can't make the battery "fully charged".
  *   4. Resting-HR treatment is asymmetric. An elevated RHR is a robust strain /
  *      incipient-illness marker (Natarajan et al. 2020, npj Digit Med; Mishra
  *      et al. 2020, Nat Biomed Eng); a suppressed one is only mildly good news.
@@ -393,7 +438,11 @@ export interface Readiness {
  *      penalty-only, mirroring the original Fitbit "activity fatigue" pillar.
  *      (Google's 2024 revision dropped activity entirely in favour of RHR; we
  *      keep a light version because the data is present and the mechanism is
- *      real, but it can never dominate.)
+ *      real, but it can never dominate.) Finished days only, in one unit.
+ *
+ * Baselines are judged per device: when the watch behind HRV or resting HR
+ * changes, that component waits for its own baseline ("calibrating") rather
+ * than reading the new device's numbers as a change in you.
  *
  * For scale: Fitbit/Google's current readiness uses exactly HRV + RHR + sleep;
  * Whoop weights HRV at roughly 60%; Oura leans hard on temperature deviation.
@@ -411,36 +460,35 @@ export function readiness(days: DailyRecord[]): Readiness {
   const recent = (date: CivilDate | null | undefined) => isRecent(date, today);
 
   // ── 1. HRV, in the log domain, acute + trend blended ──────────────────────
-  const deepSeries = series(days, (d) => d.hrvDeepSleep);
-  const overnightSeries = series(days, (d) => d.hrv);
-  const latestIdx = lastIndexWithValue(overnightSeries);
-  const deepLatestIdx = lastIndexWithValue(deepSeries);
-  const deepRecent = values(deepSeries.slice(Math.max(0, deepSeries.length - 14)));
-  const deepBaseline = values(deepSeries.slice(0, Math.max(0, deepSeries.length - 7)));
-  const useDeep =
-    deepLatestIdx >= 0 && latestIdx >= 0 && deepLatestIdx === latestIdx &&
-    deepRecent.length >= 5 && deepBaseline.length >= 8;
-
-  const hrvRaw = useDeep ? deepSeries : overnightSeries;
-  const hrvLn = hrvRaw.map((p) => ({
-    date: p.date,
-    value: p.value === null || p.value <= 0 ? null : Math.log(p.value),
-  }));
-  const hrv = recent(latestPoint(hrvLn)?.date) ? lnComparison(hrvLn) : null;
+  const HRV = 'daily-heart-rate-variability';
+  const overnightAll = series(days, (d) => d.hrv);
+  const overnight = sameDevice(days, HRV, (d) => d.hrv);
+  const deep = sameDevice(days, HRV, (d) => d.hrvDeepSleep);
+  const ln = (s: Point[]) => s.map((p) => ({ date: p.date, value: p.value === null || p.value <= 0 ? null : Math.log(p.value) }));
+  // Deep-sleep RMSSD is the cleaner series when last night has it and it has a
+  // baseline of its own; otherwise the overnight average, never nothing.
+  const lastOvernight = latestPoint(overnight);
+  const lastDeep = latestPoint(deep);
+  const deepCmp = lastDeep && (!lastOvernight || lastDeep.date >= lastOvernight.date) ? lnComparison(ln(deep)) : null;
+  const useDeep = deepCmp !== null;
+  const hrvDate = (useDeep ? lastDeep : lastOvernight)?.date;
+  const hrv = !recent(hrvDate) ? null : useDeep ? deepCmp : lnComparison(ln(overnight));
   let hrvOk = false;
+  let hrvSpike = false;
   if (hrv) {
     hrvOk = true;
     const z = 0.6 * hrv.zAcute + 0.4 * hrv.zTrend;
-    let c: number;
+    // Suppression costs down to −20; a rise earns up to +14.
+    let c = z < 0 ? Math.max(z, -2.5) * 8 : Math.min(z, 1.75) * 8;
     let note: string | undefined;
-    if (z < 0) {
-      c = Math.max(z, -2.5) * 8; // suppression: down to −20
-    } else if (hrv.zAcute > 2.5) {
-      c = 8; // saturation guard
+    if (hrv.zAcute > 2.5) {
+      // Saturation guard: a night far above baseline earns no more than a solidly
+      // good one, never more than its own blend would, and can't make the battery
+      // read "fully charged".
+      hrvSpike = true;
+      c = Math.min(c, 8);
       note =
         'Your HRV is unusually far above your baseline. Higher is usually better, but a sudden spike can also follow heavy training overload, so treat this peak with mild suspicion.';
-    } else {
-      c = Math.min(z, 1.75) * 8; // capped at +14
     }
     score += c;
     parts.push({
@@ -452,7 +500,9 @@ export function readiness(days: DailyRecord[]): Readiness {
   }
 
   // ── 2. Resting heart rate, asymmetric ──────────────────────────────────────
-  const rhr = compareToBaseline(series(days, (d) => d.restingHr), 28, 8, NOISE_FLOOR.restingHr);
+  const RHR = 'daily-resting-heart-rate';
+  const rhrAll = series(days, (d) => d.restingHr);
+  const rhr = compareToBaseline(sameDevice(days, RHR, (d) => d.restingHr), 28, 8, NOISE_FLOOR.restingHr);
   const rhrOk = rhr.z !== null && rhr.n >= 8 && recent(rhr.date);
   if (rhrOk) {
     const z = rhr.z!;
@@ -474,14 +524,20 @@ export function readiness(days: DailyRecord[]): Readiness {
     const durationDeltaH = (lastNight.minutesAsleep - need) / 60;
     const durationC = clamp(durationDeltaH * 5, -14, 8);
     
-    // Evaluate sleep architecture / efficiency bonus or penalty from scoreSleep()
+    // Architecture and efficiency: a small bonus for a deep, unbroken night, a
+    // small penalty for a shallow or broken one. Efficiency here is scoreSleep's
+    // 0–25 points (85–100% asleep in bed), not the percentage. The penalty is
+    // floored at zero: a deep night can soften a broken one, never turn it into
+    // a bonus.
     const sc = scoreSleep(lastNight);
+    const rest = sc.restorativePct;
+    const effPoints = sc.efficiency;
     let qualityBonus = 0;
-    if (sc.restorativePct !== null) {
-      if (sc.restorativePct >= 40 && sc.efficiency >= 20) {
-        qualityBonus = Math.min(2.5, (sc.restorativePct - 35) * 0.2);
-      } else if (sc.restorativePct < 25 || sc.efficiency < 8) {
-        qualityBonus = -Math.min(3.5, ((30 - sc.restorativePct) * 0.15 + (12 - sc.efficiency) * 0.15));
+    if (rest !== null) {
+      if (rest >= 40 && effPoints >= 20) {
+        qualityBonus = Math.min(2.5, (rest - 35) * 0.2);
+      } else if (rest < 25 || effPoints < 8) {
+        qualityBonus = -Math.min(3.5, Math.max(0, (30 - rest) * 0.15 + (12 - effPoints) * 0.15));
       }
     }
     const c = clamp(durationC + qualityBonus, -15, 9);
@@ -522,7 +578,7 @@ export function readiness(days: DailyRecord[]): Readiness {
   }
 
   // ── 5. Breathing rate: penalty-only illness signal ─────────────────────────
-  const resp = compareToBaseline(series(days, (d) => d.respiratoryRate));
+  const resp = compareToBaseline(series(days, (d) => d.respiratoryRate), 28, 8, NOISE_FLOOR.respiratoryRate);
   const respOk = resp.z !== null && resp.n >= 8 && recent(resp.date);
   if (respOk && resp.z! > 1.25) {
     const c = -Math.min((resp.z! - 1.25) * 4, 8);
@@ -547,50 +603,33 @@ export function readiness(days: DailyRecord[]): Readiness {
     });
   }
 
-  // ── 7. Acute-to-Chronic Workload (ACWR) Residual Fatigue ─────────────────
-  const loadSeries = series(days, (d) =>
-    d.zoneMinutes
-      ? d.zoneMinutes.fatBurn + 2 * (d.zoneMinutes.cardio + d.zoneMinutes.peak)
-      : d.steps,
+  // ── 7. Recent strain: what's left of the last two days' load this morning ──
+  // Finished days only: today's total is still climbing, and the battery must not
+  // fall as you walk. One unit throughout: Active Zone Minutes when the last four
+  // weeks have them, steps otherwise. No baseline, no verdict.
+  const done = completedDays(days);
+  const azm = series(done, (d) =>
+    d.zoneMinutes ? d.zoneMinutes.fatBurn + 2 * (d.zoneMinutes.cardio + d.zoneMinutes.peak) : null,
   );
+  const loadSeries = values(azm.slice(-28)).length >= 8 ? azm : series(done, (d) => d.steps);
   const load = compareToBaseline(loadSeries);
-  const loadRecent = recent(load.date);
-
-  if (loadRecent && loadSeries.length >= 4) {
-    const validPoints = loadSeries.filter((p) => p.value !== null);
-    if (validPoints.length >= 8) {
-      const p1 = validPoints[validPoints.length - 1]?.value ?? 0;
-      const p2 = validPoints[validPoints.length - 2]?.value ?? 0;
-      const p3 = validPoints[validPoints.length - 3]?.value ?? 0;
-      
-      const chronicMedian = load.baseline ?? 0;
-      const chronicSpread = load.spread ?? 1;
-
-      // Exponential decay: 1.0 yesterday + 0.5 d-2 + 0.25 d-3
-      const acuteWeighted = (p1 * 1.0 + p2 * 0.5 + p3 * 0.25) / 1.75;
-      const acuteDelta = acuteWeighted - chronicMedian;
-      const acuteZ = chronicSpread > 0 ? acuteDelta / chronicSpread : 0;
-
-      if (acuteZ > 1.25) {
-        const c = -Math.min((acuteZ - 1.25) * 3.5, 7);
-        score += c;
-        parts.push({
-          label: 'Recent strain',
-          contribution: c,
-          detail: acuteZ > 2.0 
-            ? 'multi-day training load significantly above your 28-day baseline'
-            : "recent physical activity above your 28-day usual",
-        });
-      }
+  if (load.baseline !== null && load.spread !== null && load.spread > 0 && recent(load.date)) {
+    // Yesterday at half weight and the day before at a quarter, over 1.75: the
+    // arithmetic the battery was tuned with each morning, when today (weight 1)
+    // still stood at zero. Now it stays that way all day.
+    const [before, yesterday] = loadSeries.slice(-2).map((p) => p.value ?? 0);
+    const acuteZ = ((yesterday ?? 0) * 0.5 + (before ?? 0) * 0.25) / 1.75 / load.spread - load.baseline / load.spread;
+    if (acuteZ > 1.25) {
+      const c = -Math.min((acuteZ - 1.25) * 3.5, 7);
+      score += c;
+      parts.push({
+        label: 'Recent strain',
+        contribution: c,
+        detail: acuteZ > 2.0
+          ? 'multi-day training load significantly above your 28-day baseline'
+          : 'recent physical activity above your 28-day usual',
+      });
     }
-  } else if (loadRecent && load.z !== null && load.n >= 8 && load.z > 1.25) {
-    const c = -Math.min((load.z - 1.25) * 3.5, 7);
-    score += c;
-    parts.push({
-      label: 'Recent strain',
-      contribution: c,
-      detail: "latest day's load well above your 28-day usual",
-    });
   }
 
   // ── 8. Cross-signal illness pattern ───────────────────────────────────────
@@ -606,10 +645,24 @@ export function readiness(days: DailyRecord[]): Readiness {
     );
   }
 
+  // A signal that has readings from another device in the window, but not yet
+  // enough nights from the current one, is calibrating rather than missing.
+  const newDevice = (all: Point[], current: Point[]) =>
+    values(current).length < values(all).length && recent(latestPoint(current)?.date);
+  const calibrating = [
+    !hrvOk && newDevice(overnightAll, overnight) ? 'HRV' : null,
+    !rhrOk && newDevice(rhrAll, sameDevice(days, RHR, (d) => d.restingHr)) ? 'resting heart rate' : null,
+  ].filter((s): s is string => s !== null);
+  const missing = [
+    !hrvOk && !calibrating.includes('HRV') ? 'HRV' : null,
+    !rhrOk && !calibrating.includes('resting heart rate') ? 'resting heart rate' : null,
+    !sleepOk ? 'sleep' : null,
+  ].filter((s): s is string => s !== null);
+
   const coreSignals = (hrvOk ? 1 : 0) + (rhrOk ? 1 : 0) + (sleepOk ? 1 : 0);
   if (coreSignals === 0) {
     // Readings that exist but stopped before yesterday mean "not current", not "not enough".
-    const newest = [latestPoint(overnightSeries)?.date, rhr.date, latestNight?.date]
+    const newest = [latestPoint(overnightAll)?.date, latestPoint(rhrAll)?.date, latestNight?.date]
       .filter((d): d is CivilDate => !!d)
       .sort()
       .at(-1);
@@ -618,23 +671,21 @@ export function readiness(days: DailyRecord[]): Readiness {
       parts: [],
       label: newest && !recent(newest) ? `No readings since ${formatCivil(newest)}` : 'Not enough data',
       confidence: 'low',
+      missing,
+      calibrating,
       flags: [],
     };
   }
 
-  const final = Math.round(clamp(score, 1, 100));
+  // An HRV spike is the reading the guard distrusts: it can't make the battery "fully charged".
+  const final = Math.round(clamp(score, 1, hrvSpike ? BATTERY_TIERS[0].min - 1 : 100));
   return {
     score: final,
     parts,
-    label:
-      final >= 80
-        ? "You're fully charged"
-        : final >= 65
-        ? "You've got plenty in the tank"
-        : final >= 50
-        ? 'Go a little easier today'
-        : 'Your body wants a breather',
+    label: batteryTier(final).label,
     confidence: coreSignals >= 3 ? 'high' : coreSignals === 2 ? 'medium' : 'low',
+    missing,
+    calibrating,
     flags,
   };
 }
@@ -665,7 +716,7 @@ function lnComparison(lnSeries: Point[]): {
   const priors = values(lnSeries.slice(Math.max(0, end - 28), end));
   if (priors.length < 8) return null;
   const st = stats(priors)!;
-  const spread = Math.max(st.mad * 1.4826, st.sd, NOISE_FLOOR.lnHrv);
+  const spread = spreadOf(priors, st, NOISE_FLOOR.lnHrv);
   if (spread <= 0) return null;
   const lastLn = lnSeries[lastIdx].value!;
   const recent = values(lnSeries.slice(Math.max(0, lastIdx - 6), lastIdx + 1));
