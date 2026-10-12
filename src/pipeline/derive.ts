@@ -395,11 +395,15 @@ export interface Readiness {
   flags: string[];
 }
 
-/** The battery's one scale: its tag, label, colour and legend all read from these. */
+/**
+ * The battery's one scale: its tag, label, colour and legend all read from these.
+ * Most ordinary mornings land in Balanced; Charged (80+) is rare by design, and
+ * Drained sits where Google's readiness draws "low" (under 30).
+ */
 export const BATTERY_TIERS = [
   { min: 80, tag: 'CHARGED', label: "You're fully charged" },
-  { min: 65, tag: 'BALANCED', label: "You've got plenty in the tank" },
-  { min: 50, tag: 'LOW', label: 'Go a little easier today' },
+  { min: 55, tag: 'BALANCED', label: "You've got plenty in the tank" },
+  { min: 30, tag: 'LOW', label: 'Go a little easier today' },
   { min: 0, tag: 'DRAINED', label: 'Your body wants a breather' },
 ] as const;
 
