@@ -168,7 +168,10 @@ export function ActivityView({ data }: { data: SyncResult }) {
             title="Which days you move"
             hint={`Average steps per weekday across ${values(stepsDone).length} finished days.`}
           />
-          <div className="mt-auto"><WeekdayProfile data={byWeekday(stepsDone)} color={DOMAIN.movement.hex} /></div>
+          {/* The chart takes the card's height, which on desktop matches the summary beside it. */}
+          <div className="flex-1 flex flex-col min-h-[170px]">
+            <WeekdayProfile data={byWeekday(stepsDone)} color={DOMAIN.movement.hex} className="flex-1" />
+          </div>
         </Card>
       </div>
 
