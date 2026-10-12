@@ -101,6 +101,13 @@ without knowing where. The server applies that to Postgres; demo mode and the te
   next sync. Window sync plus backfill is tested to store exactly what one long full sync would.
 - **Lists page by date.** List endpoints return newest first; paging stops once a page reaches past
   the requested start.
+- **Several readings, one day.** A day can hold more than one reading of a stream: two devices, or
+  a partial reading beside a full one. They apply best first (the stream's `rank`, then the source)
+  and only fill what is still empty, so the order the API lists them in never matters and an
+  incremental sync agrees with a full one.
+- **One sleep, one session.** Sleep points are grouped before parsing (`combineSleepPoints`):
+  overlapping sessions are one sleep recorded twice and keep the best copy, and pieces of a night
+  less than three hours apart join into one night, with the break counted as awake.
 - **Intraday heart rate uses `rollUp`.** Google rolls raw samples into one-minute averages
   (`windowSize: 60s`, at most 14 days per request), so the whole window costs a handful of
   requests. Minutes are mapped to civil time with the user's zone.
@@ -136,3 +143,7 @@ sync, and their dashboard shows onboarding until it completes.
 - per-stream storage reassembles exactly what normalising every stream at once produces, and
   survives a JSON round trip (as it must to live in Postgres);
 - civil dates and minutes are correct across DST changes.
+
+`src/pipeline/__tests__/normalize.test.ts`: a day comes out the same whatever order its readings
+arrive in; a partial reading never wipes a complete one; two devices' copies of a night count once;
+a night split by a long awakening is one night; a short night without metadata is still the night.
