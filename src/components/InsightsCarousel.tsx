@@ -187,7 +187,7 @@ export function InsightsCarousel({ observations }: { observations: Observation[]
         </div>
         
         <p className="text-zinc-500 text-[11px] mt-1 text-center max-w-lg mx-auto">
-          For information only, not a diagnosis. If you're concerned about any aspect of your health, contact a qualified physician promptly.
+          General wellness information, not medical advice. Healthier is not a medical device. If you're worried about your health, talk to a clinician.
         </p>
       </div>
     </div>

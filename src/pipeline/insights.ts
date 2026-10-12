@@ -198,7 +198,7 @@ export function observations(
         domain: 'sleep',
         tone: 'good',
         title: 'Deep sleep showed up',
-        text: `${Math.round(lastNight.stages.deep)} minutes of deep sleep against your usual ~${Math.round(deepCmp.baseline!)} — the stage that does the physical repair. Hard training days often pull it up.`,
+        text: `${Math.round(lastNight.stages.deep)} minutes of deep sleep against your usual ~${Math.round(deepCmp.baseline!)} — the stage most associated with physical recovery. Hard training days often pull it up.`,
       }, ['morning']);
     }
   }
@@ -219,7 +219,7 @@ export function observations(
         // Name the deviation; offer illness as one explanation among several.
         text: day2
           ? 'Still there this morning — 2+ overnight signals remain away from your usual ranges together. When a multi-signal pattern holds for a second day, it is worth taking seriously.'
-          : 'Multiple overnight signals are sitting outside your usual range. While this is a classic sign of an incoming bug, it also happens after heavy training, late meals, alcohol, or travel.',
+          : 'Multiple overnight signals are sitting outside your usual range. This happens after heavy training, late meals, alcohol and travel, and sometimes when a cold is coming on.',
         action: 'Hydrate, keep today light, and see what tonight says.',
       });
     }
@@ -299,7 +299,7 @@ export function observations(
         title: dir === 1 ? "You're recovering your rhythm" : 'Recovery has been slipping',
         text: dir === 1
           ? `7-day HRV is up ${rel}% on the week before (${cur} vs ${prev} ms). Multi-day rises like this usually track genuine recovery, not one lucky night.`
-          : `7-day HRV is down ${rel}% on the week before (${cur} vs ${prev} ms). A sustained slide usually tracks accumulating load, short sleep, or a brewing illness.`,
+          : `7-day HRV is down ${rel}% on the week before (${cur} vs ${prev} ms). A sustained slide usually tracks accumulating load, short sleep, stress or a cold.`,
       });
     } else if (hrvTrendP(lnHrv, dir)) {
       hrvTrendDir = dir === 1 ? 'up' : 'down'; // ongoing trend still mutes the acute card
@@ -324,7 +324,7 @@ export function observations(
         id: 'hrv-acute-low',
         domain: 'cardio',
         tone: 'watch',
-        title: 'Your body is asking for rest',
+        title: 'HRV well below your usual',
         text: lowNights >= 2
           ? `HRV has now run below typical for ${lowNights} nights (${Math.round(hrv.value!)} vs ${Math.round(hrv.baseline!)} ms). This is starting to look like a trend, not a night.`
           : `HRV is ${Math.round(Math.abs(hrv.delta!))} ms below your 28-day typical of ${Math.round(hrv.baseline!)} ms. One night isn't a trend, but two or three in a row usually means load or illness.`,
@@ -376,7 +376,7 @@ export function observations(
         tone: 'watch',
         title: 'Something has your heart working harder',
         text: highStreak >= 3
-          ? `Third morning above range (${Math.round(rhr.value!)} vs ${Math.round(rhr.baseline!)} bpm typical). If nothing obvious explains it, treat it as your body voting for rest.`
+          ? `Third morning above range (${Math.round(rhr.value!)} vs ${Math.round(rhr.baseline!)} bpm typical). If nothing obvious explains it, that's a reason to keep today easy.`
           : `Resting heart rate is ${Math.round(rhr.value!)} bpm against a 28-day typical of ${Math.round(rhr.baseline!)}. Elevation this clear often follows late meals, alcohol, heat — or an oncoming illness.`,
         action: highStreak < 3 ? "Worth an easier day if it's still there tomorrow." : undefined,
       });
@@ -421,7 +421,7 @@ export function observations(
             title: delta > 0 ? 'Your engine is getting stronger' : 'Cardio fitness took a breather',
             text: delta > 0
               ? `Your cardio fitness (VO₂ Max) estimate just ticked up ${delta > 0 ? '+' : ''}${delta.toFixed(1)} to ${last.value!.toFixed(1)}. This only goes upward when a trend is undeniable—a step up like this is earned.`
-              : `Your cardio fitness (VO₂ Max) estimate revised ${delta.toFixed(1)} to ${last.value!.toFixed(1)}. Revisions lag reality by weeks, so this reflects the recent quiet stretch more than today.`,
+              : `Your cardio fitness (VO₂ Max) estimate revised ${delta.toFixed(1)} to ${last.value!.toFixed(1)}. Revisions lag reality by weeks, so this may reflect a quieter stretch more than today.`,
           });
         }
       }
@@ -791,17 +791,17 @@ export function observations(
         domain: 'sleep',
         tone: 'good',
         title: 'Regularity is climbing',
-        text: `Sleep regularity moved ${sriB.score} → ${sriA.score} this month. In the big cohort studies, that's the sleep metric that predicts how people feel better than total hours does.`,
+        text: `Sleep regularity moved ${sriB.score} → ${sriA.score} this month. In large cohort studies, regular sleep timing is linked with better long-term health, beyond total hours.`,
       });
     }
   }
 
   // W3 — records vault: best resting-HR and HRV weeks in the window.
   for (const [id, get, better, unit, title, textFn] of [
-    ['record-rhr', (d: DailyRecord) => d.restingHr, 'min', 'bpm', 'Your calmest week on record here',
-      (v: number) => `Lowest resting-HR week in this window: ${v.toFixed(1)} bpm average. The engine is idling cooler than at any point in this data.`],
-    ['record-hrv', (d: DailyRecord) => d.hrv, 'max', 'ms', 'Your strongest recovery week here',
-      (v: number) => `Highest HRV week in this window: ${v.toFixed(1)} ms average — above every other week in this data.`],
+    ['record-rhr', (d: DailyRecord) => d.restingHr, 'min', 'bpm', 'Your calmest week in two months',
+      (v: number) => `Lowest resting-HR week of the last two months: ${v.toFixed(1)} bpm average, lower than any other week in that span.`],
+    ['record-hrv', (d: DailyRecord) => d.hrv, 'max', 'ms', 'Your highest-HRV week in two months',
+      (v: number) => `Highest HRV week of the last two months: ${v.toFixed(1)} ms average, above every other week in that span.`],
   ] as const) {
     const s = series(days, get);
     const weekMeans: { end: number; mean: number }[] = [];
@@ -882,7 +882,9 @@ export function observations(
     });
   }
 
-  // ═══════════════════════════════════ labs · screening-family mirrors ═══
+  // ═══════════════════════════════════ labs · pattern mirrors ═══════════
+  // Wording: describe what was observed with everyday explanations; never name
+  // a condition or imply screening (Healthier is not a medical device).
   // The Labs tab renders the full evidence; the carousel gets one plain card
   // per pattern. Entry via the yesterday-test; persistent patterns re-mention
   // themselves at the start of each month (calendar guard), because a
@@ -898,9 +900,9 @@ export function observations(
       id: 'labs-sdb-pattern',
       domain: 'sleep',
       tone: 'watch',
-      title: 'A breathing pattern worth a look',
-      text: `${sdb.firedCount} of 5 night signals have drifted together for weeks (${lit}) — a pattern often seen with breathing-affected sleep. A screen, not a finding.`,
-      action: 'Worth a conversation with a doctor — the Labs tab holds the evidence.',
+      title: 'Night signals off together',
+      text: `On ${sdb.firedCount} of the last 14 nights (${lit}), oxygen, breathing rate or time awake were outside your usual range together. A cold, alcohol or a stuffy room can all do this.`,
+      action: 'The nights are in Labs. If you also snore heavily or feel very sleepy during the day, mention it to a clinician.',
     });
   }
 
@@ -911,9 +913,9 @@ export function observations(
       id: 'labs-entropy-shift',
       domain: 'cardio',
       tone: 'watch',
-      title: 'The texture of your heartbeat changed',
-      text: `The nightly rhythm-structure metric has sat clearly outside your baseline for ${ent.shiftNights} nights (${ent.lastNight} vs ${ent.baselineMedian} ± ${ent.baselineSd}) while ${ent.crossChecks.map((c: any) => c.label).join(', ')} stayed ordinary. It also moves with mundane things — illness, alcohol, rough sleep.`,
-      action: 'If it persists with nothing to explain it, mention it at a check-up — Labs has the nights.',
+      title: 'HRV entropy shifted',
+      text: `A nightly HRV metric your device reports has been outside your usual range on ${ent.shiftNights} nights (${ent.lastNight} vs ${ent.baselineMedian} ± ${ent.baselineSd}). It moves with everyday things: a cold, alcohol, poor sleep, hard training.`,
+      action: 'The nights are in Labs.',
     });
   }
 
@@ -926,9 +928,9 @@ export function observations(
         id: 'labs-dip-pattern',
         domain: 'cardio',
         tone: 'watch',
-        title: dip.riser ? 'Your heart rate rises at night' : 'Your overnight dip has flattened',
-        text: `${dip.nightsUnder10} of ${dip.measurableNights} measurable nights dipped under 10% (median ${dip.medianDipPct}%) — persistent, not a one-off, with sick days excluded. In long cohorts a dip this flat tracks with cardiovascular strain.`,
-        action: 'A reasonable thing to mention at a check-up — the corridor chart is in Labs.',
+        title: dip.riser ? 'Heart rate higher at night than by day' : 'A smaller overnight heart-rate drop',
+        text: `${dip.nightsUnder10} of ${dip.measurableNights} measured nights dropped less than 10% (median ${dip.medianDipPct}%)${dip.excludedIllnessNights > 0 ? `, leaving out ${dip.excludedIllnessNights} night${dip.excludedIllnessNights > 1 ? 's' : ''} with several signals off` : ''}. Late meals, alcohol, heat and evening exercise all reduce the drop.`,
+        action: 'Labs has the nights. If it persists for weeks alongside symptoms, you could mention it to a clinician.',
       });
     }
 
@@ -942,8 +944,8 @@ export function observations(
         domain: 'cardio',
         tone: 'watch',
         title: 'Heart rate stayed high during sleep',
-        text: `${e.durationMin} minutes above 100 bpm (peak ${e.peakBpm}) during ${e.sleepWindow ? e.sleepWindow : e.stage ?? 'sleep'} on ${e.date}.${recur ? ` That's ${tachy.events.length} events in ${tachy.nightsScanned} nights — recurring ones are the specific, timestamped kind a doctor can work with.` : ' Isolated ones happen — fever, alcohol, vivid dreams.'}`,
-        action: recur ? 'Worth showing a doctor — the event list is in Labs.' : undefined,
+        text: `${e.durationMin} minutes above 100 bpm (peak ${e.peakBpm}) during ${e.sleepWindow ? e.sleepWindow : e.stage ?? 'sleep'} on ${e.date}.${recur ? ` ${tachy.events.length} such stretches in ${tachy.nightsScanned} nights.` : ''} Fever, alcohol, vivid dreams, waking and movement can all raise heart rate.`,
+        action: recur ? 'Labs lists them. If you notice palpitations, chest pain, dizziness or breathlessness, seek medical care.' : undefined,
       });
     }
   }

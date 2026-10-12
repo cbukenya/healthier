@@ -38,6 +38,10 @@ Read [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) first if you're changing sync 
   Stored data was produced by the old code; the bump makes every install rebuild it.
 - **Migrations are append-only.** Add a new entry in `server/db.ts`; never edit one that has been
   released, because installs that already ran it won't run it again.
+- **No medical claims.** Healthier is a wellness tool, not a medical device. Copy describes what was
+  observed against the person's own usual range, with everyday explanations; it never names a
+  condition, presents a card as screening or detection, or reads as an all-clear. Point to a
+  clinician only alongside symptoms.
 - **No telemetry, no third-party calls** beyond Google's APIs.
 - **Never commit secrets or health data**, including in test fixtures.
 
