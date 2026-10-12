@@ -265,10 +265,10 @@ export function Meter({ pct, color, className = '' }: { pct: number | null; colo
   );
 }
 
-/** A label and its value on one line; `dense` tightens it for small tiles. */
+/** A label and its value on one line; `dense` packs rows tight, without dividers, for small tiles. */
 export function Row({ label, children, dense = false }: { label: string; children: React.ReactNode; dense?: boolean; key?: React.Key }) {
   return (
-    <div className={`flex items-baseline justify-between ${dense ? 'gap-3 py-1' : 'gap-4 py-2'} border-b border-zinc-800/60 last:border-0`}>
+    <div className={`flex items-baseline justify-between ${dense ? 'gap-3 py-0.5' : 'gap-4 py-2 border-b border-zinc-800/60 last:border-0'}`}>
       <span className="text-[11.5px] text-zinc-500">{label}</span>
       <span className="text-[12px] text-zinc-200 tabular-nums text-right">{children}</span>
     </div>

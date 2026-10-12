@@ -99,9 +99,15 @@ export function TodayView({
             icon={<Footprints size={14} className={DOMAIN.movement.text} />}
             value={<Value value={mv?.steps ?? null} size="md" unit="steps" />}
             pill={mv && <BandPill c={stepsCmp} partial={movementIsToday} />}
-            chart={mv && <Meter pct={stepGoal.pct} color={DOMAIN.movement.hex} className="my-3" />}
+            chart={mv && (
+              <div className="mt-2.5 mb-1">
+                <Meter pct={stepGoal.pct} color={DOMAIN.movement.hex} />
+                {stepGoal.pct !== null && (
+                  <p className="text-[10px] text-zinc-500 mt-1.5 tabular-nums">{Math.round(stepGoal.pct)}% of 10,000</p>
+                )}
+              </div>
+            )}
             rows={mv ? [
-              ['Goal', stepGoal.pct !== null && `${Math.round(stepGoal.pct)}% of 10,000`],
               ['Distance', mv.distanceKm !== null && `${fmtNum(mv.distanceKm, 2)} km`],
               ['Active', mv.activeMinutes && `${mv.activeMinutes.moderate + mv.activeMinutes.vigorous} min brisk`],
               ['Energy', mv.activeKcal !== null && `${fmtNum(mv.activeKcal, 0)} kcal`],
