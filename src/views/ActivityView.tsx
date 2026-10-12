@@ -36,6 +36,21 @@ export function ActivityView({ data }: { data: SyncResult }) {
   const shift = periodShift(stepsAll, 7);
   const recorded = values(stepsAll).length;
 
+  // Grouped spans (a hook, so it must run before the early return below): average minutes per recorded day, per intensity.
+  const mixDays = useMemo(() => {
+    if (bucket === 'day') return window;
+    const [light, moderate, vigorous] = (['light', 'moderate', 'vigorous'] as const).map((k) =>
+      groupMean(window, bucket, (d) => d.activeMinutes?.[k] ?? null),
+    );
+    return light.map((g, i) => ({
+      ...emptyRecord(g.date),
+      activeMinutes:
+        g.value === null && moderate[i].value === null && vigorous[i].value === null
+          ? null
+          : { light: g.value ?? 0, moderate: moderate[i].value ?? 0, vigorous: vigorous[i].value ?? 0 },
+    }));
+  }, [window, bucket]);
+
   if (!recorded) {
     return (
       <Card>
@@ -51,20 +66,6 @@ export function ActivityView({ data }: { data: SyncResult }) {
   const weeks = groupWeeks(days);
 
   const latestMixRow = [...window].reverse().find(d => d.activeMinutes !== null);
-  // Grouped spans: average minutes per recorded day, per intensity.
-  const mixDays = useMemo(() => {
-    if (bucket === 'day') return window;
-    const [light, moderate, vigorous] = (['light', 'moderate', 'vigorous'] as const).map((k) =>
-      groupMean(window, bucket, (d) => d.activeMinutes?.[k] ?? null),
-    );
-    return light.map((g, i) => ({
-      ...emptyRecord(g.date),
-      activeMinutes:
-        g.value === null && moderate[i].value === null && vigorous[i].value === null
-          ? null
-          : { light: g.value ?? 0, moderate: moderate[i].value ?? 0, vigorous: vigorous[i].value ?? 0 },
-    }));
-  }, [window, bucket]);
   return (
     <div className="space-y-3">
       {/* headline row */}

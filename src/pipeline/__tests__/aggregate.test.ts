@@ -87,6 +87,11 @@ describe('typical night', () => {
     assert.equal(g.nights, 2);
   });
 
+  it('handles day sleepers: 11:30 and 12:30 make 12:00', () => {
+    const [g] = groupNights([night('2026-10-05', 11 * 60 + 30, 420), night('2026-10-06', 12 * 60 + 30, 420)], 'week');
+    assert.equal(g.night!.bedtimeMin, 12 * 60);
+  });
+
   it('reports a week without sleep as empty', () => {
     const groups = groupNights([night('2026-09-28', 23 * 60, 450), night('2026-10-12', 23 * 60, 450)], 'week');
     assert.equal(groups[1].night, null);

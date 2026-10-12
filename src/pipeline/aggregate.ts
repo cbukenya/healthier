@@ -1,6 +1,6 @@
 import { addDays, weekdayIndex, type CivilDate } from '../lib/date';
 import type { DailyRecord } from '../types/health';
-import type { Point } from './derive';
+import { circularMeanMinutes, type Point } from './derive';
 
 /**
  * Grouping for long chart spans.
@@ -115,18 +115,29 @@ export function groupRange(
 }
 
 /**
- * Clock times around midnight, made continuous: anything before noon counts as
- * the following night (01:30 → 25:30), so 23:30 and 00:30 average to midnight,
- * not noon. Same convention as the sleep window chart.
+ * Median of clock times on a 24-hour circle. Each time is first moved to within
+ * 12 hours of the circular mean, so 23:30 and 00:30 give midnight, not noon,
+ * and a day sleeper's 11:30 and 12:30 give 12:00 rather than straddling a
+ * fixed fold.
  */
-export const foldNight = (minutesOfDay: number) => (minutesOfDay < 12 * 60 ? minutesOfDay + 24 * 60 : minutesOfDay);
+export function circularMedianMinutes(mins: number[]): number | null {
+  if (!mins.length) return null;
+  const centre = circularMeanMinutes(mins)?.mean ?? mins[0];
+  const unwrapped = mins.map((m) => {
+    let x = m;
+    while (x - centre > 720) x -= 1440;
+    while (centre - x > 720) x += 1440;
+    return x;
+  });
+  return ((Math.round(median(unwrapped)!) % 1440) + 1440) % 1440;
+}
 
-/** One typical night per bucket: median bedtime and median time in bed, folded around midnight. */
+/** One typical night per bucket: circular median bedtime and median time in bed. */
 export function groupNights(days: DailyRecord[], bucket: Bucket) {
   return groupDays(days, bucket).map((g) => {
     const nights = g.days.map((d) => d.sleep).filter((s): s is NonNullable<typeof s> => !!s);
     if (!nights.length) return { date: g.date, night: null, nights: 0 };
-    const bed = median(nights.map((s) => foldNight(s.bedtimeMin)))!;
+    const bed = circularMedianMinutes(nights.map((s) => s.bedtimeMin))!;
     const inBed = median(nights.map((s) => s.minutesInBed))!;
     const staged = nights.map((s) => s.stages).filter((st): st is NonNullable<typeof st> => !!st);
     const avgStage = (k: 'deep' | 'light' | 'rem' | 'awake') => Math.round(mean(staged.map((st) => st[k]))!);
@@ -134,7 +145,7 @@ export function groupNights(days: DailyRecord[], bucket: Bucket) {
       date: g.date,
       nights: nights.length,
       night: {
-        bedtimeMin: Math.round(bed) % (24 * 60),
+        bedtimeMin: bed,
         minutesInBed: Math.round(inBed),
         wakeMin: Math.round(bed + inBed) % (24 * 60),
         minutesAsleep: Math.round(median(nights.map((s) => s.minutesAsleep))!),
