@@ -6,7 +6,8 @@ import {
   ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts';
 import { formatCivil, formatClock, weekdayLetter, type CivilDate } from '../lib/date';
-import { rollingMean, values, type Point } from '../pipeline/derive';
+import { lastIndexWithValue, rollingMean, values, type Point } from '../pipeline/derive';
+import { niceScale } from '../lib/scale';
 import { bucketLabel, bucketStart, meanLabel, meanWindowFor, type Bucket } from '../pipeline/aggregate';
 import { AXIS, GRID, fmtDuration, fmtNum } from '../ui/primitives';
 import type { DailyRecord, SleepSession } from '../types/health';
@@ -41,12 +42,15 @@ interface ChartRow {
 
 function toRows(s: Point[], meanWindow?: number, bucket: Bucket = 'day'): ChartRow[] {
   const mean = meanWindow ? rollingMean(s, meanWindow, Math.ceil(meanWindow / 2)) : null;
+  // The average ends at the last reading: a day with nothing recorded yet, usually today, has no
+  // average of its own, and carrying the line on would draw a value nobody measured.
+  const last = lastIndexWithValue(s);
   return s.map((p, i) => ({
     date: p.date,
     ...labels(p.date, bucket),
     wd: weekdayLetter(p.date),
     value: p.value,
-    mean: mean ? mean[i].value : undefined,
+    mean: mean ? (i <= last ? mean[i].value : null) : undefined,
   }));
 }
 
@@ -108,6 +112,14 @@ export function TrendChart({
   const n = rows.length;
   const id = useMemo(() => `g${Math.random().toString(36).slice(2, 8)}`, []);
   const known = values(series).length;
+  // The axis covers the readings and the usual band. Left to itself, Recharts sized the axis to the
+  // readings alone and then dropped the band entirely whenever it reached past them.
+  const ticks = useMemo(() => {
+    const v = values(series);
+    if (domain || !v.length) return null;
+    const edges = baseline ? [baseline.centre - baseline.spread, baseline.centre + baseline.spread] : [];
+    return niceScale(Math.min(...v, ...edges), Math.max(...v, ...edges));
+  }, [series, domain, baseline?.centre, baseline?.spread]);
   if (!known) return <NoSeries height={height} />;
 
   /**
@@ -122,8 +134,10 @@ export function TrendChart({
    */
   const sparse = known / Math.max(1, n) < 0.6;
   const curve = sparse ? 'linear' : 'monotone';
+  const showMean = !!meanWindow && !sparse;
 
   return (
+    <div>
     <ResponsiveContainer width="100%" height={height}>
       <ComposedChart data={rows} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
         <defs>
@@ -137,10 +151,11 @@ export function TrendChart({
           <ReferenceArea
             y1={baseline.centre - baseline.spread}
             y2={baseline.centre + baseline.spread}
+            ifOverflow="extendDomain"
             {...({ fill: '#a1a1aa', fillOpacity: 0.06, stroke: 'none' } as any)}
           />
         )}
-        {baseline && <ReferenceLine y={baseline.centre} stroke="#71717a" strokeDasharray="3 3" strokeWidth={1} />}
+        {baseline && <ReferenceLine y={baseline.centre} ifOverflow="extendDomain" stroke="#71717a" strokeDasharray="3 3" strokeWidth={1} />}
         <XAxis
           dataKey="label"
           axisLine={false}
@@ -154,7 +169,8 @@ export function TrendChart({
           tickLine={false}
           tick={{ fill: AXIS, fontSize: 10 }}
           tickFormatter={axisTick}
-          domain={domain ?? ['auto', 'auto']}
+          domain={domain ?? (ticks ? [ticks[0], ticks[ticks.length - 1]] : ['auto', 'auto'])}
+          ticks={ticks ?? undefined}
           width={52}
         />
         <Tooltip
@@ -187,7 +203,7 @@ export function TrendChart({
           dot={sparse ? { r: 3, fill: color, stroke: 'none' } : false}
           connectNulls={false} isAnimationActive={false}
         />
-        {meanWindow && !sparse && (
+        {showMean && (
           <Line
             type={curve} dataKey="mean" stroke={color} strokeWidth={2.4}
             dot={false} connectNulls={false} isAnimationActive={false}
@@ -195,6 +211,30 @@ export function TrendChart({
         )}
       </ComposedChart>
     </ResponsiveContainer>
+    {/* A key, so the thin line, the thick one and the band each say what they are. */}
+    {(showMean || baseline) && (
+      <div className="flex flex-wrap gap-x-4 gap-y-1 px-3 pt-1 text-[10.5px] text-zinc-500">
+        {showMean && (
+          <>
+            <span className="flex items-center gap-1.5">
+              <i className="block w-3.5 h-px" style={{ background: color, opacity: 0.6 }} />
+              {bucket === 'day' ? 'Each day' : `Each ${bucket}`}
+            </span>
+            <span className="flex items-center gap-1.5">
+              <i className="block w-3.5 h-[2.5px] rounded-full" style={{ background: color }} />
+              {`${meanWindow}-${bucket === 'week' ? 'week' : 'day'} average`}
+            </span>
+          </>
+        )}
+        {baseline && (
+          <span className="flex items-center gap-1.5">
+            <i className="block w-3.5 h-2 rounded-sm bg-zinc-400/20" />
+            Your usual range
+          </span>
+        )}
+      </div>
+    )}
+    </div>
   );
 }
 
@@ -769,20 +809,9 @@ export function IntradayTrace({
 }) {
   if (samples.length < 5) return <NoSeries height={height} />;
 
-  // Apply a moving average for smoothing
-  const windowSize = 6;
-  const smoothedSamples = [];
-  for (let i = 0; i < samples.length; i++) {
-    let sum = 0;
-    let count = 0;
-    for (let j = Math.max(0, i - windowSize + 1); j <= i; j++) {
-      sum += samples[j].value;
-      count++;
-    }
-    smoothedSamples.push({ ...samples[i], value: Math.round(sum / count) });
-  }
-
-  const rows = smoothedSamples.map((s) => ({ label: formatClock(s.minutesOfDay), value: s.value }));
+  // The readings as they are. A trailing moving average used to shave the peaks and shift them
+  // later, so the trace never reached the highest reading quoted beside it.
+  const rows = samples.map((s) => ({ label: formatClock(s.minutesOfDay), value: s.value }));
   const gradientId = `gradient-${color.replace('#', '')}`;
 
   return (
