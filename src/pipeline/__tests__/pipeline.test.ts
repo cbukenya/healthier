@@ -1,17 +1,17 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { addDays, civilFromGH, civilFromInstant, parseUtcOffsetSeconds, todayCivil } from '../../lib/date';
+import { addDays, civilFromGH, civilFromInstant, isoWeekdayIndex, parseUtcOffsetSeconds, todayCivil } from '../../lib/date';
 import { int, num, nullIf, round } from '../coerce';
 import { splitWindow, MAX_ROLLUP_WINDOW_DAYS } from '../transport';
 import { syncHealthData } from '../sync';
-import { buildFixturePayloads, createFixtureFetch } from '../fixtures';
+import { FIXTURE_CLOCK, buildFixturePayloads, createFixtureFetch } from '../fixtures';
 import { observations, recoveryTax, todaySummary } from '../insights';
 import { scoreSleep } from '../sleep';
 import {
   compareToBaseline, coverage, findGaps, periodShift, rollingMean, series, stats, values,
   bedtimeConsistency, currentStreak, readiness, windowShift, firstObserved, sleepRegularity, circularMeanMinutes, typicalSleepWindow,
-  personalSleepNeed,
+  personalSleepNeed, goalStreak, weightTrend,
 } from '../derive';
 import { STREAMS } from '../registry';
 import { emptyRecord } from '../normalize';
@@ -1123,7 +1123,7 @@ describe('insight engine — stateless guards', () => {
     const card = byTitle(days, 'A benchmark week')!;
     assert.ok(card, titles(days).join(' | '));
     assert.match(card.text, /brisk minutes/);
-    assert.match(card.text, /days to spare/);
+    assert.match(card.text, /with 5 days to spare/);
   });
 
   it('finds a real recovery tax and stays silent on a null one', () => {
@@ -1153,6 +1153,150 @@ describe('insight engine — stateless guards', () => {
     }
     const s = todaySummary(ds as any, new Date('2026-08-19T08:00:00'));
     assert.ok(Array.isArray(s.observations));
+  });
+});
+
+describe('one today: freshness, partial days, the demo clock', () => {
+  const lowMorning = (d: ReturnType<typeof emptyRecord>) => {
+    d.hrv = 20;
+    d.restingHr = 72;
+    d.sleep!.minutesAsleep = 300;
+  };
+
+  it('takes "today" from the data, not the device clock', () => {
+    const short = syntheticDays(28, { sleepMin: 300 });
+    const obs = observations(dsOf(short), new Date('2026-09-15T08:00:00'));
+    assert.ok(obs.some((o) => o.id === 'night-short'), 'last night is the grid’s last night, whatever the device date');
+  });
+
+  it('reads morning, midday and evening on the given zone’s clock', () => {
+    // Goal already met, so the evening has nothing to suggest and shows its floor card.
+    const quiet = dsOf(syntheticDays(28, { steps: 12000 }));
+    const at = new Date('2026-07-28T06:00:00Z');
+    assert.equal(observations(quiet, at)[0].id, 'floor-morning'); // 06:00 in this runtime's UTC
+    assert.equal(observations(quiet, at, { timeZone: 'Asia/Tokyo' })[0].id, 'floor-midday'); // 15:00
+    assert.equal(observations(quiet, at, { timeZone: 'America/Los_Angeles' })[0].id, 'floor-evening'); // 23:00
+  });
+
+  it('runs demo mode on the fixture’s clock and zone, wherever it’s opened', async () => {
+    const ds = await syncHealthData({
+      token: 'demo',
+      fetchImpl: createFixtureFetch(buildFixturePayloads()),
+      windowDays: 62,
+      now: FIXTURE_CLOCK.now,
+      timeZone: FIXTURE_CLOCK.timeZone,
+    });
+    // 01:39 on the 19th in Stockholm, though this runtime is in UTC, where it's still the 18th.
+    assert.equal(ds.days.at(-1)!.date, '2026-08-19');
+  });
+
+  it('scores no battery from readings older than yesterday', () => {
+    const charging = syntheticDays(28);
+    for (const date of ['2026-07-29', '2026-07-30', '2026-07-31']) charging.push(emptyRecord(date));
+    const r = readiness(charging);
+    assert.equal(r.score, null, 'three days on the charger is no score, not the last night seen');
+    assert.equal(r.label, 'No readings since 28 Jul');
+
+    // Yesterday's night still counts while this morning's hasn't synced.
+    const notYet = syntheticDays(28);
+    notYet.push(emptyRecord('2026-07-29'));
+    assert.notEqual(readiness(notYet).score, null);
+    assert.equal(readiness(notYet).confidence, 'high');
+  });
+
+  it('leaves out a night older than yesterday instead of scoring it as last night', () => {
+    const days = syntheticDays(28);
+    for (let i = 25; i < 28; i++) days[i].sleep = null;
+    const r = readiness(days);
+    assert.equal(part(r, 'Last night’s sleep'), undefined);
+    assert.equal(part(r, 'Recent sleep debt'), undefined);
+    assert.equal(r.confidence, 'medium');
+  });
+
+  it('compares day over day against the previous night, never the same one twice', () => {
+    // An illness-like morning, then today with nothing synced yet: still the pattern's first morning.
+    const rough = syntheticDays(28, { restingHr: 70, resp: 17.5, tempDev: 0.8, hrv: 24 });
+    rough.push(emptyRecord('2026-07-29'));
+    const card = observations(dsOf(rough), new Date('2026-07-29T08:00:00')).find((o) => o.id === 'illness-pattern');
+    assert.ok(card);
+    assert.doesNotMatch(card!.text, /Still there/);
+
+    // Two low mornings and an empty today make two, not three.
+    const low = syntheticDays(28);
+    lowMorning(low[26]);
+    lowMorning(low[27]);
+    low.push(emptyRecord('2026-07-29'));
+    const battery = observations(dsOf(low), new Date('2026-07-29T08:00:00')).find((o) => o.id === 'battery-low');
+    assert.ok(battery);
+    assert.doesNotMatch(battery!.text, /Third low morning/);
+    low[25] && lowMorning(low[25]);
+    const third = observations(dsOf(low), new Date('2026-07-29T08:00:00')).find((o) => o.id === 'battery-low');
+    assert.match(third!.text, /Third low morning/);
+  });
+
+  it('never counts a run across a missing night', () => {
+    const days = syntheticDays(28, { sleepMin: 300 });
+    days[25].sleep!.minutesAsleep = 305;
+    days[26].sleep = null;
+    const card = byTitle(days, "Last night didn't quite deliver")!;
+    assert.ok(card, titles(days).join(' | '));
+    assert.doesNotMatch(card.text, /Second short night/);
+  });
+
+  it("doesn't read this morning's steps as a quieter stretch", () => {
+    // Six days at 9,000 after weeks at 11,000 is under the 20% bar; a few hundred steps so far today must not tip it.
+    const days = syntheticDays(28, {}, { steps: 11000 });
+    for (let i = 21; i < 27; i++) days[i].steps = 9000;
+    days[27].steps = 300;
+    assert.ok(!titles(days).includes("You've had a quieter stretch"), titles(days).join(' | '));
+  });
+
+  it('keeps a streak alive while today is still counting', () => {
+    const s = [
+      { date: '2026-08-16', value: 11000 },
+      { date: '2026-08-17', value: 12000 },
+      { date: '2026-08-18', value: 10500 },
+    ];
+    const meets = (v: number) => v >= 10000;
+    assert.equal(goalStreak([...s, { date: '2026-08-19', value: 900 }], meets), 3, 'a morning in progress breaks nothing');
+    assert.equal(goalStreak([...s, { date: '2026-08-19', value: null }], meets), 3);
+    assert.equal(goalStreak([...s, { date: '2026-08-19', value: 10200 }], meets), 4, 'and joins once it clears the goal');
+  });
+
+  it('counts weeks from Monday and workdays as Monday to Friday', () => {
+    assert.equal(isoWeekdayIndex('2026-07-27'), 0); // Monday
+    assert.equal(isoWeekdayIndex('2026-08-02'), 6); // Sunday
+
+    // Sunday's minutes belong to last week: the bar is crossed on Tuesday, not Monday.
+    const days = syntheticDays(28);
+    days[25].activeMinutes = { light: 0, moderate: 100, vigorous: 0 }; // Sun 26 Jul
+    days[26].activeMinutes = { light: 0, moderate: 80, vigorous: 0 }; // Mon 27 Jul
+    days[27].activeMinutes = { light: 0, moderate: 75, vigorous: 0 }; // Tue 28 Jul
+    assert.ok(byTitle(days, 'A benchmark week'), titles(days).join(' | '));
+
+    // Weekend lie-ins are free days; Friday and Sunday mornings aren't swapped.
+    const month = syntheticDays(32); // ends Sat 1 Aug, when the monthly cards run
+    for (const d of month) d.sleep!.minutesAsleep = isoWeekdayIndex(d.date) >= 5 ? 540 : 420;
+    const card = observations(dsOf(month), new Date('2026-08-01T08:00:00')).find((o) => o.id === 'weekday-deficit');
+    assert.ok(card);
+    assert.match(card!.text, /2h 00m longer on free days/);
+  });
+
+  it('needs a fortnight of readings before calling a resting-HR shift', () => {
+    const days = syntheticDays(28);
+    for (let i = 14; i < 27; i++) days[i].restingHr = null;
+    days[27].restingHr = 64; // one reading, a little above
+    assert.ok(!titles(days).includes('Your heart is working a little harder'), titles(days).join(' | '));
+  });
+
+  it('draws no weight trend from two readings or under three weeks', () => {
+    const pts = (rows: [string, number][]) => rows.map(([date, value]) => ({ date, value }));
+    assert.equal(weightTrend(pts([['2026-07-01', 80], ['2026-07-29', 79]])), null);
+    assert.equal(weightTrend(pts([['2026-07-01', 80], ['2026-07-08', 79.5], ['2026-07-15', 79]])), null);
+    const t = weightTrend(pts([['2026-07-01', 80], ['2026-07-11', 79.5], ['2026-07-22', 79]]))!;
+    assert.equal(t.readings, 3);
+    assert.equal(t.spanDays, 21);
+    assert.ok(Math.abs(t.kgPerWeek + 1 / 3) < 0.01, `got ${t.kgPerWeek}`);
   });
 });
 

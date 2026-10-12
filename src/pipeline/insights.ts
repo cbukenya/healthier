@@ -1,4 +1,4 @@
-import { daysBetween, todayCivil, weekdayIndex, type CivilDate } from '../lib/date';
+import { civilClock, daysBetween, isoWeekdayIndex, type CivilDate } from '../lib/date';
 import type { DailyRecord, HealthDataset } from '../types/health';
 import { scoreSleep } from './sleep';
 import {
@@ -6,9 +6,9 @@ import {
   type IntradayDays,
 } from './labs';
 import {
-  circularMeanMinutes, compareToBaseline, coverage, currentStreak, findGaps,
-  firstObserved, latestPoint, loadRatio, periodShift, estimatedSleepTarget,
-  readiness, series, sleepDebt, sleepRegularity, slopePerDay, stats, values,
+  circularMeanMinutes, compareToBaseline, completedDays, coverage, findGaps,
+  firstObserved, goalStreak, isRecent, latestPoint, loadRatio, periodShift, estimatedSleepTarget,
+  readiness, series, sleepDebt, sleepRegularity, stats, values, weightTrend,
   NOISE_FLOOR,
 } from './derive';
 
@@ -16,7 +16,9 @@ import {
  * The insight engine.
  *
  * Everything here is deterministic arithmetic over the day grid plus the
- * clock — no model call, no invented causation, no stored state. Novelty is
+ * clock — no model call, no invented causation, no stored state. "Today" is
+ * always the grid's last day (the server ends the window on the user's today);
+ * the clock only says whether it's morning, midday or evening. Novelty is
  * a property *derived from the data*: to know whether an insight is new, the
  * engine re-evaluates the same rule on a truncated window ("the yesterday
  * test") and stays silent when the state was already true. Nothing is
@@ -57,13 +59,17 @@ export interface Observation {
 const ENTRY_WINDOW = 2;
 const STEP_GOAL = 10000;
 
-const daypartOf = (now: Date): Daypart => {
-  const h = now.getHours();
+const daypartOf = (minutesOfDay: number): Daypart => {
+  const h = minutesOfDay / 60;
   return h < 11 ? 'morning' : h < 16 ? 'midday' : 'evening';
 };
 
-/** Mon–Fri, hardcoded by decision. 0 = Monday in lib/date's weekdayIndex. */
-const isWorkday = (d: CivilDate) => weekdayIndex(d) <= 4;
+/** Minutes past midnight on the user's wall clock: in `timeZone` when given, else this runtime's zone. */
+const wallClock = (now: Date, timeZone?: string) =>
+  timeZone ? civilClock(timeZone)(now.getTime()).minutesOfDay : now.getHours() * 60 + now.getMinutes();
+
+/** Mon–Fri, hardcoded by decision. */
+const isWorkday = (d: CivilDate) => isoWeekdayIndex(d) <= 4;
 
 // ─────────────────────────────────────────────────────────── tiny helpers
 
@@ -96,16 +102,38 @@ function entered(
   return firesNow(days) && !heldBefore(cut(days, ENTRY_WINDOW + 1));
 }
 
-/** Trailing consecutive days (ending at the last observation) meeting a per-day test. */
+/**
+ * Consecutive days meeting a per-day test, counted back from the latest observation. Days after it
+ * (today, not synced yet) are skipped; a missing day inside the run ends it, so "third night running"
+ * never reaches across a gap.
+ */
 function trailingDays(days: DailyRecord[], test: (d: DailyRecord) => boolean | null): number {
   let n = 0;
+  let started = false;
   for (let i = days.length - 1; i >= 0; i--) {
     const r = test(days[i]);
-    if (r === null) continue; // no observation — neither breaks nor extends
+    if (r === null) {
+      if (started) break;
+      continue;
+    }
+    started = true;
     if (!r) break;
     n++;
   }
   return n;
+}
+
+/**
+ * The grid as it stood before its latest morning with overnight readings (sleep, HRV or resting HR).
+ * Day-over-day rules compare against this, so they always compare two different nights, even before
+ * today's has synced.
+ */
+function beforeLatestMorning(days: DailyRecord[]): DailyRecord[] {
+  for (let i = days.length - 1; i >= 0; i--) {
+    const d = days[i];
+    if (d.sleep || d.hrv !== null || d.restingHr !== null) return days.slice(0, i);
+  }
+  return [];
 }
 
 // ───────────────────────────────────────────────────────────── the engine
@@ -117,17 +145,24 @@ interface Candidate {
   obs: Observation;
 }
 
+export interface InsightOptions {
+  intraday?: IntradayDays;
+  /** The zone `now` is read in. Defaults to this runtime's, which in the browser is the user's. */
+  timeZone?: string;
+}
+
 export function observations(
   ds: HealthDataset,
   now: Date = new Date(),
-  extras?: { intraday?: IntradayDays },
+  extras?: InsightOptions,
 ): Observation[] {
   const days = ds.days;
   if (!days.length) return [];
 
-  const part = daypartOf(now);
-  const today = todayCivil(now);
-  const todayRow = days.find((d) => d.date === today) ?? null;
+  const minutesNow = wallClock(now, extras?.timeZone);
+  const part = daypartOf(minutesNow);
+  const todayRow = days[days.length - 1];
+  const today = todayRow.date;
 
   const out: Candidate[] = [];
   const add = (severity: number, topic: string, obs: Observation, daypart?: Daypart[]) =>
@@ -136,15 +171,18 @@ export function observations(
   const need = estimatedSleepTarget(days);
   const needH = needLabel(need);
   const stepsSeries = series(days, (d) => d.steps);
-  const stepMedian = stats(values(stepsSeries.slice(-28)))?.median ?? null;
+  // Today's steps are still counting, so whole-day comparisons read finished days only.
+  const doneSteps = stepsSeries.slice(0, -1);
+  const stepMedian = stats(values(doneSteps.slice(-28)))?.median ?? null;
 
   const lastNightDay = [...days].reverse().find((d) => d.sleep) ?? null;
   const lastNight = lastNightDay?.sleep ?? null;
-  const lastNightIsRecent = lastNightDay !== null && daysBetween(lastNightDay.date, today) <= 1;
+  const lastNightIsRecent = isRecent(lastNightDay?.date, today);
 
-  // Readiness once, plus its shadow for the day-over-day move.
+  // Readiness once, plus its shadow for the day-over-day move: as of the morning before the latest one.
   const rNow = readiness(days);
-  const rPrev = readiness(cut(days, 1));
+  const prevDays = beforeLatestMorning(days);
+  const rPrev = readiness(prevDays);
   const topPos = rNow.parts.length ? [...rNow.parts].sort((a, b) => b.contribution - a.contribution)[0] : null;
   const topNeg = rNow.parts.length ? [...rNow.parts].sort((a, b) => a.contribution - b.contribution)[0] : null;
   const illness = rNow.flags.length > 0;
@@ -226,7 +264,9 @@ export function observations(
 
     if (rNow.score < 50) {
       // M4 / A-battery-low — alert with trailing-day escalation.
-      const lowDays = rPrev.score !== null && rPrev.score < 50 ? (readiness(cut(days, 2)).score ?? 99) < 50 ? 3 : 2 : 1;
+      const lowDays = rPrev.score !== null && rPrev.score < 50
+        ? (readiness(beforeLatestMorning(prevDays)).score ?? 99) < 50 ? 3 : 2
+        : 1;
       add(82, 'battery', {
         id: 'battery-low',
         domain: 'body',
@@ -307,7 +347,7 @@ export function observations(
   }
 
   const hrv = compareToBaseline(series(days, (d) => d.hrv), 28, 8, NOISE_FLOOR.hrv);
-  if (!illness) {
+  if (!illness && isRecent(hrv.date, today)) {
     if ((hrv.band === 'above' || hrv.band === 'far-above') && hrvTrendDir !== 'up') {
       add(70, 'hrv', {
         id: 'hrv-acute-high',
@@ -341,15 +381,16 @@ export function observations(
   // alert: an acute event misframed as a gradual trend.
   const rhrSeries = series(days, (d) => d.restingHr);
   const rhr = compareToBaseline(rhrSeries, 28, 8, NOISE_FLOOR.restingHr);
+  const rhrRecent = isRecent(rhr.date, today);
   const highStreak = trailingDays(days, (d) =>
     d.restingHr === null ? null : rhr.baseline !== null && rhr.spread !== null
       ? d.restingHr > rhr.baseline + 2 * rhr.spread : null,
   );
-  const acuteRhrEvent = !illness && rhr.band === 'far-above' && highStreak >= 1 && highStreak <= 5;
+  const acuteRhrEvent = !illness && rhrRecent && rhr.band === 'far-above' && highStreak >= 1 && highStreak <= 5;
 
   const rhrShiftP = (w: typeof rhrSeries, dir: 1 | -1) => {
     const sh = periodShift(w, 14);
-    return sh.delta !== null && sh.nPrevious >= 7 && sh.delta * dir >= 1.5;
+    return sh.delta !== null && sh.nCurrent >= 7 && sh.nPrevious >= 7 && sh.delta * dir >= 1.5;
   };
   let rhrShiftDir: 'up' | 'down' | null = null;
   for (const dir of [1, -1] as const) {
@@ -380,7 +421,7 @@ export function observations(
           : `Resting heart rate is ${Math.round(rhr.value!)} bpm against a 28-day typical of ${Math.round(rhr.baseline!)}. Elevation this clear often follows late meals, alcohol, heat — or an oncoming illness.`,
         action: highStreak < 3 ? "Worth an easier day if it's still there tomorrow." : undefined,
       });
-    } else if (rhr.band === 'far-below' && rhrShiftDir !== 'down' &&
+    } else if (rhrRecent && rhr.band === 'far-below' && rhrShiftDir !== 'down' &&
       entered(days, (w) => compareToBaseline(series(w, (d) => d.restingHr)).band === 'far-below')) {
       add(65, 'rhr', {
         id: 'rhr-acute-low',
@@ -520,7 +561,7 @@ export function observations(
   }
 
   // ══════════════════════════════════════ movement · volume story ════════
-  const load = loadRatio(stepsSeries);
+  const load = loadRatio(doneSteps);
   let volumeTold = false;
   if (load.ratio !== null && load.ratio > 1.5) {
     volumeTold = true;
@@ -539,10 +580,10 @@ export function observations(
   };
   if (!volumeTold) {
     for (const dir of [1, -1] as const) {
-      if (stepShiftP(stepsSeries, dir) &&
-        entered(days, () => true, () => stepShiftP(stepsSeries.slice(0, -(ENTRY_WINDOW + 1)), dir))) {
+      if (stepShiftP(doneSteps, dir) &&
+        entered(days, () => true, () => stepShiftP(doneSteps.slice(0, -(ENTRY_WINDOW + 1)), dir))) {
         volumeTold = true;
-        const sh = periodShift(stepsSeries, 7);
+        const sh = periodShift(doneSteps, 7);
         add(dir === 1 ? 62 : 40, 'movement-volume', {
           id: dir === 1 ? 'steps-up' : 'steps-down',
           domain: 'movement',
@@ -557,8 +598,8 @@ export function observations(
 
   // Streak milestones only — broken streaks get silence, always.
   const STREAK_SET = new Set([3, 5, 7, 10, 14, 21, 30]);
-  const streakNow = currentStreak(stepsSeries, (v) => v >= STEP_GOAL);
-  if (STREAK_SET.has(streakNow) && currentStreak(stepsSeries.slice(0, -1), (v) => v >= STEP_GOAL) !== streakNow) {
+  const streakNow = goalStreak(stepsSeries, (v) => v >= STEP_GOAL);
+  if (STREAK_SET.has(streakNow) && goalStreak(doneSteps, (v) => v >= STEP_GOAL) !== streakNow) {
     add(63, 'movement-milestone', {
       id: 'streak',
       domain: 'movement',
@@ -569,7 +610,7 @@ export function observations(
   }
 
   // Record day — completed days only, with a floor so tiny records stay quiet.
-  const completedSteps = stepsSeries.slice(0, -1).filter((pt) => pt.value !== null);
+  const completedSteps = doneSteps.filter((pt) => pt.value !== null);
   if (completedSteps.length >= 15) {
     const lastC = completedSteps[completedSteps.length - 1];
     const priorMax = Math.max(...completedSteps.slice(0, -1).map((pt) => pt.value!));
@@ -585,7 +626,7 @@ export function observations(
   }
 
   // Intensity: the minutes the guidelines actually count.
-  const mvpa = series(days, (d) => (d.activeMinutes ? d.activeMinutes.moderate + d.activeMinutes.vigorous : null));
+  const mvpa = series(completedDays(days), (d) => (d.activeMinutes ? d.activeMinutes.moderate + d.activeMinutes.vigorous : null));
   const mvpaP = (w: typeof mvpa, dir: 1 | -1) => {
     const sh = periodShift(w, 7);
     return sh.delta !== null && sh.nCurrent >= 4 && sh.nPrevious >= 4 &&
@@ -608,8 +649,8 @@ export function observations(
   // ═══════════════════════════ TODAY, daypart-gated, expires with day ════
   const todaySteps = todayRow?.steps ?? null;
   if (todaySteps !== null && stepMedian !== null) {
-    const hour = now.getHours() + now.getMinutes() / 60;
-    const yesterday = [...stepsSeries.slice(0, -1)].reverse().find((pt) => pt.value !== null);
+    const hour = minutesNow / 60;
+    const yesterday = [...doneSteps].reverse().find((pt) => pt.value !== null);
     const yesterdayLow = yesterday !== undefined && yesterday.value! < stepMedian * 0.5;
 
     if (part === 'midday' && hour >= 13 && todaySteps < stepMedian * 0.3 && !yesterdayLow) {
@@ -663,44 +704,37 @@ export function observations(
 
   // ═════════════════════════════════════════ body · weight, neutral ══════
   const wSeries = series(days, (d) => d.weightKg);
-  const wPts = wSeries.filter((pt) => pt.value !== null);
-  if (wPts.length >= 3 && daysBetween(wPts[0].date, wPts[wPts.length - 1].date) >= 21) {
-    const latestReading = wPts[wPts.length - 1];
-    // "On new reading only": silent unless the newest reading is recent.
-    if (daysBetween(latestReading.date, today) <= ENTRY_WINDOW + 1) {
-      const slope = slopePerDay(wSeries);
-      const slopeBefore = slopePerDay(wSeries.filter((pt) => pt.date !== latestReading.date));
-      if (slope !== null) {
-        const perWeek = slope * 7;
-        const beforePerWeek = slopeBefore !== null ? slopeBefore * 7 : null;
-        const span = daysBetween(wPts[0].date, latestReading.date);
-        const basis = `${wPts.length} hand-logged readings across ${span} days — treat the slope as a sketch, not a measurement`;
-        const crossed = (thr: number) =>
-          Math.abs(perWeek) >= thr && (beforePerWeek === null || Math.abs(beforePerWeek) < thr || Math.sign(beforePerWeek) !== Math.sign(perWeek));
-        if (perWeek <= -0.15 && crossed(0.15)) {
-          add(44, 'weight', {
-            id: 'weight-down',
-            domain: 'body',
-            tone: 'neutral',
-            title: 'Your weight is trending down',
-            text: `About ${Math.abs(perWeek).toFixed(2)} kg/week down; latest ${latestReading.value} kg on ${latestReading.date} (${basis}).`,
-          });
-        } else if (perWeek >= 0.15 && crossed(0.15)) {
-          add(44, 'weight', {
-            id: 'weight-up',
-            domain: 'body',
-            tone: 'neutral',
-            title: 'Your weight is edging upward',
-            text: `About ${perWeek.toFixed(2)} kg/week up; latest ${latestReading.value} kg on ${latestReading.date} (${basis}).`,
-          });
-        }
-      }
+  const wTrend = weightTrend(wSeries);
+  const latestReading = latestPoint(wSeries);
+  // "On new reading only": silent unless the newest reading is recent.
+  if (wTrend && latestReading && daysBetween(latestReading.date, today) <= ENTRY_WINDOW + 1) {
+    const perWeek = wTrend.kgPerWeek;
+    const beforePerWeek = weightTrend(wSeries.filter((pt) => pt.date !== latestReading.date))?.kgPerWeek ?? null;
+    const basis = `${wTrend.readings} hand-logged readings across ${wTrend.spanDays} days — treat the slope as a sketch, not a measurement`;
+    const crossed = (thr: number) =>
+      Math.abs(perWeek) >= thr && (beforePerWeek === null || Math.abs(beforePerWeek) < thr || Math.sign(beforePerWeek) !== Math.sign(perWeek));
+    if (perWeek <= -0.15 && crossed(0.15)) {
+      add(44, 'weight', {
+        id: 'weight-down',
+        domain: 'body',
+        tone: 'neutral',
+        title: 'Your weight is trending down',
+        text: `About ${Math.abs(perWeek).toFixed(2)} kg/week down; latest ${latestReading.value} kg on ${latestReading.date} (${basis}).`,
+      });
+    } else if (perWeek >= 0.15 && crossed(0.15)) {
+      add(44, 'weight', {
+        id: 'weight-up',
+        domain: 'body',
+        tone: 'neutral',
+        title: 'Your weight is edging upward',
+        text: `About ${perWeek.toFixed(2)} kg/week up; latest ${latestReading.value} kg on ${latestReading.date} (${basis}).`,
+      });
     }
   }
 
   // ═══════════════════════════════════════════ calendar cadence ══════════
   // W1 — WHO weekly bar, fired on the crossing day.
-  const weekStartIdx = days.findIndex((d) => daysBetween(d.date, today) <= weekdayIndex(today));
+  const weekStartIdx = days.findIndex((d) => daysBetween(d.date, today) <= isoWeekdayIndex(today));
   if (weekStartIdx >= 0) {
     // WHO counts 150 min moderate OR 75 min vigorous, i.e. vigorous minutes
     // are worth double — summing raw minutes equally overstated the week.
@@ -721,7 +755,7 @@ export function observations(
     const weekEquivalent = hasAzm ? azmWeek : fallbackWeek;
     const total = weekEquivalent(days.length);
     if (total >= 150 && weekEquivalent(days.length - 1) < 150) {
-      const spare = 6 - weekdayIndex(today);
+      const spare = 6 - isoWeekdayIndex(today);
       add(58, 'weekly', {
         id: 'who-week',
         domain: 'movement',
@@ -890,7 +924,7 @@ export function observations(
   // themselves at the start of each month (calendar guard), because a
   // months-old pattern the person never acted on deserves exactly one nudge
   // per month, not daily nagging.
-  const monthStart = now.getDate() <= 2;
+  const monthStart = dom <= 2;
 
   const sdb = sdbScreen(days);
   if (sdb.status === 'pattern' &&
@@ -965,19 +999,19 @@ export function observations(
 
   // Floor: the rail is never empty and never padded with filler.
   if (chosen.length === 0) {
-    chosen.push(floorCard(part, days, rNow.score, todaySteps, load.ratio));
+    chosen.push(floorCard(part, todayRow, lastNightIsRecent ? lastNight : null, rNow.score, todaySteps, load.ratio));
   }
   return chosen;
 }
 
 function floorCard(
   part: Daypart,
-  days: DailyRecord[],
+  todayRow: DailyRecord,
+  lastNight: DailyRecord['sleep'],
   battery: number | null,
   todaySteps: number | null,
   ratio: number | null,
 ): Observation {
-  const lastNight = [...days].reverse().find((d) => d.sleep)?.sleep ?? null;
   if (part === 'morning') {
     return {
       id: 'floor-morning', domain: 'sleep', tone: 'neutral', title: 'Quiet morning',
@@ -990,7 +1024,7 @@ function floorCard(
       text: `${todaySteps !== null ? `${Math.round(todaySteps).toLocaleString('en-US')} steps so far` : 'Nothing has synced yet today'}${battery !== null ? `, battery ${battery}/100` : ''}. Your metrics are sitting comfortably inside your usual ranges. A steady, predictable day.`,
     };
   }
-  const brisk = [...days].reverse().find((d) => d.activeMinutes)?.activeMinutes;
+  const brisk = todayRow.activeMinutes;
   return {
     id: 'floor-evening', domain: 'movement', tone: 'neutral', title: 'Day closed',
     text: `Today: ${todaySteps !== null ? `${Math.round(todaySteps).toLocaleString('en-US')} steps` : 'no step sync'}${brisk ? `, ${brisk.moderate + brisk.vigorous} brisk minutes` : ''}${ratio !== null ? `, load ${ratio.toFixed(1)}× your usual` : ''}. A quiet one — they count too.`,
@@ -1142,20 +1176,22 @@ export function movementHrvAssociation(days: DailyRecord[]): MovementHrvAssociat
 export const recoveryTax = movementHrvAssociation;
 
 /** Convenience: everything the Today view needs, computed once. */
-export function todaySummary(ds: HealthDataset, now: Date = new Date(), extras?: { intraday?: IntradayDays }) {
+export function todaySummary(ds: HealthDataset, now: Date = new Date(), extras?: InsightOptions) {
   const days = ds.days;
   const last = days[days.length - 1] ?? null;
-  const lastWithSteps = [...days].reverse().find((d) => d.steps !== null) ?? null;
-  const lastWithSleep = [...days].reverse().find((d) => d.sleep !== null) ?? null;
+  // Cards about now show readings from today or yesterday; anything older is history, not last night.
+  const recent = (d: DailyRecord | undefined) => (d && isRecent(d.date, last?.date) ? d : null);
+  const movementDay = recent([...days].reverse().find((d) => d.steps !== null));
+  const sleepDay = recent([...days].reverse().find((d) => d.sleep !== null));
 
   const hrv = compareToBaseline(series(days, (d) => d.hrv), 28, 8, NOISE_FLOOR.hrv);
   const rhr = compareToBaseline(series(days, (d) => d.restingHr), 28, 8, NOISE_FLOOR.restingHr);
 
   return {
     today: last,
-    movementDay: lastWithSteps,
-    sleepDay: lastWithSleep,
-    sleepScore: lastWithSleep?.sleep ? scoreSleep(lastWithSleep.sleep) : null,
+    movementDay,
+    sleepDay,
+    sleepScore: sleepDay?.sleep ? scoreSleep(sleepDay.sleep) : null,
     hrv,
     rhr,
     readiness: readiness(days),

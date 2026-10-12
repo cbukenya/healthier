@@ -1,4 +1,4 @@
-import { addDays, todayCivil, type CivilDate } from '../lib/date';
+import { addDays, todayCivil, todayCivilIn, type CivilDate } from '../lib/date';
 import { MemoryStore, syncIncremental, unpackDataset, type SyncResult } from './incremental';
 import type { ScopeKey } from './registry';
 import { HealthTransport, type FetchLike } from './transport';
@@ -31,9 +31,9 @@ export interface SyncOptions {
   windowDays?: number;
   /** Override "now" — used by tests and by the fixture-backed demo. */
   now?: Date;
-  /** "Today" as a civil date, when the caller knows the user's zone. Wins over `now`. */
+  /** "Today" as a civil date. Wins over `now` and `timeZone`. */
   today?: CivilDate;
-  /** IANA zone for intraday minutes. Defaults to this runtime's zone. */
+  /** The user's IANA zone: intraday minutes, and "today" when it isn't given. Defaults to this runtime's zone. */
   timeZone?: string;
   /** Skip streams whose scope wasn't granted. */
   grantedScopes?: ScopeKey[];
@@ -46,7 +46,7 @@ export interface SyncOptions {
 
 export async function syncHealthData(opts: SyncOptions): Promise<SyncResult> {
   const now = opts.now ?? new Date();
-  const today = opts.today ?? todayCivil(now);
+  const today = opts.today ?? (opts.timeZone ? todayCivilIn(opts.timeZone, now) : todayCivil(now));
   const windowDays = opts.windowDays ?? 90;
 
   const store = new MemoryStore();

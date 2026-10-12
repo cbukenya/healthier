@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { DASHBOARD_WINDOW_DAYS, syncHealthData, type SyncResult } from '../pipeline/sync';
 import { unpackDataset } from '../pipeline/incremental';
-import { buildFixturePayloads, createFixtureFetch } from '../pipeline/fixtures';
+import { FIXTURE_CLOCK, buildFixturePayloads, createFixtureFetch } from '../pipeline/fixtures';
 import { api, ApiError } from '../lib/api';
 import type { DatasetResponse, HistoryInfo, SyncResponse } from '../types/api';
 
@@ -79,9 +79,9 @@ function demoSync(signal: AbortSignal, onProgress: Progress): Promise<SyncResult
     token: 'demo-token',
     fetchImpl: createFixtureFetch(buildFixturePayloads(), { latencyMs: 60 }),
     windowDays: DASHBOARD_WINDOW_DAYS,
-    // The fixture covers a fixed window, so demo mode pins "today" and the zone to match it.
-    now: new Date('2026-08-19T01:39:00+02:00'),
-    timeZone: 'Europe/Stockholm',
+    // The fixture covers a fixed window, so demo mode pins the clock and the zone (and so "today") to match it.
+    now: FIXTURE_CLOCK.now,
+    timeZone: FIXTURE_CLOCK.timeZone,
     includeIntraday: true,
     signal,
     onProgress: (done, total, label) => onProgress({ done, total, label }),

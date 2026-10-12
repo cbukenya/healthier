@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
-import { formatCivil, todayCivil } from '../lib/date';
+import { formatCivil } from '../lib/date';
 import {
-  byWeekday, compareToBaseline, currentStreak, goal, loadRatio, periodShift, series,
+  byWeekday, compareToBaseline, completedDays, goal, goalStreak, loadRatio, periodShift, series,
   stats, values, windowShift,
 } from '../pipeline/derive';
 import { BarSeries, StackedBars, TrendChart, WeekdayProfile } from '../charts';
@@ -20,20 +20,25 @@ export function ActivityView({ data }: { data: SyncResult }) {
   const spanState = useSpan(data, '30');
   const { days: window, bucket } = spanState;
 
+  const today = days.at(-1)?.date ?? null;
+  const mvpaOf = (d: SyncResult['days'][number]) =>
+    d.activeMinutes ? d.activeMinutes.moderate + d.activeMinutes.vigorous : null;
   const stepsAll = series(days, (d) => d.steps);
   const stepsWin = series(window, (d) => d.steps);
   const distWin = series(window, (d) => d.distanceKm);
   const kcalWin = series(window, (d) => d.activeKcal);
-  const mvpaAll = series(days, (d) =>
-    d.activeMinutes ? d.activeMinutes.moderate + d.activeMinutes.vigorous : null,
-  );
+  const mvpaAll = series(days, mvpaOf);
+  // Today is still in progress: averages, the ramp and week-on-week read finished days only.
+  const done = completedDays(days);
+  const stepsDone = series(done, (d) => d.steps);
+  const mvpaDone = series(done, mvpaOf);
 
   const stepsCmp = compareToBaseline(stepsAll);
   const mvpaCmp = compareToBaseline(mvpaAll);
-  const load = loadRatio(stepsAll);
-  const stepStats = stats(values(stepsAll));
-  const streak = currentStreak(stepsAll, (v) => v >= 10000);
-  const shift = periodShift(stepsAll, 7);
+  const load = loadRatio(stepsDone);
+  const stepStats = stats(values(stepsDone));
+  const streak = goalStreak(stepsAll, (v) => v >= 10000);
+  const shift = periodShift(stepsDone, 7);
   const recorded = values(stepsAll).length;
 
   // Grouped spans (a hook, so it must run before the early return below): average minutes per recorded day, per intensity.
@@ -75,6 +80,7 @@ export function ActivityView({ data }: { data: SyncResult }) {
           value={stepsCmp.value}
           unit="steps"
           cmp={stepsCmp}
+          today={today}
           meter={goal(stepsCmp.value, 10000)}
           color={DOMAIN.movement.hex}
         />
@@ -83,6 +89,7 @@ export function ActivityView({ data }: { data: SyncResult }) {
           value={mvpaCmp.value}
           unit="min"
           cmp={mvpaCmp}
+          today={today}
           meter={goal(mvpaCmp.value, 30)}
           color={DOMAIN.movement.hex}
           footnote="moderate + vigorous"
@@ -130,7 +137,7 @@ export function ActivityView({ data }: { data: SyncResult }) {
             <Row label="Best day">
               {fmtNum(stepStats?.max, 0)}
               {(() => {
-                const best = days.reduce<null | typeof days[number]>(
+                const best = done.reduce<null | typeof days[number]>(
                   (a, d) => (d.steps !== null && (!a || d.steps > (a.steps ?? 0)) ? d : a), null);
                 return best ? <span className="text-zinc-600"> · {formatCivil(best.date)}</span> : null;
               })()}
@@ -146,12 +153,12 @@ export function ActivityView({ data }: { data: SyncResult }) {
             </Row>
             <Row label="Brisk minutes / week">
               {(() => {
-                const m = stats(values(mvpaAll));
+                const m = stats(values(mvpaDone));
                 return m ? `${Math.round(m.mean * 7)} (target 150)` : '—';
               })()}
             </Row>
             <Row label="Across the window">
-              <Delta value={windowShift(stepsAll, 7).delta} goodWhen="up" digits={0} suffix="steps/day" />
+              <Delta value={windowShift(stepsDone, 7).delta} goodWhen="up" digits={0} suffix="steps/day" />
             </Row>
           </div>
         </Card>
@@ -159,9 +166,9 @@ export function ActivityView({ data }: { data: SyncResult }) {
           <CardHead
             domain="movement"
             title="Which days you move"
-            hint={`Average steps per weekday across ${recorded} recorded days.`}
+            hint={`Average steps per weekday across ${values(stepsDone).length} finished days.`}
           />
-          <div className="mt-auto"><WeekdayProfile data={byWeekday(stepsAll)} color={DOMAIN.movement.hex} /></div>
+          <div className="mt-auto"><WeekdayProfile data={byWeekday(stepsDone)} color={DOMAIN.movement.hex} /></div>
         </Card>
       </div>
 
@@ -209,7 +216,7 @@ export function ActivityView({ data }: { data: SyncResult }) {
                 const vigMean = stats(values(series(window, d => d.activeMinutes?.vigorous ?? null)))?.mean ?? 0;
                 return (
                   <div className="flex items-center gap-2.5 text-[11px] font-medium text-zinc-300">
-                    <span className="text-zinc-500">{latestMixRow.date === todayCivil() ? 'avg vs today (min):' : 'avg vs latest (min):'}</span>
+                    <span className="text-zinc-500">{latestMixRow.date === today ? 'avg vs today so far (min):' : 'avg vs latest (min):'}</span>
                     <span className="flex items-center gap-1.5" title="Light minutes"><i className="w-2 h-2 rounded-full bg-[#22c55e]" /> {fmtNum(lightMean, 0)}/{fmtNum(latestMixRow.activeMinutes.light, 0)}</span>
                     <span className="flex items-center gap-1.5" title="Moderate minutes"><i className="w-2 h-2 rounded-full bg-[#eab308]" /> {fmtNum(modMean, 0)}/{fmtNum(latestMixRow.activeMinutes.moderate, 0)}</span>
                     <span className="flex items-center gap-1.5" title="Vigorous minutes"><i className="w-2 h-2 rounded-full bg-[#f43f5e]" /> {fmtNum(vigMean, 0)}/{fmtNum(latestMixRow.activeMinutes.vigorous, 0)}</span>
@@ -272,23 +279,25 @@ export function ActivityView({ data }: { data: SyncResult }) {
 }
 
 function StatCard({
-  label, value, unit, cmp, meter, color, footnote,
+  label, value, unit, cmp, today, meter, color, footnote,
 }: {
   label: string;
   value: number | null;
   unit: string;
   cmp: ReturnType<typeof compareToBaseline>;
+  /** The window's last day: today, still in progress. */
+  today: string | null;
   meter?: ReturnType<typeof goal>;
   color: string;
   footnote?: string;
 }) {
-  const isToday = cmp.date === todayCivil();
+  const isToday = cmp.date !== undefined && cmp.date === today;
   return (
     <Card>
       <div className="px-4 py-4">
         <Label>{label} <span className="text-[9px] font-normal lowercase tracking-normal">({isToday ? 'today' : 'latest'})</span></Label>
         <div className="mt-2"><Value value={value} size="lg" unit={unit} /></div>
-        <div className="mt-2"><BandPill c={cmp} /></div>
+        <div className="mt-2"><BandPill c={cmp} partial={isToday} /></div>
         {meter && (
           <div className="mt-3">
             <Meter pct={meter.pct} color={color} />

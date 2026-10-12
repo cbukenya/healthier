@@ -22,6 +22,10 @@ How Healthier works and why, for contributors. What's planned lives in the
    (charts over 90 days, a year, all time). Everything that judges today (baselines, readiness,
    insights, labs) keeps its fixed recent window, so a reading from years ago never shifts what
    "your usual" means now.
+6. **One today.** The window ends on the user's today, in their own zone (demo mode: the fixture's
+   clock and zone). Every card and insight judges against that day; the device clock only picks
+   morning, midday or evening. Only readings from today or yesterday count as "last night", and
+   today's movement is still in progress, so whole-day comparisons read finished days.
 
 ## Components
 

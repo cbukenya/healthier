@@ -163,6 +163,11 @@ export function weekdayIndex(date: CivilDate): number {
   return new Date(Date.UTC(y, m - 1, d)).getUTCDay();
 }
 
+/** 0 = Monday … 6 = Sunday: the ISO week, for anything that counts working weeks. */
+export function isoWeekdayIndex(date: CivilDate): number {
+  return (weekdayIndex(date) + 6) % 7;
+}
+
 const WD = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
