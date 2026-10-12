@@ -105,7 +105,7 @@ export function VitalsView({ data }: { data: SyncResult }) {
     {
       key: 'hrv', chip: 'HRV', title: 'HRV', color: DOMAIN.cardio.hex,
       latest: unit(latestOf(hrvWin), ' ms'), average: unit(meanOf(hrvWin), ' ms'),
-      hint: 'The grey band is your usual range; a night outside it is unusual for you, either way.',
+      hint: 'A night outside your usual range is unusual for you, in either direction.',
       chart: (
         <TrendChart
           series={groupSeries(hrvWin, bucket)} bucket={bucket} color={DOMAIN.cardio.hex} height={200} unit="ms" area={false}
@@ -130,7 +130,7 @@ export function VitalsView({ data }: { data: SyncResult }) {
     {
       key: 'resp', chip: 'Breathing', title: 'Breathing rate', color: BREATHING_HEX,
       latest: unit(latestOf(respWin), ' /min'), average: unit(meanOf(respWin), ' /min'),
-      hint: 'Breaths per minute, averaged over the night. The grey band is your usual range.',
+      hint: 'Breaths per minute, averaged over the night.',
       chart: (
         <TrendChart
           series={groupSeries(respWin, bucket)} bucket={bucket} color={BREATHING_HEX} unit="/min" height={180} area={false}
@@ -155,7 +155,8 @@ export function VitalsView({ data }: { data: SyncResult }) {
       latest: unit(latestOf(vo2Win), ''), average: unit(meanOf(vo2Win), ''),
       change: vo2Change !== null && <Delta value={vo2Change} goodWhen="up" digits={1} suffix="from the first week to the last" />,
       hint: 'Your watch’s VO₂ max estimate. It moves slowly, over weeks.',
-      chart: <TrendChart series={groupSeries(vo2Win, bucket)} bucket={bucket} color={VO2_HEX} height={180} format={(v) => fmtNum(v, 1)} />,
+      // The estimate changes in steps; a rolling average would draw a gradual climb that never happened.
+      chart: <TrendChart series={groupSeries(vo2Win, bucket)} bucket={bucket} color={VO2_HEX} height={180} meanWindow={null} format={(v) => fmtNum(v, 1)} />,
     },
   ];
   const shown = wide ? metrics : metrics.filter((m) => m.key === picked);
