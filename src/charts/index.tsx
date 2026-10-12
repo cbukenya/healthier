@@ -7,7 +7,7 @@ import {
 } from 'recharts';
 import { formatCivil, formatClock, weekdayLetter, type CivilDate } from '../lib/date';
 import { rollingMean, values, type Point } from '../pipeline/derive';
-import { bucketLabel, meanLabel, meanWindowFor, type Bucket } from '../pipeline/aggregate';
+import { bucketLabel, bucketStart, meanLabel, meanWindowFor, type Bucket } from '../pipeline/aggregate';
 import { AXIS, GRID, fmtDuration, fmtNum } from '../ui/primitives';
 import type { DailyRecord, SleepSession } from '../types/health';
 
@@ -556,44 +556,80 @@ export function StageBar({ session, height = 14 }: { session: SleepSession; heig
 export function CoverageGrid({
   rows,
   dates,
+  bucket = 'day',
 }: {
   rows: { dataType: string; label: string; days: boolean[]; observed: number; total: number }[];
   dates: CivilDate[];
+  /**
+   * Day: one cell per day, recorded or not. Week/month: one cell per bucket,
+   * shaded by the share of its days that have a reading.
+   */
+  bucket?: Bucket;
 }) {
-  const monthMarks = useMemo(() => {
-    const out: { i: number; label: string }[] = [];
-    let last = '';
+  // Cell boundaries: index ranges into `dates`, one per day or per bucket.
+  const cells = useMemo(() => {
+    const out: { date: CivilDate; from: number; to: number }[] = [];
     dates.forEach((d, i) => {
-      const m = d.slice(0, 7);
-      if (m !== last) {
-        last = m;
-        out.push({ i, label: formatCivil(d) });
-      }
+      const key = bucketStart(d, bucket);
+      const last = out[out.length - 1];
+      if (last && last.date === key) last.to = i;
+      else out.push({ date: key, from: i, to: i });
     });
     return out;
-  }, [dates]);
+  }, [dates, bucket]);
+
+  // Month labels (years, for monthly cells), placed over the cell where each begins.
+  const marks = useMemo(() => {
+    const out: { i: number; label: string }[] = [];
+    let last = '';
+    cells.forEach((c, i) => {
+      const key = bucket === 'month' ? c.date.slice(0, 4) : c.date.slice(0, 7);
+      if (key === last) return;
+      last = key;
+      const label = bucket === 'day' ? formatCivil(dates[c.from]) : bucket === 'month' ? key : bucketLabel(c.date, 'month');
+      out.push({ i, label });
+    });
+    // Keep labels from colliding when cells are narrow.
+    const minGap = Math.ceil(cells.length / 10);
+    return out.filter((m, k) => k === 0 || m.i - out[k - 1].i >= minGap);
+  }, [cells, bucket, dates]);
 
   return (
     <div className="overflow-x-auto px-5 pb-5">
       <div className="min-w-[560px]">
-        <div className="flex items-center gap-2 mb-1.5 pl-[152px] text-[9.5px] text-zinc-600">
-          {monthMarks.map((m) => (
-            <span key={m.i} style={{ marginLeft: m.i === 0 ? 0 : undefined }}>{m.label}</span>
-          ))}
+        <div className="flex gap-2 mb-1.5">
+          <span className="w-[144px] shrink-0" />
+          <div className="relative flex-1 h-3 text-[9.5px] text-zinc-600">
+            {marks.map((m) => (
+              <span key={m.i} className="absolute whitespace-nowrap" style={{ left: `${(m.i / cells.length) * 100}%` }}>
+                {m.label}
+              </span>
+            ))}
+          </div>
+          <span className="w-[52px] shrink-0" />
         </div>
         {rows.map((r) => (
           <div key={r.dataType} className="flex items-center gap-2 mb-[3px]">
             <span className="w-[144px] shrink-0 text-[11px] text-zinc-400 truncate" title={r.dataType}>
               {r.label}
             </span>
-            <div className="flex gap-[1.5px] flex-1">
-              {r.days.map((on, i) => (
-                <span
-                  key={i}
-                  title={`${dates[i]} · ${r.label} · ${on ? 'recorded' : 'no data'}`}
-                  className={`flex-1 h-3.5 rounded-[1.5px] ${on ? 'bg-emerald-500/70' : 'bg-zinc-800'}`}
-                />
-              ))}
+            <div className={`flex flex-1 ${cells.length > 120 ? 'gap-0' : 'gap-[1.5px]'}`}>
+              {cells.map((c) => {
+                const total = c.to - c.from + 1;
+                let recorded = 0;
+                for (let i = c.from; i <= c.to; i++) if (r.days[i]) recorded++;
+                const when = bucket === 'day' ? dates[c.from] : bucketLabel(c.date, bucket, 'full');
+                const detail = bucket === 'day' ? (recorded ? 'recorded' : 'no data') : `${recorded}/${total} days recorded`;
+                return (
+                  <span
+                    key={c.date}
+                    title={`${when} · ${r.label} · ${detail}`}
+                    className={`flex-1 h-3.5 rounded-[1.5px] ${recorded ? 'bg-emerald-500' : 'bg-zinc-800'}`}
+                    // A full bucket matches a recorded day; partial ones fade with their share.
+                    style={recorded ? { opacity: 0.25 + 0.45 * (recorded / total) } : undefined}
+                  />
+                );
+              })}
             </div>
             <span className="w-[52px] shrink-0 text-right text-[10.5px] text-zinc-500 tabular-nums">
               {r.observed}/{r.total}

@@ -84,6 +84,8 @@ export interface StreamState {
   sources: SourceRef[];
   /** Outcome of the last fetch. Observation counts are recomputed on read. */
   report: StreamReport;
+  /** Why the last history backfill of this stream failed, if it did; cleared on success. */
+  backfillError?: string;
 }
 
 export interface DateRange {
@@ -416,6 +418,7 @@ export async function backfillStream(
   if (!prev.coveredFrom || prev.coveredFrom <= start) return null;
   const to = addDays(prev.coveredFrom, -1);
   const { res, okRanges, days, sources } = await fetchStreamDays(transport, stream, start, to);
+  const failed = res.chunks?.filter((c) => !c.ok).length;
   return {
     dataType: stream.dataType,
     replace: okRanges,
@@ -424,6 +427,9 @@ export async function backfillStream(
       ...prev,
       coveredFrom: res.ok ? start : prev.coveredFrom,
       sources: mergeSources(prev.sources, [...sources.values()]),
+      backfillError: res.ok
+        ? undefined
+        : `${failed ? `${failed} of ${res.chunks!.length} date chunks failed: ` : ''}${summariseError(res.error ?? `HTTP ${res.status}`)}`,
     },
   };
 }

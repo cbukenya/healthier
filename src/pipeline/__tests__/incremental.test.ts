@@ -272,6 +272,8 @@ describe('history', () => {
     const before = store.stateMap.get('steps')!.coveredFrom;
     await backfill(store, failing('/steps/'));
     assert.equal(store.stateMap.get('steps')!.coveredFrom, before);
+    assert.match(store.stateMap.get('steps')!.backfillError ?? '', /date chunks failed: socket hang up/);
+    assert.equal(store.stateMap.get('sleep')!.backfillError, undefined, 'successful streams carry no error');
     assert.ok(historyDue(store.stateMap, start).some((s) => s.dataType === 'steps'));
   });
 

@@ -6,11 +6,21 @@ import { Card, CardHead } from '../ui/primitives';
 import { RefreshCw } from 'lucide-react';
 import { CoverageGrid } from '../charts';
 import type { SyncResult } from '../pipeline/sync';
+import { useHistory } from '../hooks/useHistory';
+import { SpanSelector, useSpan } from '../ui/span';
+
+const COVERAGE_HINT = {
+  day: "Each block is a day: solid where the stream has an observation. Gaps are days the API returned nothing (or the sentinel 'zero' that means missing).",
+  week: 'Each block is a week, shaded by how many of its days have an observation: solid is all seven.',
+  month: 'Each block is a month, shaded by how many of its days have an observation.',
+} as const;
 
 export function DataView({ data, onFullSync, onDisconnect }: { data: SyncResult; onFullSync: () => void; onDisconnect?: () => void }) {
   const [selectedStream, setSelectedStream] = useState<string | null>(null);
 
-  const cov = coverage(data.days, STREAMS.map((s) => ({ dataType: s.dataType, label: s.label })));
+  const spanState = useSpan(data, '90');
+  const history = useHistory().info;
+  const cov = coverage(spanState.days, STREAMS.map((s) => ({ dataType: s.dataType, label: s.label })));
 
   const targetDays = [...data.days].reverse().slice(0, 14);
 
@@ -20,10 +30,11 @@ export function DataView({ data, onFullSync, onDisconnect }: { data: SyncResult;
         <Card className="lg:col-span-8">
           <CardHead
             title="Coverage matrix"
-            hint="Solid blocks are days with an observation. Gaps are days the API returned nothing (or returned the sentinel 'zero' that means missing)."
+            hint={COVERAGE_HINT[spanState.bucket]}
             domain="data"
+            right={<SpanSelector state={spanState} />}
           />
-          <CoverageGrid rows={cov} dates={data.days.map((d) => d.date)} />
+          <CoverageGrid rows={cov} dates={spanState.days.map((d) => d.date)} bucket={spanState.bucket} />
         </Card>
 
         <Card className="lg:col-span-4">
@@ -38,6 +49,21 @@ export function DataView({ data, onFullSync, onDisconnect }: { data: SyncResult;
                 <span className="text-zinc-500">Total days</span>
                 <span className="text-zinc-200 tabular-nums">{data.days.length}</span>
               </div>
+              {history?.from && (
+                <div className="flex justify-between text-[11px]">
+                  <span className="text-zinc-500">History</span>
+                  <span className="text-zinc-200 text-right">
+                    from {formatCivil(history.from)} {history.from.slice(0, 4)} ·{' '}
+                    {history.backfilling ? (
+                      <span className="text-amber-400">importing…</span>
+                    ) : history.complete ? (
+                      <span className="text-emerald-400">complete</span>
+                    ) : (
+                      <span className="text-amber-400" title="Some streams failed to import; they retry after the next sync.">incomplete, retrying</span>
+                    )}
+                  </span>
+                </div>
+              )}
               <div className="flex justify-between text-[11px]">
                 <span className="text-zinc-500">Total requests</span>
                 <span className="text-zinc-200 tabular-nums">{data.meta.totalRequests}</span>

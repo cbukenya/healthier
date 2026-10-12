@@ -72,6 +72,8 @@ interface Job {
 
 const jobs = new Map<string, Job>();
 const backfills = new Map<string, Promise<void>>();
+/** Backfills run one user at a time across the server: they're background work, and Google rate-limits per project. */
+let backfillQueue: Promise<void> = Promise.resolve();
 const locks = new Map<string, Promise<unknown>>();
 
 const IDLE: SyncStatus = { running: false, progress: null, error: null, errorCode: null, finishedAt: null, backfilling: false };
@@ -170,12 +172,14 @@ async function syncUserLocked(deps: Deps, userId: string, status: SyncStatus, fo
 export function startBackfill(deps: Deps, userId: string): Promise<void> {
   const running = backfills.get(userId);
   if (running) return running;
-  const done = backfillUser(deps, userId)
+  const done = backfillQueue
+    .then(() => backfillUser(deps, userId))
     .catch((err) => {
       if (!(err instanceof ReconnectRequired)) console.error(`History backfill failed for user ${userId}:`, err);
     })
     .finally(() => backfills.delete(userId));
   backfills.set(userId, done);
+  backfillQueue = done;
   return done;
 }
 
@@ -202,6 +206,9 @@ async function backfillUser(deps: Deps, userId: string): Promise<void> {
       const { token } = await accessToken(deps, userId);
       const write = await backfillStream(new HealthTransport({ token }), stream, states.get(stream.dataType)!, start);
       if (write) await applyStreamWrites(deps.db, userId, [write]);
+      if (write?.state.backfillError) {
+        console.warn(`History backfill of ${stream.dataType} for user ${userId} failed, retrying after the next sync: ${write.state.backfillError}`);
+      }
       return true;
     });
     if (!progressed) return;
