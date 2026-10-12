@@ -7,11 +7,24 @@ import {
   BandPill, Card, CardHead, DOMAIN, Delta, EmptyState, Label, Row, Segmented, Value, fmtNum, CardSummary,
 } from '../ui/primitives';
 import type { SyncResult } from '../pipeline/sync';
+import { groupRange, groupSeries } from '../pipeline/aggregate';
+import { emptyRecord } from '../pipeline/normalize';
+import { SpanSelector, useSpan } from '../ui/span';
+import type { DailyRecord } from '../types/health';
+
+const spo2Of = (d: DailyRecord) => (d.spo2 ? { avg: d.spo2.avg, low: d.spo2.ciLower, high: d.spo2.ciUpper } : null);
 
 export function VitalsView({ data }: { data: SyncResult }) {
   const days = data.days;
-  const [span, setSpan] = useState<'14' | '30' | '90'>('30');
-  const window = days.slice(-Number(span));
+  const spanState = useSpan(data, '30');
+  const { days: window, bucket } = spanState;
+  // Grouped spans: the week's average SpO₂, with its lowest low and highest high.
+  const spo2Days = bucket === 'day'
+    ? window
+    : groupRange(window, bucket, spo2Of).map((g) => ({
+        ...emptyRecord(g.date),
+        spo2: g.value && { avg: g.value.avg, ciLower: g.value.low, ciUpper: g.value.high, rollingAvgSd: null },
+      }));
 
   const rhrAll = series(days, (d) => d.restingHr);
   const hrvAll = series(days, (d) => d.hrv);
@@ -91,7 +104,7 @@ export function VitalsView({ data }: { data: SyncResult }) {
         <h2 className="text-[11px] font-bold text-zinc-500 uppercase tracking-widest">
           Your vitals over time
         </h2>
-        <Segmented value={span} onChange={setSpan} size="sm" options={[{ id: '14', label: '14d' }, { id: '30', label: '30d' }, { id: '90', label: '90d' }]} />
+        <SpanSelector state={spanState} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
@@ -104,7 +117,7 @@ export function VitalsView({ data }: { data: SyncResult }) {
           />
           <div className="px-2 pb-3">
             <TrendChart
-              series={hrvWin} color={DOMAIN.cardio.hex} height={200} unit="ms" area={false}
+              series={groupSeries(hrvWin, bucket)} bucket={bucket} color={DOMAIN.cardio.hex} height={200} unit="ms" area={false}
               baseline={hrvCmp.baseline ? { centre: hrvCmp.baseline, spread: hrvCmp.spread! } : null}
             />
           </div>
@@ -118,7 +131,7 @@ export function VitalsView({ data }: { data: SyncResult }) {
           />
           <div className="px-2 pb-3">
             <TrendChart
-              series={rhrWin} color={DOMAIN.cardio.hex} height={200} unit="bpm" area={false}
+              series={groupSeries(rhrWin, bucket)} bucket={bucket} color={DOMAIN.cardio.hex} height={200} unit="bpm" area={false}
               baseline={rhrCmp.baseline ? { centre: rhrCmp.baseline, spread: rhrCmp.spread! } : null}
             />
           </div>
@@ -134,7 +147,7 @@ export function VitalsView({ data }: { data: SyncResult }) {
             right={<CardSummary data={series(window, d => d.spo2?.avg ?? null)} color="#0ea5e9" unit="%" showMean={false} />}
           />
           <div className="px-2 pb-3">
-            <RangeBandChart days={window} get={(d) => d.spo2 ? { avg: d.spo2.avg, low: d.spo2.ciLower, high: d.spo2.ciUpper } : null} color="#0ea5e9" height={170} domain={[85, 100]} />
+            <RangeBandChart days={spo2Days} bucket={bucket} get={spo2Of} color="#0ea5e9" height={170} domain={[85, 100]} />
           </div>
         </Card>
         <Card>
@@ -151,7 +164,7 @@ export function VitalsView({ data }: { data: SyncResult }) {
             />}
           />
           <div className="px-2 pb-3 pt-2">
-            <DivergingBars series={tempWin} />
+            <DivergingBars series={groupSeries(tempWin, bucket)} bucket={bucket} />
           </div>
         </Card>
       </div>
@@ -160,13 +173,13 @@ export function VitalsView({ data }: { data: SyncResult }) {
         <Card>
           <CardHead domain="cardio" title="Breathing rate" hint="Overnight average." right={<CardSummary data={respWin} color="#a855f7" unit="/min" />} />
           <div className="px-2 pb-3">
-            <TrendChart series={respWin} color="#a855f7" unit="/min" height={150} format={(v) => fmtNum(v, 1)} />
+            <TrendChart series={groupSeries(respWin, bucket)} bucket={bucket} color="#a855f7" unit="/min" height={150} format={(v) => fmtNum(v, 1)} />
           </div>
         </Card>
         <Card>
           <CardHead domain="cardio" title="Cardio fitness" hint="VO₂max estimate." right={<CardSummary data={vo2Win} color="#14b8a6" />} />
           <div className="px-2 pb-3">
-            <TrendChart series={vo2Win} color="#14b8a6" height={150} format={(v) => fmtNum(v, 1)} />
+            <TrendChart series={groupSeries(vo2Win, bucket)} bucket={bucket} color="#14b8a6" height={150} format={(v) => fmtNum(v, 1)} />
           </div>
         </Card>
       </div>

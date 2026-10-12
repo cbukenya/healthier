@@ -7,6 +7,7 @@ import {
 } from 'recharts';
 import { formatCivil, formatClock, weekdayLetter, type CivilDate } from '../lib/date';
 import { rollingMean, values, type Point } from '../pipeline/derive';
+import { bucketLabel, meanLabel, meanWindowFor, type Bucket } from '../pipeline/aggregate';
 import { AXIS, GRID, fmtDuration, fmtNum } from '../ui/primitives';
 import type { DailyRecord, SleepSession } from '../types/health';
 
@@ -30,22 +31,34 @@ const tooltipStyle = {
 interface ChartRow {
   date: CivilDate;
   label: string;
+  /** Tooltip heading: the day, or "Week of 5 Oct 2026" / "Oct 2026" when grouped. */
+  full: string;
   wd: string;
   value: number | null;
   mean?: number | null;
   [k: string]: unknown;
 }
 
-function toRows(s: Point[], meanWindow?: number): ChartRow[] {
+function toRows(s: Point[], meanWindow?: number, bucket: Bucket = 'day'): ChartRow[] {
   const mean = meanWindow ? rollingMean(s, meanWindow, Math.ceil(meanWindow / 2)) : null;
   return s.map((p, i) => ({
     date: p.date,
-    label: formatCivil(p.date),
+    ...labels(p.date, bucket),
     wd: weekdayLetter(p.date),
     value: p.value,
     mean: mean ? mean[i].value : undefined,
   }));
 }
+
+/** Axis label and tooltip heading for a point: a day, or the week/month it stands for. */
+function labels(date: CivilDate, bucket: Bucket) {
+  return bucket === 'day'
+    ? { label: formatCivil(date), full: formatCivil(date) }
+    : { label: bucketLabel(date, bucket), full: bucketLabel(date, bucket, 'full') };
+}
+
+/** Recharts passes the axis label; show the row's full heading instead. */
+const tooltipHeading = (label: unknown, payload: readonly any[] | undefined) => payload?.[0]?.payload?.full ?? String(label ?? '');
 
 /** Sparse x-axis labels: roughly one per week, always including the last day. */
 function tickInterval(n: number): number {
@@ -60,24 +73,32 @@ export function TrendChart({
   color,
   unit,
   height = 180,
-  meanWindow = 7,
+  meanWindow: meanWindowProp,
   domain,
-  baseline,
+  baseline: baselineProp,
   format = (v: number) => fmtNum(v),
   area = true,
+  bucket = 'day',
 }: {
   series: Point[];
   color: string;
   unit?: string;
   height?: number;
+  /** Rolling-mean length in points; defaults to suit the bucket. Null turns it off. */
   meanWindow?: number | null;
   domain?: [number | 'auto', number | 'auto'];
   /** Draws the typical band, so a point can be read against its own history. */
   baseline?: { centre: number; spread: number } | null;
   format?: (v: number) => string;
   area?: boolean;
+  /** Set when the series has been grouped into weeks or months. */
+  bucket?: Bucket;
 }) {
-  const rows = useMemo(() => toRows(series, meanWindow ?? undefined), [series, meanWindow]);
+  const meanWindow = meanWindowProp === undefined ? meanWindowFor(bucket) : meanWindowProp;
+  // The band describes recent days ("your usual"); drawn across a year of weekly
+  // averages it would claim to describe the whole year.
+  const baseline = bucket === 'day' ? baselineProp : null;
+  const rows = useMemo(() => toRows(series, meanWindow ?? undefined, bucket), [series, meanWindow, bucket]);
   const n = rows.length;
   const id = useMemo(() => `g${Math.random().toString(36).slice(2, 8)}`, []);
   const known = values(series).length;
@@ -132,9 +153,10 @@ export function TrendChart({
         <Tooltip
           contentStyle={tooltipStyle} itemStyle={{ color: '#a1a1aa' }}
           labelStyle={{ color: '#e4e4e7', fontWeight: 600, marginBottom: 2 }}
+          labelFormatter={tooltipHeading}
           formatter={(v: any, name?: string | number) => [
             v === null ? 'not recorded' : `${format(Number(v))}${unit ? ` ${unit}` : ''}`,
-            name === 'mean' ? `${meanWindow}-day mean` : 'reading',
+            name === 'mean' && meanWindow ? meanLabel(bucket, meanWindow) : bucket === 'day' ? 'reading' : `${bucket}ly average`,
           ]}
         />
         {area && !sparse && (
@@ -178,6 +200,7 @@ export function BarSeries({
   goal,
   height = 180,
   format = (v: number) => fmtNum(v, 0),
+  bucket = 'day',
 }: {
   series: Point[];
   color: string;
@@ -185,8 +208,10 @@ export function BarSeries({
   goal?: number;
   height?: number;
   format?: (v: number) => string;
+  /** Set when the series has been grouped; bars are then averages per day. */
+  bucket?: Bucket;
 }) {
-  const rows = useMemo(() => toRows(series), [series]);
+  const rows = useMemo(() => toRows(series, undefined, bucket), [series, bucket]);
   if (!values(series).length) return <NoSeries height={height} />;
   return (
     <ResponsiveContainer width="100%" height={height}>
@@ -203,7 +228,11 @@ export function BarSeries({
         <Tooltip
           contentStyle={tooltipStyle} itemStyle={{ color: '#a1a1aa' }}
           labelStyle={{ color: '#e4e4e7', fontWeight: 600 }}
-          formatter={(v: any) => [v === null ? 'not recorded' : `${format(Number(v))}${unit ? ` ${unit}` : ''}`, '']}
+          labelFormatter={tooltipHeading}
+          formatter={(v: any) => [
+            v === null ? 'not recorded' : `${format(Number(v))}${unit ? ` ${unit}` : ''}`,
+            bucket === 'day' ? '' : 'average per day',
+          ]}
         />
         <Bar dataKey="value" radius={[3, 3, 0, 0]} isAnimationActive={false}>
           {rows.map((r, i) => (
@@ -226,16 +255,18 @@ export function StackedBars({
   keys,
   height = 190,
   unit,
+  bucket = 'day',
 }: {
   days: DailyRecord[];
   keys: { key: string; label: string; color: string; get: (d: DailyRecord) => number | null }[];
   height?: number;
   unit?: string;
+  bucket?: Bucket;
 }) {
   const rows = useMemo(
     () =>
       days.map((d) => {
-        const row: any = { label: formatCivil(d.date) };
+        const row: any = labels(d.date, bucket);
         let any = false;
         for (const k of keys) {
           const v = k.get(d);
@@ -245,7 +276,7 @@ export function StackedBars({
         row.__any = any;
         return row;
       }),
-    [days, keys],
+    [days, keys, bucket],
   );
   if (!rows.some((r) => r.__any)) return <NoSeries height={height} />;
   return (
@@ -257,9 +288,10 @@ export function StackedBars({
         <Tooltip
           contentStyle={tooltipStyle} itemStyle={{ color: '#a1a1aa' }}
           labelStyle={{ color: '#e4e4e7', fontWeight: 600, marginBottom: 2 }}
+          labelFormatter={tooltipHeading}
           formatter={(v: any, name?: string | number) => {
             const k = keys.find((x) => x.key === name);
-            return [v === null ? '—' : `${v}${unit ? ` ${unit}` : ''}`, k?.label ?? name ?? ''];
+            return [v === null ? '—' : `${fmtNum(Number(v), 0)}${unit ? ` ${unit}` : ''}`, k?.label ?? name ?? ''];
           }}
         />
         {keys.map((k, i) => (
@@ -283,6 +315,7 @@ export function RangeBandChart({
   get,
   unit = '%',
   domain,
+  bucket = 'day',
 }: {
   days: DailyRecord[];
   color: string;
@@ -290,6 +323,8 @@ export function RangeBandChart({
   get: (d: DailyRecord) => { avg: number; low: number | null; high: number | null } | null;
   unit?: string;
   domain?: [number, number];
+  /** When grouped, each row is a week/month: average of averages, lowest low, highest high. */
+  bucket?: Bucket;
 }) {
   const rows = useMemo(
     () =>
@@ -297,7 +332,7 @@ export function RangeBandChart({
         const v = get(d);
         const hasBand = v?.low !== null && v?.low !== undefined && v?.high !== null && v?.high !== undefined;
         return {
-          label: formatCivil(d.date),
+          ...labels(d.date, bucket),
           // A two-element dataKey draws a true range area. The earlier version
           // stacked two areas, which forced the y-axis to include zero and made a
           // 93–99% band look like a flat line pinned to the top of the chart.
@@ -307,9 +342,10 @@ export function RangeBandChart({
           high: v?.high ?? null,
         };
       }),
-    [days, get],
+    [days, get, bucket],
   );
   if (!rows.some((r) => r.avg !== null)) return <NoSeries height={height} />;
+  const period = bucket === 'day' ? 'nightly' : `${bucket}'s`;
   return (
     <ResponsiveContainer width="100%" height={height}>
       <ComposedChart data={rows} margin={{ top: 8, right: 8, left: -24, bottom: 0 }}>
@@ -319,12 +355,13 @@ export function RangeBandChart({
         <Tooltip
           contentStyle={tooltipStyle} itemStyle={{ color: '#a1a1aa' }}
           labelStyle={{ color: '#e4e4e7', fontWeight: 600, marginBottom: 2 }}
+          labelFormatter={tooltipHeading}
           formatter={(v: any, name?: string | number) => {
             if (name === 'band') {
-              return Array.isArray(v) ? [`${v[0]}–${v[1]}${unit}`, 'nightly range'] : ([null, null] as any);
+              return Array.isArray(v) ? [`${fmtNum(v[0])}–${fmtNum(v[1])}${unit}`, `${period} range`] : ([null, null] as any);
             }
-            const map: Record<string, string> = { avg: 'average', low: 'nightly low', high: 'nightly high' };
-            return [v === null ? '—' : `${v}${unit}`, map[String(name)] ?? name ?? ''];
+            const map: Record<string, string> = { avg: 'average', low: `${period} low`, high: `${period} high` };
+            return [v === null ? '—' : `${fmtNum(Number(v))}${unit}`, map[String(name)] ?? name ?? ''];
           }}
         />
         <Area
@@ -345,14 +382,16 @@ export function DivergingBars({
   unit = '°C',
   posColor = '#fb7185',
   negColor = '#818cf8',
+  bucket = 'day',
 }: {
   series: Point[];
   height?: number;
   unit?: string;
   posColor?: string;
   negColor?: string;
+  bucket?: Bucket;
 }) {
-  const rows = useMemo(() => toRows(series), [series]);
+  const rows = useMemo(() => toRows(series, undefined, bucket), [series, bucket]);
   if (!values(series).length) return <NoSeries height={height} />;
   return (
     <ResponsiveContainer width="100%" height={height}>
@@ -364,7 +403,11 @@ export function DivergingBars({
         <Tooltip
           contentStyle={tooltipStyle} itemStyle={{ color: '#a1a1aa' }}
           labelStyle={{ color: '#e4e4e7', fontWeight: 600 }}
-          formatter={(v: any) => [v === null ? 'not recorded' : `${v > 0 ? '+' : ''}${v}${unit}`, 'vs baseline']}
+          labelFormatter={tooltipHeading}
+          formatter={(v: any) => [
+            v === null ? 'not recorded' : `${v > 0 ? '+' : ''}${fmtNum(Number(v), 2)}${unit}`,
+            bucket === 'day' ? 'vs baseline' : `${bucket}ly average vs baseline`,
+          ]}
         />
         <Bar dataKey="value" radius={[2, 2, 0, 0]} isAnimationActive={false}>
           {rows.map((r, i) => (

@@ -1,10 +1,10 @@
 import { Router } from 'express';
-import type { DatasetResponse, MeResponse, SyncResponse } from '../src/types/api';
+import type { DatasetResponse, HistoryResponse, MeResponse, SyncResponse } from '../src/types/api';
 import { requireUser, SESSION_COOKIE, sessionCookieOptions } from './auth';
 import { revokeToken } from './google';
 import { asyncHandler, type Deps } from './http';
 import { deleteUser, getTokens, getUser, hasTokens, setTimeZone } from './repo';
-import { loadDataset, startSync, syncStatus } from './sync';
+import { historyInfo, loadDataset, loadHistory, startSync, syncStatus } from './sync';
 
 /** The browser's API. Every route acts on the signed-in user only. */
 export function apiRoutes(deps: Deps): Router {
@@ -49,16 +49,31 @@ export function apiRoutes(deps: Deps): Router {
       const body: DatasetResponse = {
         dataset: stored?.dataset ?? null,
         syncedAt: stored?.syncedAt.toISOString() ?? null,
+        history: stored?.history ?? null,
         sync: syncStatus(userId),
       };
       res.json(body);
     }),
   );
 
-  router.get('/sync', (req, res) => {
-    const body: SyncResponse = { sync: syncStatus(res.locals.userId) };
-    res.json(body);
-  });
+  /** Long-span history for the 90d / 1y / All views; fetched only when one is chosen. */
+  router.get(
+    '/history',
+    asyncHandler(async (req, res) => {
+      const days = await loadHistory(deps, res.locals.userId);
+      const body: HistoryResponse = { days: days ?? [] };
+      res.json(body);
+    }),
+  );
+
+  router.get(
+    '/sync',
+    asyncHandler(async (req, res) => {
+      const userId: string = res.locals.userId;
+      const body: SyncResponse = { sync: syncStatus(userId), history: await historyInfo(deps, userId) };
+      res.json(body);
+    }),
+  );
 
   /** Start a sync (or join the running one); `full` refetches the whole window. Poll GET /sync for progress. */
   router.post(

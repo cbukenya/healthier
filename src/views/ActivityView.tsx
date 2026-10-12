@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo } from 'react';
 import { formatCivil, todayCivil } from '../lib/date';
 import {
   byWeekday, compareToBaseline, currentStreak, goal, loadRatio, periodShift, series,
@@ -11,11 +11,14 @@ import {
   CardSummary,
 } from '../ui/primitives';
 import type { SyncResult } from '../pipeline/sync';
+import { groupMean, groupSeries } from '../pipeline/aggregate';
+import { emptyRecord } from '../pipeline/normalize';
+import { SpanSelector, useSpan } from '../ui/span';
 
 export function ActivityView({ data }: { data: SyncResult }) {
   const days = data.days;
-  const [span, setSpan] = useState<'14' | '30' | '90'>('30');
-  const window = days.slice(-Number(span));
+  const spanState = useSpan(data, '30');
+  const { days: window, bucket } = spanState;
 
   const stepsAll = series(days, (d) => d.steps);
   const stepsWin = series(window, (d) => d.steps);
@@ -48,6 +51,20 @@ export function ActivityView({ data }: { data: SyncResult }) {
   const weeks = groupWeeks(days);
 
   const latestMixRow = [...window].reverse().find(d => d.activeMinutes !== null);
+  // Grouped spans: average minutes per recorded day, per intensity.
+  const mixDays = useMemo(() => {
+    if (bucket === 'day') return window;
+    const [light, moderate, vigorous] = (['light', 'moderate', 'vigorous'] as const).map((k) =>
+      groupMean(window, bucket, (d) => d.activeMinutes?.[k] ?? null),
+    );
+    return light.map((g, i) => ({
+      ...emptyRecord(g.date),
+      activeMinutes:
+        g.value === null && moderate[i].value === null && vigorous[i].value === null
+          ? null
+          : { light: g.value ?? 0, moderate: moderate[i].value ?? 0, vigorous: vigorous[i].value ?? 0 },
+    }));
+  }, [window, bucket]);
   return (
     <div className="space-y-3">
       {/* headline row */}
@@ -151,7 +168,7 @@ export function ActivityView({ data }: { data: SyncResult }) {
         <h2 className="text-[11px] font-bold text-zinc-500 uppercase tracking-widest">
           Your movement over time
         </h2>
-        <Segmented value={span} onChange={setSpan} size="sm" options={[{ id: '14', label: '14d' }, { id: '30', label: '30d' }, { id: '90', label: '90d' }]} />
+        <SpanSelector state={spanState} />
       </div>
 
       {/* volume */}
@@ -163,7 +180,7 @@ export function ActivityView({ data }: { data: SyncResult }) {
           right={<CardSummary data={stepsWin} color={DOMAIN.movement.hex} format={(v) => fmtNum(v, 0)} />}
         />
         <div className="px-2 pb-3">
-          <BarSeries series={stepsWin} color={DOMAIN.movement.hex} goal={10000} unit="steps" height={210} />
+          <BarSeries series={groupSeries(stepsWin, bucket)} bucket={bucket} color={DOMAIN.movement.hex} goal={10000} unit="steps" height={210} />
         </div>
       </Card>
 
@@ -172,7 +189,7 @@ export function ActivityView({ data }: { data: SyncResult }) {
         <Card>
           <CardHead domain="movement" title="Active energy" hint="Above your basal rate — the part you moved for." right={<CardSummary data={kcalWin} color="#fbbf24" unit="kcal" format={(v) => fmtNum(v, 0)} />} />
           <div className="px-2 pb-3">
-            <BarSeries series={kcalWin} color="#fbbf24" unit="kcal" height={200} />
+            <BarSeries series={groupSeries(kcalWin, bucket)} bucket={bucket} color="#fbbf24" unit="kcal" height={200} />
           </div>
         </Card>
         <Card>
@@ -201,7 +218,8 @@ export function ActivityView({ data }: { data: SyncResult }) {
             }
           />
           <StackedBars
-            days={window}
+            days={mixDays}
+            bucket={bucket}
             unit="min"
             keys={[
               { key: 'light', label: 'Light', color: '#22c55e', get: (d) => d.activeMinutes?.light ?? null },
@@ -218,7 +236,7 @@ export function ActivityView({ data }: { data: SyncResult }) {
         <Card>
           <CardHead domain="movement" title="Distance" hint="From the reported distance stream, not estimated from step count." right={<CardSummary data={distWin} color="#2dd4bf" unit="km" format={(v) => fmtNum(v, 2)} />} />
           <div className="px-2 pb-3">
-            <TrendChart series={distWin} color="#2dd4bf" unit="km" height={150} format={(v) => fmtNum(v, 2)} />
+            <TrendChart series={groupSeries(distWin, bucket)} bucket={bucket} color="#2dd4bf" unit="km" height={150} format={(v) => fmtNum(v, 2)} />
           </div>
         </Card>
         {weeks.length > 1 && (

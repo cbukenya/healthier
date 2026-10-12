@@ -11,7 +11,9 @@ on third-party infrastructure except Google's own APIs, which hold the data. The
 telemetry.
 
 The first sign-in imports the last 62 days (the window every baseline and insight is computed
-over) before the dashboard opens; after that, each sync fetches only the last few days.
+over) before the dashboard opens. Older history, up to two years by default, then imports in the
+background for the 90-day, 1-year and All views. After that, each sync fetches only the last few
+days.
 
 ## Self-hosting
 
@@ -89,6 +91,7 @@ reference.
 | `BIND_ADDRESS` | no | Interface the port is published on. Default `0.0.0.0`; `127.0.0.1` behind a local proxy. |
 | `APP_URL` | no | Public URL users open. Default `http://localhost:$PORT`. |
 | `SYNC_INTERVAL_MINUTES` | no | Background sync interval per user. Default `60`; `0` turns it off. |
+| `HISTORY_DAYS` | no | Days of daily history kept and imported per user. Default `730` (62–3650). |
 
 ## Running behind a domain
 
