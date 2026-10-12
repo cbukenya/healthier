@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Footprints } from 'lucide-react';
-import { formatCivilLong, formatCivilRange, weekdayLetter, weekdayShort } from '../lib/date';
+import { formatCivilLong, formatCivilRange, weekdayLetter, weekdayShort, type CivilDate } from '../lib/date';
 import type { PeriodShift } from '../pipeline/derive';
-import { Card, DOMAIN, Delta, Row, fmtNum } from '../ui/primitives';
+import { Card, CardHead, CardSummary, DOMAIN, Delta, Meter, Row, fmtNum } from '../ui/primitives';
 import type { DailyRecord } from '../types/health';
 
 export const STEP_GOAL = 10000;
@@ -123,6 +123,57 @@ export function LastSevenDays({ days, shift, ratio, wide }: {
           )}
         </div>
       )}
+    </Card>
+  );
+}
+
+export interface WeekTotal {
+  /** Its Monday. */
+  start: CivilDate;
+  /** Its Sunday. */
+  end: CivilDate;
+  total: number;
+  /** Days with steps. */
+  days: number;
+}
+
+/** Weeks listed before "Show all". */
+const WEEKS_SHOWN = 8;
+
+/** Steps per finished Monday-to-Sunday week, newest first, each against 70,000 (10,000 a day). */
+export function WeeklyTotals({ weeks }: { weeks: WeekTotal[] }) {
+  const [showAll, setShowAll] = useState(false);
+  const shown = showAll ? weeks : weeks.slice(0, WEEKS_SHOWN);
+  return (
+    <Card>
+      <CardHead
+        domain="movement"
+        title="Weekly totals"
+        hint="Monday to Sunday, finished weeks only. Weeks with fewer than four recorded days are left out."
+        right={<CardSummary vals={weeks.map((w) => w.total).reverse()} color={DOMAIN.movement.hex} format={(v) => fmtNum(v, 0)} />}
+      />
+      <div className="px-5 pb-5 space-y-2">
+        {shown.map((w) => (
+          <div key={w.start} className="flex items-center gap-3">
+            <span className="w-[96px] shrink-0 whitespace-nowrap text-[11px] text-zinc-500">{formatCivilRange(w.start, w.end)}</span>
+            <div className="flex-1">
+              <Meter pct={(w.total / (STEP_GOAL * 7)) * 100} color={DOMAIN.movement.hex} />
+            </div>
+            <span className="w-[64px] shrink-0 text-right text-[11.5px] text-zinc-200 tabular-nums">{fmtNum(w.total, 0)}</span>
+            <span className="w-[54px] shrink-0 text-right text-[10px] text-zinc-600">{w.days}/7 days</span>
+          </div>
+        ))}
+        {weeks.length > WEEKS_SHOWN && (
+          <button
+            type="button"
+            onClick={() => setShowAll(!showAll)}
+            aria-expanded={showAll}
+            className="mt-1.5 w-full min-h-11 rounded-xl border border-[#27272a] text-[13px] text-[#a1a1aa] hover:text-zinc-100 hover:bg-zinc-900 transition-colors"
+          >
+            {showAll ? `Show the latest ${WEEKS_SHOWN}` : `Show all ${weeks.length} weeks`}
+          </button>
+        )}
+      </div>
     </Card>
   );
 }

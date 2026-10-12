@@ -1,18 +1,18 @@
 import React, { useMemo, useState } from 'react';
-import { formatCivil, formatCivilLong } from '../lib/date';
+import { formatCivilLong } from '../lib/date';
 import {
   byWeekday, completedDays, loadRatio, periodShift, series, stats, values, windowShift, type Point,
 } from '../pipeline/derive';
 import { BarSeries, StackedBars, TrendChart, WeekdayProfile } from '../charts';
-import { Card, CardHead, DOMAIN, Delta, EmptyState, Meter, Row, fmtNum, CardSummary } from '../ui/primitives';
+import { Card, CardHead, DOMAIN, Delta, EmptyState, Row, fmtNum, CardSummary } from '../ui/primitives';
 import type { SyncResult } from '../pipeline/sync';
 import type { DailyRecord } from '../types/health';
-import { groupMean, groupSeries } from '../pipeline/aggregate';
+import { groupMean, groupSeries, wholeWeeks } from '../pipeline/aggregate';
 import { emptyRecord } from '../pipeline/normalize';
 import { SpanSelector, spanName, useSpan } from '../ui/span';
 import { ChartChips } from '../ui/ChartChips';
 import { useMediaQuery } from '../hooks/useMediaQuery';
-import { LastSevenDays, STEP_GOAL, TodaySoFar, briskOf } from './ActivityCards';
+import { LastSevenDays, STEP_GOAL, TodaySoFar, WeeklyTotals, briskOf, type WeekTotal } from './ActivityCards';
 
 type ActivityChart = 'steps' | 'energy' | 'intensity' | 'distance' | 'weekdays' | 'weekly';
 
@@ -61,8 +61,11 @@ export function ActivityView({ data }: { data: SyncResult }) {
     );
   }
 
-  // Weekly totals, Monday-anchored, only for weeks that are fully covered.
-  const weeks = groupWeeks(days);
+  // Weekly totals: the span's finished Monday-to-Sunday weeks, cut ones left out, newest first.
+  const weeks: WeekTotal[] = wholeWeeks(spanDone).flatMap((w) => {
+    const steps = values(series(w.days, (d) => d.steps));
+    return steps.length >= 4 ? [{ start: w.date, end: w.days[6].date, total: steps.reduce((x, y) => x + y, 0), days: steps.length }] : [];
+  }).reverse();
   // The day card shows today once it has steps, else the latest day that does.
   const latestDay = [...days].reverse().find((d) => d.steps !== null)!;
   const lastWeek = done.slice(-7);
@@ -138,32 +141,7 @@ export function ActivityView({ data }: { data: SyncResult }) {
       </div>
     </Card>
   );
-  const weeklyCard = weeks.length > 1 && (
-    <Card>
-      <CardHead
-        domain="movement"
-        title="Weekly totals"
-        hint="Only weeks with at least four recorded days are shown, so a partial week can't look like a collapse."
-        right={<CardSummary vals={weeks.map(w => w.total).reverse()} color={DOMAIN.movement.hex} format={(v) => fmtNum(v, 0)} />}
-      />
-      <div className="px-5 pb-5 space-y-2">
-        {weeks.map((w) => (
-          <div key={w.start} className="flex items-center gap-3">
-            <span className="w-[92px] shrink-0 text-[11px] text-zinc-500">{formatCivil(w.start)}</span>
-            <div className="flex-1">
-              <Meter pct={(w.total / 70000) * 100} color={DOMAIN.movement.hex} />
-            </div>
-            <span className="w-[64px] shrink-0 text-right text-[11.5px] text-zinc-200 tabular-nums">
-              {fmtNum(w.total, 0)}
-            </span>
-            <span className="w-[54px] shrink-0 text-right text-[10px] text-zinc-600">
-              {w.days}/7 days
-            </span>
-          </div>
-        ))}
-      </div>
-    </Card>
-  );
+  const weeklyCard = weeks.length > 0 && <WeeklyTotals weeks={weeks} />;
   // The span in numbers: totals count today so far; the typical and best days are finished ones.
   const spanSteps = values(stepsSpanDone);
   const best = spanDone.reduce<DailyRecord | null>((a, d) => (d.steps !== null && (!a || d.steps > (a.steps ?? 0)) ? d : a), null);
@@ -261,24 +239,4 @@ export function ActivityView({ data }: { data: SyncResult }) {
       )}
     </div>
   );
-}
-
-function groupWeeks(days: SyncResult['days']) {
-  const out: { start: string; total: number; days: number }[] = [];
-  let cur: { start: string; total: number; days: number } | null = null;
-  for (const d of days) {
-    const [y, m, dd] = d.date.split('-').map(Number);
-    const wd = new Date(Date.UTC(y, m - 1, dd)).getUTCDay();
-    const isMonday = wd === 1;
-    if (!cur || isMonday) {
-      if (cur && cur.days >= 4) out.push(cur);
-      cur = { start: d.date, total: 0, days: 0 };
-    }
-    if (d.steps !== null) {
-      cur.total += d.steps;
-      cur.days++;
-    }
-  }
-  if (cur && cur.days >= 4) out.push(cur);
-  return out.reverse();
 }

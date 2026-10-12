@@ -11,6 +11,7 @@ import {
   groupNights,
   groupRange,
   groupSeries,
+  wholeWeeks,
 } from '../aggregate';
 import { emptyRecord } from '../normalize';
 import type { DailyRecord } from '../../types/health';
@@ -70,6 +71,20 @@ describe('grouping', () => {
     const week = [rec('2026-10-05', 96, 94, 98), rec('2026-10-06', 95, 88, 97), rec('2026-10-07', 97, 95, 99)];
     const [g] = groupRange(week, 'week', (d) => d.spo2 && { avg: d.spo2.avg, low: d.spo2.ciLower, high: d.spo2.ciUpper });
     assert.deepEqual(g.value, { avg: 96, low: 88, high: 99 });
+  });
+});
+
+describe('whole weeks', () => {
+  it('keeps only the Monday-to-Sunday weeks a span fully covers', () => {
+    // Thursday 13 August to Tuesday 13 October: the Thursday-to-Sunday start and the Monday-Tuesday end are cut.
+    const weeks = wholeWeeks(days('2026-08-13', 62).map((date) => ({ date })));
+    assert.deepEqual(weeks.map((w) => w.date), ['2026-08-17', '2026-08-24', '2026-08-31', '2026-09-07', '2026-09-14', '2026-09-21', '2026-09-28', '2026-10-05']);
+    assert.ok(weeks.every((w) => w.days.length === 7 && w.days[6].date === addDays(w.date, 6)));
+  });
+
+  it('keeps every week of a span that starts on a Monday and ends on a Sunday', () => {
+    assert.equal(wholeWeeks(days('2026-09-07', 28).map((date) => ({ date }))).length, 4);
+    assert.equal(wholeWeeks(days('2026-09-07', 6).map((date) => ({ date }))).length, 0);
   });
 });
 
