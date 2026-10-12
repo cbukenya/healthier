@@ -266,20 +266,25 @@ export function BodyBatteryCompact({ score, parts, confidence, label, missing, c
         Body battery <span className={`text-[14px] font-bold tracking-[0.02em] ${z.color}`}>{z.tag}</span>
       </h1>
 
-      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
+      {/* Side by side from 360px; the narrowest phones stack the figure under the score instead of shrinking it. */}
+      <div className="grid grid-cols-1 min-[360px]:grid-cols-[minmax(0,1fr)_auto] items-center gap-2.5">
         <div className="min-w-0">
-          <div className="inline-flex items-baseline gap-1 bg-[#17171a] rounded-2xl px-3.5 pt-1 pb-2">
-            {/* A full 100 is the one three-digit score; a size down keeps it inside its column on narrow phones. */}
-            <span className={`${score === 100 ? 'text-[44px]' : 'text-[56px]'} font-bold leading-[1.05] tracking-[-0.03em] tabular-nums text-[#f4f4f5]`}>{score ?? '—'}</span>
+          {/* The figure takes the room it needs, so the number steps down a size on narrower phones, and once more for a full 100. */}
+          <div className="inline-flex items-baseline gap-1 bg-[#17171a] rounded-2xl px-3 min-[380px]:px-3.5 pt-1 pb-2">
+            <span
+              className={`${score === 100 ? 'text-[38px] min-[380px]:text-[46px]' : 'text-[48px] min-[380px]:text-[56px]'} font-bold leading-[1.05] tracking-[-0.03em] tabular-nums text-[#f4f4f5]`}
+            >
+              {score ?? '—'}
+            </span>
             <span className="text-[13px] text-[#9ca0a8] whitespace-nowrap">/ 100</span>
           </div>
-          <div className="mt-2.5 text-[18px] font-bold leading-[1.25] text-[#f4f4f5]">{label}</div>
+          <div className="mt-2.5 text-[16px] min-[380px]:text-[18px] font-bold leading-[1.25] text-[#f4f4f5]">{label}</div>
           {z.basis && <p className="mt-1.5 text-[12px] leading-[1.45] text-[#6b6f78]">{z.basis}</p>}
         </div>
         {/* The figure and its rail on the right, as on desktop, with each stage's range beside its band. */}
-        <div className="flex items-stretch gap-1.5">
-          <BatteryFigure score={score} labelled={false} className="w-[84px] h-auto shrink-0 block" />
-          <div aria-hidden="true" className="relative w-[60px]">
+        <div className="flex items-stretch gap-1 justify-self-center min-[360px]:justify-self-auto">
+          <BatteryFigure score={score} labelled={false} className="w-[104px] h-auto shrink-0 block" />
+          <div aria-hidden="true" className="relative w-[56px]">
             {BATTERY_TIERS.map((t, i) => {
               const centre = (yOf(i === 0 ? 100 : BATTERY_TIERS[i - 1].min) + yOf(t.min)) / 2;
               const style = TIER_STYLE[t.tag];
