@@ -498,26 +498,21 @@ export function readiness(days: DailyRecord[]): Readiness {
     });
   }
 
-  // ── 4. Sleep debt over the prior week (excluding last night) ───────────────
-  if (lastNight) {
-    const prior = days
-      .filter((d) => d.sleep && d.date < lastNight.date)
-      .slice(-7)
-      .map((d) => d.sleep!.minutesAsleep);
-    if (prior.length >= 3) {
-      const debtH = prior.reduce((a, m) => a + (need - m), 0) / 60;
-      const c = clamp(-debtH * 1.1, -8, 3);
-      if (Math.abs(c) >= 0.5) {
-        score += c;
-        parts.push({
-          label: 'Recent sleep debt',
-          contribution: c,
-          detail:
-            debtH > 0
-              ? `${debtH.toFixed(1)}h short of need across the prior ${prior.length} nights`
-              : `${(-debtH).toFixed(1)}h banked across the prior ${prior.length} nights`,
-        });
-      }
+  // ── 4. Sleep debt over the week before last night (the one shared figure) ──
+  const debt = lastNight ? sleepDebt(days, need) : null;
+  if (debt) {
+    const debtH = debt.netMin / 60;
+    const c = clamp(-debtH * 1.1, -8, 3);
+    if (Math.abs(c) >= 0.5) {
+      score += c;
+      parts.push({
+        label: 'Recent sleep debt',
+        contribution: c,
+        detail:
+          debtH > 0
+            ? `${debtH.toFixed(1)}h short of need across the prior ${debt.nightsKnown} nights`
+            : `${(-debtH).toFixed(1)}h banked across the prior ${debt.nightsKnown} nights`,
+      });
     }
   }
 
@@ -881,13 +876,9 @@ export function sleepRegularity(days: DailyRecord[]): SleepRegularity | null {
   };
 }
 
-/** Rolling sleep debt against a nightly need, over the last `nights` nights. */
+/** Sleep debt over the week before last night, against a nightly need. */
 export interface SleepDebt {
-  /** Gross shortfall: Σ max(target − slept, 0). Surplus never cancels it. */
-  deficitMin: number;
-  /** Σ max(slept − target, 0), reported alongside rather than netted off. */
-  surplusMin: number;
-  /** deficit − surplus, kept for continuity with the old single number. */
+  /** Σ (need − slept): a long night pays back a short one. Negative is sleep banked. */
   netMin: number;
   nightsKnown: number;
   nights: number;
@@ -896,30 +887,29 @@ export interface SleepDebt {
 }
 
 /**
- * Weekly sleep debt with coverage rules. Two corrections over the naive sum.
+ * Sleep debt: how far the week before last night fell short of your need,
+ * netted. One definition for the battery, the insight and every card, so they
+ * can't disagree. Last night is scored on its own, by the battery and the
+ * morning card.
  *
- * First, a week with one recorded night cannot produce a confident weekly
- * total; ≥5 of 7 nights is 'full', 3–4 is 'partial' and must be labelled as an
- * estimate by callers, and below 3 the honest answer is silence.
- *
- * Second, physiological recovery is not a bank account: an extra hour on
- * Sunday does not undo Tuesday's short night. Gross deficit and surplus are
- * therefore computed separately; `netMin` remains available for continuity
- * but the deficit is the number worth showing.
+ * Netted rather than summing shortfalls alone: half of any steady sleeper's
+ * nights fall below their own median, so a sum of shortfalls fired on ordinary
+ * night-to-night variation. A week with under 3 recorded nights gets no figure;
+ * 3–4 is 'partial' and callers must label it an estimate.
  */
-export function sleepDebt(days: DailyRecord[], needMin = 480, nights = 7): SleepDebt | null {
-  const recent = days.slice(-nights).map((d) => d.sleep?.minutesAsleep ?? null);
-  const known = recent.filter((m): m is number => m !== null);
-  if (known.length < 3) return null;
-  const deficitMin = known.reduce((a, m) => a + Math.max(needMin - m, 0), 0);
-  const surplusMin = known.reduce((a, m) => a + Math.max(m - needMin, 0), 0);
+export function sleepDebt(days: DailyRecord[], needMin: number, nights = 7): SleepDebt | null {
+  const last = [...days].reverse().find((d) => d.sleep);
+  if (!last) return null;
+  const from = addDays(last.date, -nights);
+  const slept = days
+    .filter((d) => d.sleep && d.date >= from && d.date < last.date)
+    .map((d) => d.sleep!.minutesAsleep);
+  if (slept.length < 3) return null;
   return {
-    deficitMin,
-    surplusMin,
-    netMin: deficitMin - surplusMin,
-    nightsKnown: known.length,
+    netMin: slept.reduce((a, m) => a + (needMin - m), 0),
+    nightsKnown: slept.length,
     nights,
-    coverage: known.length >= 5 ? 'full' : 'partial',
+    coverage: slept.length >= 5 ? 'full' : 'partial',
   };
 }
 

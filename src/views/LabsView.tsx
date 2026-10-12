@@ -1,7 +1,7 @@
 import React from 'react';
 import type { SyncResult } from '../pipeline/sync';
 import {
-  completedIntradayDays, dipping, entropyShift, illnessDates, nocturnalTachycardia, sdbScreen, calculateOffSignals,
+  completedIntradayDays, dipping, entropyShift, nocturnalTachycardia, sdbScreen, calculateOffSignals,
   type IntradayDays,
 } from '../pipeline/labs';
 
@@ -113,7 +113,7 @@ function SdbCard({ data }: { data: SyncResult }) {
   const r = sdbScreen(data.days);
   const badge =
     r.status === 'pattern' ? <Badge kind="alert">{r.firedCount} nights · last 14</Badge>
-      : r.status === 'collecting' ? <Badge kind="collect">Collecting · {r.nightsInWindow} of 20 nights</Badge>
+      : r.status === 'collecting' ? <Badge kind="collect">Collecting · {r.nightsInWindow} of {r.nightsWanted} nights</Badge>
         : <Badge kind="monitor">No pattern</Badge>;
 
   return (
@@ -136,7 +136,7 @@ function SdbCard({ data }: { data: SyncResult }) {
           <b className="text-zinc-500">
             {r.status === 'collecting'
               ? `Still collecting — ${r.nightsInWindow} nights recorded so far.`
-              : `None in these ${r.nightsInWindow} nights.`}
+              : 'None in the last 14 nights.'}
           </b>
         </EmptyEvidence>
       ) : (
@@ -179,8 +179,8 @@ const DROP_LABEL: Record<string, string> = {
 };
 
 function DipCard({ data, intraday }: { data: SyncResult; intraday: IntradayDays }) {
-  const sick = illnessDates(data.days);
-  const r = dipping(data.days, intraday as any);
+  // Leaves out nights with several signals off, exactly as the insight does.
+  const r = dipping(data.days, intraday);
   const latestNonRem = [...data.days].reverse().find((d) => d.nonRemHr !== null)?.nonRemHr ?? null;
   const latestRhr = [...data.days].reverse().find((d) => d.restingHr !== null)?.restingHr ?? null;
   const day7 = r.nights.slice(-7);
@@ -268,7 +268,7 @@ function EntropyCard({ data }: { data: SyncResult }) {
   const r = entropyShift(data.days);
   const badge =
     r.status === 'shift' ? <Badge kind="alert">Shift · {r.shiftNights} nights</Badge>
-      : r.status === 'collecting' ? <Badge kind="collect">Collecting · needs 14 nights</Badge>
+      : r.status === 'collecting' ? <Badge kind="collect">Collecting · needs about 3 weeks</Badge>
         : <Badge kind="monitor">Steady</Badge>;
 
   const W = 470; const H = 74;
@@ -361,7 +361,7 @@ function TachyCard({ data, intraday }: { data: SyncResult; intraday: IntradayDay
           <b className="text-zinc-500">
             {r.status === 'collecting'
               ? `Whole-night detail collects by itself — ${collected} of 7 days so far.`
-              : `None in ${r.nightsScanned} nights with heart-rate data.`}
+              : `None in ${r.nightsScanned} nights with enough heart-rate data.`}
           </b>
         </EmptyEvidence>
       ) : (

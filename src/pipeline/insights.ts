@@ -470,10 +470,11 @@ export function observations(
   }
 
   // ═══════════════════════════════════════════════ sleep · debt ══════════
-  const debt = sleepDebt(days, need, 7);
-  // Coverage rule: a week with under 5 recorded nights is an estimate, not a
-  // weekly total, so the card stays quiet rather than extrapolating.
-  const debtMin = debt && debt.coverage === 'full' ? debt.deficitMin : null;
+  const debt = sleepDebt(days, need);
+  // The battery's own figure: netted over the week before last night. Coverage
+  // rule: a week with under 5 recorded nights is an estimate, not a weekly
+  // total, so the card stays quiet rather than extrapolating.
+  const debtMin = debt && debt.coverage === 'full' ? debt.netMin : null;
   if (debtMin !== null && debtMin > 180) {
     const isSevere = debtMin > 360;
     add(89, 'sleep-debt', {
@@ -482,8 +483,8 @@ export function observations(
       tone: 'watch',
       title: isSevere ? 'Significant sleep debt accumulated' : 'Sleep debt is building',
       text: isSevere
-        ? `You've built up ${(debtMin / 60).toFixed(1)}h of sleep debt against your ~${needH} target over the last ${debt!.nightsKnown} recorded nights. Deficits like this compound, gradually dragging down your focus, reaction times, and physical recovery.`
-        : `Across ${debt!.nightsKnown} recorded nights you have accumulated ${(debtMin / 60).toFixed(1)}h of sleep debt against your ~${needH}-a-night target.${debt!.surplusMin > 60 ? ` You also banked ${(debt!.surplusMin / 60).toFixed(1)}h on longer nights — recovery doesn't net out hour for hour, so both are worth seeing.` : " Shortfall like this compounds over time."}`,
+        ? `You've built up ${(debtMin / 60).toFixed(1)}h of sleep debt against your ~${needH} target over the ${debt!.nightsKnown} nights before last night, longer nights counted against shorter ones. Deficits like this compound, gradually dragging down your focus, reaction times, and physical recovery.`
+        : `Across the ${debt!.nightsKnown} nights before last night you slept ${(debtMin / 60).toFixed(1)}h less than your ~${needH}-a-night target, longer nights counted against shorter ones. Shortfall like this compounds over time.`,
       action: isSevere
         ? 'Multi-day debt clears gradually over several nights — aim to add 30–45 minutes of sleep across the next few nights.'
         : 'A consistent lights-out across the next two nights starts to flatten the deficit curve.',
@@ -929,7 +930,7 @@ export function observations(
   const sdb = sdbScreen(days);
   if (sdb.status === 'pattern' &&
       (entered(days, (w) => sdbScreen(w).status === 'pattern') || monthStart)) {
-    const lit = sdb.flags.filter((f: any) => f.fired).map((f: any) => f.label.toLowerCase()).join(', ');
+    const lit = sdb.flags.map((f) => f.label).join(', ');
     add(93, 'labs-sdb', {
       id: 'labs-sdb-pattern',
       domain: 'sleep',
