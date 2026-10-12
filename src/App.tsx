@@ -6,6 +6,7 @@ import { useHealth } from './hooks/useHealth';
 import { HistoryProvider } from './hooks/useHistory';
 import { DASHBOARD_WINDOW_DAYS } from './pipeline/sync';
 import { FIXTURE_CLOCK } from './pipeline/fixtures';
+import { formatCivilDay } from './lib/date';
 
 import { DOMAIN, NavButton } from './ui/primitives';
 import { TodayView } from './views/TodayView';
@@ -53,6 +54,8 @@ export default function App() {
   }, [health.data]);
 
   const [view, setView] = useState<'today' | 'activity' | 'sleep' | 'vitals' | 'body' | 'labs' | 'data'>('today');
+  // The data's last day: yours on live data, the fixture's in demo mode.
+  const today = health.data?.days.at(-1)?.date ?? null;
 
   useEffect(() => {
     if (user || demo) {
@@ -201,6 +204,11 @@ export default function App() {
             icon={<FileCode2 size={14} />} label="Data" color="text-zinc-400" 
           />
         </nav>
+        {today && (
+          <time dateTime={today} className="block mt-1 px-3 text-right text-[12px] text-zinc-500">
+            {formatCivilDay(today)}
+          </time>
+        )}
 
         {health.error && health.phase === 'error' && (
           <div className="mt-4 p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-start gap-3">

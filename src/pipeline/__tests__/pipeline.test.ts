@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { addDays, civilFromGH, civilFromInstant, dateRange, isoWeekdayIndex, parseUtcOffsetSeconds, todayCivil } from '../../lib/date';
+import { addDays, civilFromGH, civilFromInstant, dateRange, formatCivilDay, isoWeekdayIndex, parseUtcOffsetSeconds, todayCivil } from '../../lib/date';
 import { int, num, nullIf, round } from '../coerce';
 import { splitWindow, MAX_ROLLUP_WINDOW_DAYS } from '../transport';
 import { syncHealthData } from '../sync';
@@ -112,6 +112,11 @@ describe('civil dates', () => {
 
   it('derives today from local getters, once, at the edge', () => {
     assert.equal(todayCivil(new Date(2026, 7, 19, 1, 39)), '2026-08-19');
+  });
+
+  it('writes the day under the tabs as weekday, month, day and year', () => {
+    assert.equal(formatCivilDay('2026-10-12'), 'Mon Oct 12 2026');
+    assert.equal(formatCivilDay('2026-08-05'), 'Wed Aug 5 2026');
   });
 });
 
