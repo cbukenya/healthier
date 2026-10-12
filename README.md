@@ -10,6 +10,11 @@ and syncs your data in the background, so the dashboard opens on recent numbers.
 on third-party infrastructure except Google's own APIs, which hold the data. There is no
 telemetry.
 
+**Intended purpose.** Healthier is a personal wellness and data-visualisation tool. It is not a
+medical device: it does not diagnose, screen for, detect, monitor, prevent or treat any disease or
+condition, and it must not be used to make medical decisions. Its insights describe changes in
+your own data against your own usual ranges. If you have symptoms or concerns, talk to a clinician.
+
 The first sign-in imports the last 62 days (the window every baseline and insight is computed
 over) before the dashboard opens. Older history, up to two years by default, then imports in the
 background for the 90-day, 1-year and All views. After that, each sync fetches only the last few

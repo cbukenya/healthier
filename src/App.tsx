@@ -103,6 +103,17 @@ export default function App() {
               Demo mode
             </button>
           </div>
+          {/* Google requires this disclosure in the app itself for the Health API's restricted scopes. */}
+          <p className="mt-6 text-[11px] leading-relaxed text-zinc-500">
+            Healthier reads your health and fitness data from Google Health (activity, sleep, heart
+            rate, vitals and body measurements) to show your trends, work out your personal baselines
+            and generate insights. It is stored only on the server running this app, used for nothing
+            else, and never shared. You can disconnect and delete it at any time from the Data tab.
+          </p>
+          <p className="mt-2 text-[11px] leading-relaxed text-zinc-600">
+            For general wellness only. Healthier is not a medical device and doesn't diagnose,
+            detect or monitor any condition.
+          </p>
         </div>
       </div>
     );

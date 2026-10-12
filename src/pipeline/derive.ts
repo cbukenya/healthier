@@ -567,7 +567,7 @@ export function readiness(days: DailyRecord[]): Readiness {
   ].filter(Boolean).length;
   if (offSignals >= 2) {
     flags.push(
-      'Several overnight signals are off their baselines at once — a pattern that often precedes illness. An easy day costs little.',
+      'Several overnight signals are outside your usual ranges at once. Hard training, short sleep, alcohol, heat, travel or a cold coming on can all do this. An easy day costs little.',
     );
   }
 

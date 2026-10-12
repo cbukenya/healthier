@@ -749,7 +749,9 @@ describe('readiness v2', () => {
     assert.equal(oneOff.flags.length, 0, 'one deviating signal is noise, not a pattern');
     const pattern = readiness(syntheticDays(28, { restingHr: 70, resp: 17.5, tempDev: 0.8, hrv: 24 }));
     assert.equal(pattern.flags.length, 1);
-    assert.match(pattern.flags[0], /illness/i);
+    // A deviation pattern with everyday explanations, never a prediction of illness.
+    assert.match(pattern.flags[0], /several overnight signals/i);
+    assert.doesNotMatch(pattern.flags[0], /precedes illness|diagnos/i);
     assert.ok(pattern.score! < 50, `illness-like morning scored ${pattern.score}`);
   });
 
