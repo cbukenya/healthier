@@ -407,7 +407,7 @@ export function readiness(days: DailyRecord[]): Readiness {
     } else if (hrv.zAcute > 2.5) {
       c = 8; // saturation guard
       note =
-        'Your HRV is unusually far above your baseline. While higher is usually better, extreme spikes can sometimes be a sign that your nervous system is in overdrive from heavy training. Treat this peak with mild suspicion.';
+        'Your HRV is unusually far above your baseline. Higher is usually better, but a sudden spike can also follow heavy training overload, so treat this peak with mild suspicion.';
     } else {
       c = Math.min(z, 1.75) * 8; // capped at +14
     }

@@ -17,9 +17,6 @@ import { STREAMS } from '../registry';
 import { emptyRecord } from '../normalize';
 import type { SyncResult } from '../sync';
 
-/** Failed before the self-hosting work; investigated in https://github.com/cbukenya/healthier/issues/1 */
-const KNOWN_FAILURE = { todo: 'pre-existing failure, see issue #1' };
-
 /** Every test runs against a fixed "today" so the 62-day window is deterministic. */
 const NOW = new Date('2026-08-19T01:39:00+02:00');
 
@@ -138,14 +135,14 @@ describe('transport windowing', () => {
 // ─────────────────────────────────────────── the bugs, one test each
 
 describe('regressions from the previous implementation', () => {
-  it('resting heart rate reads beatsPerMinute, not the non-existent heartRateBpm', KNOWN_FAILURE, async () => {
+  it('resting heart rate reads beatsPerMinute, not the non-existent heartRateBpm', async () => {
     const ds = await dataset();
     // Old build: latest = last array element = oldest record = 73.
     assert.equal(day(ds, '2026-08-18').restingHr, 63);
     assert.equal(day(ds, '2026-06-18').restingHr, 73);
   });
 
-  it('HRV reads averageHeartRateVariabilityMilliseconds, not rmssdMillis', KNOWN_FAILURE, async () => {
+  it('HRV reads averageHeartRateVariabilityMilliseconds, not rmssdMillis', async () => {
     const ds = await dataset();
     assert.equal(day(ds, '2026-08-18').hrv, 44.1);
     // Deep-sleep RMSSD is a separate field and must not be conflated with it.
@@ -168,7 +165,7 @@ describe('regressions from the previous implementation', () => {
     assert.notEqual(s.ciLower, s.ciUpper);
   });
 
-  it('skin temperature is stored as deviation from baseline, not absolute °C', KNOWN_FAILURE, async () => {
+  it('skin temperature is stored as deviation from baseline, not absolute °C', async () => {
     const ds = await dataset();
     const d = day(ds, '2026-08-18');
     assert.equal(d.skinTempDeviationC, 0.34);
@@ -336,7 +333,7 @@ describe('missing data', () => {
 // ─────────────────────────────────────────────────────────── derivations
 
 describe('derivations', () => {
-  it('computes a robust baseline and flags an unusual day', KNOWN_FAILURE, async () => {
+  it('computes a robust baseline and flags an unusual day', async () => {
     const ds = await dataset();
     const hrv = compareToBaseline(series(ds.days, (d) => d.hrv));
     assert.equal(hrv.value, 44.1);
@@ -356,7 +353,7 @@ describe('derivations', () => {
     assert.equal(c.band, null, 'no verdict from two prior points');
   });
 
-  it('separates "this fortnight vs last" from "across the whole window"', KNOWN_FAILURE, async () => {
+  it('separates "this fortnight vs last" from "across the whole window"', async () => {
     const ds = await dataset();
     const rhrSeries = series(ds.days, (d) => d.restingHr);
     const hrvSeries = series(ds.days, (d) => d.hrv);
@@ -674,7 +671,7 @@ describe('readiness v2', () => {
     assert.ok(Math.abs(cDown) >= Math.abs(cUp) - 0.01, `${cDown} vs ${cUp}`);
   });
 
-  it('caps the HRV upside and applies the saturation guard far above baseline', KNOWN_FAILURE, () => {
+  it('caps the HRV upside and applies the saturation guard far above baseline', () => {
     const moderate = readiness(syntheticDays(28, { hrv: 38 }));
     const extreme = readiness(syntheticDays(28, { hrv: 80 }));
     const cMod = part(moderate, 'HRV vs baseline')!.contribution;
@@ -780,7 +777,7 @@ describe('readiness v2', () => {
     assert.ok(cWeek < cNight, `sustained suppression (${cWeek}) must outweigh one night (${cNight})`);
   });
 
-  it('produces a sane, fully-explained score on the real fixture', KNOWN_FAILURE, async () => {
+  it('produces a sane, fully-explained score on the real fixture', async () => {
     const ds = await dataset();
     const r = readiness(ds.days);
     assert.ok(r.score! >= 1 && r.score! <= 100);
