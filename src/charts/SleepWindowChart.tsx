@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { formatCivil, formatClock } from '../lib/date';
 import { sleepRegularity, typicalSleepWindow } from '../pipeline/derive';
 import { bucketLabel, groupNights, type Bucket } from '../pipeline/aggregate';
@@ -45,10 +45,10 @@ const STAGE_FILL: [key: 'deep' | 'rem' | 'light' | 'awake', color: string][] = [
 ];
 
 const REG_COPY: Record<string, { label: string; color: string; text: string }> = {
-  excellent: { label: 'EXCELLENT', color: '#22c55e', text: 'Sleep and wake land at nearly the same times every day.' },
-  good: { label: 'GOOD', color: '#6ee7b7', text: 'Timing holds fairly steady night to night.' },
-  bad: { label: 'BAD', color: '#eab308', text: 'Timing shifts by hours night to night — regularity predicts how you feel better than total hours do.' },
-  critical: { label: 'CRITICAL', color: '#f43f5e', text: 'No consistent schedule in these nights; the body clock never gets the same day twice.' },
+  excellent: { label: 'VERY REGULAR', color: '#22c55e', text: 'You fall asleep and wake at nearly the same times every day.' },
+  good: { label: 'REGULAR', color: '#6ee7b7', text: 'Your timing holds fairly steady from night to night.' },
+  bad: { label: 'IRREGULAR', color: '#eab308', text: 'Your timing shifts by hours from night to night. Regular timing predicts how you feel better than total hours do.' },
+  critical: { label: 'VERY IRREGULAR', color: '#f43f5e', text: 'No steady schedule in these nights: your body clock rarely gets the same day twice.' },
 };
 
 /** Fold a minutes-of-day onto an 18:00-anchored evening→next-noon line. */
@@ -84,6 +84,19 @@ export function SleepWindowChart({
 }) {
   const reg = useMemo(() => sleepRegularity(days), [days]);
   const typical = useMemo(() => typicalSleepWindow(days), [days]);
+  // Drawn at the card's true width: a fixed 960-wide drawing needed 640px, so a phone had to
+  // scroll sideways to reach the wake times.
+  const box = useRef<HTMLDivElement>(null);
+  const [boxW, setBoxW] = useState(0);
+  useLayoutEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    setBoxW(el.clientWidth);
+    const ro = new ResizeObserver(() => setBoxW(el.clientWidth));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [days.some((d) => d.sleep)]);
+  const narrow = boxW > 0 && boxW < 600;
 
   const useAvg = mode === 'average' && typical !== null;
   const winA = useAvg ? fold(typical!.bedMean) : fold(toMin(targetStart));
@@ -91,8 +104,8 @@ export function SleepWindowChart({
   const sdA = useAvg ? typical!.bedSdMin : 0;
   const sdB = useAvg ? typical!.wakeSdMin : 0;
   const lineColor = useAvg ? '#818cf8' : '#34d399';
-  const labelA = useAvg ? `avg bed ${formatClock(typical!.bedMean)}` : `${targetStart} target`;
-  const labelB = useAvg ? `avg wake ${formatClock(typical!.wakeMean)}` : targetEnd;
+  const labelA = useAvg ? `${narrow ? 'bed' : 'avg bed'} ${formatClock(typical!.bedMean)}` : `${targetStart} target`;
+  const labelB = useAvg ? `${narrow ? 'wake' : 'avg wake'} ${formatClock(typical!.wakeMean)}` : targetEnd;
 
   // Rows render newest-first, matching the nights list beside this chart.
   const rows = useMemo(() => (bucket === 'day' ? [...days].reverse() : bucketRows(days, bucket)), [days, bucket]);
@@ -107,7 +120,8 @@ export function SleepWindowChart({
   const ROW = dense ? 7 : mid ? 15 : 27;
   const BAR = dense ? 4 : mid ? 8 : 11;
   const labelEvery = dense ? 7 : mid ? 3 : 1;
-  const showRight = !dense && !mid;
+  // The right-hand column (time asleep, bedtime against your average) only fits a wide card.
+  const showRight = !dense && !mid && !narrow;
 
   // ── time axis auto-range around the data and the window lines
   const [axisA, axisB] = useMemo(() => {
@@ -122,14 +136,22 @@ export function SleepWindowChart({
   }, [nights, winA, winB, sdA, sdB]);
   const SPAN = axisB - axisA;
 
-  const PL = 58;
-  const PR = showRight ? 128 : 16;
+  const PL = narrow ? 46 : 58;
+  const PR = showRight ? 128 : narrow ? 10 : 16;
   const PT = 26;
   const PB = 26;
-  const W = 960;
+  const W = boxW || 960;
   const IW = W - PL - PR;
   const H = PT + PB + n * ROW;
   const x = (m: number) => PL + ((m - axisA) / SPAN) * IW;
+  // Hour labels every two hours, or every four when two-hour labels would crowd.
+  const hourStep = (120 / SPAN) * IW < 44 ? 240 : 120;
+  // A line's label sits beside it, switching sides rather than running off the card.
+  const lineLabel = (m: number, text: string, side: 'before' | 'after') => {
+    const w = text.length * 5.6;
+    const before = side === 'before' ? x(m) - 6 - w >= 2 : x(m) + 6 + w > W - 2;
+    return { x: before ? x(m) - 6 : x(m) + 6, anchor: (before ? 'end' : 'start') as 'start' | 'end' };
+  };
 
   if (!nights.length) {
     return (
@@ -148,21 +170,13 @@ export function SleepWindowChart({
             Sleep window
           </h3>
           <p className="text-[11px] text-zinc-500 mt-1 leading-relaxed max-w-none sm:max-w-md">
-            {useAvg ? (
-              <>
-                {bucket === 'day'
-                  ? 'Each bar is one night, bed to wake, filled by stage share.'
-                  : `Each bar is one ${unitName}: its median bedtime for its median time in bed, filled by average stage share.`}{' '}
-                The lines are your own average bedtime and wake time over these {typical!.nights} nights (±{' '}
-                {Math.round(sdA)}m / ± {Math.round(sdB)}m); the annotations are each {unitName}'s
-                bedtime against that average. Empty rows are {unitName}s with no record.
-              </>
-            ) : (
-              <>
-                Each bar is one {unitName}, bed to wake, filled by stage share. The band is your target
-                window, {targetStart} → {targetEnd}. Empty rows are {unitName}s with no record.
-              </>
-            )}
+            {bucket === 'day'
+              ? 'One bar per night, bed to wake, coloured by stage.'
+              : `One bar per ${unitName}: its typical bedtime and time in bed, coloured by average stage.`}{' '}
+            {useAvg
+              ? `The dashed lines are your average bedtime and wake time over these ${typical!.nights} nights, shaded by how much they vary.`
+              : `The band is your target window, ${targetStart} → ${targetEnd}.`}{' '}
+            Empty rows are {unitName}s with no record.
           </p>
         </div>
 
@@ -183,21 +197,20 @@ export function SleepWindowChart({
                 </div>
               </div>
               <p className="text-[10.5px] text-zinc-500 mt-1.5 leading-relaxed">
-                {REG_COPY[reg.band].text} Same-state agreement of adjacent days, over{' '}
-                {reg.pairs} day-pairs from {reg.nights} recorded nights.
+                {REG_COPY[reg.band].text} Scored from how often you're asleep or awake at the same clock
+                times on back-to-back days ({reg.pairs} pairs of nights).
               </p>
             </>
           ) : (
             <p className="text-[10.5px] text-zinc-500 mt-1.5 leading-relaxed">
-              Needs at least five adjacent recorded nights in this span before the index means
-              anything.
+              Needs five back-to-back recorded nights in this span.
             </p>
           )}
         </div>
       </div>
 
-      <div className="px-3 pb-2 overflow-x-auto">
-        <svg viewBox={`0 0 ${W} ${H}`} className="w-full min-w-[640px]" style={{ height: 'auto' }} role="img"
+      <div ref={box} className="mx-3 mb-2">
+        <svg viewBox={`0 0 ${W} ${H}`} className="w-full block" style={{ height: 'auto' }} role="img"
           aria-label={useAvg ? 'Sleep sessions against your average sleep window' : `Sleep sessions against the ${targetStart}–${targetEnd} target window`}>
           {/* window band between the two lines */}
           <rect x={x(winA)} y={PT - 8} width={x(winB) - x(winA)} height={H - PT - PB + 16}
@@ -213,19 +226,21 @@ export function SleepWindowChart({
             </>
           )}
 
-          {[[winA, labelA, 'end'], [winB, labelB, 'start']].map(([m, lbl, anchor]) => (
-            <g key={String(lbl)}>
-              <line x1={x(m as number)} x2={x(m as number)} y1={PT - 8} y2={H - PB + 8}
-                stroke={lineColor} strokeWidth={1.2} strokeDasharray="4 4" opacity={0.85} />
-              <text x={x(m as number) + (anchor === 'end' ? -6 : 6)} y={PT - 12}
-                textAnchor={anchor as 'start' | 'end'} fontSize={10} fill={lineColor} opacity={0.95}>
-                {String(lbl)}
-              </text>
-            </g>
-          ))}
+          {([[winA, labelA, 'before'], [winB, labelB, 'after']] as const).map(([m, lbl, side]) => {
+            const at = lineLabel(m, lbl, side);
+            return (
+              <g key={lbl}>
+                <line x1={x(m)} x2={x(m)} y1={PT - 8} y2={H - PB + 8}
+                  stroke={lineColor} strokeWidth={1.2} strokeDasharray="4 4" opacity={0.85} />
+                <text x={at.x} y={PT - 12} textAnchor={at.anchor} fontSize={10} fill={lineColor} opacity={0.95}>
+                  {lbl}
+                </text>
+              </g>
+            );
+          })}
 
           {/* hour grid */}
-          {Array.from({ length: Math.floor(SPAN / 120) + 1 }, (_, i) => axisA + i * 120).map((m) => (
+          {Array.from({ length: Math.floor(SPAN / hourStep) + 1 }, (_, i) => axisA + i * hourStep).map((m) => (
             <g key={m}>
               <line x1={x(m)} x2={x(m)} y1={PT - 4} y2={H - PB + 4}
                 stroke={m % 1440 === 0 ? '#2c2c32' : '#1c1c20'} strokeWidth={m % 1440 === 0 ? 1.2 : 1} />
