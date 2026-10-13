@@ -1,7 +1,7 @@
 import { addDays, daysBetween, isoWeekdayIndex, type CivilDate } from '../../lib/date';
 import type { DailyRecord, SleepSession } from '../../types/health';
 import { circularMeanMinutes, compareToBaseline, series, stats, theilSen, type Point } from '../derive';
-import { MEASURES, type Answer, type Measure } from '../history';
+import { MEASURES, type Answer, type Measure, type Reading } from '../history';
 import { illnessDates, type IntradayDays } from '../labs';
 import { scoreSleep } from '../sleep';
 import { welch } from './association';
@@ -343,4 +343,59 @@ export function lastMonthBest(months: MonthTally[], today: CivilDate, minN: numb
   if (!target || eligible.length < 3) return null;
   const beats = eligible.every((m) => m === target || (better === 'max' ? avg(target) > avg(m) : avg(target) < avg(m)));
   return beats ? { month: last, value: avg(target), since: months.find((m) => m.n > 0)!.month } : null;
+}
+
+// ─────────────────────────────────────────────────── personal records
+
+export interface DayRecord {
+  date: CivilDate;
+  value: number;
+  /** The best before it, in the window and the past year's answer. */
+  previous: number;
+  /** Days since it happened. */
+  age: number;
+  /** The first reading the record was measured against, for "in the past year". */
+  since: CivilDate;
+}
+
+/**
+ * The window's best day for a measure, if it's recent and beats every day
+ * before it: earlier days in the window and the past year's answer (asked for
+ * as max or min with count and first). It needs `minDays` readings before it,
+ * so a short history can't make every good day a record, and has to reach
+ * `mustReach` so a tiny one stays quiet. Ties go to the earlier day: matching a
+ * record isn't beating it.
+ */
+export function dayRecord(
+  days: DailyRecord[],
+  today: CivilDate,
+  measure: Measure,
+  better: 'max' | 'min',
+  answer: Answer | null | undefined,
+  opts: { finishedOnly?: boolean; mustReach?: number; minDays?: number; maxAge?: number } = {},
+): DayRecord | null {
+  const get = MEASURES[measure];
+  const pool = (opts.finishedOnly ? days.slice(0, -1) : days)
+    .map((d) => ({ date: d.date, value: get(d) }))
+    .filter((r): r is Reading => r.value !== null && Number.isFinite(r.value));
+  if (!pool.length) return null;
+  const beats = (a: number, b: number) => (better === 'max' ? a > b : a < b);
+  let at = 0;
+  for (let i = 1; i < pool.length; i++) if (beats(pool[i].value, pool[at].value)) at = i;
+  const record = pool[at];
+  const row = answer?.rows[0];
+  const before = row?.[better] ?? null;
+  if ((row?.count ?? 0) + at < (opts.minDays ?? 60)) return null;
+  if (before && !beats(record.value, before.value)) return null;
+  if (opts.mustReach !== undefined && beats(opts.mustReach, record.value)) return null;
+  const age = daysBetween(record.date, today);
+  if (age > (opts.maxAge ?? 7)) return null;
+  const earlier = [...pool.slice(0, at).map((r) => r.value), ...(before ? [before.value] : [])];
+  return {
+    date: record.date,
+    value: record.value,
+    previous: better === 'max' ? Math.max(...earlier) : Math.min(...earlier),
+    age,
+    since: row?.first?.date ?? pool[0].date,
+  };
 }
