@@ -107,12 +107,17 @@ export function BodyView({ data, onGender }: {
   const lowest = weighIns.reduce<(typeof weighIns)[number] | null>((a, p) => (!a || p.value < a.value ? p : a), null);
   const weightBucket = bucketForSeries(weightWin, window.length);
   const fatBucket = bucketForSeries(fatWin, window.length);
+  // Which charts exist depends on what the person has ever recorded, so a quiet span shows them empty rather than hiding them.
+  const everFat = all.some((d) => d.bodyFatPct !== null);
+  const everPaired = body.composition !== null;
+  const latestInSpan = weighIns.at(-1);
+  const latestFat = values(fatWin).at(-1);
 
   const summaryCard = (
     <Card className="lg:col-span-4">
       <CardHead domain="body" title={`${spanName(spanState)} summary`} />
       <div className="px-5 pb-4 md:pb-5">
-        <Row dense={!wide} label="Weigh-ins">{weighIns.length}</Row>
+        <Row dense={!wide} label="Weigh-ins">{weighIns.length || (spanState.loading ? 'Loading…' : `None in these ${window.length} days`)}</Row>
         {trend && <Row dense={!wide} label="Trend">{changeText(trend.kgPerWeek, 'kg a week', 2)}</Row>}
         {highest && (
           <Row dense={!wide} label="Highest">
@@ -136,22 +141,22 @@ export function BodyView({ data, onGender }: {
         domain="body"
         title="Weight"
         hint="Each dot is a weigh-in; dashed lines join readings with a gap between them."
-        right={<span>latest <span className={DOMAIN.body.text}>{fixed(weighIns[weighIns.length - 1].value)} kg</span></span>}
+        right={latestInSpan && <span>latest <span className={DOMAIN.body.text}>{fixed(latestInSpan.value)} kg</span></span>}
       />
       <div className="px-2 pb-3">
         <TrendChart series={groupSeries(weightWin, weightBucket)} bucket={weightBucket} color={DOMAIN.body.hex} height={wide ? 240 : 210} unit="kg" format={(v) => fmtNum(v, 1)} meanWindow={null} />
       </div>
     </Card>
   );
-  const fatCard = values(fatWin).length > 0 && (
+  const fatCard = everFat && (
     <Card>
-      <CardHead domain="body" title="Body fat" right={<span>latest <span className="text-zinc-300">{fixed(values(fatWin).at(-1)!)}%</span></span>} />
+      <CardHead domain="body" title="Body fat" right={latestFat !== undefined && <span>latest <span className="text-zinc-300">{fixed(latestFat)}%</span></span>} />
       <div className="px-2 pb-3">
         <TrendChart series={groupSeries(fatWin, fatBucket)} bucket={fatBucket} color="#a1a1aa" height={160} unit="%" format={(v) => fmtNum(v, 1)} meanWindow={null} />
       </div>
     </Card>
   );
-  const compCard = comp && <CompositionTrend comp={comp} />;
+  const compCard = everPaired && <CompositionTrend comp={comp} />;
   const charts: { key: BodyChart; label: string; card: React.ReactNode }[] = [
     { key: 'weight', label: 'Weight', card: weightCard },
     ...(fatCard ? [{ key: 'fat' as const, label: 'Body fat', card: fatCard }] : []),
@@ -198,14 +203,7 @@ export function BodyView({ data, onGender }: {
         <SpanSelector state={spanState} />
       </div>
 
-      {weighIns.length === 0 ? (
-        <Card>
-          <EmptyState
-            title={spanState.loading ? 'Loading history…' : `No weigh-ins in these ${window.length} days`}
-            detail="A longer span reaches older ones."
-          />
-        </Card>
-      ) : wide ? (
+      {wide ? (
         <>
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
             {summaryCard}
@@ -329,7 +327,17 @@ function Part({ label, color, kg, pct, end = false }: { label: string; color: st
 }
 
 /** How the span's weight trend splits between fat and lean, from weigh-ins the scale paired with body fat. */
-function CompositionTrend({ comp }: { comp: BodyComposition }) {
+function CompositionTrend({ comp }: { comp: BodyComposition | null }) {
+  if (!comp) {
+    return (
+      <Card className="flex flex-col">
+        <CardHead domain="body" title="Composition trend" hint="From weigh-ins where the scale also measured body fat." />
+        <p className="px-5 pb-5 flex-1 flex items-center justify-center text-center text-[11px] text-zinc-600 min-h-[120px]">
+          Needs four of them across at least four weeks of this span.
+        </p>
+      </Card>
+    );
+  }
   const { weightKgPerWeek: weight, leanKgPerWeek: lean, fatKgPerWeek: fat } = comp;
   // A share of the change only reads when lean and fat both move the way the weight does.
   const sameWay = weight !== 0 && Math.sign(lean) === Math.sign(weight) && Math.sign(fat) === Math.sign(weight);
