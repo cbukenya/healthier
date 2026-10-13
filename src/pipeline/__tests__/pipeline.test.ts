@@ -11,7 +11,7 @@ import { scoreSleep } from '../sleep';
 import {
   compareToBaseline, coverage, findGaps, periodShift, rollingMean, series, stats, values,
   bedtimeConsistency, currentStreak, readiness, windowShift, firstObserved, sleepRegularity, circularMeanMinutes, typicalSleepWindow,
-  personalSleepNeed, goalStreak, weightTrend, batteryTier,
+  personalSleepNeed, goalStreak, weightTrend, batteryTier, latestBody,
 } from '../derive';
 import { STREAMS } from '../registry';
 import { emptyRecord } from '../normalize';
@@ -205,6 +205,33 @@ describe('regressions from the previous implementation', () => {
     const withWeight = ds.days.filter((d) => d.weightKg !== null);
     assert.equal(withWeight.at(-1)!.weightKg, 108); // 7 Jul, not 110 from February
     assert.equal(withWeight.at(-1)!.date, '2026-07-07');
+  });
+
+  it('reads the latest weigh-in, the one before it, and the newest split of fat and lean', async () => {
+    const body = latestBody((await wideDataset()).days);
+    assert.deepEqual(body.weighIns.map((p) => p.date), ['2026-02-26', '2026-05-21', '2026-06-03', '2026-06-16', '2026-07-07']);
+    assert.deepEqual(body.latest, { date: '2026-07-07', value: 108 });
+    assert.deepEqual(body.previous, { date: '2026-06-16', value: 109.7 });
+    const now = body.composition!;
+    const before = body.previousComposition!;
+    assert.equal(now.date, '2026-07-07');
+    assert.equal(now.fatPct, 39.1);
+    assert.equal(Math.round(now.fatKg * 10) / 10, 42.2);
+    assert.equal(Math.round(now.leanKg * 10) / 10, 65.8);
+    assert.equal(before.date, '2026-06-16');
+    // From the reading before: 1.4 kg less fat, 0.3 kg less lean.
+    assert.equal(Math.round((now.fatKg - before.fatKg) * 10) / 10, -1.4);
+    assert.equal(Math.round((now.leanKg - before.leanKg) * 10) / 10, -0.3);
+  });
+
+  it('reads the age from the Google Health profile, and only with its scope', async () => {
+    assert.equal((await dataset()).profile.age, 41);
+    const without = await syncHealthData({
+      token: 'test', fetchImpl: createFixtureFetch(), windowDays: 62, now: NOW,
+      grantedScopes: ['activity', 'sleep', 'metrics', 'nutrition', 'ecg', 'irn'],
+    });
+    assert.equal(without.profile.age, null);
+    assert.equal(without.profile.heightCm, 175);
   });
 
   it('keys sleep to the morning of waking, from endTime + endUtcOffset', async () => {

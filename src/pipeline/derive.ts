@@ -1194,15 +1194,19 @@ export interface BodyComposition {
   latest: { date: CivilDate; weightKg: number; fatKg: number; leanKg: number };
 }
 
-/**
- * Is weight change *fat* change? Pair weight and body-fat readings within
- * 48 h → fat mass = w × bf%, lean = w − fat; Theil–Sen slope per series.
- * Requires ≥4 pairs spanning ≥28 days — below that the honest answer is
- * silence. BIA fat% carries ±3–5-point absolute error and swings with
- * hydration, so same-scale trends are meaningful and absolute levels are not;
- * copy stays neutral in both directions.
- */
-export function bodyComposition(days: DailyRecord[]): BodyComposition | null {
+/** A weigh-in paired with a body-fat reading from the same scale, and the fat and lean mass they give. */
+export interface CompositionPair {
+  /** The day's position in the series, for slopes across it. */
+  x: number;
+  date: CivilDate;
+  weightKg: number;
+  fatPct: number;
+  fatKg: number;
+  leanKg: number;
+}
+
+/** Weigh-ins paired with body-fat readings, oldest first, by the rules below. */
+export function compositionPairs(days: DailyRecord[]): { pairs: CompositionPair[]; rejectedForSource: number } {
   // Pairing rules, tightened after review:
   //   1. ONE-TO-ONE. A single fat% reading may serve exactly one weight
   //      reading; reusing it across neighbours manufactures pairs that the
@@ -1218,10 +1222,10 @@ export function bodyComposition(days: DailyRecord[]): BodyComposition | null {
   const fats = days
     .map((d, i) => ({ i, pct: d.bodyFatPct, src: d.sourceByType?.['body-fat'] ?? null }))
     .filter((p): p is typeof p & { pct: number } => p.pct !== null);
-  if (!weights.length || !fats.length) return null;
+  if (!weights.length || !fats.length) return { pairs: [], rejectedForSource: 0 };
 
   const usedFat = new Set<number>();
-  const pairs: { x: number; date: CivilDate; weightKg: number; fatKg: number; leanKg: number }[] = [];
+  const pairs: CompositionPair[] = [];
   let rejectedForSource = 0;
 
   for (const w of weights) {
@@ -1238,8 +1242,44 @@ export function bodyComposition(days: DailyRecord[]): BodyComposition | null {
     if (!best) continue;
     usedFat.add(best.i);
     const fatKg = (w.kg * best.pct) / 100;
-    pairs.push({ x: w.i, date: w.date, weightKg: w.kg, fatKg, leanKg: w.kg - fatKg });
+    pairs.push({ x: w.i, date: w.date, weightKg: w.kg, fatPct: best.pct, fatKg, leanKg: w.kg - fatKg });
   }
+  return { pairs, rejectedForSource };
+}
+
+/** The newest body readings, whatever span is on screen. */
+export interface LatestBody {
+  /** The last eight weigh-ins at most, oldest first. */
+  weighIns: Point[];
+  latest: { date: CivilDate; value: number } | null;
+  previous: { date: CivilDate; value: number } | null;
+  /** The newest weigh-in that has a body-fat reading to pair with, and the pair before it. */
+  composition: CompositionPair | null;
+  previousComposition: CompositionPair | null;
+}
+
+export function latestBody(days: DailyRecord[]): LatestBody {
+  const weighIns = days.flatMap((d) => (d.weightKg === null ? [] : [{ date: d.date, value: d.weightKg }]));
+  const { pairs } = compositionPairs(days);
+  return {
+    weighIns: weighIns.slice(-8),
+    latest: weighIns.at(-1) ?? null,
+    previous: weighIns.at(-2) ?? null,
+    composition: pairs.at(-1) ?? null,
+    previousComposition: pairs.at(-2) ?? null,
+  };
+}
+
+/**
+ * Is weight change *fat* change? Pair weight and body-fat readings within
+ * 48 h → fat mass = w × bf%, lean = w − fat; Theil–Sen slope per series.
+ * Requires ≥4 pairs spanning ≥28 days — below that the honest answer is
+ * silence. BIA fat% carries ±3–5-point absolute error and swings with
+ * hydration, so same-scale trends are meaningful and absolute levels are not;
+ * copy stays neutral in both directions.
+ */
+export function bodyComposition(days: DailyRecord[]): BodyComposition | null {
+  const { pairs, rejectedForSource } = compositionPairs(days);
   if (pairs.length < 4) return null;
   const spanDays = pairs[pairs.length - 1].x - pairs[0].x;
   if (spanDays < 28) return null;

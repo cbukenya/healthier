@@ -123,8 +123,8 @@ export interface SyncOutput {
   run: SyncRun;
   streams: StreamWrite[];
   intraday: IntradayWrite | null;
-  /** Set when the height stream was read; otherwise the stored profile stands. */
-  profile?: ProfileFacts;
+  /** Profile facts this sync read, merged over the stored ones key by key; a fact it couldn't read keeps its stored value. */
+  profile?: Partial<ProfileFacts>;
   /** Stored daily rows before this date are past the history limit and can be dropped. */
   keepFrom: CivilDate;
   /** Minute-level heart rate is only kept for the dashboard window. */
@@ -305,7 +305,7 @@ export async function syncIncremental(opts: IncrementalOptions): Promise<SyncOut
   const total = planned.length + (withIntraday ? 1 : 0);
   let done = 0;
 
-  let profile: ProfileFacts | undefined;
+  let profile: Partial<ProfileFacts> | undefined;
   const streams = await pool(planned, opts.transport.concurrency, async (stream) => {
     const prev = opts.states.get(stream.dataType);
     const from = planFrom(prev, opts.today, windowStart, opts.full);
@@ -317,7 +317,7 @@ export async function syncIncremental(opts: IncrementalOptions): Promise<SyncOut
       full: opts.full,
     });
     // Lists are newest-first, so even an incremental fetch sees the latest height.
-    if (stream.dataType === 'height' && write.state.report.status !== 'error') profile = extractProfile(points);
+    if (stream.dataType === 'height' && write.state.report.status !== 'error') profile = { ...profile, ...extractProfile(points) };
     opts.onProgress?.(++done, total, stream.label);
     return write;
   });
@@ -325,7 +325,15 @@ export async function syncIncremental(opts: IncrementalOptions): Promise<SyncOut
   // A withdrawn scope: forget what was stored under it.
   for (const s of STREAMS.filter((s) => !allowed(s.scope))) {
     streams.push({ dataType: s.dataType, purge: true, replace: [], days: {}, state: skippedState(s) });
-    if (s.dataType === 'height') profile = extractProfile([]);
+    if (s.dataType === 'height') profile = { ...profile, ...extractProfile([]) };
+  }
+
+  // Age lives on the account's Google Health profile, behind a scope of its own; a failed read keeps the stored age.
+  if (allowed('profile')) {
+    const age = await opts.transport.profileAge();
+    if (age !== undefined) profile = { ...profile, age };
+  } else {
+    profile = { ...profile, age: null };
   }
 
   let intraday: IntradayWrite | null = null;
@@ -591,7 +599,7 @@ export class MemoryStore implements StoredData {
       for (const date of [...rows.keys()]) if (date < out.keepFrom) rows.delete(date);
     }
     for (const date of [...this.intradayDays.keys()]) if (date < out.keepIntradayFrom) this.intradayDays.delete(date);
-    if (out.profile) this.profile = out.profile;
+    if (out.profile) this.profile = { ...this.profile, ...out.profile };
     this.run = out.run;
   }
 

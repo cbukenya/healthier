@@ -145,6 +145,13 @@ export class HealthTransport {
     return { res: null, body: null, attempts: attempt, error: lastError };
   }
 
+  /** The account's age in years from Google Health's profile; null when it has none, undefined when the request failed. */
+  async profileAge(): Promise<number | null | undefined> {
+    const { body, error } = await this.request('profile', `${this.baseUrl}/profile`);
+    if (error) return undefined;
+    return typeof body?.age === 'number' && Number.isFinite(body.age) ? body.age : null;
+  }
+
   /**
    * POST :dailyRollUp across a civil window, split into ≤14-day chunks and
    * re-joined. Chunk failures are partial, not fatal: 40 good days beat an error,

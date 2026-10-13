@@ -2,7 +2,7 @@ import type pg from 'pg';
 import type { CivilDate } from '../src/lib/date';
 import type { StreamDay, StreamState, StreamWrite, SyncOutput, SyncRun } from '../src/pipeline/incremental';
 import type { IntradayDay } from '../src/pipeline/intraday';
-import type { ProfileFacts } from '../src/pipeline/registry';
+import type { Gender, ProfileFacts } from '../src/pipeline/registry';
 import type { ApiUser } from '../src/types/api';
 import { decrypt, encrypt, randomToken, sha256 } from './crypto';
 import { withTransaction, type Db } from './db';
@@ -14,6 +14,7 @@ import type { GoogleIdentity } from './google';
 
 export interface UserRow extends ApiUser {
   timeZone: string;
+  gender: Gender | null;
 }
 
 export async function upsertUser(db: Db, identity: GoogleIdentity): Promise<string> {
@@ -30,7 +31,7 @@ export async function upsertUser(db: Db, identity: GoogleIdentity): Promise<stri
 
 export async function getUser(db: Db, userId: string): Promise<UserRow | null> {
   const { rows } = await db.query<UserRow>(
-    `SELECT id, email, name, picture_url AS "pictureUrl", time_zone AS "timeZone"
+    `SELECT id, email, name, picture_url AS "pictureUrl", time_zone AS "timeZone", gender
      FROM users WHERE id = $1`,
     [userId],
   );
@@ -39,6 +40,10 @@ export async function getUser(db: Db, userId: string): Promise<UserRow | null> {
 
 export async function setTimeZone(db: Db, userId: string, timeZone: string): Promise<void> {
   await db.query('UPDATE users SET time_zone = $2, updated_at = now() WHERE id = $1 AND time_zone <> $2', [userId, timeZone]);
+}
+
+export async function setGender(db: Db, userId: string, gender: Gender | null): Promise<void> {
+  await db.query('UPDATE users SET gender = $2, updated_at = now() WHERE id = $1', [userId, gender]);
 }
 
 /** Cascades to tokens, sessions and data. */
@@ -237,13 +242,13 @@ export async function applySyncOutput(db: Db, userId: string, out: SyncOutput, p
 
     await tx.query(
       `INSERT INTO sync_state (user_id, pipeline_version, last_sync_at, last_full_sync_at, run, profile)
-       VALUES ($1, $2, now(), CASE WHEN $3 THEN now() END, $4::jsonb, COALESCE($5::jsonb, $6::jsonb))
+       VALUES ($1, $2, now(), CASE WHEN $3 THEN now() END, $4::jsonb, $6::jsonb || COALESCE($5::jsonb, '{}'::jsonb))
        ON CONFLICT (user_id) DO UPDATE SET
          pipeline_version = EXCLUDED.pipeline_version,
          last_sync_at = EXCLUDED.last_sync_at,
          last_full_sync_at = CASE WHEN $3 THEN now() ELSE sync_state.last_full_sync_at END,
          run = EXCLUDED.run,
-         profile = COALESCE($5::jsonb, sync_state.profile)`,
+         profile = sync_state.profile || COALESCE($5::jsonb, '{}'::jsonb)`,
       [
         userId,
         pipelineVersion,

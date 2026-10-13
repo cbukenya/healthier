@@ -56,7 +56,7 @@ export interface StreamDescriptor {
   note?: string;
 }
 
-export type ScopeKey = 'activity' | 'sleep' | 'metrics' | 'nutrition' | 'ecg' | 'irn';
+export type ScopeKey = 'activity' | 'sleep' | 'metrics' | 'nutrition' | 'ecg' | 'irn' | 'profile';
 
 export const SCOPES: Record<ScopeKey, string> = {
   activity: 'https://www.googleapis.com/auth/googlehealth.activity_and_fitness.readonly',
@@ -64,7 +64,9 @@ export const SCOPES: Record<ScopeKey, string> = {
   metrics: 'https://www.googleapis.com/auth/googlehealth.health_metrics_and_measurements.readonly',
   nutrition: 'https://www.googleapis.com/auth/googlehealth.nutrition.readonly',
   ecg: 'https://www.googleapis.com/auth/googlehealth.ecg.readonly',
-  irn: 'https://www.googleapis.com/auth/googlehealth.irn.readonly'
+  irn: 'https://www.googleapis.com/auth/googlehealth.irn.readonly',
+  // Not a stream: the age shown on the Body page.
+  profile: 'https://www.googleapis.com/auth/googlehealth.profile.readonly',
 };
 
 /** Rollup datapoints carry `civilStartTime.date`. */
@@ -595,10 +597,16 @@ export const DOMAIN_LABELS: Record<MetricDomain, string> = {
   wellbeing: 'Wellbeing',
 };
 
+export type Gender = 'female' | 'male' | 'other';
+
 /** Static profile facts that don't belong on a daily row. */
 export interface ProfileFacts {
   heightCm: number | null;
   heightRecordedOn: CivilDate | null;
+  /** Years, from the Google Health profile; null without its scope or a birth date on the account. */
+  age?: number | null;
+  /** Set by the person in the app: Google Health doesn't provide it. */
+  gender?: Gender | null;
 }
 
 export function extractProfile(heightPoints: any[]): ProfileFacts {

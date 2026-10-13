@@ -1,4 +1,5 @@
 import type { PackedDataset } from '../pipeline/incremental';
+import type { Gender } from '../pipeline/registry';
 import type { DailyRecord } from './health';
 
 /** The JSON contract between server.ts and the browser. */
@@ -52,6 +53,11 @@ export interface DatasetResponse {
   syncedAt: string | null;
   history: HistoryInfo | null;
   sync: SyncStatus;
+}
+
+/** PUT /api/profile, both ways. */
+export interface ProfileResponse {
+  gender: Gender | null;
 }
 
 export interface ApiErrorBody {

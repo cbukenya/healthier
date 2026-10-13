@@ -58,13 +58,13 @@ browser (React)  ──/api──▶  Express server  ──▶  Postgres
 
 | Table | Holds |
 | --- | --- |
-| `users` | Google subject, profile, IANA time zone (decides what "today" means on the server) |
+| `users` | Google subject, profile, IANA time zone (decides what "today" means on the server), gender (set on the Body page) |
 | `google_tokens` | encrypted tokens and granted scopes |
 | `sessions` | hashed session ids |
 | `stream_days (user_id, data_type, date)` | what one stream (steps, sleep, HRV…) contributed to one civil day: only the `DailyRecord` fields it set, plus provenance. Kept for `HISTORY_DAYS` |
 | `intraday_heart_rate (user_id, date)` | one civil day of minute-level heart rate, column-wise. Kept for the 62-day window |
 | `stream_state (user_id, data_type)` | per-stream coverage and the outcome of its last fetch (shown on the Data tab) |
-| `sync_state (user_id)` | pipeline version, last sync and last full sync, profile facts |
+| `sync_state (user_id)` | pipeline version, last sync and last full sync, profile facts (height, age) |
 
 Deleting a user cascades to every table.
 

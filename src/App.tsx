@@ -7,6 +7,9 @@ import { HistoryProvider } from './hooks/useHistory';
 import { DASHBOARD_WINDOW_DAYS } from './pipeline/sync';
 import { FIXTURE_CLOCK } from './pipeline/fixtures';
 import { formatCivilDay } from './lib/date';
+import { api } from './lib/api';
+import type { Gender } from './pipeline/registry';
+import type { ProfileResponse } from './types/api';
 
 import { DOMAIN, NavButton } from './ui/primitives';
 import { TodayView } from './views/TodayView';
@@ -32,6 +35,10 @@ export default function App() {
     demo,
     onSignInRequired: reload,
   });
+
+  const saveGender = async (gender: Gender | null) => {
+    await api<ProfileResponse>('/api/profile', { method: 'PUT', body: { gender } });
+  };
 
   const disconnect = async () => {
     if (!window.confirm('Disconnect Google and permanently delete all of your data stored by Healthier?')) return;
@@ -259,7 +266,7 @@ export default function App() {
             {view === 'activity' && <ActivityView data={health.data} />}
             {view === 'sleep' && <SleepView data={health.data} />}
             {view === 'vitals' && <VitalsView data={health.data} />}
-            {view === 'body' && <BodyView data={health.data} />}
+            {view === 'body' && <BodyView data={health.data} onGender={demo ? undefined : saveGender} />}
             {view === 'labs' && <LabsView data={health.data} intraday={intradayDays} />}
             {view === 'data' && <DataView data={health.data} onFullSync={health.fullSync} onDisconnect={demo ? undefined : disconnect} />}
           </main>
