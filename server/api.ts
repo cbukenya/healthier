@@ -1,9 +1,10 @@
 import { Router } from 'express';
-import type { DatasetResponse, HistoryResponse, MeResponse, SyncResponse } from '../src/types/api';
+import type { DatasetResponse, HistoryResponse, MeResponse, ProfileResponse, SyncResponse } from '../src/types/api';
+import type { Gender } from '../src/pipeline/registry';
 import { requireUser, SESSION_COOKIE, sessionCookieOptions } from './auth';
 import { revokeToken } from './google';
 import { asyncHandler, type Deps } from './http';
-import { deleteUser, getTokens, getUser, hasTokens, setTimeZone } from './repo';
+import { deleteUser, getTokens, getUser, hasTokens, setGender, setTimeZone } from './repo';
 import { historyInfo, loadDataset, loadHistory, startSync, syncStatus } from './sync';
 
 /** The browser's API. Every route acts on the signed-in user only. */
@@ -38,6 +39,21 @@ export function apiRoutes(deps: Deps): Router {
       await deleteUser(deps.db, userId);
       res.clearCookie(SESSION_COOKIE, sessionCookieOptions(deps));
       res.json({ ok: true });
+    }),
+  );
+
+  /** What the person sets about themselves; for now their gender, which Google Health doesn't provide. */
+  router.put(
+    '/profile',
+    asyncHandler(async (req, res) => {
+      const gender = req.body?.gender ?? null;
+      if (gender !== null && !GENDERS.includes(gender)) {
+        res.status(400).json({ error: 'invalid_gender' });
+        return;
+      }
+      await setGender(deps.db, res.locals.userId, gender);
+      const body: ProfileResponse = { gender };
+      res.json(body);
     }),
   );
 
@@ -89,6 +105,8 @@ export function apiRoutes(deps: Deps): Router {
 
   return router;
 }
+
+const GENDERS: Gender[] = ['female', 'male', 'other'];
 
 function isTimeZone(value: string): boolean {
   try {

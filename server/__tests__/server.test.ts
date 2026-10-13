@@ -156,6 +156,8 @@ describe('authorization URL', () => {
     const scopes = url.searchParams.get('scope')!.split(' ');
     assert.ok(scopes.includes('openid'));
     assert.ok(scopes.some((s) => s.includes('googlehealth.sleep')));
+    // Age on the Body page comes from the Google Health profile, behind its own scope.
+    assert.ok(scopes.includes('https://www.googleapis.com/auth/googlehealth.profile.readonly'));
     assert.equal(url.searchParams.get('prompt'), null);
   });
 
