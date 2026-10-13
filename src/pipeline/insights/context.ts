@@ -1,6 +1,6 @@
 import type { CivilDate } from '../../lib/date';
 import type { DailyRecord, HealthDataset, SleepSession } from '../../types/health';
-import { mergeMonths, monthTotals, type HistoryDigest, type MonthTotals } from '../digest';
+import type { HistoryAnswers } from '../history';
 import type { IntradayDays } from '../labs';
 import type { ProfileFacts } from '../registry';
 import {
@@ -21,7 +21,8 @@ type ReadinessPart = Readiness['parts'][number];
 /** The day grid, and the profile when the dataset carries one. */
 export type InsightDataset = HealthDataset & {
   profile?: Pick<ProfileFacts, 'age' | 'heightCm'>;
-  digest?: HistoryDigest | null;
+  /** Answers to the history queries, from the stored days before the window. */
+  answers?: HistoryAnswers;
 };
 
 /**
@@ -41,10 +42,8 @@ export interface InsightContext {
   /** Years and centimetres, from the Google Health profile, when they're known. */
   age: number | null;
   heightCm: number | null;
-  /** The stored days before the window, digested; null without older history. */
-  digest: HistoryDigest | null;
-  /** Every month on record, the digest's and the window's merged, oldest first. */
-  months: MonthTotals[];
+  /** What the history queries found before the window: empty without older history, or before it has loaded. */
+  answers: HistoryAnswers;
   /** Personal sleep need in minutes, and as "7h 20m" (or "7h 00m", to read alongside a night's "5h 40m"). */
   need: number;
   needH: string;
@@ -96,8 +95,7 @@ export function buildContext(ds: InsightDataset, now: Date, extras?: InsightOpti
     intraday: extras?.intraday,
     age: ds.profile?.age ?? null,
     heightCm: ds.profile?.heightCm ?? null,
-    digest: ds.digest ?? null,
-    months: mergeMonths(ds.digest?.months ?? [], monthTotals(days)),
+    answers: ds.answers ?? {},
     need,
     needH: hm(need),
     stepsSeries,

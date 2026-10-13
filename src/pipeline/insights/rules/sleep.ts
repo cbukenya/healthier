@@ -10,13 +10,20 @@ import {
   sinceHistory, sinceNote, sleepMins, trailingDays,
 } from '../helpers';
 import {
-  WEEKDAYS, bestBedtime, lastMonthBest, sleepHrvAssociation, weekdayExtremes, workFreeNights, type BestBedtime,
+  WEEKDAYS, bestBedtime, lastMonthBest, monthsOf, sleepHrvAssociation, weekdayExtremes, workFreeNights, type BestBedtime,
 } from '../patterns';
+import type { HistoryQueries } from '../../history';
 import type { Finding } from '../types';
 
 type Add = (f: Finding) => void;
 
 const base = { domain: 'sleep' as const, page: 'sleep' as const };
+
+/** What Sleep asks of your older days: monthly sleep score and length. */
+export const sleepQueries = {
+  sleepScoreByMonth: { measure: 'sleepScore', group: 'month', aggregate: ['sum', 'count'], back: 'all' },
+  sleepMinutesByMonth: { measure: 'sleepMinutes', group: 'month', aggregate: ['sum', 'count'], back: 'all' },
+} satisfies HistoryQueries;
 
 /** Last night, the week's debt, timing and regularity, how you sleep, and the gaps in the record. */
 export function sleepRules(ctx: InsightContext, add: Add): void {
@@ -478,14 +485,14 @@ function hrvLink(ctx: InsightContext, add: Add): void {
 
 /** Last month, if its average sleep score was your best on record: news on the 1st and 2nd, then on the page. */
 function bestMonth(ctx: InsightContext, add: Add): void {
-  const best = lastMonthBest(ctx.months, ctx.today, (m) => m.sleepScore, 15, 'max');
+  const best = lastMonthBest(monthsOf(ctx.days, 'sleepScore', ctx.answers.sleepScoreByMonth), ctx.today, 15, 'max');
   if (!best) return;
-  const month = ctx.months.find((m) => m.month === best.month)!;
+  const month = monthsOf(ctx.days, 'sleepMinutes', ctx.answers.sleepMinutesByMonth).find((m) => m.month === best.month)!;
   add({
     ...base, id: 'sleep-best-month', kind: 'milestone', tone: 'good',
     importance: 63, topic: 'best-month-sleep', family: 'monthly-best', today: 'as-news', news: ctx.dom <= 2,
     title: 'Your best month of sleep',
-    text: `In ${monthName(best.month, ctx.today)} you slept ${hm(month.sleepMin.sum / month.sleepMin.n)} a night on average, and your average sleep score was ${Math.round(best.value)}. That's your best month of sleep ${sinceHistory(best.since, ctx.today)}.`,
+    text: `In ${monthName(best.month, ctx.today)} you slept ${hm(month.sum / month.n)} a night on average, and your average sleep score was ${Math.round(best.value)}. That's your best month of sleep ${sinceHistory(best.since, ctx.today)}.`,
   });
 }
 

@@ -2,7 +2,7 @@ import type { InsightDataset, InsightOptions } from './context';
 import { insightFeeds } from './engine';
 import type { Observation } from './types';
 
-export { evaluate, insightFeeds } from './engine';
+export { HISTORY_QUERIES, evaluate, insightFeeds } from './engine';
 export { settle } from './conflicts';
 export { todaySummary, weekSummary, type WeekSummary } from './summary';
 export { needLabel, STEP_GOAL } from './helpers';

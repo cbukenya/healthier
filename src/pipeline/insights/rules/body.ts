@@ -4,11 +4,17 @@ import { bodyComposition, coverage, latestPoint, series, stats, weightTrend } fr
 import type { InsightContext } from '../context';
 import { ENTRY_WINDOW, dayMonth, monthName, plural } from '../helpers';
 import { trendLine } from '../patterns';
+import type { HistoryQueries } from '../../history';
 import type { Finding } from '../types';
 
 type Add = (f: Finding) => void;
 
 const base = { domain: 'body' as const, page: 'body' as const };
+
+/** What Body asks of your older days: your first weigh-in on record. */
+export const bodyQueries = {
+  firstWeighIn: { measure: 'weightKg', aggregate: 'first', back: 'all' },
+} satisfies HistoryQueries;
 
 /** A trend fires from this slope, either way. */
 export const TREND_KG_PER_WEEK = 0.15;
@@ -230,14 +236,14 @@ function bmi(ctx: InsightContext, add: Add): void {
 }
 
 /**
- * Your latest weigh-in against your first on record, the digest's or the
- * window's: news on the 1st and 2nd of the month, then on the page. Silent under
+ * Your latest weigh-in against your first on record, before the window or in
+ * it: news on the 1st and 2nd of the month, then on the page. Silent under
  * 2 kg, where a single morning's swing could be most of it.
  */
 function sinceStart(ctx: InsightContext, add: Add): void {
   const { days, today } = ctx;
   const window = readings(days, (d) => d.weightKg);
-  const first = ctx.digest?.firstWeight ? { date: ctx.digest.firstWeight.date, value: ctx.digest.firstWeight.kg } : window[0];
+  const first = ctx.answers.firstWeighIn?.rows[0]?.first ?? window[0];
   const last = window[window.length - 1];
   if (!first || !last || daysBetween(first.date, last.date) < 60 || daysBetween(last.date, today) >= 30) return;
   const change = last.value - first.value;
