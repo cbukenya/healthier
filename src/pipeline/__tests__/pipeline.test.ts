@@ -1,12 +1,12 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { addDays, civilFromGH, civilFromInstant, isoWeekdayIndex, parseUtcOffsetSeconds, todayCivil } from '../../lib/date';
+import { addDays, civilFromGH, civilFromInstant, dateRange, formatCivilDay, isoWeekdayIndex, parseUtcOffsetSeconds, todayCivil } from '../../lib/date';
 import { int, num, nullIf, round } from '../coerce';
 import { splitWindow, MAX_ROLLUP_WINDOW_DAYS } from '../transport';
 import { syncHealthData } from '../sync';
 import { FIXTURE_CLOCK, buildFixturePayloads, createFixtureFetch } from '../fixtures';
-import { observations, recoveryTax, todaySummary } from '../insights';
+import { needLabel, observations, recoveryTax, todaySummary, weekSummary } from '../insights';
 import { scoreSleep } from '../sleep';
 import {
   compareToBaseline, coverage, findGaps, periodShift, rollingMean, series, stats, values,
@@ -112,6 +112,11 @@ describe('civil dates', () => {
 
   it('derives today from local getters, once, at the edge', () => {
     assert.equal(todayCivil(new Date(2026, 7, 19, 1, 39)), '2026-08-19');
+  });
+
+  it('writes the day under the tabs as weekday, month, day and year', () => {
+    assert.equal(formatCivilDay('2026-10-12'), 'Mon Oct 12 2026');
+    assert.equal(formatCivilDay('2026-08-05'), 'Wed Aug 5 2026');
   });
 });
 
@@ -1416,6 +1421,55 @@ describe('one today: freshness, partial days, the demo clock', () => {
     assert.equal(t.readings, 3);
     assert.equal(t.spanDays, 21);
     assert.ok(Math.abs(t.kgPerWeek + 1 / 3) < 0.01, `got ${t.kgPerWeek}`);
+  });
+});
+
+describe('this week', () => {
+  // Synthetic grids run 2026-07-01 to 2026-07-28, so the week is 22–28 Jul.
+  it('scores each of the last seven mornings on the data up to that day', () => {
+    const days = syntheticDays(28);
+    const w = weekSummary(days)!;
+    assert.deepEqual(w.battery.map((b) => b.date), dateRange('2026-07-22', '2026-07-28'));
+    assert.equal(w.battery[6].score, readiness(days).score);
+    assert.equal(w.battery[0].score, readiness(days.slice(0, 22)).score);
+  });
+
+  it('leaves a day with no row as a gap, never a zero', () => {
+    const w = weekSummary(syntheticDays(28).filter((d) => d.date !== '2026-07-25'))!;
+    assert.equal(w.battery.length, 7);
+    assert.equal(w.battery.find((b) => b.date === '2026-07-25')!.score, null);
+  });
+
+  it('averages steps over finished days, leaving out today’s count in progress', () => {
+    const days = syntheticDays(28, { steps: 15000 });
+    days[26].steps = 12000;
+    const w = weekSummary(days)!;
+    const done = days.slice(21, 27).map((d) => d.steps!);
+    assert.equal(w.steps!.days, 6);
+    assert.equal(w.steps!.avg, done.reduce((a, b) => a + b, 0) / 6);
+    assert.equal(w.steps!.atGoal, 1, 'today’s 15,000 waits until the day is done');
+  });
+
+  it('counts minutes the WHO’s way: Active Zone Minutes when the week has them, else moderate + 2 × vigorous', () => {
+    const days = syntheticDays(28);
+    for (const d of days.slice(-7)) d.activeMinutes = { light: 100, moderate: 10, vigorous: 5 };
+    assert.deepEqual(weekSummary(days)!.activeMinutes, { total: 140, unit: 'brisk' });
+    days[26].zoneMinutes = { fatBurn: 30, cardio: 10, peak: 5 };
+    assert.deepEqual(weekSummary(days)!.activeMinutes, { total: 60, unit: 'azm' });
+  });
+
+  it('averages sleep over the nights on record', () => {
+    const days = syntheticDays(28);
+    days[25].sleep = null;
+    const w = weekSummary(days)!;
+    const nights = days.slice(21).filter((d) => d.sleep).map((d) => d.sleep!.minutesAsleep);
+    assert.equal(w.sleep!.nights, 6);
+    assert.equal(w.sleep!.avgMin, nights.reduce((a, b) => a + b, 0) / 6);
+  });
+
+  it('labels a sleep need in whole minutes', () => {
+    assert.equal(needLabel(420), '7h');
+    assert.equal(needLabel(437.5), '7h 18m');
   });
 });
 

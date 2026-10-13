@@ -185,6 +185,12 @@ export function formatCivilLong(date: CivilDate): string {
   return `${weekdayShort(date)} ${formatCivil(date)}`;
 }
 
+/** "2026-10-12" → "Mon Oct 12 2026". */
+export function formatCivilDay(date: CivilDate): string {
+  const [y, m, d] = date.split('-').map(Number);
+  return `${weekdayShort(date)} ${MON[m - 1]} ${d} ${y}`;
+}
+
 /** Minutes past midnight → "01:57". Wraps past 24h so late bedtimes read correctly. */
 export function formatClock(minutesOfDay: number): string {
   const m = ((Math.round(minutesOfDay) % 1440) + 1440) % 1440;
