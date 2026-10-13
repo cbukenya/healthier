@@ -18,7 +18,7 @@ export interface InsightOptions {
 type ReadinessPart = Readiness['parts'][number];
 
 /** The day grid, and the profile when the dataset carries one. */
-export type InsightDataset = HealthDataset & { profile?: Pick<ProfileFacts, 'age'> };
+export type InsightDataset = HealthDataset & { profile?: Pick<ProfileFacts, 'age' | 'heightCm'> };
 
 /**
  * Everything the rules share, worked out once. "Today" is always the grid's
@@ -34,8 +34,9 @@ export interface InsightContext {
   /** Day of the month, for the calendar cards. */
   dom: number;
   intraday?: IntradayDays;
-  /** Years, from the Google Health profile, when it's known. */
+  /** Years and centimetres, from the Google Health profile, when they're known. */
   age: number | null;
+  heightCm: number | null;
   /** Personal sleep need in minutes, and as "7h 20m" (or "7h 00m", to read alongside a night's "5h 40m"). */
   need: number;
   needH: string;
@@ -86,6 +87,7 @@ export function buildContext(ds: InsightDataset, now: Date, extras?: InsightOpti
     dom: Number(today.slice(8, 10)),
     intraday: extras?.intraday,
     age: ds.profile?.age ?? null,
+    heightCm: ds.profile?.heightCm ?? null,
     need,
     needH: hm(need),
     stepsSeries,

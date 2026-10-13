@@ -434,8 +434,7 @@ function rem(ctx: InsightContext, add: Add): void {
     if (recent.length < 5 || usual.length < 10) return null;
     const st = stats(usual)!;
     // Below the usual range: the median less its robust spread, never under 10 minutes.
-    const mad = stats(usual.map((v) => Math.abs(v - st.median)))!.median;
-    const floor = st.median - Math.max(10, 1.4826 * mad);
+    const floor = st.median - Math.max(10, 1.4826 * st.mad);
     return { n: recent.filter((v) => v < floor).length, of: recent.length, now: stats(recent)!.median, typical: st.median };
   };
   const r = low(days);
