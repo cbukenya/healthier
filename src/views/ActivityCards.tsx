@@ -241,11 +241,12 @@ function GoalValue({ color, label, value, goal }: { color: string; label: string
   );
 }
 
-function Stat({ label, value, unit }: { label: string; value: string; unit?: string }) {
+/** A small figure under an uppercase label, for a card's row of stats. */
+export function Stat({ label, value, unit, tone }: { label: string; value: string; unit?: string; tone?: string }) {
   return (
     <div className="flex flex-col gap-0.5 min-w-0">
       <span className="text-[9.5px] font-semibold uppercase tracking-[0.14em] text-zinc-500">{label}</span>
-      <span className="text-[17px] leading-tight font-semibold text-zinc-50 tabular-nums">
+      <span className={`text-[17px] leading-tight font-semibold tabular-nums ${tone ?? 'text-zinc-50'}`}>
         {value}
         {unit && <span className="text-[11px] font-medium text-zinc-500"> {unit}</span>}
       </span>
