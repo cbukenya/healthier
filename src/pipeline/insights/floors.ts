@@ -105,7 +105,7 @@ const floors: Record<InsightPage, (ctx: InsightContext) => FloorCopy> = {
     ].filter((s): s is string => !!s);
     const steady = !ctx.illness && rhrNow?.band === 'typical' && hrvNow?.band === 'typical';
     return {
-      title: steady ? 'Everything looks steady' : 'Your latest readings',
+      title: 'Your latest readings',
       text: `${sentence(readings.join(' and '))}.${steady ? ' Both are inside your usual range.' : ''}`,
     };
   },
