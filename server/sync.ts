@@ -2,6 +2,7 @@ import { addDays, todayCivilIn } from '../src/lib/date';
 import {
   assembleDataset,
   assembleHistory,
+  digestBefore,
   backfillStream,
   DASHBOARD_WINDOW_DAYS,
   FULL_RESYNC_DAYS,
@@ -243,7 +244,20 @@ export async function loadDataset(
   );
   dataset.meta.fromCache = true;
   dataset.meta.cacheAgeMs = Date.now() - state.lastSyncAt.getTime();
+  dataset.digest = await historyDigest(deps, userId, from, to);
   return { dataset, syncedAt: state.lastSyncAt, history: await describeHistory(deps, userId, to, states) };
+}
+
+/**
+ * The stored days before the window, digested. Rebuilt from the rows on every
+ * read rather than stored, so it always ends the day before the window starts.
+ */
+async function historyDigest(deps: Deps, userId: string, from: string, to: string) {
+  const limit = historyStart(to, deps.config.historyDays, DASHBOARD_WINDOW_DAYS);
+  const oldest = await getOldestStreamDay(deps.db, userId);
+  const start = oldest && oldest > limit ? oldest : limit;
+  if (start >= from) return null;
+  return digestBefore(await getStreamDays(deps.db, userId, start, addDays(from, -1)), from);
 }
 
 /** How far back stored history reaches, and whether the backfill is done. */

@@ -1,5 +1,6 @@
 import { addDays, dateRange, type CivilDate } from '../lib/date';
 import type { DailyRecord, HealthDataset, SleepSession, SourceRef, StreamReport, StreamStatus } from '../types/health';
+import { buildDigest, type HistoryDigest } from './digest';
 import { fetchIntradayHeartRate, sampleCount, unpackIntraday, type IntradayDay } from './intraday';
 import { emptyRecord, normalize } from './normalize';
 import {
@@ -56,6 +57,8 @@ const MAX_LIST_PAGES = 40;
 
 export interface SyncResult extends HealthDataset {
   profile: ProfileFacts;
+  /** Monthly totals and records from the stored days before the window, when there are any. */
+  digest?: HistoryDigest | null;
 }
 
 /** A dataset as stored and sent: intraday kept column-wise until the browser unpacks it. */
@@ -442,6 +445,16 @@ export async function backfillStream(
   };
 }
 
+/**
+ * The digest of every stored day before `from`, the window's first day: what
+ * the insights compare the window against for "best month" and "biggest day".
+ */
+export function digestBefore(rows: ReadonlyMap<string, ReadonlyMap<CivilDate, StreamDay>>, from: CivilDate): HistoryDigest | null {
+  let oldest: CivilDate | null = null;
+  for (const days of rows.values()) for (const date of days.keys()) if (date < from && (!oldest || date < oldest)) oldest = date;
+  return oldest ? buildDigest(assembleHistory(rows, oldest, addDays(from, -1))) : null;
+}
+
 /** Daily records for a long span, without the per-minute detail only "last night" views need. */
 export function assembleHistory(
   rows: ReadonlyMap<string, ReadonlyMap<CivilDate, StreamDay>>,
@@ -614,7 +627,7 @@ export class MemoryStore implements StoredData {
   }
 
   assemble(from: CivilDate, to: CivilDate): PackedDataset {
-    return assembleDataset(this, from, to);
+    return { ...assembleDataset(this, from, to), digest: digestBefore(this.rows, from) };
   }
 }
 

@@ -16,6 +16,8 @@ import {
   personalSleepNeed, goalStreak, weightTrend, batteryTier, latestBody,
 } from '../derive';
 import { STREAMS } from '../registry';
+import { buildDigest, mergeMonths, monthTotals, type HistoryDigest, type MonthTotals } from '../digest';
+import { digestBefore } from '../incremental';
 import { emptyRecord } from '../normalize';
 import type { SyncResult } from '../sync';
 
@@ -1836,6 +1838,140 @@ describe('insight engine — Body in depth', () => {
     const card = insightFeeds({ days: bmi, profile: { heightCm: 180 } } as any, sep1).pages.body.find((o) => o.id === 'body-bmi');
     assert.equal(card?.text, 'Going by your weight trend and your height of 1.80 m, your BMI went from 25.6 to 25.0 over the last month.');
     assert.equal(insightFeeds({ days: bmi } as any, sep1).pages.body.find((o) => o.id === 'body-bmi'), undefined, 'no height, no BMI');
+  });
+});
+
+describe('history digest', () => {
+  it('keeps sums and counts per month, so a month split across the window merges exactly', () => {
+    const days = syntheticDays(62); // 1 July to 31 August
+    const whole = monthTotals(days);
+    const merged = mergeMonths(monthTotals(days.slice(0, 20)), monthTotals(days.slice(20)));
+    assert.deepEqual(merged, whole);
+    const july = whole.find((m) => m.month === '2026-07')!;
+    assert.equal(july.steps.n, 31);
+    assert.equal(july.steps.sum, days.filter((d) => d.date.startsWith('2026-07')).reduce((a, d) => a + d.steps!, 0));
+  });
+
+  it('records the biggest day, the best weeks and the first weigh-in', () => {
+    const days = syntheticDays(40);
+    days[12].steps = 21000;
+    for (let i = 20; i < 27; i++) days[i].restingHr = 55;
+    days[30].weightKg = 81.2;
+    days[35].weightKg = 80.9;
+    const digest = buildDigest(days)!;
+    assert.deepEqual(digest.stepDay, { date: days[12].date, steps: 21000 });
+    assert.equal(digest.restingHrWeek!.mean, 55);
+    assert.equal(digest.restingHrWeek!.end, days[26].date);
+    assert.deepEqual(digest.firstWeight, { date: days[30].date, kg: 81.2 });
+    assert.equal(buildDigest([]), null);
+  });
+
+  it('digests only the stored days before the window', () => {
+    const rows = new Map([['steps', new Map([
+      ['2026-05-01', { fields: { steps: 9000 }, present: ['steps'], sources: [], sourceByType: {} }],
+      ['2026-05-02', { fields: { steps: 11000 }, present: ['steps'], sources: [], sourceByType: {} }],
+      ['2026-07-01', { fields: { steps: 30000 }, present: ['steps'], sources: [], sourceByType: {} }],
+    ])]]);
+    const digest = digestBefore(rows as any, '2026-07-01')!;
+    assert.equal(digest.from, '2026-05-01');
+    assert.equal(digest.to, '2026-06-30');
+    assert.deepEqual(digest.stepDay, { date: '2026-05-02', steps: 11000 }, "the window's own record isn't in it");
+    assert.equal(digestBefore(rows as any, '2026-05-01'), null, 'nothing stored before the window');
+  });
+
+  it('has nothing to digest in demo mode, where the fixture is just the window', async () => {
+    assert.equal((await dataset()).digest, null);
+  });
+});
+
+describe('insight engine — all time and the week in review', () => {
+  const tally = (avg: number, n: number) => ({ sum: avg * n, n });
+  const month = (m: string, o: Partial<Record<'steps' | 'sleepMin' | 'sleepScore' | 'restingHr' | 'hrv', number>>): MonthTotals => ({
+    month: m,
+    steps: tally(o.steps ?? 0, o.steps ? 30 : 0),
+    sleepMin: tally(o.sleepMin ?? 0, o.sleepMin ? 30 : 0),
+    sleepScore: tally(o.sleepScore ?? 0, o.sleepScore ? 30 : 0),
+    restingHr: tally(o.restingHr ?? 0, o.restingHr ? 30 : 0),
+    hrv: tally(o.hrv ?? 0, o.hrv ? 30 : 0),
+  });
+  const digestOf = (months: MonthTotals[], extra: Partial<HistoryDigest> = {}): HistoryDigest => ({
+    from: '2026-03-01', to: '2026-06-30', months, stepDay: null, restingHrWeek: null, hrvWeek: null, firstWeight: null, ...extra,
+  });
+  const cardIn = (days: Days, id: string, now: Date, digest: HistoryDigest | null) => {
+    const f = insightFeeds({ days, digest } as any, now);
+    if (f.today.some((o) => o.id === id)) return { where: 'today', card: f.today.find((o) => o.id === id)! };
+    for (const [page, os] of Object.entries(f.pages)) {
+      const card = os.find((o) => o.id === id);
+      if (card) return { where: page, card };
+    }
+    return null;
+  };
+
+  it('names last month your most active on record: news on the 1st, on Activity after', () => {
+    // 63 days end on Tue 1 Sep; 67 on Sat 5 Sep.
+    const grid = (n: number) => {
+      const days = syntheticDays(n);
+      for (const d of days) if (d.date.startsWith('2026-08')) d.steps = 10000;
+      return days;
+    };
+    const history = digestOf([month('2026-05', { steps: 7000 }), month('2026-06', { steps: 7500 })]);
+    const sep1 = cardIn(grid(63), 'activity-best-month', new Date('2026-09-01T08:00:00'), history)!;
+    assert.equal(sep1.where, 'today');
+    assert.equal(sep1.card.text, "You averaged 10,000 steps a day in August. That's your most active month since May, as far back as your history goes.");
+    assert.equal(cardIn(grid(67), 'activity-best-month', new Date('2026-09-05T08:00:00'), history)?.where, 'activity');
+    assert.equal(cardIn(grid(63), 'activity-best-month', new Date('2026-09-01T08:00:00'), null), null, 'two months are no record');
+    const better = digestOf([month('2026-05', { steps: 12000 }), month('2026-06', { steps: 7500 })]);
+    assert.equal(cardIn(grid(63), 'activity-best-month', new Date('2026-09-01T08:00:00'), better), null);
+  });
+
+  it('finds your best month of sleep and your calmest month the same way', () => {
+    const days = syntheticDays(63);
+    for (const d of days) {
+      if (!d.date.startsWith('2026-07')) continue;
+      d.restingHr = 64;
+      d.sleep!.minutesAsleep = 400;
+    }
+    const history = digestOf([
+      month('2026-05', { sleepScore: 70, sleepMin: 420, restingHr: 65 }),
+      month('2026-06', { sleepScore: 72, sleepMin: 430, restingHr: 66 }),
+    ]);
+    const sleep = cardIn(days, 'sleep-best-month', new Date('2026-09-01T08:00:00'), history)!;
+    assert.match(sleep.card.text, /^In August you slept 7h 30m a night on average, and your average sleep score was \d+\. That's your best month of sleep since May, as far back as your history goes\.$/);
+    const calm = cardIn(days, 'vitals-calmest-month', new Date('2026-09-01T08:00:00'), history)!;
+    assert.match(calm.card.text, /^Your resting heart rate averaged 62\.\d bpm in August\. That's your lowest month since May, as far back as your history goes\.$/);
+  });
+
+  it('calls a step record all time only when it beats every stored day', () => {
+    const days = syntheticDays(28);
+    days[26].steps = 24000;
+    const at = new Date('2026-07-28T08:00:00');
+    const beaten = cardIn(days, 'step-record', at, digestOf([month('2026-03', { steps: 8000 })], { stepDay: { date: '2026-04-12', steps: 20000 } }))!;
+    assert.equal(beaten.card.title, 'Your biggest day yet');
+    assert.equal(beaten.card.text, "You walked 24,000 steps on 27 July. That's your biggest day since March, as far back as your history goes. Your previous best was 20,000.");
+    const unbeaten = cardIn(days, 'step-record', at, digestOf([month('2026-03', { steps: 8000 })], { stepDay: { date: '2026-04-12', steps: 30000 } }))!;
+    assert.equal(unbeaten.card.title, 'Your biggest day in two months');
+    assert.match(unbeaten.card.text, /That's your biggest day in the last two months\./);
+  });
+
+  it('measures weight since your first weigh-in on record', () => {
+    // 63 days end on Tue 1 Sep.
+    const days = syntheticDays(63);
+    [10, 25, 40, 55, 60].forEach((i, k) => { days[i].weightKg = 88 - k * 0.4; });
+    const since = cardIn(days, 'body-since-start', new Date('2026-09-01T08:00:00'), digestOf([], { firstWeight: { date: '2026-03-02', kg: 90 } }))!;
+    assert.equal(since.where, 'today');
+    assert.equal(since.card.text, "You've lost 3.6 kg since March, going from 90.0 kg to 86.4 kg.");
+  });
+
+  it('reviews last week on Monday mornings only, from measures with 5 days or more', () => {
+    const days = syntheticDays(27); // ends on Monday 27 July
+    for (const d of days) d.zoneMinutes = { fatBurn: 20, cardio: 5, peak: 0 };
+    const card = cardOf(days, 'weekly-review', new Date('2026-07-27T08:00:00'))!;
+    assert.equal(card.title, 'Your week in review');
+    assert.equal(card.text,
+      'Last week you averaged 8,000 steps a day, about the same as the week before. You earned 210 active zone minutes and slept 7h 30m a night on average. Your HRV was about usual.');
+    assert.equal(whereIs(days, 'weekly-review', new Date('2026-07-27T08:00:00')), 'today');
+    assert.equal(cardOf(days, 'weekly-review', new Date('2026-07-27T14:00:00')), undefined, 'a morning card');
+    assert.equal(cardOf(syntheticDays(28), 'weekly-review'), undefined, 'Tuesday');
   });
 });
 

@@ -1,10 +1,11 @@
-import { daysBetween } from '../../../lib/date';
+import { addDays, daysBetween, isoWeekdayIndex } from '../../../lib/date';
 import type { DailyRecord } from '../../../types/health';
 import { readiness, series, sleepRegularity, stats, values, type Readiness } from '../../derive';
 import { dipping, entropyShift, illnessDates, nocturnalTachycardia, sdbScreen } from '../../labs';
 import type { InsightContext } from '../context';
 import {
-  CHARGED, COAST_BELOW, ENTRY_WINDOW, beforeLatestMorning, dayMonth, entered, hm, hoursText, listOf, plural, sentence,
+  CHARGED, COAST_BELOW, ENTRY_WINDOW, beforeLatestMorning, briskMins, dayMonth, entered, fmtInt, hm, hoursText, listOf, plural,
+  sentence, zoneMins,
 } from '../helpers';
 import type { Finding } from '../types';
 
@@ -13,11 +14,12 @@ type ReadinessPart = Readiness['parts'][number];
 
 /**
  * Cards about the whole day rather than one page: the body battery, the
- * several-signals pattern, the monthly review and the Labs reminders. They
- * live on Today and nowhere else.
+ * several-signals pattern, the week and month in review and the Labs
+ * reminders. They live on Today and nowhere else.
  */
 export function todayRules(ctx: InsightContext, add: Add): void {
   battery(ctx, add);
+  weeklyReview(ctx, add);
   monthlyReview(ctx, add);
   labsReminders(ctx, add);
 }
@@ -116,6 +118,66 @@ function battery(ctx: InsightContext, add: Add): void {
       });
     }
   }
+}
+
+/**
+ * Monday mornings: last week, Monday to Sunday, against the week before. Only
+ * measures with 5 or more days of readings get a sentence, and the card needs
+ * two of them.
+ */
+function weeklyReview(ctx: InsightContext, add: Add): void {
+  const { days, today } = ctx;
+  if (isoWeekdayIndex(today) !== 0) return;
+  const monday = addDays(today, -7);
+  const week = days.filter((d) => d.date >= monday && d.date < today);
+  const before = days.filter((d) => d.date >= addDays(monday, -7) && d.date < monday);
+  const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
+  const sentences: string[] = [];
+  // The first sentence opens with "Last week"; the ones after it don't repeat it.
+  const lead = () => (sentences.length ? 'You' : 'Last week you');
+
+  const steps = values(series(week, (d) => d.steps));
+  const stepsBefore = values(series(before, (d) => d.steps));
+  if (steps.length >= 5) {
+    const avg = mean(steps);
+    const pct = stepsBefore.length >= 5 ? Math.round((avg / mean(stepsBefore) - 1) * 100) : null;
+    sentences.push(`${lead()} averaged ${fmtInt(avg)} steps a day${pct === null ? '' : Math.abs(pct) < 3 ? ', about the same as the week before' : `, ${Math.abs(pct)}% ${pct > 0 ? 'more' : 'fewer'} than the week before`}.`);
+  }
+
+  const azm = week.some((d) => d.zoneMinutes);
+  const moved = week.filter((d) => (azm ? d.zoneMinutes : d.activeMinutes));
+  const nights = week.filter((d) => d.sleep).map((d) => d.sleep!.minutesAsleep);
+  const parts: string[] = [];
+  if (moved.length >= 5) {
+    const total = Math.round(week.reduce((a, d) => a + (azm ? zoneMins(d) : briskMins(d)), 0));
+    parts.push(azm ? `earned ${total} active zone minutes` : `did ${total} minutes of brisk activity`);
+  }
+  if (nights.length >= 5) parts.push(`slept ${hm(mean(nights))} a night on average`);
+  if (parts.length) sentences.push(`${lead()} ${listOf(parts)}.`);
+
+  const tail: string[] = [];
+  const hrv = values(series(week, (d) => d.hrv));
+  const weeksBefore = days.filter((d) => d.date >= addDays(monday, -28) && d.date < monday);
+  const usual = stats(values(series(weeksBefore, (d) => d.hrv)));
+  if (hrv.length >= 5 && usual && usual.n >= 14) {
+    const pct = (mean(hrv) / usual.median - 1) * 100;
+    tail.push(`your HRV was ${Math.abs(pct) < 3 ? 'about usual' : `${Math.abs(pct) < 8 ? 'a little ' : ''}${pct > 0 ? 'above' : 'below'} usual`}`);
+  }
+  const kg = values(series(week, (d) => d.weightKg));
+  const kgBefore = values(series(before, (d) => d.weightKg));
+  if (kg.length >= 2 && kgBefore.length >= 2) {
+    const change = mean(kg) - mean(kgBefore);
+    if (Math.abs(change) >= 0.2) tail.push(`your weigh-ins averaged ${Math.abs(change).toFixed(1)} kg ${change < 0 ? 'lower' : 'higher'} than the week before`);
+  }
+  if (tail.length) sentences.push(`${sentence(listOf(tail))}.`);
+
+  if (sentences.length < 2) return;
+  add({
+    id: 'weekly-review', domain: 'data', page: 'today', kind: 'review', tone: 'neutral',
+    importance: 50, topic: 'weekly-review', family: 'review', today: 'while-true', news: true, daypart: ['morning'],
+    title: 'Your week in review',
+    text: sentences.join(' '),
+  });
 }
 
 /** The first two days of the month: the last 30 days against the 30 before, for metrics with real coverage. */
