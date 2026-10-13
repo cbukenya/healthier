@@ -906,9 +906,10 @@ describe('battery arithmetic', () => {
   it('uses one scale for the tag, the label and the legend', () => {
     assert.equal(batteryTier(80).tag, 'CHARGED');
     assert.equal(batteryTier(79).tag, 'BALANCED');
-    assert.equal(batteryTier(65).tag, 'BALANCED');
-    assert.equal(batteryTier(64).tag, 'LOW');
-    assert.equal(batteryTier(49).tag, 'DRAINED');
+    assert.equal(batteryTier(55).tag, 'BALANCED');
+    assert.equal(batteryTier(54).tag, 'LOW');
+    assert.equal(batteryTier(30).tag, 'LOW');
+    assert.equal(batteryTier(29).tag, 'DRAINED');
     assert.equal(readiness(syntheticDays(28)).label, batteryTier(readiness(syntheticDays(28)).score!).label);
   });
 });
