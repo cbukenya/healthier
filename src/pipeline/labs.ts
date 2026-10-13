@@ -24,6 +24,81 @@ export function calculateOffSignals(days: DailyRecord[], index: number): number 
   return offSignals;
 }
 
+export type StrainKey = 'restingHr' | 'breathing' | 'hrv' | 'skinTemp';
+
+export interface StrainSignal {
+  key: StrainKey;
+  /** 'none' when the latest day has no reading, or too little history to judge it. */
+  status: 'none' | 'in' | 'off';
+}
+
+export interface StrainToday {
+  status: 'collecting' | 'waiting' | 'ready';
+  signals: StrainSignal[];
+  /** How many of the four have a reading on the latest day. */
+  arrived: number;
+  off: number;
+  level: 'baseline' | 'elevated' | 'high' | null;
+}
+
+const STRAIN_INPUTS: { key: StrainKey; get: (d: DailyRecord) => number | null }[] = [
+  { key: 'restingHr', get: (d) => d.restingHr },
+  { key: 'breathing', get: (d) => d.respiratoryRate },
+  { key: 'hrv', get: (d) => d.hrvDeepSleep ?? d.hrv },
+  { key: 'skinTemp', get: (d) => d.skinTempDeviationC },
+];
+
+/**
+ * The System Strain Radar's four signals on the latest day, by the same tests
+ * as calculateOffSignals, except that each is judged only on a reading from
+ * that day: one that hasn't arrived yet shows as no data, never as yesterday's.
+ * It compares once two of them have a usual range (8 readings in the four
+ * weeks before) and a reading today.
+ */
+export function strainToday(days: DailyRecord[]): StrainToday {
+  const latest = days[days.length - 1];
+  const prior = days.slice(-29, -1);
+  const ranged = (get: (d: DailyRecord) => number | null) => prior.filter((d) => get(d) !== null).length >= 8;
+  const today = (get: (d: DailyRecord) => number | null) => !!latest && get(latest) !== null;
+  const logHrv = (d: DailyRecord) => {
+    const v = d.hrvDeepSleep ?? d.hrv;
+    return v && v > 0 ? Math.log(v) : null;
+  };
+
+  const judge = (key: StrainKey): StrainSignal['status'] => {
+    switch (key) {
+      case 'restingHr': {
+        const c = compareToBaseline(series(days, (d) => d.restingHr), 28, 8);
+        return c.z === null || c.n < 8 ? 'none' : c.z >= 1.5 ? 'off' : 'in';
+      }
+      case 'breathing': {
+        const c = compareToBaseline(series(days, (d) => d.respiratoryRate));
+        return c.z === null || c.n < 8 ? 'none' : c.z >= 1.5 ? 'off' : 'in';
+      }
+      case 'hrv': {
+        if (logHrv(latest) === null) return 'none';
+        const c = compareToBaseline(series(days, logHrv), 28, 8);
+        return c.z === null || c.n < 8 ? 'none' : c.z <= -1.5 ? 'off' : 'in';
+      }
+      case 'skinTemp':
+        return latest.skinTempDeviationC! >= 0.5 ? 'off' : 'in';
+    }
+  };
+
+  const signals = STRAIN_INPUTS.map(({ key, get }): StrainSignal => ({ key, status: today(get) ? judge(key) : 'none' }));
+  const usable = STRAIN_INPUTS.filter(({ get }) => today(get) && ranged(get)).length;
+  const rangesReady = days.length > 28 && STRAIN_INPUTS.filter(({ get }) => ranged(get)).length >= 2;
+  const status = !rangesReady ? 'collecting' : usable < 2 ? 'waiting' : 'ready';
+  const off = signals.filter((s) => s.status === 'off').length;
+  return {
+    status,
+    signals,
+    arrived: STRAIN_INPUTS.filter(({ get }) => today(get)).length,
+    off,
+    level: status !== 'ready' ? null : off >= 3 ? 'high' : off === 2 ? 'elevated' : 'baseline',
+  };
+}
+
 export function illnessDates(days: DailyRecord[]): Set<string> {
   const dates = new Set<string>();
   for (let i = 28; i < days.length; i++) {
@@ -99,12 +174,41 @@ export function dipping(days: DailyRecord[], intraday: IntradayDays, sick: Set<s
  * shift is three or more consecutive recorded nights outside it on the same
  * side, up to the latest; scattered single nights are ordinary noise.
  */
-export function entropyShift(days: DailyRecord[]) {
+export interface EntropyNight {
+  date: string;
+  value: number;
+  /** 1 above the usual range, −1 below it, 0 inside (or not judged yet). */
+  side: number;
+  shifted: boolean;
+}
+
+export interface EntropyShift {
+  status: 'collecting' | 'monitor' | 'shift';
+  steadyNights: number;
+  /** The last two weeks' recorded nights, judged once there is a usual range. */
+  recent: EntropyNight[];
+  shiftNights: number;
+  baselineMedian: number | null;
+  baselineSd: number | null;
+  /** The usual range itself: median ± twice the spread. */
+  usualLow: number | null;
+  usualHigh: number | null;
+  lastNight: number | null;
+}
+
+const round2 = (v: number) => Math.round(v * 100) / 100;
+
+export function entropyShift(days: DailyRecord[]): EntropyShift {
   const entropy = (d: DailyRecord) => d.hrvEntropy ?? null;
   const recentDays = days.slice(-14).filter((d) => entropy(d) !== null);
   const baseline = values(series(days.slice(-56, -14), entropy));
   if (baseline.length < 10 || recentDays.length < 7) {
-    return { status: 'collecting', steadyNights: 0, recent: [], shiftNights: 0, baselineMedian: null, baselineSd: null, lastNight: null };
+    // The nights so far, unjudged: there is no usual range to hold them against yet.
+    const recent = recentDays.map((d) => ({ date: d.date, value: d.hrvEntropy!, side: 0, shifted: false }));
+    return {
+      status: 'collecting', steadyNights: 0, recent, shiftNights: 0, baselineMedian: null, baselineSd: null,
+      usualLow: null, usualHigh: null, lastNight: recent.length ? round2(recent[recent.length - 1].value) : null,
+    };
   }
 
   const st = stats(baseline)!;
@@ -124,7 +228,6 @@ export function entropyShift(days: DailyRecord[]) {
     shiftNights++;
   }
 
-  const round2 = (v: number) => Math.round(v * 100) / 100;
   return {
     status: shiftNights >= 3 ? 'shift' : 'monitor',
     steadyNights: recent.filter((r) => !r.shifted).length,
@@ -132,8 +235,22 @@ export function entropyShift(days: DailyRecord[]) {
     shiftNights,
     baselineMedian: round2(st.median),
     baselineSd: round2(spread),
+    usualLow: round2(st.median - 2 * spread),
+    usualHigh: round2(st.median + 2 * spread),
     lastNight: round2(recent[recent.length - 1].value),
   };
+}
+
+/** One session's minute-level heart rate, in minutes since bedtime, with its stretches above 100 bpm. */
+export interface NightTrace {
+  /** The day the session is filed under. */
+  date: string;
+  isNap: boolean;
+  bedtimeMin: number;
+  wakeMin: number;
+  durationMin: number;
+  points: { min: number; bpm: number }[];
+  stretches: { from: number; to: number }[];
 }
 
 export interface TachycardiaEvent {
@@ -164,10 +281,16 @@ export function nocturnalTachycardia(days: DailyRecord[], intraday: IntradayDays
   nightsScanned: number;
   events: TachycardiaEvent[];
   highestSustained: { bpm: number; minutes: number } | null;
+  /** One scanned session to draw: the latest with a stretch, else the latest night. */
+  trace: NightTrace | null;
 } {
   const MAX_GAP_MS = 2 * 60_000;
   const events: TachycardiaEvent[] = [];
   const scannedDates = new Set<string>();
+  type Scanned = { dayDate: string; session: SleepSession; isNap: boolean; startMs: number; endMs: number; samples: { s: IntradaySample; t: number }[]; stretches: { from: number; to: number }[] };
+  let latestWithStretch: Scanned | null = null;
+  let latestNight: Scanned | null = null;
+  let latestAny: Scanned | null = null;
 
   const validSamples = (date: string): IntradaySample[] =>
     (intraday[date] ?? []).filter((s) => s && typeof s.value === 'number' && !isNaN(s.value));
@@ -201,6 +324,7 @@ export function nocturnalTachycardia(days: DailyRecord[], intraday: IntradayDays
     };
     const windowTime = `${formatClock(session.bedtimeMin)} – ${formatClock(session.wakeMin)}`;
     const sleepWindow = `${isNap ? 'Nap' : 'Night sleep'} (${windowTime})`;
+    const stretches: { from: number; to: number }[] = [];
 
     let run: { s: IntradaySample; t: number }[] = [];
     const close = () => {
@@ -209,6 +333,7 @@ export function nocturnalTachycardia(days: DailyRecord[], intraday: IntradayDays
         const last = run[run.length - 1];
         const peak = run.reduce((a, b) => (b.s.value > a.s.value ? b : a));
         const stage = stageAt(peak.t);
+        stretches.push({ from: (first.t - startMs) / 60_000, to: (last.t - startMs) / 60_000 });
         events.push({
           date: first.s.date || dayDate,
           startMin: first.s.minutesOfDay,
@@ -231,16 +356,42 @@ export function nocturnalTachycardia(days: DailyRecord[], intraday: IntradayDays
       if (!awake && item.s.value > 100) run.push(item);
     }
     close();
+
+    // Sessions run in date order, so the last one seen of each kind is the latest.
+    const scanned: Scanned = { dayDate, session, isNap, startMs, endMs, samples, stretches };
+    latestAny = scanned;
+    if (!isNap) latestNight = scanned;
+    if (stretches.length) latestWithStretch = scanned;
   }
 
   const highest = events.length ? events.reduce((a, b) => (a.peakBpm > b.peakBpm ? a : b)) : null;
   const nightsScanned = scannedDates.size;
+  const drawn: Scanned | null = latestWithStretch ?? latestNight ?? latestAny;
+  const trace: NightTrace | null = drawn && {
+    date: drawn.dayDate,
+    isNap: drawn.isNap,
+    bedtimeMin: drawn.session.bedtimeMin,
+    wakeMin: drawn.session.wakeMin,
+    durationMin: (drawn.endMs - drawn.startMs) / 60_000,
+    points: drawn.samples.map(({ s, t }) => ({ min: (t - drawn.startMs) / 60_000, bpm: s.value })),
+    stretches: drawn.stretches,
+  };
   return {
+    trace,
     status: nightsScanned > 0 && events.length > 0 ? 'events' : nightsScanned > 0 ? 'monitor' : 'collecting',
     nightsScanned,
     events,
     highestSustained: highest ? { bpm: highest.peakBpm, minutes: highest.durationMin } : null,
   };
+}
+
+export interface SdbNight {
+  date: string;
+  /** Oxygen, or breathing rate on a recorded night: something to judge. */
+  measured: boolean;
+  oxygen: boolean;
+  breathing: boolean;
+  awake: boolean;
 }
 
 /**
@@ -264,17 +415,21 @@ export function sdbScreen(days: DailyRecord[]) {
   const rr = stats(values(series(before, (d) => d.respiratoryRate)));
   const awake = stats(values(series(before, (d) => d.sleep?.minutesAwake ?? null)));
 
-  const flags: { id: string; label: string; fired: true; detail: string }[] = [];
-  if (enough) {
-    for (const d of tested) {
-      const off = [
-        spo2 !== null && d.spo2 !== null && d.spo2.avg < spo2.median - 1.5,
-        rr !== null && d.respiratoryRate !== null && d.respiratoryRate > rr.median + 1,
-        awake !== null && d.sleep !== null && d.sleep.minutesAwake > awake.median + Math.max(2 * 1.4826 * awake.mad, 20),
-      ].filter(Boolean).length;
-      if (off >= 2) flags.push({ id: d.date, label: formatCivil(d.date), fired: true, detail: `${off} signals off` });
-    }
-  }
+  // Each of the last 14 nights, signal by signal. Nothing counts as off until there is a usual range.
+  const nights: SdbNight[] = days.slice(-14).map((d) => {
+    const judged = enough && measurable(d);
+    return {
+      date: d.date,
+      measured: measurable(d),
+      oxygen: judged && spo2 !== null && d.spo2 !== null && d.spo2.avg < spo2.median - 1.5,
+      breathing: judged && rr !== null && d.respiratoryRate !== null && d.respiratoryRate > rr.median + 1,
+      awake: judged && awake !== null && d.sleep !== null && d.sleep.minutesAwake > awake.median + Math.max(2 * 1.4826 * awake.mad, 20),
+    };
+  });
+  const flags = nights
+    .map((n) => ({ n, off: Number(n.oxygen) + Number(n.breathing) + Number(n.awake) }))
+    .filter(({ off }) => off >= 2)
+    .map(({ n, off }) => ({ id: n.date, label: formatCivil(n.date), fired: true as const, detail: `${off} signals off` }));
 
   // Arousals per hour on usual nights, for context.
   const arousals = before
@@ -285,6 +440,12 @@ export function sdbScreen(days: DailyRecord[]) {
     status: !enough ? 'collecting' : flags.length >= 3 ? 'pattern' : 'monitor',
     nightsInWindow: before.length + tested.length,
     nightsWanted: BEFORE_WANTED + TESTED_WANTED,
+    /** Nights in the four weeks that set the usual range, and in the two weeks judged against it. */
+    beforeNights: before.length,
+    beforeWanted: BEFORE_WANTED,
+    testedNights: tested.length,
+    testedWanted: TESTED_WANTED,
+    nights,
     firedCount: flags.length,
     stats: {
       arousalsPerHourTypical: arousals.length ? Math.round((arousals.reduce((a, b) => a + b, 0) / arousals.length) * 10) / 10 : null,
