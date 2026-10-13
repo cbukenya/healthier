@@ -1,5 +1,5 @@
 import React from 'react';
-import { formatCivil, weekdayLetter, weekdayShort, type CivilDate } from '../lib/date';
+import { formatCivilRange, weekdayLetter, weekdayShort } from '../lib/date';
 import { batteryTier } from '../pipeline/derive';
 import { needLabel, type WeekSummary } from '../pipeline/insights';
 import { DOMAIN, Meter, fmtDuration } from '../ui/primitives';
@@ -10,10 +10,6 @@ const WHO_WEEK = 150;
 const STEP_GOAL = 10000;
 /** Tallest bar, at a battery of 100. */
 const BAR_MAX_PX = 76;
-
-/** "12–18 Aug", or "29 Jul – 4 Aug" across a month. */
-const span = (from: CivilDate, to: CivilDate) =>
-  from.slice(0, 7) === to.slice(0, 7) ? `${Number(from.slice(8))}–${formatCivil(to)}` : `${formatCivil(from)} – ${formatCivil(to)}`;
 
 /** A gap as "48 min" or "1h 12m". */
 const gap = (mins: number) => (Math.round(mins) < 60 ? `${Math.round(mins)} min` : fmtDuration(mins));
@@ -52,7 +48,7 @@ export function ThisWeek({ week, needMin, className = '' }: { week: WeekSummary;
     <section aria-label="This week" className={`bg-[#0c0c0e] border border-[#1e1e22] rounded-[20px] px-4 pt-[18px] pb-4 md:px-5 md:pt-5 ${className}`}>
       <div className="flex items-baseline justify-between gap-2">
         <h2 className="text-[16px] font-semibold text-zinc-50">This week</h2>
-        <span className="text-[12px] text-zinc-500">{span(first, today)}</span>
+        <span className="text-[12px] text-zinc-500">{formatCivilRange(first, today)}</span>
       </div>
 
       <div className="mt-3.5 text-[10.5px] font-semibold tracking-[0.2em] uppercase text-[#6b6f78]">Body battery</div>

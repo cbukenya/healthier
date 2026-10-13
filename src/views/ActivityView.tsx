@@ -1,23 +1,20 @@
 import React, { useMemo, useState } from 'react';
-import { formatCivil } from '../lib/date';
+import { formatCivilLong } from '../lib/date';
 import {
-  byWeekday, compareToBaseline, completedDays, goal, goalStreak, loadRatio, periodShift, series,
-  stats, values, windowShift,
+  byWeekday, completedDays, loadRatio, periodShift, series, stats, values, windowShift, type Point,
 } from '../pipeline/derive';
 import { BarSeries, StackedBars, TrendChart, WeekdayProfile } from '../charts';
-import {
-  BandPill, Card, CardHead, DOMAIN, Delta, EmptyState, Label, Meter, Row, Segmented, Value,
-  fmtNum,
-  CardSummary,
-} from '../ui/primitives';
+import { Card, CardHead, DOMAIN, Delta, EmptyState, Row, fmtNum, CardSummary } from '../ui/primitives';
 import type { SyncResult } from '../pipeline/sync';
-import { groupMean, groupSeries } from '../pipeline/aggregate';
+import type { DailyRecord } from '../types/health';
+import { groupMean, groupSeries, wholeWeeks } from '../pipeline/aggregate';
 import { emptyRecord } from '../pipeline/normalize';
-import { SpanSelector, useSpan } from '../ui/span';
+import { SpanSelector, spanName, useSpan } from '../ui/span';
 import { ChartChips } from '../ui/ChartChips';
 import { useMediaQuery } from '../hooks/useMediaQuery';
+import { LastSevenDays, STEP_GOAL, TodaySoFar, WeeklyTotals, briskOf, type WeekTotal } from './ActivityCards';
 
-type ActivityChart = 'steps' | 'energy' | 'intensity' | 'distance' | 'weekly';
+type ActivityChart = 'steps' | 'energy' | 'intensity' | 'distance' | 'weekdays' | 'weekly';
 
 export function ActivityView({ data }: { data: SyncResult }) {
   const days = data.days;
@@ -28,25 +25,15 @@ export function ActivityView({ data }: { data: SyncResult }) {
   const [chart, setChart] = useState<ActivityChart>('steps');
 
   const today = days.at(-1)?.date ?? null;
-  const mvpaOf = (d: SyncResult['days'][number]) =>
-    d.activeMinutes ? d.activeMinutes.moderate + d.activeMinutes.vigorous : null;
-  const stepsAll = series(days, (d) => d.steps);
   const stepsWin = series(window, (d) => d.steps);
   const distWin = series(window, (d) => d.distanceKm);
   const kcalWin = series(window, (d) => d.activeKcal);
-  const mvpaAll = series(days, mvpaOf);
   // Today is still in progress: averages, the ramp and week-on-week read finished days only.
   const done = completedDays(days);
   const stepsDone = series(done, (d) => d.steps);
-  const mvpaDone = series(done, mvpaOf);
-
-  const stepsCmp = compareToBaseline(stepsAll);
-  const mvpaCmp = compareToBaseline(mvpaAll);
-  const load = loadRatio(stepsDone);
-  const stepStats = stats(values(stepsDone));
-  const streak = goalStreak(stepsAll, (v) => v >= 10000);
-  const shift = periodShift(stepsDone, 7);
-  const recorded = values(stepsAll).length;
+  const spanDone = completedDays(window);
+  const stepsSpanDone = series(spanDone, (d) => d.steps);
+  const recorded = values(series(days, (d) => d.steps)).length;
 
   // Grouped spans (a hook, so it must run before the early return below): average minutes per recorded day, per intensity.
   const mixDays = useMemo(() => {
@@ -74,8 +61,14 @@ export function ActivityView({ data }: { data: SyncResult }) {
     );
   }
 
-  // Weekly totals, Monday-anchored, only for weeks that are fully covered.
-  const weeks = groupWeeks(days);
+  // Weekly totals: the span's finished Monday-to-Sunday weeks, cut ones left out, newest first.
+  const weeks: WeekTotal[] = wholeWeeks(spanDone).flatMap((w) => {
+    const steps = values(series(w.days, (d) => d.steps));
+    return steps.length >= 4 ? [{ start: w.date, end: w.days[6].date, total: steps.reduce((x, y) => x + y, 0), days: steps.length }] : [];
+  }).reverse();
+  // The day card shows today once it has steps, else the latest day that does.
+  const latestDay = [...days].reverse().find((d) => d.steps !== null)!;
+  const lastWeek = done.slice(-7);
 
   const latestMixRow = [...window].reverse().find(d => d.activeMinutes !== null);
 
@@ -148,30 +141,51 @@ export function ActivityView({ data }: { data: SyncResult }) {
       </div>
     </Card>
   );
-  const weeklyCard = weeks.length > 1 && (
+  const weeklyCard = weeks.length > 0 && <WeeklyTotals weeks={weeks} />;
+  // The span in numbers: totals count today so far; the typical and best days are finished ones.
+  const spanSteps = values(stepsSpanDone);
+  const best = spanDone.reduce<DailyRecord | null>((a, d) => (d.steps !== null && (!a || d.steps > (a.steps ?? 0)) ? d : a), null);
+  const briskPerDay = stats(values(series(spanDone, briskOf)));
+  const total = (s: Point[]) => stats(values(s))?.sum;
+  const summaryCard = (
     <Card>
-      <CardHead
-        domain="movement"
-        title="Weekly totals"
-        hint="Only weeks with at least four recorded days are shown, so a partial week can't look like a collapse."
-        right={<CardSummary vals={weeks.map(w => w.total).reverse()} color={DOMAIN.movement.hex} format={(v) => fmtNum(v, 0)} />}
-      />
-      <div className="px-5 pb-5 space-y-2">
-        {weeks.map((w) => (
-          <div key={w.start} className="flex items-center gap-3">
-            <span className="w-[92px] shrink-0 text-[11px] text-zinc-500">{formatCivil(w.start)}</span>
-            <div className="flex-1">
-              <Meter pct={(w.total / 70000) * 100} color={DOMAIN.movement.hex} />
-            </div>
-            <span className="w-[64px] shrink-0 text-right text-[11.5px] text-zinc-200 tabular-nums">
-              {fmtNum(w.total, 0)}
-            </span>
-            <span className="w-[54px] shrink-0 text-right text-[10px] text-zinc-600">
-              {w.days}/7 days
-            </span>
-          </div>
-        ))}
+      <CardHead domain="movement" title={`${spanName(spanState)} summary`} />
+      <div className="px-5 pb-4 md:pb-5">
+        <Row dense={!wide} label="Typical day">{fmtNum(stats(spanSteps)?.median, 0)} steps</Row>
+        {best && (
+          <Row dense={!wide} label="Best day">
+            {fmtNum(best.steps, 0)}
+            <span className="text-zinc-500"> · {formatCivilLong(best.date)}</span>
+          </Row>
+        )}
+        <Row dense={!wide} label="Days over 10k">{values(stepsWin).filter((v) => v >= STEP_GOAL).length}</Row>
+        <Row dense={!wide} label="Distance">{fmtNum(total(distWin), 1)} km</Row>
+        <Row dense={!wide} label="Active energy">{fmtNum(total(kcalWin), 0)} kcal</Row>
+        {briskPerDay && (
+          <Row dense={!wide} label="Brisk minutes">
+            {fmtNum(briskPerDay.mean * 7, 0)} a week
+            <span className="text-zinc-500"> · target 150</span>
+          </Row>
+        )}
+        {spanSteps.length >= 14 && (
+          <Row dense={!wide} label="First week to last">
+            <Delta value={windowShift(stepsSpanDone, 7).delta} goodWhen="up" digits={0} suffix="steps a day" />
+          </Row>
+        )}
       </div>
+    </Card>
+  );
+  const weekdayCard = (
+    <Card className="flex flex-col">
+      <CardHead domain="movement" title="Which days you move" hint="Average steps on each day of the week." />
+      {/* Wider screens stretch the chart to the summary beside it; a phone shows it alone, at a fixed height. */}
+      {wide ? (
+        <div className="flex-1 flex flex-col min-h-[170px]">
+          <WeekdayProfile data={byWeekday(stepsSpanDone)} color={DOMAIN.movement.hex} className="flex-1" />
+        </div>
+      ) : (
+        <WeekdayProfile data={byWeekday(stepsSpanDone)} color={DOMAIN.movement.hex} className="h-[180px]" />
+      )}
     </Card>
   );
   const charts: { key: ActivityChart; label: string; card: React.ReactNode }[] = [
@@ -179,112 +193,18 @@ export function ActivityView({ data }: { data: SyncResult }) {
     { key: 'energy', label: 'Energy', card: energyCard },
     { key: 'intensity', label: 'Intensity', card: intensityCard },
     { key: 'distance', label: 'Distance', card: distanceCard },
+    { key: 'weekdays', label: 'Weekdays', card: weekdayCard },
     ...(weeklyCard ? [{ key: 'weekly' as const, label: 'Weekly totals', card: weeklyCard }] : []),
   ];
   const shownChart = charts.find((c) => c.key === chart) ?? charts[0];
 
   return (
     <div className="space-y-3">
-      {/* headline row */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <StatCard
-          label="Steps, latest day"
-          value={stepsCmp.value}
-          unit="steps"
-          cmp={stepsCmp}
-          today={today}
-          meter={goal(stepsCmp.value, 10000)}
-          color={DOMAIN.movement.hex}
-        />
-        <StatCard
-          label="Brisk minutes, latest"
-          value={mvpaCmp.value}
-          unit="min"
-          cmp={mvpaCmp}
-          today={today}
-          meter={goal(mvpaCmp.value, 30)}
-          color={DOMAIN.movement.hex}
-          footnote="moderate + vigorous"
-        />
-        <Card>
-          <div className="px-4 py-4">
-            <Label>Week on week</Label>
-            <div className="mt-2">
-              <Value value={shift.current} size="lg" unit="avg steps" digits={0} />
-            </div>
-            <div className="mt-2">
-              <Delta value={shift.delta} goodWhen="up" digits={0} suffix="vs previous 7 days" />
-            </div>
-            <p className="text-[10px] text-zinc-600 mt-2">
-              {streak > 0 ? `${streak}-day streak over 10,000` : 'No current 10k streak'}
-            </p>
-          </div>
-        </Card>
-        <Card>
-          <div className="px-4 py-4">
-            <Label>Ramp rate</Label>
-            <div className="mt-2">
-              <Value value={load.ratio} size="lg" unit="×" digits={2} />
-            </div>
-            <p className="text-[10px] text-zinc-500 mt-2 leading-relaxed">
-              This week's volume against the three weeks before it — separate windows, so
-              the comparison isn't diluted by itself.{' '}
-              {load.ratio === null
-                ? ''
-                : load.ratio > 1.5
-                  ? 'A fast ramp. Worth noticing, though the popular injury-risk reading of this ratio is contested.'
-                  : load.ratio < 0.8
-                    ? 'Easing off.'
-                    : 'Steady.'}
-            </p>
-          </div>
-        </Card>
-      </div>
-
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-        <Card>
-          <CardHead title="Activity summary" hint={`${recorded} recorded days of ${days.length}.`} />
-          <div className="px-5 pb-5">
-            <Row label="Typical day (median)">{fmtNum(stepStats?.median, 0)} steps</Row>
-            <Row label="Best day">
-              {fmtNum(stepStats?.max, 0)}
-              {(() => {
-                const best = done.reduce<null | typeof days[number]>(
-                  (a, d) => (d.steps !== null && (!a || d.steps > (a.steps ?? 0)) ? d : a), null);
-                return best ? <span className="text-zinc-600"> · {formatCivil(best.date)}</span> : null;
-              })()}
-            </Row>
-            <Row label="Days over 10k">
-              {values(stepsAll).filter((v) => v >= 10000).length} of {recorded}
-            </Row>
-            <Row label="Total distance">
-              {fmtNum(stats(values(series(days, (d) => d.distanceKm)))?.sum, 1)} km
-            </Row>
-            <Row label="Total active energy">
-              {fmtNum(stats(values(series(days, (d) => d.activeKcal)))?.sum, 0)} kcal
-            </Row>
-            <Row label="Brisk minutes / week">
-              {(() => {
-                const m = stats(values(mvpaDone));
-                return m ? `${Math.round(m.mean * 7)} (target 150)` : '—';
-              })()}
-            </Row>
-            <Row label="Across the window">
-              <Delta value={windowShift(stepsDone, 7).delta} goodWhen="up" digits={0} suffix="steps/day" />
-            </Row>
-          </div>
-        </Card>
-        <Card className="flex flex-col">
-          <CardHead
-            domain="movement"
-            title="Which days you move"
-            hint={`Average steps per weekday across ${values(stepsDone).length} finished days.`}
-          />
-          {/* The chart takes the card's height, which on desktop matches the summary beside it. */}
-          <div className="flex-1 flex flex-col min-h-[170px]">
-            <WeekdayProfile data={byWeekday(stepsDone)} color={DOMAIN.movement.hex} className="flex-1" />
-          </div>
-        </Card>
+        <TodaySoFar day={latestDay} isToday={latestDay.date === today} wide={wide} />
+        {lastWeek.some((d) => d.steps !== null) && (
+          <LastSevenDays days={lastWeek} shift={periodShift(stepsDone, 7)} ratio={loadRatio(stepsDone).ratio} wide={wide} />
+        )}
       </div>
 
       <div className="flex items-center justify-between px-1">
@@ -296,6 +216,10 @@ export function ActivityView({ data }: { data: SyncResult }) {
 
       {wide ? (
         <>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+            {summaryCard}
+            {weekdayCard}
+          </div>
           {stepsCard}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
             {energyCard}
@@ -308,64 +232,11 @@ export function ActivityView({ data }: { data: SyncResult }) {
         </>
       ) : (
         <>
+          {summaryCard}
           <ChartChips label="Chart" options={charts} value={shownChart.key} onChange={setChart} />
           {shownChart.card}
         </>
       )}
     </div>
   );
-}
-
-function StatCard({
-  label, value, unit, cmp, today, meter, color, footnote,
-}: {
-  label: string;
-  value: number | null;
-  unit: string;
-  cmp: ReturnType<typeof compareToBaseline>;
-  /** The window's last day: today, still in progress. */
-  today: string | null;
-  meter?: ReturnType<typeof goal>;
-  color: string;
-  footnote?: string;
-}) {
-  const isToday = cmp.date !== undefined && cmp.date === today;
-  return (
-    <Card>
-      <div className="px-4 py-4">
-        <Label>{label} <span className="text-[9px] font-normal lowercase tracking-normal">({isToday ? 'today' : 'latest'})</span></Label>
-        <div className="mt-2"><Value value={value} size="lg" unit={unit} /></div>
-        <div className="mt-2"><BandPill c={cmp} partial={isToday} /></div>
-        {meter && (
-          <div className="mt-3">
-            <Meter pct={meter.pct} color={color} />
-            <p className="text-[10px] text-zinc-600 mt-1.5 tabular-nums">
-              {meter.pct === null ? '' : `${Math.round(meter.pct)}% of ${fmtNum(meter.goal, 0)}`}
-              {footnote ? ` · ${footnote}` : ''}
-            </p>
-          </div>
-        )}
-      </div>
-    </Card>
-  );
-}
-
-function groupWeeks(days: SyncResult['days']) {
-  const out: { start: string; total: number; days: number }[] = [];
-  let cur: { start: string; total: number; days: number } | null = null;
-  for (const d of days) {
-    const [y, m, dd] = d.date.split('-').map(Number);
-    const wd = new Date(Date.UTC(y, m - 1, dd)).getUTCDay();
-    const isMonday = wd === 1;
-    if (!cur || isMonday) {
-      if (cur && cur.days >= 4) out.push(cur);
-      cur = { start: d.date, total: 0, days: 0 };
-    }
-    if (d.steps !== null) {
-      cur.total += d.steps;
-      cur.days++;
-    }
-  }
-  if (cur && cur.days >= 4) out.push(cur);
-  return out.reverse();
 }
