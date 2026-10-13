@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120" role="img" aria-label="Healthier">
+  <defs>
+    <linearGradient id="heart" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#6ee7b7"/>
+      <stop offset="1" stop-color="#10b981"/>
+    </linearGradient>
+  </defs>
+  <rect width="120" height="120" rx="28" fill="#0c0c0e"/>
+  <path d="M60 94C60 94 23 72 23 46.5C23 34.6 32.1 26 43.5 26C50.6 26 56.6 29.6 60 35.2C63.4 29.6 69.4 26 76.5 26C87.9 26 97 34.6 97 46.5C97 72 60 94 60 94Z" fill="url(#heart)"/>
+  <!-- Heartbeat cut through the heart in the background colour. -->
+  <polyline points="18,57 43,57 49,47 57,70 65,38 71,57 102,57" fill="none" stroke="#0c0c0e" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
