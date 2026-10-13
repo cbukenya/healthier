@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  CalendarCheck, ChevronLeft, ChevronRight, Crown, Database, FileCode2, FingerprintPattern, Footprints, Heart, Moon,
-  PersonStanding, Timer, TrendingDown, TrendingUp, TrendingUpDown, TriangleAlert,
+  CalendarCheck, ChevronLeft, ChevronRight, Crown, Database, FileCode2, Footprints, Heart, Moon, PersonStanding, Timer,
+  TrendingDown, TrendingUp, TriangleAlert, createLucideIcon,
 } from 'lucide-react';
 import type { InsightPage, Kind, Observation } from '../pipeline/insights';
 
@@ -54,47 +54,62 @@ const KIND_LABELS: Record<Kind, string> = {
   data: 'Data',
 };
 
+/** A trend with no single direction: the trending zigzag levelling off, drawn to match its up and down siblings. */
+const TrendingFlat = createLucideIcon('trending-flat', [
+  ['path', { d: 'M18 8l4 4-4 4', key: 'arrow' }],
+  ['path', { d: 'm2 15 5-5 5 5 4-3h6', key: 'line' }],
+]);
+
+/** A pattern: three stepped bars. */
+const Pattern = createLucideIcon('pattern-steps', [
+  ['path', { d: 'M4.5 7h7', key: 'top' }],
+  ['path', { d: 'M8.5 12h7', key: 'middle' }],
+  ['path', { d: 'M12.5 17h7', key: 'bottom' }],
+]);
+
+/**
+ * One colour for every kind badge, on every page. A page's own colour on a
+ * badge could read as a verdict: Vitals' rose on a milestone looks like a warning.
+ */
+const KIND_COLOR = '#818cf8';
+
 /** On a page every card is from that page, so the chip says what kind of card it is instead. */
 function KindIcon({ obs }: { obs: Observation }) {
   switch (obs.kind) {
     case 'alert': return <TriangleAlert size={14} />;
     case 'nudge': return <Timer size={14} />;
     case 'trend':
-      // The line points the way the metric moved.
-      return obs.direction === 'up' ? <TrendingUp size={14} /> : obs.direction === 'down' ? <TrendingDown size={14} /> : <TrendingUpDown size={14} />;
+      // The line points the way the metric moved, and levels off when it didn't move one way.
+      return obs.direction === 'up' ? <TrendingUp size={14} /> : obs.direction === 'down' ? <TrendingDown size={14} /> : <TrendingFlat size={14} />;
     case 'milestone': return <Crown size={14} />;
-    case 'pattern': return <FingerprintPattern size={14} />;
+    case 'pattern': return <Pattern size={14} />;
     case 'review': return <CalendarCheck size={14} />;
     case 'data': return <Database size={14} />;
   }
 }
 
-const PAGE_COPY: Record<InsightPage, { title: string; description: string; domain: keyof typeof DOMAIN_STYLES }> = {
+const PAGE_COPY: Record<InsightPage, { title: string; description: string }> = {
   activity: {
     title: 'Activity insights',
     description: 'What stands out in how you move: trends, streaks and records, worked out from your own data.',
-    domain: 'movement',
   },
   sleep: {
     title: 'Sleep insights',
     description: 'What stands out in your nights: how long, how regular and which way they are heading, worked out from your own data.',
-    domain: 'sleep',
   },
   vitals: {
     title: 'Vitals insights',
     description: 'What stands out in your heart and recovery readings, measured against your own usual range.',
-    domain: 'cardio',
   },
   body: {
     title: 'Body insights',
     description: 'What your weigh-ins add up to over time, measured against your own trend.',
-    domain: 'body',
   },
 };
 
 /**
  * Today's key insights, or with `page` one page's own: titled for the page,
- * with a kind chip in the page's colour on every card.
+ * with a kind chip on every card.
  */
 export function InsightsCarousel({ observations, page }: { observations: Observation[]; page?: InsightPage }) {
   const copy = page ? PAGE_COPY[page] : null;
@@ -199,7 +214,6 @@ export function InsightsCarousel({ observations, page }: { observations: Observa
         >
         {observations.map((obs) => {
           const tone = TONE_STYLES[obs.tone];
-          const dom = DOMAIN_STYLES[copy?.domain ?? obs.domain];
           return (
             <article
               key={obs.id}
@@ -214,7 +228,7 @@ export function InsightsCarousel({ observations, page }: { observations: Observa
               <span
                 className="self-end text-[13px] font-medium flex items-center gap-1.5"
                 style={{
-                  color: dom.color,
+                  color: copy ? KIND_COLOR : DOMAIN_STYLES[obs.domain].color,
                 }}
               >
                 {copy ? <KindIcon obs={obs} /> : DOMAIN_ICONS[obs.domain]}
