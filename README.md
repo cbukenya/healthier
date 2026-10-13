@@ -62,7 +62,8 @@ Each install needs its own OAuth client in a Google Cloud project you own:
      `googlehealth.health_metrics_and_measurements.readonly`, `googlehealth.nutrition.readonly`,
      `googlehealth.ecg.readonly`, `googlehealth.irn.readonly`, `googlehealth.profile.readonly`
      (your age, for the Body page; an existing install needs it added and each user to sign in
-     again before age appears).
+     again before age appears). A scope missing from the table goes in **Manually add scopes**
+     as its full URL, e.g. `https://www.googleapis.com/auth/googlehealth.profile.readonly`.
    - **Audience**: while in **Testing**, add each Google account that will sign in as a test user.
 4. **Clients → Create client**: type **Web application**, with `<APP_URL>/auth/callback` as an
    authorized redirect URI, e.g. `http://localhost:3000/auth/callback`.
