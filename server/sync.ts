@@ -12,6 +12,7 @@ import {
   type PackedDataset,
 } from '../src/pipeline/incremental';
 import type { DailyRecord } from '../src/types/health';
+import { answerQueries, queriesSpan, type HistoryAnswers, type HistoryQueries } from '../src/pipeline/history';
 import { SCOPES, type ScopeKey } from '../src/pipeline/registry';
 import { HealthTransport } from '../src/pipeline/transport';
 import type { HistoryInfo, SyncStatus } from '../src/types/api';
@@ -224,6 +225,7 @@ async function backfillUser(deps: Deps, userId: string): Promise<void> {
 export async function loadDataset(
   deps: Deps,
   userId: string,
+  queries: HistoryQueries = {},
 ): Promise<{ dataset: PackedDataset; syncedAt: Date; history: HistoryInfo } | null> {
   const [state, user] = await Promise.all([getSyncState(deps.db, userId), getUser(deps.db, userId)]);
   if (!state || !user || state.pipelineVersion !== PIPELINE_VERSION) return null;
@@ -243,7 +245,22 @@ export async function loadDataset(
   );
   dataset.meta.fromCache = true;
   dataset.meta.cacheAgeMs = Date.now() - state.lastSyncAt.getTime();
+  if (Object.keys(queries).length) dataset.answers = await answerHistory(deps, userId, queries, from, to);
   return { dataset, syncedAt: state.lastSyncAt, history: await describeHistory(deps, userId, to, states) };
+}
+
+/**
+ * The app's history queries, answered from the stored days before the window:
+ * one read for the span they need together, then each over its own range.
+ * Worked out on every read and never stored.
+ */
+async function answerHistory(deps: Deps, userId: string, queries: HistoryQueries, from: string, to: string): Promise<HistoryAnswers> {
+  const limit = historyStart(to, deps.config.historyDays, DASHBOARD_WINDOW_DAYS);
+  const stored = await getOldestStreamDay(deps.db, userId);
+  const oldest = stored && stored > limit ? stored : limit;
+  const span = queriesSpan(queries, to, from, oldest);
+  const days = span ? assembleHistory(await getStreamDays(deps.db, userId, span.from, span.to), span.from, span.to) : [];
+  return answerQueries(queries, days, to, from, oldest);
 }
 
 /** How far back stored history reaches, and whether the backfill is done. */

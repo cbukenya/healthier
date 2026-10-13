@@ -3,14 +3,27 @@ import type { DailyRecord } from '../../../types/health';
 import {
   NOISE_FLOOR, compareToBaseline, completedDays, isRecent, periodShift, quantile, series, stats, values, type Point,
 } from '../../derive';
+import type { HistoryQueries } from '../../history';
 import type { InsightContext } from '../context';
-import { ENTRY_WINDOW, briskMins, dayMonth, entered, heldFor, listOf, sinceNote, trailingDays, zoneMins } from '../helpers';
-import { WEEKDAYS, nightsAgainstUsual, trailingRun, weekdayExtremes, weekdayMedians, type NightReading } from '../patterns';
+import {
+  ENTRY_WINDOW, briskMins, dayMonth, entered, heldFor, listOf, monthName, sinceHistory, sinceNote, trailingDays, zoneMins,
+} from '../helpers';
+import {
+  WEEKDAYS, lastMonthBest, monthsOf, nightsAgainstUsual, trailingRun, weekdayExtremes, weekdayMedians, type NightReading,
+} from '../patterns';
 import type { Finding } from '../types';
 
 type Add = (f: Finding) => void;
 
 const base = { domain: 'cardio' as const, page: 'vitals' as const };
+
+/** What Vitals asks of your older days: monthly resting heart rate and HRV, and the best weeks on record. */
+export const vitalsQueries = {
+  restingHrByMonth: { measure: 'restingHr', group: 'month', aggregate: ['sum', 'count'], back: 'all' },
+  hrvByMonth: { measure: 'hrv', group: 'month', aggregate: ['sum', 'count'], back: 'all' },
+  calmestWeek: { measure: 'restingHr', rolling: { days: 7, minReadings: 5 }, aggregate: 'min', back: 'all' },
+  bestHrvWeek: { measure: 'hrv', rolling: { days: 7, minReadings: 5 }, aggregate: 'max', back: 'all' },
+} satisfies HistoryQueries;
 
 /** HRV and resting heart rate, breathing, oxygen and temperature, cardio fitness and record weeks. */
 export function vitalsRules(ctx: InsightContext, add: Add): void {
@@ -27,6 +40,7 @@ export function vitalsRules(ctx: InsightContext, add: Add): void {
   vo2(ctx, add);
   fitnessLevel(ctx, add);
   records(ctx, add);
+  calmestMonth(ctx, add);
 }
 
 const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
@@ -198,18 +212,26 @@ function vo2(ctx: InsightContext, add: Add): void {
   });
 }
 
-/** Your lowest resting-HR week, or highest HRV week, in the window: news in its first days, then on the page while it holds. */
+/**
+ * Your lowest resting-HR week, or highest HRV week: in the window, and all time
+ * once it also beats every stored week before it. News in its first days, then
+ * on the page while it holds.
+ */
 function records(ctx: InsightContext, add: Add): void {
   const defs = [
     {
       id: 'record-rhr', get: (d: DailyRecord) => d.restingHr, better: 'min' as const,
-      title: 'Your calmest week in two months',
-      text: (v: number) => `Your resting heart rate averaged ${v.toFixed(1)} bpm this week. That's your lowest week in the last two months.`,
+      before: ctx.answers.calmestWeek?.rows[0]?.min ?? null,
+      months: () => monthsOf(ctx.days, 'restingHr', ctx.answers.restingHrByMonth),
+      title: (allTime: boolean) => (allTime ? 'Your calmest week yet' : 'Your calmest week in two months'),
+      text: (v: number, span: string) => `Your resting heart rate averaged ${v.toFixed(1)} bpm this week. That's your lowest week ${span}.`,
     },
     {
       id: 'record-hrv', get: (d: DailyRecord) => d.hrv, better: 'max' as const,
-      title: 'Your best week of recovery in two months',
-      text: (v: number) => `Your HRV averaged ${v.toFixed(1)} ms this week. That's your highest week in the last two months.`,
+      before: ctx.answers.bestHrvWeek?.rows[0]?.max ?? null,
+      months: () => monthsOf(ctx.days, 'hrv', ctx.answers.hrvByMonth),
+      title: (allTime: boolean) => (allTime ? 'Your best week of recovery yet' : 'Your best week of recovery in two months'),
+      text: (v: number, span: string) => `Your HRV averaged ${v.toFixed(1)} ms this week. That's your highest week ${span}.`,
     },
   ];
   for (const def of defs) {
@@ -226,20 +248,17 @@ function records(ctx: InsightContext, add: Add): void {
       def.better === 'min' ? w.mean < Math.min(...others.map((x) => x.mean)) : w.mean > Math.max(...others.map((x) => x.mean));
     if (!beats(last, weeks.slice(0, -1))) continue;
     const prevWasRecord = beats(weeks[weeks.length - 2], weeks.slice(0, -2));
+    const allTime = def.before !== null && beats(last, [{ mean: def.before.value }]);
     add({
       ...base, id: def.id, kind: 'milestone', tone: 'good',
       importance: 53, topic: 'records', family: 'recovery', today: 'as-news', news: !prevWasRecord,
-      title: def.title,
-      text: def.text(last.mean),
+      title: def.title(allTime),
+      text: def.text(last.mean, allTime ? sinceHistory(def.months()[0].month, ctx.today) : 'in the last two months'),
     });
   }
 }
 
-/**
- * Where each overnight signal counts as off: the thresholds the single-signal
- * cards and the battery's several-signals check use, so "everything steady"
- * can never sit beside a card that says otherwise.
- */
+/** Where breathing, temperature and oxygen count as off: the lines their own cards use. */
 const OFF = {
   breathing: (z: number) => z >= 1.5,
   warm: (deviationC: number) => deviationC >= 0.5,
@@ -440,5 +459,17 @@ function fitnessLevel(ctx: InsightContext, add: Add): void {
     importance: 34, topic: 'vo2', family: 'fitness', today: 'never', news: false,
     title: level ? 'Your cardio fitness for your age' : 'Your cardio fitness',
     text: `Your VO₂ max is ${last.vo2Max!.toFixed(1)}${level ? `, which Google rates as ${level} for your age` : ''}.${change}`,
+  });
+}
+
+/** Last month, if it had your lowest average resting heart rate on record. */
+function calmestMonth(ctx: InsightContext, add: Add): void {
+  const best = lastMonthBest(monthsOf(ctx.days, 'restingHr', ctx.answers.restingHrByMonth), ctx.today, 15, 'min');
+  if (!best) return;
+  add({
+    ...base, id: 'vitals-calmest-month', kind: 'milestone', tone: 'good',
+    importance: 62, topic: 'best-month-rhr', family: 'monthly-best', today: 'as-news', news: ctx.dom <= 2,
+    title: 'Your calmest month',
+    text: `Your resting heart rate averaged ${best.value.toFixed(1)} bpm in ${monthName(best.month, ctx.today)}. That's your lowest month ${sinceHistory(best.since, ctx.today)}.`,
   });
 }

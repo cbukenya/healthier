@@ -8,7 +8,7 @@ How Healthier works and why, for contributors. What's planned lives in the
 1. **Self-hostable by anyone.** One `docker compose up` runs everything on the operator's machine.
    The only external dependency is Google's API, which holds the data. No managed services, no
    telemetry.
-2. **The insight engine is pure.** `src/pipeline/insights.ts` and `derive.ts` are stateless and
+2. **The insight engine is pure.** `src/pipeline/insights/` and `derive.ts` are stateless and
    deterministic: rows in, insights out. The server never stores insights, streaks or flags; it
    mirrors data.
 3. **Data minimisation.** Google's payloads are normalised into the app's own types
@@ -19,9 +19,10 @@ How Healthier works and why, for contributors. What's planned lives in the
    recent days are polled. "Rarely" isn't "never", so a weekly full rebuild catches late
    corrections.
 5. **History is for looking, baselines are for judging.** Long history feeds descriptive views
-   (charts over 90 days, a year, all time). Everything that judges today (baselines, readiness,
-   insights, labs) keeps its fixed recent window, so a reading from years ago never shifts what
-   "your usual" means now.
+   (charts over 90 days, a year, all time) and the insights that describe the past (your best
+   month, your biggest day yet), which ask for it through history queries. Everything that judges
+   today (baselines, readiness, insights, labs) keeps its fixed recent window, so a reading from
+   years ago never shifts what "your usual" means now.
 6. **One today.** The window ends on the user's today, in their own zone (demo mode: the fixture's
    clock and zone). Every card and insight judges against that day; the device clock only picks
    morning, midday or evening. Only readings from today or yesterday count as "last night", and
@@ -82,9 +83,9 @@ without knowing where. The server applies that to Postgres; demo mode and the te
 `MemoryStore`. The Postgres layer must match `MemoryStore.apply` exactly.
 
 - **First sign-in is a backfill.** The whole 62-day window, including minute-level heart rate, is
-  imported before the dashboard opens. The insight engine reads exactly this window (baselines need
-  29 days, readiness 39, monthly insights 55+), so a half-filled window would show wrong insights,
-  not just fewer.
+  imported before the dashboard opens. Everything that judges today reads exactly this window
+  (baselines need 29 days, readiness 39, monthly insights 55+), so a half-filled window would show
+  wrong insights, not just fewer.
 - **Incremental syncs** refetch the last 3 days (`REFETCH_DAYS`): sleep lands the next morning,
   watches sync late, Google revises recent totals. Older days are settled and kept.
 - **Settling is earned.** A stream's days only become settled after a sync in which that stream
@@ -125,6 +126,26 @@ long spans are grouped (`src/pipeline/aggregate.ts`): daily up to 120 days, week
 years, monthly beyond, as averages per recorded day. Sparse series such as weigh-ins stay raw
 unless they would exceed 120 points. Baseline bands are hidden on grouped charts, because they
 describe the last 28 days.
+
+## History queries
+
+Insights that describe the past need days older than the window. Each page's rules declare what
+they need as queries (`src/pipeline/history.ts`): a measure from a fixed list of daily values, how
+to aggregate it (sum, count, mean, min, max, first, last), an optional grouping (month, ISO week,
+weekday, year) or rolling mean, and how far back to look (`back`, in days or `'all'`, and
+optionally `until`). The browser sends them with `POST /api/dataset`; the server reads the stored
+days once for the span they need together and answers each over its own range. Demo mode and the
+tests answer the same queries from `MemoryStore`.
+
+- **Answers end before the window.** The window is what the engine cuts back a day at a time for
+  the yesterday test. If an answer also covered it, a record set today would already be inside
+  "your biggest day this year" and could never be news. So the server answers the older part and
+  the engine adds the window's own days, which it can still cut back.
+- **Nothing is stored.** Answers are worked out from the stored days on every read, so the same
+  days and the same queries always give the same answers.
+- **The vocabulary is closed.** A query can only read one person's own daily records through the
+  listed measures. Anything malformed is dropped and answered with nothing, and the card that
+  asked stays silent.
 
 ### `PIPELINE_VERSION`
 

@@ -1,4 +1,5 @@
 import { addDays, todayCivil, todayCivilIn, type CivilDate } from '../lib/date';
+import type { HistoryQueries } from './history';
 import { MemoryStore, syncIncremental, unpackDataset, type SyncResult } from './incremental';
 import type { ScopeKey } from './registry';
 import { HealthTransport, type FetchLike } from './transport';
@@ -39,6 +40,8 @@ export interface SyncOptions {
   grantedScopes?: ScopeKey[];
   /** Fetch minute-level heart rate for the window. */
   includeIntraday?: boolean;
+  /** History queries to answer from the stored days before the window. */
+  queries?: HistoryQueries;
   concurrency?: number;
   signal?: AbortSignal;
   onProgress?: (done: number, total: number, label: string) => void;
@@ -70,5 +73,5 @@ export async function syncHealthData(opts: SyncOptions): Promise<SyncResult> {
       onProgress: opts.onProgress,
     }),
   );
-  return unpackDataset(store.assemble(addDays(today, -(windowDays - 1)), today));
+  return unpackDataset(store.assemble(addDays(today, -(windowDays - 1)), today, opts.queries));
 }

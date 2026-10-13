@@ -6,17 +6,24 @@ import {
 import { scoreSleep } from '../../sleep';
 import type { InsightContext } from '../context';
 import {
-  ENTRY_WINDOW, beforeLatestMorning, circDelta, clk, cut, dayMonth, heldFor, hm, hoursText, isWorkday, plural, sinceNote,
-  sleepMins, trailingDays,
+  ENTRY_WINDOW, beforeLatestMorning, circDelta, clk, cut, dayMonth, heldFor, hm, hoursText, isWorkday, monthName, plural,
+  sinceHistory, sinceNote, sleepMins, trailingDays,
 } from '../helpers';
 import {
-  WEEKDAYS, bestBedtime, sleepHrvAssociation, weekdayExtremes, workFreeNights, type BestBedtime,
+  WEEKDAYS, bestBedtime, lastMonthBest, monthsOf, sleepHrvAssociation, weekdayExtremes, workFreeNights, type BestBedtime,
 } from '../patterns';
+import type { HistoryQueries } from '../../history';
 import type { Finding } from '../types';
 
 type Add = (f: Finding) => void;
 
 const base = { domain: 'sleep' as const, page: 'sleep' as const };
+
+/** What Sleep asks of your older days: monthly sleep score and length. */
+export const sleepQueries = {
+  sleepScoreByMonth: { measure: 'sleepScore', group: 'month', aggregate: ['sum', 'count'], back: 'all' },
+  sleepMinutesByMonth: { measure: 'sleepMinutes', group: 'month', aggregate: ['sum', 'count'], back: 'all' },
+} satisfies HistoryQueries;
 
 /** Last night, the week's debt, timing and regularity, how you sleep, and the gaps in the record. */
 export function sleepRules(ctx: InsightContext, add: Add): void {
@@ -34,6 +41,7 @@ export function sleepRules(ctx: InsightContext, add: Add): void {
   rem(ctx, add);
   naps(ctx, add);
   hrvLink(ctx, add);
+  bestMonth(ctx, add);
   coverage(ctx, add);
 }
 
@@ -472,6 +480,19 @@ function hrvLink(ctx: InsightContext, add: Add): void {
     importance: 49, topic: 'sleep-hrv', family: 'correlation', today: 'never', news: false,
     title: higher ? 'Good sleep shows in your HRV' : 'Your HRV and how long you sleep',
     text: `On nights of 7 hours or more, your overnight HRV is usually about ${Math.abs(a.pct)}% ${higher ? 'higher' : 'lower'} than on shorter nights. That's based on ${plural(a.nLong, 'longer night')} and ${plural(a.nShort, 'shorter one')}. It's a pattern in your data, not proof that one causes the other.`,
+  });
+}
+
+/** Last month, if its average sleep score was your best on record: news on the 1st and 2nd, then on the page. */
+function bestMonth(ctx: InsightContext, add: Add): void {
+  const best = lastMonthBest(monthsOf(ctx.days, 'sleepScore', ctx.answers.sleepScoreByMonth), ctx.today, 15, 'max');
+  if (!best) return;
+  const month = monthsOf(ctx.days, 'sleepMinutes', ctx.answers.sleepMinutesByMonth).find((m) => m.month === best.month)!;
+  add({
+    ...base, id: 'sleep-best-month', kind: 'milestone', tone: 'good',
+    importance: 63, topic: 'best-month-sleep', family: 'monthly-best', today: 'as-news', news: ctx.dom <= 2,
+    title: 'Your best month of sleep',
+    text: `In ${monthName(best.month, ctx.today)} you slept ${hm(month.sum / month.n)} a night on average, and your average sleep score was ${Math.round(best.value)}. That's your best month of sleep ${sinceHistory(best.since, ctx.today)}.`,
   });
 }
 

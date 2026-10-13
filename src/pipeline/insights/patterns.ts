@@ -1,6 +1,7 @@
 import { addDays, daysBetween, isoWeekdayIndex, type CivilDate } from '../../lib/date';
 import type { DailyRecord, SleepSession } from '../../types/health';
 import { circularMeanMinutes, compareToBaseline, series, stats, theilSen, type Point } from '../derive';
+import { MEASURES, type Answer, type Measure } from '../history';
 import { illnessDates, type IntradayDays } from '../labs';
 import { scoreSleep } from '../sleep';
 import { welch } from './association';
@@ -290,4 +291,56 @@ export function sleepHrvAssociation(days: DailyRecord[]): SleepHrvAssociation | 
   if (!w || w.p >= 0.05) return null;
   const pct = Math.round((Math.exp(w.diff) - 1) * 100);
   return Math.abs(pct) >= 5 ? { pct, nLong: long.length, nShort: short.length, p: w.p } : null;
+}
+
+// ─────────────────────────────────────────────────── months on record
+
+export interface MonthTally {
+  /** 'YYYY-MM'. */
+  month: string;
+  sum: number;
+  n: number;
+}
+
+/**
+ * A measure's monthly sums and counts: the answer for the months before the
+ * window, plus the window's own days, which the yesterday test can still cut
+ * back. A month split across the window's edge adds up exactly.
+ */
+export function monthsOf(days: DailyRecord[], measure: Measure, answer: Answer | null | undefined): MonthTally[] {
+  const byMonth = new Map<string, MonthTally>();
+  const add = (month: string, sum: number, n: number) => {
+    const held = byMonth.get(month);
+    byMonth.set(month, held ? { month, sum: held.sum + sum, n: held.n + n } : { month, sum, n });
+  };
+  for (const row of answer?.rows ?? []) if (row.key && row.count) add(row.key, row.sum ?? 0, row.count);
+  for (const d of days) {
+    const v = MEASURES[measure](d);
+    if (v !== null && Number.isFinite(v)) add(d.date.slice(0, 7), v, 1);
+  }
+  return [...byMonth.values()].sort((a, b) => (a.month < b.month ? -1 : 1));
+}
+
+export interface MonthBest {
+  /** 'YYYY-MM': last month. */
+  month: string;
+  /** Its daily average. */
+  value: number;
+  /** The first month on record with this measure. */
+  since: string;
+}
+
+/**
+ * Last month against every other month on record, by its daily average, over
+ * months with at least `minN` readings. Silent unless there are three such
+ * months and last month beats every other one.
+ */
+export function lastMonthBest(months: MonthTally[], today: CivilDate, minN: number, better: 'min' | 'max'): MonthBest | null {
+  const last = addDays(today, -Number(today.slice(8, 10))).slice(0, 7);
+  const avg = (m: MonthTally) => m.sum / m.n;
+  const eligible = months.filter((m) => m.n >= minN);
+  const target = eligible.find((m) => m.month === last);
+  if (!target || eligible.length < 3) return null;
+  const beats = eligible.every((m) => m === target || (better === 'max' ? avg(target) > avg(m) : avg(target) < avg(m)));
+  return beats ? { month: last, value: avg(target), since: months.find((m) => m.n > 0)!.month } : null;
 }

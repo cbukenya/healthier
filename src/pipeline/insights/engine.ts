@@ -1,11 +1,12 @@
 import { buildContext, type InsightDataset, type InsightOptions } from './context';
 import { settle } from './conflicts';
 import { PAGES, place, placeable } from './place';
-import { activityRules } from './rules/activity';
-import { bodyRules } from './rules/body';
-import { sleepRules } from './rules/sleep';
+import type { HistoryQueries } from '../history';
+import { activityQueries, activityRules } from './rules/activity';
+import { bodyQueries, bodyRules } from './rules/body';
+import { sleepQueries, sleepRules } from './rules/sleep';
 import { todayRules } from './rules/today';
-import { vitalsRules } from './rules/vitals';
+import { vitalsQueries, vitalsRules } from './rules/vitals';
 import type { Finding, InsightFeeds } from './types';
 
 /**
@@ -42,6 +43,13 @@ import type { Finding, InsightFeeds } from './types';
  * them; evidence first, the action on its own line after it; wins carry no
  * homework; neutral metrics carry no moral tone; escalation, never repetition.
  */
+/**
+ * Every question the rules ask of your older days, sent with each dataset
+ * request. Each page's rules declare their own beside the code that reads the
+ * answers.
+ */
+export const HISTORY_QUERIES: HistoryQueries = { ...activityQueries, ...sleepQueries, ...vitalsQueries, ...bodyQueries };
+
 export function evaluate(ds: InsightDataset, now: Date = new Date(), extras?: InsightOptions) {
   const ctx = buildContext(ds, now, extras);
   if (!ctx) return null;
