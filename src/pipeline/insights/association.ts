@@ -24,6 +24,28 @@ export interface MovementHrvAssociation {
   excludedIllnessNights: number;
 }
 
+/**
+ * Welch's two-sample t-test: the difference of the means (a − b), with the
+ * Welch–Satterthwaite degrees of freedom and a two-sided p. Null when either
+ * group is too small or neither varies.
+ */
+export function welch(a: number[], b: number[]): { diff: number; t: number; df: number; p: number } | null {
+  if (a.length < 2 || b.length < 2) return null;
+  const mean = (xs: number[]) => xs.reduce((x, y) => x + y, 0) / xs.length;
+  const varOf = (xs: number[], m: number) => xs.reduce((x, y) => x + (y - m) ** 2, 0) / (xs.length - 1);
+  const mA = mean(a);
+  const mB = mean(b);
+  const vA = varOf(a, mA);
+  const vB = varOf(b, mB);
+  const seSq = vA / a.length + vB / b.length;
+  if (seSq <= 0) return null;
+  const diff = mA - mB;
+  const t = diff / Math.sqrt(seSq);
+  const df = (seSq * seSq) / ((vA / a.length) ** 2 / (a.length - 1) + (vB / b.length) ** 2 / (b.length - 1));
+  const p = tTwoSidedP(Math.abs(t), df);
+  return Number.isFinite(p) ? { diff, t, df, p } : null;
+}
+
 /** Two-sided p-value for Student's t, via the regularised incomplete beta. */
 function tTwoSidedP(t: number, df: number): number {
   const x = df / (df + t * t);
@@ -112,24 +134,10 @@ export function movementHrvAssociation(days: DailyRecord[]): MovementHrvAssociat
   }
   if (hi.length < 8 || lo.length < 15) return null;
 
-  const mean = (a: number[]) => a.reduce((x, y) => x + y, 0) / a.length;
-  const varOf = (a: number[], m: number) => a.reduce((x, y) => x + (y - m) ** 2, 0) / (a.length - 1);
-  const mHi = mean(hi);
-  const mLo = mean(lo);
-  const d = mHi - mLo;
-  if (d > -0.06) return null; // only a *lower* HRV pattern is reported, and only a real one
-
-  const vHi = varOf(hi, mHi);
-  const vLo = varOf(lo, mLo);
-  const seSq = vHi / hi.length + vLo / lo.length;
-  if (seSq <= 0) return null;
-  const t = d / Math.sqrt(seSq);
-  // Welch–Satterthwaite
-  const df =
-    (seSq * seSq) /
-    ((vHi / hi.length) ** 2 / (hi.length - 1) + (vLo / lo.length) ** 2 / (lo.length - 1));
-  const p = tTwoSidedP(Math.abs(t), df);
-  if (!Number.isFinite(p) || p >= 0.05) return null;
+  const w = welch(hi, lo);
+  // Only a *lower* HRV pattern is reported, and only a real one.
+  if (!w || w.diff > -0.06 || w.p >= 0.05) return null;
+  const { diff: d, df, p } = w;
 
   return {
     pct: Math.abs(Math.round((Math.exp(d) - 1) * 100)),

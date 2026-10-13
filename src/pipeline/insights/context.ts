@@ -1,11 +1,12 @@
 import type { CivilDate } from '../../lib/date';
 import type { DailyRecord, HealthDataset, SleepSession } from '../../types/health';
 import type { IntradayDays } from '../labs';
+import type { ProfileFacts } from '../registry';
 import {
   estimatedSleepTarget, isRecent, loadRatio, readiness, series, sleepDebt, stats, values,
   type Point, type Readiness,
 } from '../derive';
-import { beforeLatestMorning, daypartOf, needLabel, wallClock } from './helpers';
+import { beforeLatestMorning, daypartOf, hm, wallClock } from './helpers';
 import type { Daypart } from './types';
 
 export interface InsightOptions {
@@ -15,6 +16,9 @@ export interface InsightOptions {
 }
 
 type ReadinessPart = Readiness['parts'][number];
+
+/** The day grid, and the profile when the dataset carries one. */
+export type InsightDataset = HealthDataset & { profile?: Pick<ProfileFacts, 'age'> };
 
 /**
  * Everything the rules share, worked out once. "Today" is always the grid's
@@ -30,7 +34,9 @@ export interface InsightContext {
   /** Day of the month, for the calendar cards. */
   dom: number;
   intraday?: IntradayDays;
-  /** Personal sleep need in minutes, and as "7h 20m". */
+  /** Years, from the Google Health profile, when it's known. */
+  age: number | null;
+  /** Personal sleep need in minutes, and as "7h 20m" (or "7h 00m", to read alongside a night's "5h 40m"). */
   need: number;
   needH: string;
   stepsSeries: Point[];
@@ -54,7 +60,7 @@ export interface InsightContext {
   load: ReturnType<typeof loadRatio>;
 }
 
-export function buildContext(ds: HealthDataset, now: Date, extras?: InsightOptions): InsightContext | null {
+export function buildContext(ds: InsightDataset, now: Date, extras?: InsightOptions): InsightContext | null {
   const days = ds.days;
   if (!days.length) return null;
   const todayRow = days[days.length - 1];
@@ -79,8 +85,9 @@ export function buildContext(ds: HealthDataset, now: Date, extras?: InsightOptio
     part: daypartOf(minutesNow),
     dom: Number(today.slice(8, 10)),
     intraday: extras?.intraday,
+    age: ds.profile?.age ?? null,
     need,
-    needH: needLabel(need),
+    needH: hm(need),
     stepsSeries,
     doneSteps,
     stepMedian: stats(values(doneSteps.slice(-28)))?.median ?? null,
