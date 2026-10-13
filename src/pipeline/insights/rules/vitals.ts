@@ -6,10 +6,11 @@ import {
 import type { HistoryQueries } from '../../history';
 import type { InsightContext } from '../context';
 import {
-  ENTRY_WINDOW, briskMins, dayMonth, entered, heldFor, listOf, monthName, sinceHistory, sinceNote, trailingDays, zoneMins,
+  ENTRY_WINDOW, briskMins, dayMonth, entered, heldFor, listOf, monthName, pastYear, sinceNote, trailingDays, zoneMins,
 } from '../helpers';
 import {
-  WEEKDAYS, lastMonthBest, monthsOf, nightsAgainstUsual, trailingRun, weekdayExtremes, weekdayMedians, type NightReading,
+  WEEKDAYS, dayRecord, lastMonthBest, monthsOf, nightsAgainstUsual, trailingRun, weekdayExtremes, weekdayMedians,
+  type NightReading,
 } from '../patterns';
 import type { Finding } from '../types';
 
@@ -17,12 +18,15 @@ type Add = (f: Finding) => void;
 
 const base = { domain: 'cardio' as const, page: 'vitals' as const };
 
-/** What Vitals asks of your older days: monthly resting heart rate and HRV, and the best weeks on record. */
+/**
+ * What Vitals asks of the past year before the window: monthly resting heart
+ * rate, the best weeks, and the lowest resting heart rate.
+ */
 export const vitalsQueries = {
-  restingHrByMonth: { measure: 'restingHr', group: 'month', aggregate: ['sum', 'count'], back: 'all' },
-  hrvByMonth: { measure: 'hrv', group: 'month', aggregate: ['sum', 'count'], back: 'all' },
-  calmestWeek: { measure: 'restingHr', rolling: { days: 7, minReadings: 5 }, aggregate: 'min', back: 'all' },
-  bestHrvWeek: { measure: 'hrv', rolling: { days: 7, minReadings: 5 }, aggregate: 'max', back: 'all' },
+  restingHrByMonth: { measure: 'restingHr', group: 'month', aggregate: ['sum', 'count'], back: 365 },
+  calmestWeek: { measure: 'restingHr', rolling: { days: 7, minReadings: 5 }, aggregate: ['min', 'first'], back: 365 },
+  bestHrvWeek: { measure: 'hrv', rolling: { days: 7, minReadings: 5 }, aggregate: ['max', 'first'], back: 365 },
+  lowestRestingHr: { measure: 'restingHr', aggregate: ['min', 'count', 'first'], back: 365 },
 } satisfies HistoryQueries;
 
 /** HRV and resting heart rate, breathing, oxygen and temperature, cardio fitness and record weeks. */
@@ -41,6 +45,7 @@ export function vitalsRules(ctx: InsightContext, add: Add): void {
   fitnessLevel(ctx, add);
   records(ctx, add);
   calmestMonth(ctx, add);
+  lowestRestingHr(ctx, add);
 }
 
 const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
@@ -220,17 +225,13 @@ function vo2(ctx: InsightContext, add: Add): void {
 function records(ctx: InsightContext, add: Add): void {
   const defs = [
     {
-      id: 'record-rhr', get: (d: DailyRecord) => d.restingHr, better: 'min' as const,
-      before: ctx.answers.calmestWeek?.rows[0]?.min ?? null,
-      months: () => monthsOf(ctx.days, 'restingHr', ctx.answers.restingHrByMonth),
-      title: (allTime: boolean) => (allTime ? 'Your calmest week yet' : 'Your calmest week in two months'),
+      id: 'record-rhr', get: (d: DailyRecord) => d.restingHr, better: 'min' as const, answer: ctx.answers.calmestWeek,
+      title: (yet: string) => `Your calmest week ${yet}`,
       text: (v: number, span: string) => `Your resting heart rate averaged ${v.toFixed(1)} bpm this week. That's your lowest week ${span}.`,
     },
     {
-      id: 'record-hrv', get: (d: DailyRecord) => d.hrv, better: 'max' as const,
-      before: ctx.answers.bestHrvWeek?.rows[0]?.max ?? null,
-      months: () => monthsOf(ctx.days, 'hrv', ctx.answers.hrvByMonth),
-      title: (allTime: boolean) => (allTime ? 'Your best week of recovery yet' : 'Your best week of recovery in two months'),
+      id: 'record-hrv', get: (d: DailyRecord) => d.hrv, better: 'max' as const, answer: ctx.answers.bestHrvWeek,
+      title: (yet: string) => `Your best week of recovery ${yet}`,
       text: (v: number, span: string) => `Your HRV averaged ${v.toFixed(1)} ms this week. That's your highest week ${span}.`,
     },
   ];
@@ -248,12 +249,16 @@ function records(ctx: InsightContext, add: Add): void {
       def.better === 'min' ? w.mean < Math.min(...others.map((x) => x.mean)) : w.mean > Math.max(...others.map((x) => x.mean));
     if (!beats(last, weeks.slice(0, -1))) continue;
     const prevWasRecord = beats(weeks[weeks.length - 2], weeks.slice(0, -2));
-    const allTime = def.before !== null && beats(last, [{ mean: def.before.value }]);
+    const answered = def.answer?.rows[0];
+    const before = (def.better === 'min' ? answered?.min : answered?.max) ?? null;
+    // A year's record once it also beats every stored week in the past year before the window.
+    const yearly = before !== null && beats(last, [{ mean: before.value }]);
+    const span = pastYear(answered?.first?.date ?? null, ctx.today);
     add({
       ...base, id: def.id, kind: 'milestone', tone: 'good',
       importance: 53, topic: 'records', family: 'recovery', today: 'as-news', news: !prevWasRecord,
-      title: def.title(allTime),
-      text: def.text(last.mean, allTime ? sinceHistory(def.months()[0].month, ctx.today) : 'in the last two months'),
+      title: def.title(!yearly ? 'in two months' : span === 'in the past year' ? 'in a year' : 'yet'),
+      text: def.text(last.mean, yearly ? span : 'in the last two months'),
     });
   }
 }
@@ -470,6 +475,26 @@ function calmestMonth(ctx: InsightContext, add: Add): void {
     ...base, id: 'vitals-calmest-month', kind: 'milestone', tone: 'good',
     importance: 62, topic: 'best-month-rhr', family: 'monthly-best', today: 'as-news', news: ctx.dom <= 2,
     title: 'Your calmest month',
-    text: `Your resting heart rate averaged ${best.value.toFixed(1)} bpm in ${monthName(best.month, ctx.today)}. That's your lowest month ${sinceHistory(best.since, ctx.today)}.`,
+    text: `Your resting heart rate averaged ${best.value.toFixed(1)} bpm in ${monthName(best.month, ctx.today)}. That's your lowest month ${pastYear(`${best.since}-01`, ctx.today)}.`,
+  });
+}
+
+/**
+ * Your lowest resting heart rate in the past year: on Today the morning it
+ * happens, then on the page for a couple of days. It speaks for "Your heart is
+ * nicely relaxed". HRV gets no single-night record: a night far above your
+ * baseline can follow overload, which is why the battery treats one with
+ * suspicion, so HRV is celebrated by the week instead.
+ */
+function lowestRestingHr(ctx: InsightContext, add: Add): void {
+  if (ctx.illness) return;
+  const r = dayRecord(ctx.days, ctx.today, 'restingHr', 'min', ctx.answers.lowestRestingHr, { maxAge: 3 });
+  if (!r) return;
+  const span = pastYear(r.since, ctx.today);
+  add({
+    ...base, id: 'vitals-lowest-rhr', kind: 'milestone', tone: 'good',
+    importance: 70, topic: 'rhr', family: 'recovery', today: 'as-news', news: r.age <= 1,
+    title: span === 'in the past year' ? 'Your lowest resting heart rate in a year' : 'Your lowest resting heart rate yet',
+    text: `${r.age === 0 ? 'Your resting heart rate was' : `On ${dayMonth(r.date)} your resting heart rate was`} ${Math.round(r.value)} bpm${r.age === 0 ? ' this morning' : ''}, your lowest ${span}. Your previous low was ${Math.round(r.previous)} bpm.`,
   });
 }
