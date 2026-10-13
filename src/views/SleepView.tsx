@@ -1,64 +1,21 @@
 
-export function getScoreTier(total: number) {
-  if (total >= 85) {
-    return {
-      name: "Excellent",
-      color: "#10b981",
-      dotColor: "#22c55e",
-      bg: "bg-emerald-500/10",
-      text: "text-emerald-400",
-      border: "border-emerald-500/30",
-      glow: "0 0 10px rgba(34,197,94,0.6)",
-    };
-  }
-  if (total >= 70) {
-    return {
-      name: "Good",
-      color: "#818cf8",
-      dotColor: "#818cf8",
-      bg: "bg-indigo-500/10",
-      text: "text-indigo-400",
-      border: "border-indigo-500/30",
-      glow: "0 0 10px rgba(129,140,248,0.6)",
-    };
-  }
-  if (total >= 50) {
-    return {
-      name: "Fair",
-      color: "#f59e0b",
-      dotColor: "#fbbf24",
-      bg: "bg-amber-500/10",
-      text: "text-amber-400",
-      border: "border-amber-500/30",
-      glow: "0 0 10px rgba(245,158,11,0.6)",
-    };
-  }
-  return {
-    name: "Poor",
-    color: "#f43f5e",
-    dotColor: "#ef4444",
-    bg: "bg-rose-500/10",
-    text: "text-rose-400",
-    border: "border-rose-500/30",
-    glow: "0 0 10px rgba(244,63,94,0.6)",
-  };
-}
 import React, { useState } from 'react';
-import { formatCivil, formatCivilLong, formatClock } from '../lib/date';
+import { formatCivilLong, formatClock } from '../lib/date';
 import {
-  bedtimeConsistency, compareToBaseline, estimatedSleepTarget, isRecent, periodShift, series, sleepArchitecture, sleepDebt, stats, values, windowShift,
+  compareToBaseline, estimatedSleepTarget, isRecent, periodShift, series, sleepArchitecture, sleepDebt, stats, values, windowShift,
 } from '../pipeline/derive';
 import { scoreSleep } from '../pipeline/sleep';
 import { BarSeries, Hypnogram, StageBar, StageLegend, TrendChart, SleepWindowChart } from '../charts';
-import { BandPill, Card, CardHead, DOMAIN, Delta, EmptyState, Label, Row, Segmented, Value, fmtDuration, CardSummary } from '../ui/primitives';
-import { SpanSelector, useSpan } from '../ui/span';
+import { BandPill, Card, CardHead, DOMAIN, Delta, EmptyState, Row, Segmented, Value, fmtDuration, CardSummary } from '../ui/primitives';
+import { SpanSelector, spanName, useSpan } from '../ui/span';
 import { ChartChips } from '../ui/ChartChips';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 import { groupSeries } from '../pipeline/aggregate';
 import type { SyncResult } from '../pipeline/sync';
-import type { SleepSession } from '../types/health';
+import type { DailyRecord, SleepSession } from '../types/health';
+import { LastSevenNights, Naps, getScoreTier } from './SleepCards';
 
-type SleepChart = 'window' | 'duration' | 'rem' | 'deep';
+type SleepChart = 'window' | 'duration' | 'rem' | 'deep' | 'naps';
 
 export function SleepView({ data }: { data: SyncResult }) {
   const days = data.days;
@@ -77,7 +34,6 @@ export function SleepView({ data }: { data: SyncResult }) {
   const shift = periodShift(sleepAll, 7);
   const targetMin = estimatedSleepTarget(days);
   const debt = sleepDebt(days, targetMin);
-  const consistency = bedtimeConsistency(days.slice(-14));
   const recorded = values(sleepAll).length;
 
   if (!recorded) {
@@ -127,11 +83,42 @@ export function SleepView({ data }: { data: SyncResult }) {
       </div>
     </Card>
   );
+  // The span in numbers, and its naps.
+  const sleepSpan = series(window, (d) => d.sleep?.minutesAsleep ?? null);
+  const longest = window.reduce<DailyRecord | null>((a, d) => (d.sleep && (!a || d.sleep.minutesAsleep > a.sleep!.minutesAsleep) ? d : a), null);
+  const typical = (get: (d: DailyRecord) => number | null) => stats(values(series(window, get)))?.median;
+  const efficiency = typical((d) => d.sleep?.efficiency ?? null);
+  const restingHr = typical((d) => d.restingHr);
+  const summaryCard = (
+    <Card>
+      <CardHead domain="sleep" title={`${spanName(spanState)} summary`} />
+      <div className="px-5 pb-4 md:pb-5">
+        <Row dense={!wide} label="Typical night">{fmtDuration(typical((d) => d.sleep?.minutesAsleep ?? null))}</Row>
+        <Row dense={!wide} label="Typical efficiency">{efficiency === undefined ? '—' : `${Math.round(efficiency)}%`}</Row>
+        <Row dense={!wide} label="Typical resting HR">{restingHr === undefined ? '—' : `${Math.round(restingHr)} bpm`}</Row>
+        {longest?.sleep && (
+          <Row dense={!wide} label="Longest night">
+            {fmtDuration(longest.sleep.minutesAsleep)}
+            <span className="text-zinc-500"> · {formatCivilLong(longest.date)}</span>
+          </Row>
+        )}
+        {values(sleepSpan).length >= 14 && (
+          <Row dense={!wide} label="First week to last">
+            <Delta value={windowShift(sleepSpan, 7).delta} goodWhen="up" digits={0} suffix="min a night" />
+          </Row>
+        )}
+      </div>
+    </Card>
+  );
+  const napsCard = (
+    <Naps naps={window.flatMap((d) => d.naps).sort((a, b) => b.bedtimeIso.localeCompare(a.bedtimeIso))} spanDays={window.length} wide={wide} />
+  );
   const charts: { key: SleepChart; label: string; card: React.ReactNode }[] = [
     { key: 'window', label: 'Window', card: windowCard },
     { key: 'duration', label: 'Duration', card: durationCard },
     { key: 'rem', label: 'REM', card: remCard },
     { key: 'deep', label: 'Deep', card: deepCard },
+    { key: 'naps', label: 'Naps', card: napsCard },
   ];
   const shownChart = charts.find((c) => c.key === chart) ?? charts[0];
 
@@ -181,50 +168,8 @@ export function SleepView({ data }: { data: SyncResult }) {
                 },
               ];
 
-              // Replay historical sleep scores for the last 7 recorded nights
-              const last7Days = days
-                .filter((d) => d.sleep !== null)
-                .slice(-7)
-                .map((d) => {
-                  const [y, m, day] = d.date.split("-").map(Number);
-                  const dt = new Date(Date.UTC(y, m - 1, day));
-                  const weekday = dt.toLocaleDateString("en-GB", { weekday: "short", timeZone: "UTC" });
-                  const sc = scoreSleep(d.sleep!);
-                  const tier = getScoreTier(sc.total);
-                  return {
-                    date: d.date,
-                    weekday,
-                    score: sc.total,
-                    tier,
-                  };
-                });
-
-              // Chart dimensions
-              const chartHeight = 70;
-              const chartWidth = 260;
-              const minScore = 40;
-              const maxScore = 100;
-              const getY = (val: number) => {
-                const clamped = Math.min(maxScore, Math.max(minScore, val));
-                return chartHeight - ((clamped - minScore) / (maxScore - minScore)) * (chartHeight - 20) - 10;
-              };
-              const getX = (index: number, total: number) => {
-                if (total <= 1) return chartWidth / 2;
-                return 18 + (index / (total - 1)) * (chartWidth - 36);
-              };
-
-              const points = last7Days.map((d, i) => ({
-                x: getX(i, last7Days.length),
-                y: getY(d.score),
-                d,
-              }));
-
-              const pathD = points.length > 1
-                ? points.reduce((acc, p, i) => (i === 0 ? `M ${p.x} ${p.y}` : `${acc} L ${p.x} ${p.y}`), "")
-                : "";
-
               return (
-                <div className="mt-auto pt-4 border-t border-zinc-800/60 space-y-4">
+                <div className="mt-1 pt-4 border-t border-zinc-800/60 space-y-4">
                   {/* 1. Score and Tier pill with glossy dot */}
                   <div>
                     <div className="text-[10px] font-semibold tracking-[0.14em] uppercase text-zinc-500 mb-1">
@@ -282,120 +227,6 @@ export function SleepView({ data }: { data: SyncResult }) {
                       ))}
                     </div>
                   </div>
-
-                  {/* 3. Historical Sleep Score (LAST 7 DAYS) */}
-                  {last7Days.length > 0 && (
-                    <div className="pt-3 border-t border-zinc-800/60">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="text-[10px] font-semibold tracking-[0.14em] uppercase text-zinc-500">
-                          Last 7 days
-                        </div>
-                        <div className="flex items-center gap-2 text-[9px] font-medium text-zinc-500">
-                          <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-[#22c55e]" />≥85</span>
-                          <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-[#818cf8]" />70–84</span>
-                          <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-[#fbbf24]" />50–69</span>
-                          <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-[#ef4444]" />&lt;50</span>
-                        </div>
-                      </div>
-
-                      <div className="relative w-full bg-[#101013] rounded-xl p-2.5 border border-zinc-800/60">
-                        {/* SVG Line Chart */}
-                        <div className="h-16 w-full">
-                          <svg
-                            viewBox={`0 0 ${chartWidth} ${chartHeight}`}
-                            className="w-full h-full overflow-visible"
-                            preserveAspectRatio="none"
-                          >
-                            {/* Threshold Guide Lines */}
-                            <line
-                              x1="0"
-                              y1={getY(85)}
-                              x2={chartWidth}
-                              y2={getY(85)}
-                              stroke="#10b981"
-                              strokeWidth="0.5"
-                              strokeDasharray="2 3"
-                              strokeOpacity="0.3"
-                            />
-                            <line
-                              x1="0"
-                              y1={getY(70)}
-                              x2={chartWidth}
-                              y2={getY(70)}
-                              stroke="#818cf8"
-                              strokeWidth="0.5"
-                              strokeDasharray="2 3"
-                              strokeOpacity="0.3"
-                            />
-                            <line
-                              x1="0"
-                              y1={getY(50)}
-                              x2={chartWidth}
-                              y2={getY(50)}
-                              stroke="#f59e0b"
-                              strokeWidth="0.5"
-                              strokeDasharray="2 3"
-                              strokeOpacity="0.3"
-                            />
-
-                            {/* Connecting Line */}
-                            {pathD && (
-                              <path
-                                d={pathD}
-                                fill="none"
-                                stroke="#52525b"
-                                strokeWidth="1.5"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                              />
-                            )}
-
-                            {/* Day Dots */}
-                            {points.map((p, i) => {
-                              const isLast = i === points.length - 1;
-                              return (
-                                <g key={i}>
-                                  {isLast && (
-                                    <circle
-                                      cx={p.x}
-                                      cy={p.y}
-                                      r="6"
-                                      fill="none"
-                                      stroke={p.d.tier.dotColor}
-                                      strokeWidth="1"
-                                      strokeOpacity="0.5"
-                                    />
-                                  )}
-                                  <circle
-                                    cx={p.x}
-                                    cy={p.y}
-                                    r={isLast ? "3.5" : "2.5"}
-                                    fill={p.d.tier.dotColor}
-                                    stroke="#18181b"
-                                    strokeWidth="1"
-                                  />
-                                </g>
-                              );
-                            })}
-                          </svg>
-                        </div>
-
-                        {/* X-Axis Labels & Scores */}
-                        <div className="flex justify-between items-center mt-2 px-1 text-center">
-                          {points.map((p, i) => (
-                            <div key={i} className="flex flex-col items-center gap-0.5">
-                              <span className="text-[9.5px] font-medium text-zinc-500">
-                                {p.d.weekday}
-                              </span>
-                              <span className="text-[10.5px] font-mono font-medium text-zinc-300 tabular-nums">
-                                {p.d.score}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  )}
                 </div>
               );
             })()}
@@ -427,95 +258,10 @@ export function SleepView({ data }: { data: SyncResult }) {
         )}
       </div>
 
-      {/* ── 2. The trends ────────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-        <Card>
-          <CardHead title="Sleep summary" hint={`${recorded} nights recorded in the last ${days.length} days.`} />
-          <div className="px-5 pb-5">
-            <Row label="Typical night">
-              {(() => {
-                const s = stats(values(sleepAll));
-                return s ? fmtDuration(s.median) : '—';
-              })()}
-            </Row>
-            <Row label="Typical efficiency">
-              {(() => {
-                const s = stats(values(series(days, (d) => d.sleep?.efficiency ?? null)));
-                return s ? `${Math.round(s.median)}%` : '—';
-              })()}
-            </Row>
-            <Row label="Typical resting HR">
-              {(() => {
-                const s = stats(values(series(days, (d) => d.restingHr)));
-                return s ? `${Math.round(s.median)} bpm` : '—';
-              })()}
-            </Row>
-            <Row label="Latest 7 nights vs first 7">
-              <Delta value={windowShift(sleepAll, 7).delta} goodWhen="up" digits={0} suffix="min a night" />
-            </Row>
-          </div>
-        </Card>
+      {/* ── 2. The week ─────────────────────────────────────────────── */}
+      <LastSevenNights days={days.slice(-7)} shift={shift} needMin={targetMin} debt={debt} wide={wide} />
 
-        <Card>
-          <CardHead title="Naps" hint="Sleep outside your main night." />
-          <div className="px-5 pb-5 space-y-2">
-            {(() => {
-              const naps = days.flatMap((d) => d.naps).sort((a, b) => b.date.localeCompare(a.date));
-              if (!naps.length) return <p className="text-[11px] text-zinc-500">No naps recorded.</p>;
-              return naps.slice(0, 10).map((n, i) => (
-                <div key={i} className="flex justify-between items-center text-[11px]">
-                  <span className="text-zinc-400">{formatCivil(n.date)}</span>
-                  <div className="text-zinc-200 tabular-nums">
-                    {fmtDuration(n.minutesAsleep)}
-                    <span className="text-zinc-600 ml-2">
-                      {formatClock(n.bedtimeMin)} → {formatClock(n.wakeMin)}
-                    </span>
-                  </div>
-                </div>
-              ));
-            })()}
-          </div>
-        </Card>
-
-        <Card>
-          <div className="px-4 py-4 space-y-5">
-            <div>
-              <Label>Last 7 nights</Label>
-              <div className="mt-2">
-                <Value value={shift.current ? fmtDuration(shift.current) : null} size="lg" />
-              </div>
-              <div className="mt-2">
-                <Delta value={shift.delta} goodWhen="up" digits={0} suffix="min a night vs the 7 before" />
-              </div>
-            </div>
-            <div>
-              <Label>Sleep debt</Label>
-              <div className="mt-2">
-                <Value
-                  value={debt === null ? null : (Math.abs(debt.netMin) / 60).toFixed(1)}
-                  size="lg"
-                  unit={debt === null ? '' : debt.netMin > 0 ? 'h short' : 'h banked'}
-                  tone={debt !== null && debt.netMin > 0 ? 'text-amber-400' : 'text-emerald-400'}
-                />
-              </div>
-              <p className="text-[10px] text-zinc-500 mt-2 leading-relaxed">Over the 7 nights before last night, against your ~{Math.round(targetMin / 60)}h need. Longer nights pay back shorter ones.</p>
-            </div>
-            <div>
-              <Label>Bedtime spread</Label>
-              <div className="mt-2">
-                <Value value={consistency?.sdMin} size="lg" unit="min" digits={0} />
-              </div>
-              <p className="text-[10px] text-zinc-500 mt-2 leading-relaxed">
-                {consistency
-                  ? `How far your bedtime strayed from its ${formatClock(consistency.meanMin)} average over ${consistency.n} nights. Under 30 min is steady; over 60 is social jetlag.`
-                  : 'Needs three nights in the last two weeks.'}
-              </p>
-            </div>
-          </div>
-        </Card>
-      </div>
-
-      {/* ── 3. The raw log ───────────────────────────────────────────── */}
+      {/* ── 3. Over time, following the span ─────────────────────────── */}
       <div className="flex items-center justify-between px-1">
         <h2 className="text-[11px] font-bold text-zinc-500 uppercase tracking-widest">
           Your sleep over time
@@ -525,6 +271,10 @@ export function SleepView({ data }: { data: SyncResult }) {
 
       {wide ? (
         <>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+            {summaryCard}
+            {napsCard}
+          </div>
           {windowCard}
           {durationCard}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
@@ -534,6 +284,7 @@ export function SleepView({ data }: { data: SyncResult }) {
         </>
       ) : (
         <>
+          {summaryCard}
           <ChartChips label="Chart" options={charts} value={shownChart.key} onChange={setChart} />
           {shownChart.card}
         </>
