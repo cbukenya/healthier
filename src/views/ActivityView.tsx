@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { formatCivil } from '../lib/date';
 import {
   byWeekday, compareToBaseline, completedDays, goal, goalStreak, loadRatio, periodShift, series,
@@ -14,11 +14,18 @@ import type { SyncResult } from '../pipeline/sync';
 import { groupMean, groupSeries } from '../pipeline/aggregate';
 import { emptyRecord } from '../pipeline/normalize';
 import { SpanSelector, useSpan } from '../ui/span';
+import { ChartChips } from '../ui/ChartChips';
+import { useMediaQuery } from '../hooks/useMediaQuery';
+
+type ActivityChart = 'steps' | 'energy' | 'intensity' | 'distance' | 'weekly';
 
 export function ActivityView({ data }: { data: SyncResult }) {
   const days = data.days;
   const spanState = useSpan(data, '30');
   const { days: window, bucket } = spanState;
+  // A phone shows one chart at a time behind chips; wider screens show them all.
+  const wide = useMediaQuery('(min-width: 768px)');
+  const [chart, setChart] = useState<ActivityChart>('steps');
 
   const today = days.at(-1)?.date ?? null;
   const mvpaOf = (d: SyncResult['days'][number]) =>
@@ -71,6 +78,111 @@ export function ActivityView({ data }: { data: SyncResult }) {
   const weeks = groupWeeks(days);
 
   const latestMixRow = [...window].reverse().find(d => d.activeMinutes !== null);
+
+  // The over-time cards: side by side on wider screens, one at a time behind chips on a phone.
+  const stepsCard = (
+    <Card>
+      <CardHead
+        domain="movement"
+        title="Daily steps"
+        hint="Solid bars cleared 10,000. Missing bars are days the tracker recorded nothing — they're excluded from every average on this page."
+        right={<CardSummary data={stepsWin} color={DOMAIN.movement.hex} format={(v) => fmtNum(v, 0)} />}
+      />
+      <div className="px-2 pb-3">
+        <BarSeries series={groupSeries(stepsWin, bucket)} bucket={bucket} color={DOMAIN.movement.hex} goal={10000} unit="steps" height={210} />
+      </div>
+    </Card>
+  );
+  const energyCard = (
+    <Card>
+      <CardHead domain="movement" title="Active energy" hint="Above your basal rate — the part you moved for." right={<CardSummary data={kcalWin} color="#fbbf24" unit="kcal" format={(v) => fmtNum(v, 0)} />} />
+      <div className="px-2 pb-3">
+        <BarSeries series={groupSeries(kcalWin, bucket)} bucket={bucket} color="#fbbf24" unit="kcal" height={200} />
+      </div>
+    </Card>
+  );
+  const intensityCard = (
+    <Card>
+      <CardHead
+        domain="movement"
+        title="Intensity mix"
+        hint={
+          <span>
+            <span className="text-emerald-400 font-medium">Light</span> minutes accumulate from daily life; <span className="text-amber-400 font-medium">Moderate</span> and <span className="text-rose-400 font-medium">Vigorous</span> are the ones guidelines count. 150 brisk minutes a week is the usual target.
+          </span>
+        }
+        right={
+          latestMixRow?.activeMinutes ? (() => {
+            const lightMean = stats(values(series(window, d => d.activeMinutes?.light ?? null)))?.mean ?? 0;
+            const modMean = stats(values(series(window, d => d.activeMinutes?.moderate ?? null)))?.mean ?? 0;
+            const vigMean = stats(values(series(window, d => d.activeMinutes?.vigorous ?? null)))?.mean ?? 0;
+            return (
+              <div className="flex items-center gap-2.5 text-[11px] font-medium text-zinc-300">
+                <span className="text-zinc-500">{latestMixRow.date === today ? 'avg vs today so far (min):' : 'avg vs latest (min):'}</span>
+                <span className="flex items-center gap-1.5" title="Light minutes"><i className="w-2 h-2 rounded-full bg-[#22c55e]" /> {fmtNum(lightMean, 0)}/{fmtNum(latestMixRow.activeMinutes.light, 0)}</span>
+                <span className="flex items-center gap-1.5" title="Moderate minutes"><i className="w-2 h-2 rounded-full bg-[#eab308]" /> {fmtNum(modMean, 0)}/{fmtNum(latestMixRow.activeMinutes.moderate, 0)}</span>
+                <span className="flex items-center gap-1.5" title="Vigorous minutes"><i className="w-2 h-2 rounded-full bg-[#f43f5e]" /> {fmtNum(vigMean, 0)}/{fmtNum(latestMixRow.activeMinutes.vigorous, 0)}</span>
+              </div>
+            );
+          })() : null
+        }
+      />
+      <StackedBars
+        days={mixDays}
+        bucket={bucket}
+        unit="min"
+        keys={[
+          { key: 'light', label: 'Light', color: '#22c55e', get: (d) => d.activeMinutes?.light ?? null },
+          { key: 'moderate', label: 'Moderate', color: '#eab308', get: (d) => d.activeMinutes?.moderate ?? null },
+          { key: 'vigorous', label: 'Vigorous', color: '#f43f5e', get: (d) => d.activeMinutes?.vigorous ?? null },
+        ]}
+        height={200}
+      />
+    </Card>
+  );
+  const distanceCard = (
+    <Card>
+      <CardHead domain="movement" title="Distance" hint="From the reported distance stream, not estimated from step count." right={<CardSummary data={distWin} color="#2dd4bf" unit="km" format={(v) => fmtNum(v, 2)} />} />
+      <div className="px-2 pb-3">
+        <TrendChart series={groupSeries(distWin, bucket)} bucket={bucket} color="#2dd4bf" unit="km" height={150} format={(v) => fmtNum(v, 2)} />
+      </div>
+    </Card>
+  );
+  const weeklyCard = weeks.length > 1 && (
+    <Card>
+      <CardHead
+        domain="movement"
+        title="Weekly totals"
+        hint="Only weeks with at least four recorded days are shown, so a partial week can't look like a collapse."
+        right={<CardSummary vals={weeks.map(w => w.total).reverse()} color={DOMAIN.movement.hex} format={(v) => fmtNum(v, 0)} />}
+      />
+      <div className="px-5 pb-5 space-y-2">
+        {weeks.map((w) => (
+          <div key={w.start} className="flex items-center gap-3">
+            <span className="w-[92px] shrink-0 text-[11px] text-zinc-500">{formatCivil(w.start)}</span>
+            <div className="flex-1">
+              <Meter pct={(w.total / 70000) * 100} color={DOMAIN.movement.hex} />
+            </div>
+            <span className="w-[64px] shrink-0 text-right text-[11.5px] text-zinc-200 tabular-nums">
+              {fmtNum(w.total, 0)}
+            </span>
+            <span className="w-[54px] shrink-0 text-right text-[10px] text-zinc-600">
+              {w.days}/7 days
+            </span>
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+  const charts: { key: ActivityChart; label: string; card: React.ReactNode }[] = [
+    { key: 'steps', label: 'Steps', card: stepsCard },
+    { key: 'energy', label: 'Energy', card: energyCard },
+    { key: 'intensity', label: 'Intensity', card: intensityCard },
+    { key: 'distance', label: 'Distance', card: distanceCard },
+    ...(weeklyCard ? [{ key: 'weekly' as const, label: 'Weekly totals', card: weeklyCard }] : []),
+  ];
+  const shownChart = charts.find((c) => c.key === chart) ?? charts[0];
+
   return (
     <div className="space-y-3">
       {/* headline row */}
@@ -182,101 +294,24 @@ export function ActivityView({ data }: { data: SyncResult }) {
         <SpanSelector state={spanState} />
       </div>
 
-      {/* volume */}
-      <Card>
-        <CardHead
-          domain="movement"
-          title="Daily steps"
-          hint="Solid bars cleared 10,000. Missing bars are days the tracker recorded nothing — they're excluded from every average on this page."
-          right={<CardSummary data={stepsWin} color={DOMAIN.movement.hex} format={(v) => fmtNum(v, 0)} />}
-        />
-        <div className="px-2 pb-3">
-          <BarSeries series={groupSeries(stepsWin, bucket)} bucket={bucket} color={DOMAIN.movement.hex} goal={10000} unit="steps" height={210} />
-        </div>
-      </Card>
-
-      {/* active energy + intensity */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-        <Card>
-          <CardHead domain="movement" title="Active energy" hint="Above your basal rate — the part you moved for." right={<CardSummary data={kcalWin} color="#fbbf24" unit="kcal" format={(v) => fmtNum(v, 0)} />} />
-          <div className="px-2 pb-3">
-            <BarSeries series={groupSeries(kcalWin, bucket)} bucket={bucket} color="#fbbf24" unit="kcal" height={200} />
+      {wide ? (
+        <>
+          {stepsCard}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+            {energyCard}
+            {intensityCard}
           </div>
-        </Card>
-        <Card>
-          <CardHead
-            domain="movement"
-            title="Intensity mix"
-            hint={
-              <span>
-                <span className="text-emerald-400 font-medium">Light</span> minutes accumulate from daily life; <span className="text-amber-400 font-medium">Moderate</span> and <span className="text-rose-400 font-medium">Vigorous</span> are the ones guidelines count. 150 brisk minutes a week is the usual target.
-              </span>
-            }
-            right={
-              latestMixRow?.activeMinutes ? (() => {
-                const lightMean = stats(values(series(window, d => d.activeMinutes?.light ?? null)))?.mean ?? 0;
-                const modMean = stats(values(series(window, d => d.activeMinutes?.moderate ?? null)))?.mean ?? 0;
-                const vigMean = stats(values(series(window, d => d.activeMinutes?.vigorous ?? null)))?.mean ?? 0;
-                return (
-                  <div className="flex items-center gap-2.5 text-[11px] font-medium text-zinc-300">
-                    <span className="text-zinc-500">{latestMixRow.date === today ? 'avg vs today so far (min):' : 'avg vs latest (min):'}</span>
-                    <span className="flex items-center gap-1.5" title="Light minutes"><i className="w-2 h-2 rounded-full bg-[#22c55e]" /> {fmtNum(lightMean, 0)}/{fmtNum(latestMixRow.activeMinutes.light, 0)}</span>
-                    <span className="flex items-center gap-1.5" title="Moderate minutes"><i className="w-2 h-2 rounded-full bg-[#eab308]" /> {fmtNum(modMean, 0)}/{fmtNum(latestMixRow.activeMinutes.moderate, 0)}</span>
-                    <span className="flex items-center gap-1.5" title="Vigorous minutes"><i className="w-2 h-2 rounded-full bg-[#f43f5e]" /> {fmtNum(vigMean, 0)}/{fmtNum(latestMixRow.activeMinutes.vigorous, 0)}</span>
-                  </div>
-                );
-              })() : null
-            }
-          />
-          <StackedBars
-            days={mixDays}
-            bucket={bucket}
-            unit="min"
-            keys={[
-              { key: 'light', label: 'Light', color: '#22c55e', get: (d) => d.activeMinutes?.light ?? null },
-              { key: 'moderate', label: 'Moderate', color: '#eab308', get: (d) => d.activeMinutes?.moderate ?? null },
-              { key: 'vigorous', label: 'Vigorous', color: '#f43f5e', get: (d) => d.activeMinutes?.vigorous ?? null },
-            ]}
-            height={200}
-          />
-        </Card>
-      </div>
-
-      {/* distance / weekly totals */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-        <Card>
-          <CardHead domain="movement" title="Distance" hint="From the reported distance stream, not estimated from step count." right={<CardSummary data={distWin} color="#2dd4bf" unit="km" format={(v) => fmtNum(v, 2)} />} />
-          <div className="px-2 pb-3">
-            <TrendChart series={groupSeries(distWin, bucket)} bucket={bucket} color="#2dd4bf" unit="km" height={150} format={(v) => fmtNum(v, 2)} />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+            {distanceCard}
+            {weeklyCard}
           </div>
-        </Card>
-        {weeks.length > 1 && (
-          <Card>
-            <CardHead
-              domain="movement"
-              title="Weekly totals"
-              hint="Only weeks with at least four recorded days are shown, so a partial week can't look like a collapse."
-              right={<CardSummary vals={weeks.map(w => w.total).reverse()} color={DOMAIN.movement.hex} format={(v) => fmtNum(v, 0)} />}
-            />
-            <div className="px-5 pb-5 space-y-2">
-              {weeks.map((w) => (
-                <div key={w.start} className="flex items-center gap-3">
-                  <span className="w-[92px] shrink-0 text-[11px] text-zinc-500">{formatCivil(w.start)}</span>
-                  <div className="flex-1">
-                    <Meter pct={(w.total / 70000) * 100} color={DOMAIN.movement.hex} />
-                  </div>
-                  <span className="w-[64px] shrink-0 text-right text-[11.5px] text-zinc-200 tabular-nums">
-                    {fmtNum(w.total, 0)}
-                  </span>
-                  <span className="w-[54px] shrink-0 text-right text-[10px] text-zinc-600">
-                    {w.days}/7 days
-                  </span>
-                </div>
-              ))}
-            </div>
-          </Card>
-        )}
-      </div>
+        </>
+      ) : (
+        <>
+          <ChartChips label="Chart" options={charts} value={shownChart.key} onChange={setChart} />
+          {shownChart.card}
+        </>
+      )}
     </div>
   );
 }
