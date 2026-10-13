@@ -304,6 +304,6 @@ describe('sleep debt', () => {
     assert.match(part.detail, new RegExp(`^${(debt.netMin / 60).toFixed(1)}h short`));
     const card = observations({ days } as any, new Date(`${days[27].date}T09:00:00`)).find((o) => o.id === 'sleep-debt')!;
     assert.ok(card);
-    assert.match(card.text, new RegExp(`${(debt.netMin / 60).toFixed(1)}h`));
+    assert.match(card.text, new RegExp(`${(debt.netMin / 60).toFixed(1)} hours less than you need`));
   });
 });

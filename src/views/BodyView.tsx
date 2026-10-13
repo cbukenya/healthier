@@ -14,6 +14,9 @@ import { bucketForSeries, groupSeries } from '../pipeline/aggregate';
 import { SpanSelector, spanName, useSpan } from '../ui/span';
 import { useHistory } from '../hooks/useHistory';
 import { useMediaQuery } from '../hooks/useMediaQuery';
+import { InsightsCarousel } from '../components/InsightsCarousel';
+import { usePageInsights, type Clock } from '../hooks/usePageInsights';
+import type { IntradayDays } from '../pipeline/labs';
 
 const LEAN_HEX = DOMAIN.body.hex;
 const FAT_HEX = '#fbbf24';
@@ -39,11 +42,14 @@ function ago(days: number): string {
   return `${Math.round(days / 30.4)} months ago`;
 }
 
-export function BodyView({ data, onGender }: {
+export function BodyView({ data, onGender, clock, intraday }: {
   data: SyncResult;
   /** Saves the person's gender; absent in demo mode, where it lasts as long as the page. */
   onGender?: (gender: Gender | null) => Promise<void>;
+  clock?: Clock;
+  intraday?: IntradayDays;
 }) {
+  const insights = usePageInsights(data, 'body', clock, intraday);
   const spanState = useSpan(data, '90');
   const window = spanState.days;
   const history = useHistory();
@@ -223,6 +229,8 @@ export function BodyView({ data, onGender }: {
           {shownChart.card}
         </>
       )}
+
+      <InsightsCarousel observations={insights} page="body" />
     </div>
   );
 }

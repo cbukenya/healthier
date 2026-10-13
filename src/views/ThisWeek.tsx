@@ -1,13 +1,12 @@
 import React from 'react';
 import { formatCivilRange, weekdayLetter, weekdayShort } from '../lib/date';
 import { batteryTier } from '../pipeline/derive';
-import { needLabel, type WeekSummary } from '../pipeline/insights';
+import { STEP_GOAL, needLabel, type WeekSummary } from '../pipeline/insights';
 import { DOMAIN, Meter, fmtDuration } from '../ui/primitives';
 import { TIER_STYLE } from './BodyBattery';
 
 /** The WHO's weekly bar: 150 moderate minutes, vigorous ones counting double. */
 const WHO_WEEK = 150;
-const STEP_GOAL = 10000;
 /** Tallest bar, at a battery of 100. */
 const BAR_MAX_PX = 76;
 

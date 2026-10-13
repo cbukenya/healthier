@@ -1,6 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, Footprints, Moon, Heart, PersonStanding, FileCode2 } from 'lucide-react';
-import type { Observation } from '../pipeline/derive';
+import {
+  CalendarCheck, ChevronLeft, ChevronRight, Crown, Database, FileCode2, FingerprintPattern, Footprints, Heart, Moon,
+  PersonStanding, Timer, TrendingDown, TrendingUp, TrendingUpDown, TriangleAlert,
+} from 'lucide-react';
+import type { InsightPage, Kind, Observation } from '../pipeline/insights';
 
 const DOMAIN_LABELS: Record<string, string> = {
   cardio: 'Vitals',
@@ -41,7 +44,60 @@ const DOMAIN_STYLES: Record<string, { color: string, border: string, bg: string 
   movement: { color: '#34d399', border: 'rgba(52,211,153,.3)', bg: 'rgba(52,211,153,.08)' },
 };
 
-export function InsightsCarousel({ observations }: { observations: Observation[] }) {
+const KIND_LABELS: Record<Kind, string> = {
+  alert: 'Alert',
+  nudge: 'Nudge',
+  trend: 'Trend',
+  milestone: 'Milestone',
+  pattern: 'Pattern',
+  review: 'Review',
+  data: 'Data',
+};
+
+/** On a page every card is from that page, so the chip says what kind of card it is instead. */
+function KindIcon({ obs }: { obs: Observation }) {
+  switch (obs.kind) {
+    case 'alert': return <TriangleAlert size={14} />;
+    case 'nudge': return <Timer size={14} />;
+    case 'trend':
+      // The line points the way the metric moved.
+      return obs.direction === 'up' ? <TrendingUp size={14} /> : obs.direction === 'down' ? <TrendingDown size={14} /> : <TrendingUpDown size={14} />;
+    case 'milestone': return <Crown size={14} />;
+    case 'pattern': return <FingerprintPattern size={14} />;
+    case 'review': return <CalendarCheck size={14} />;
+    case 'data': return <Database size={14} />;
+  }
+}
+
+const PAGE_COPY: Record<InsightPage, { title: string; description: string; domain: keyof typeof DOMAIN_STYLES }> = {
+  activity: {
+    title: 'Activity insights',
+    description: 'What stands out in how you move: trends, streaks and records, worked out from your own data.',
+    domain: 'movement',
+  },
+  sleep: {
+    title: 'Sleep insights',
+    description: 'What stands out in your nights: how long, how regular and which way they are heading, worked out from your own data.',
+    domain: 'sleep',
+  },
+  vitals: {
+    title: 'Vitals insights',
+    description: 'What stands out in your heart and recovery readings, measured against your own usual range.',
+    domain: 'cardio',
+  },
+  body: {
+    title: 'Body insights',
+    description: 'What your weigh-ins add up to over time, measured against your own trend.',
+    domain: 'body',
+  },
+};
+
+/**
+ * Today's key insights, or with `page` one page's own: titled for the page,
+ * with a kind chip in the page's colour on every card.
+ */
+export function InsightsCarousel({ observations, page }: { observations: Observation[]; page?: InsightPage }) {
+  const copy = page ? PAGE_COPY[page] : null;
   const railRef = useRef<HTMLDivElement>(null);
   const [activeIndex, setActiveIndex] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
@@ -109,14 +165,18 @@ export function InsightsCarousel({ observations }: { observations: Observation[]
       <div className="bg-[#09090b] border border-zinc-800/80 rounded-[20px] pt-5 pb-4 md:pt-6 md:pb-5 overflow-hidden w-full relative flex-1 flex flex-col">
         <div className="flex justify-between items-center md:items-start gap-3 md:gap-6 px-4 md:px-6 pb-4">
           <div>
-            <h2 className="text-zinc-100 text-[16px] md:text-[15px] font-semibold md:font-medium tracking-tight">Key insights</h2>
+            <h2 className="text-zinc-100 text-[16px] md:text-[15px] font-semibold md:font-medium tracking-tight">{copy?.title ?? 'Key insights'}</h2>
             {/* A phone has room for the count, not the explanation. */}
             <p className="md:hidden text-zinc-500 text-[12px] mt-0.5 tabular-nums">
               {activeIndex + 1} of {observations.length}
             </p>
             <p className="hidden md:block text-zinc-500 text-[13px] mt-1 leading-[1.55] max-w-[640px]">
-              Derived from your data to give you a quick overview of what it means — the
-              things that stand out, good or bad, that deserve your attention.
+              {copy?.description ?? (
+                <>
+                  Derived from your data to give you a quick overview of what it means — the
+                  things that stand out, good or bad, that deserve your attention.
+                </>
+              )}
             </p>
           </div>
           <div className="flex gap-2 shrink-0">
@@ -137,12 +197,12 @@ export function InsightsCarousel({ observations }: { observations: Observation[]
           onMouseLeave={() => setIsHovered(false)}
           onScroll={handleScroll}
         >
-        {observations.map((obs, i) => {
+        {observations.map((obs) => {
           const tone = TONE_STYLES[obs.tone];
-          const dom = DOMAIN_STYLES[obs.domain];
+          const dom = DOMAIN_STYLES[copy?.domain ?? obs.domain];
           return (
             <article
-              key={i}
+              key={obs.id}
               // On a phone the next card peeks in from the edge, so it's clear there are more to swipe;
               // the rail's padding matches the gap, so the card before stays out of sight.
               className="snap-start shrink-0 w-[calc(100%-16px)] md:w-full min-h-[172px] rounded-[18px] border p-[18px] md:p-5 relative flex flex-col bg-[#111114]"
@@ -157,8 +217,8 @@ export function InsightsCarousel({ observations }: { observations: Observation[]
                   color: dom.color,
                 }}
               >
-                {DOMAIN_ICONS[obs.domain]}
-                {DOMAIN_LABELS[obs.domain] || obs.domain}
+                {copy ? <KindIcon obs={obs} /> : DOMAIN_ICONS[obs.domain]}
+                {copy ? KIND_LABELS[obs.kind] : DOMAIN_LABELS[obs.domain] || obs.domain}
               </span>
               <div className="flex-1" />
               <div>

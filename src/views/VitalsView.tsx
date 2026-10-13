@@ -14,6 +14,9 @@ import { groupRange, groupSeries } from '../pipeline/aggregate';
 import { emptyRecord } from '../pipeline/normalize';
 import { SpanSelector, useSpan } from '../ui/span';
 import { useMediaQuery } from '../hooks/useMediaQuery';
+import { InsightsCarousel } from '../components/InsightsCarousel';
+import { usePageInsights, type Clock } from '../hooks/usePageInsights';
+import type { IntradayDays } from '../pipeline/labs';
 import type { DailyRecord, IntradaySample } from '../types/health';
 
 const spo2Of = (d: DailyRecord) => (d.spo2 ? { avg: d.spo2.avg, low: d.spo2.ciLower, high: d.spo2.ciUpper } : null);
@@ -44,8 +47,9 @@ interface Metric {
   chart: React.ReactNode;
 }
 
-export function VitalsView({ data }: { data: SyncResult }) {
+export function VitalsView({ data, clock, intraday }: { data: SyncResult; clock?: Clock; intraday?: IntradayDays }) {
   const days = data.days;
+  const insights = usePageInsights(data, 'vitals', clock, intraday);
   const today = days.at(-1)?.date ?? null;
   const spanState = useSpan(data, '30');
   const { days: window, bucket } = spanState;
@@ -252,6 +256,8 @@ export function VitalsView({ data }: { data: SyncResult }) {
           </Card>
         ))}
       </div>
+
+      <InsightsCarousel observations={insights} page="vitals" />
     </div>
   );
 }
