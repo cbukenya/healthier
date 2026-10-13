@@ -3,7 +3,7 @@ import { Bell, BellOff, ChevronDown, ChevronRight, CircleCheck, CircleDashed, Cl
 import type { SyncResult } from '../pipeline/sync';
 import {
   completedIntradayDays, dipping, entropyShift, nocturnalTachycardia, sdbScreen, strainToday,
-  type EntropyShift, type IntradayDays, type NightTrace, type SdbNight, type StrainKey, type StrainSignal, type TachycardiaEvent,
+  type EntropyShift, type IntradayDays, type NightTrace, type SdbNight, type StrainKey, type StrainSignal, type StrainToday, type TachycardiaEvent,
 } from '../pipeline/labs';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 
@@ -20,8 +20,9 @@ import { useMediaQuery } from '../hooks/useMediaQuery';
  * watches even when quiet, so a card with nothing to report still shows what it
  * looks at. Until it finds something, a Watches / Lights up box says what it
  * looks for; once it does, the callout says what was seen and the box steps
- * aside. The rose treatment is confined to findings. Phones get one list whose
- * rows open in place; wider screens get glance tiles above the cards.
+ * aside. The rose treatment is confined to findings. Phones get one tile per
+ * lab that opens in place; wider screens get glance tiles above the cards. Each
+ * tile carries a cut-down copy of its card's picture.
  */
 
 type Days = SyncResult['days'];
@@ -36,19 +37,17 @@ interface Lab {
   tone: Tone;
   mark: Mark;
   chip: string;
-  /** The status line in the phone list and the desktop tiles. */
+  /** The status line on the phone tiles and the desktop glance tiles. */
   glance: string;
   /** Something was found: its callout says what, so the Watches / Lights up box steps aside. */
   found: boolean;
-  mini: (w: number, h: number) => React.ReactNode;
+  /** The card's picture, cut down to sit under the status line of a tile. */
+  graph: React.ReactNode;
   parts: React.ReactNode;
 }
 
 // SVG fills, matching the Tailwind colours around them.
-const HEX = {
-  zinc800: '#27272a', zinc700: '#3f3f46', zinc600: '#52525b', zinc500: '#71717a', zinc400: '#a1a1aa', zinc50: '#fafafa',
-  amber: '#fbbf24', rose: '#fb7185', emerald: '#34d399',
-};
+const HEX = { zinc800: '#27272a', zinc500: '#71717a', zinc400: '#a1a1aa', zinc50: '#fafafa', amber: '#fbbf24', rose: '#fb7185', emerald: '#34d399' };
 
 const fmtClock = (m: number) => `${String(Math.floor(((m % 1440) + 1440) % 1440 / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
 const fmtDate = (d: string) => new Date(`${d}T12:00:00`).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
@@ -215,6 +214,17 @@ function Keys({ items }: { items: [React.ReactNode, string][] }) {
 const Swatch = ({ className }: { className: string }) => <span className={`w-2 h-2 rounded-[2px] ${className}`} />;
 const Dot = ({ className }: { className: string }) => <span className={`w-[7px] h-[7px] rounded-full ${className}`} />;
 
+/** The two ends of a graph's period, with an optional label between them. */
+function Ends({ left, right, mid, compact = false }: { left: string; right: string; mid?: string; compact?: boolean }) {
+  return (
+    <div className={`${compact ? 'mt-[5px]' : 'mt-1.5'} flex justify-between gap-2 text-[10px] leading-[13px] text-zinc-600`}>
+      <span>{left}</span>
+      {mid && <span className="text-zinc-500">{mid}</span>}
+      <span>{right}</span>
+    </div>
+  );
+}
+
 function DayList({ rows, dot }: { rows: [string, string][]; dot: string }) {
   return (
     <div>
@@ -252,10 +262,10 @@ function DeviceNote() {
   );
 }
 
-function Spec({ k, inset = false }: { k: LabKey; inset?: boolean }) {
+function Spec({ k }: { k: LabKey }) {
   const { watch, light } = SPEC[k];
   return (
-    <div className={`flex flex-col gap-2 px-3 py-[11px] rounded-xl border border-[#1c1c20] ${inset ? 'bg-[#17171b]' : 'bg-[#111114]'}`}>
+    <div className="flex flex-col gap-2 px-3 py-[11px] rounded-xl border border-[#1c1c20] bg-[#111114]">
       <p className="flex gap-2 text-[11.5px] leading-normal text-zinc-400">
         <Eye size={13} aria-hidden className="shrink-0 mt-[3px]" />
         <span><b className="font-semibold text-zinc-100">{watch[0]}</b> {watch[1]}</span>
@@ -299,21 +309,6 @@ function useWidth<T extends HTMLElement>(): [React.RefObject<T | null>, number] 
   return [ref, w];
 }
 
-function MiniSvg({ w, h, children }: { w: number; h: number; children: React.ReactNode }) {
-  return <svg viewBox={`0 0 ${w} ${h}`} width={w} height={h} aria-hidden className="block shrink-0">{children}</svg>;
-}
-
-function MiniProgress({ done, total, w, h }: { done: number; total: number; w: number; h: number }) {
-  const p = w / total;
-  return (
-    <MiniSvg w={w} h={h}>
-      {Array.from({ length: total }, (_, i) => (
-        <rect key={i} x={i * p} y={(h - 5) / 2} width={p - 1.8} height={5} rx={2} fill={i < done ? HEX.amber : HEX.zinc800} />
-      ))}
-    </MiniSvg>
-  );
-}
-
 // ── card 1 · breathing during sleep ───────────────────────────────────────
 
 const SDB_SIGNALS = [['oxygen', 'Oxygen'], ['breathing', 'Breathing'], ['awake', 'Time awake']] as const;
@@ -345,10 +340,7 @@ function SdbGrid({ nights, judged }: { nights: SdbNight[]; judged: boolean }) {
           </React.Fragment>
         ))}
       </div>
-      <div className="mt-1.5 pl-[74px] flex justify-between text-[10px] text-zinc-600">
-        <span>{fmtDay(nights[0].date)}</span>
-        <span>{fmtDay(nights[nights.length - 1].date)}</span>
-      </div>
+      <div className="pl-[74px]"><Ends left={fmtDay(nights[0].date)} right={fmtDay(nights[nights.length - 1].date)} /></div>
       <div className="mt-2">
         <Keys items={judged
           ? [[<Swatch className="bg-amber-400" />, 'off for you'], [<Swatch className="bg-rose-400" />, 'two or more off on one night'], [dashed, 'not measured yet']]
@@ -359,22 +351,29 @@ function SdbGrid({ nights, judged }: { nights: SdbNight[]; judged: boolean }) {
   );
 }
 
-function MiniBars({ nights, w, h }: { nights: SdbNight[]; w: number; h: number }) {
-  const p = w / Math.max(nights.length, 1);
-  const bw = Math.min(p * 0.7, 8);
+/** The tile's version of the grid: one bar a night, coloured by its worst. */
+function SdbBars({ nights }: { nights: SdbNight[] }) {
+  if (!nights.length) return null;
   return (
-    <MiniSvg w={w} h={h}>
-      {nights.map((n, i) => (!n.measured
-        ? <rect key={n.date} x={i * p + 0.5} y={2.5} width={Math.max(bw - 1, 1)} height={h - 5} rx={1} fill="none" stroke={HEX.zinc700} strokeWidth={1} strokeDasharray="1.5 1.5" />
-        : <rect key={n.date} x={i * p} y={2} width={bw} height={h - 4} rx={1} fill={offCount(n) >= 2 ? HEX.rose : offCount(n) === 1 ? HEX.amber : HEX.zinc800} />))}
-    </MiniSvg>
+    <div aria-hidden>
+      <div className="flex gap-[3px] h-[18px]">
+        {nights.map((n) => (
+          <span
+            key={n.date}
+            className={`flex-1 rounded-[3px] ${
+              !n.measured ? 'border border-dashed border-zinc-700'
+                : offCount(n) >= 2 ? 'bg-rose-400' : offCount(n) === 1 ? 'bg-amber-400' : 'bg-zinc-800'}`}
+          />
+        ))}
+      </div>
+      <Ends compact left={fmtDay(nights[0].date)} right={fmtDay(nights[nights.length - 1].date)} />
+    </div>
   );
 }
 
 function sdbLab(days: Days): Lab {
   const r = sdbScreen(days);
-  const base = { key: 'sdb' as const, title: 'Sleep-disordered breathing patterns', gloss: 'breathing during sleep' };
-  const mini = (w: number, h: number) => <MiniBars nights={r.nights} w={w} h={h} />;
+  const base = { key: 'sdb' as const, title: 'Sleep-disordered breathing patterns', gloss: 'breathing during sleep', graph: <SdbBars nights={r.nights} /> };
   const fired = r.nights.filter((n) => offCount(n) >= 2);
   const singles = r.nights.filter((n) => offCount(n) === 1);
   const stats = (
@@ -387,7 +386,7 @@ function sdbLab(days: Days): Lab {
   if (r.status === 'collecting') {
     const collected = Math.min(r.beforeNights, r.beforeWanted) + Math.min(r.testedNights, r.testedWanted);
     return {
-      ...base, tone: 'wait', mark: 'collecting', chip: 'Collecting', glance: `Collecting · ${collected} of ${r.nightsWanted} nights`, found: false, mini,
+      ...base, tone: 'wait', mark: 'collecting', chip: 'Collecting', glance: `Collecting · ${collected} of ${r.nightsWanted} nights`, found: false,
       parts: (
         <>
           <Collecting
@@ -404,7 +403,7 @@ function sdbLab(days: Days): Lab {
   if (r.status === 'pattern') {
     const chip = `${r.firedCount} nights · last 14`;
     return {
-      ...base, tone: 'found', mark: 'found', chip, glance: chip, found: true, mini,
+      ...base, tone: 'found', mark: 'found', chip, glance: chip, found: true,
       parts: (
         <>
           <Answer text={`${r.firedCount} of the last 14 nights had two or more off together`} />
@@ -429,7 +428,7 @@ function sdbLab(days: Days): Lab {
         ? `${singles.length} nights had one signal off. One signal on its own doesn't count.`
         : 'Every measured night stayed inside your usual range.';
   return {
-    ...base, tone: 'quiet', mark: 'quiet', chip: 'No pattern', glance: 'No pattern · last 14 nights', found: false, mini,
+    ...base, tone: 'quiet', mark: 'quiet', chip: 'No pattern', glance: 'No pattern · last 14 nights', found: false,
     parts: (
       <>
         <Answer text="No pattern in the last 14 nights" sub={sub} />
@@ -472,65 +471,55 @@ function StrainTiles({ signals, rose }: { signals: StrainSignal[]; rose: boolean
 }
 
 const LEVELS = [
-  { key: 'baseline', label: 'Baseline · 0–1 off', bar: 'bg-emerald-400 rounded-l', today: 'text-emerald-400 text-left', align: 'text-left' },
-  { key: 'elevated', label: 'Elevated · 2 off', bar: 'bg-amber-400', today: 'text-amber-400 text-center', align: 'text-center' },
-  { key: 'high', label: 'High · 3–4 off', bar: 'bg-rose-500 rounded-r', today: 'text-rose-400 text-right', align: 'text-right' },
+  { key: 'baseline', name: 'Baseline', label: 'Baseline · 0–1 off', bar: 'bg-emerald-400 rounded-l', today: 'text-emerald-400 text-left', align: 'text-left' },
+  { key: 'elevated', name: 'Elevated', label: 'Elevated · 2 off', bar: 'bg-amber-400', today: 'text-amber-400 text-center', align: 'text-center' },
+  { key: 'high', name: 'High', label: 'High · 3–4 off', bar: 'bg-rose-500 rounded-r', today: 'text-rose-400 text-right', align: 'text-right' },
 ] as const;
 
-function StrainScale({ level }: { level: 'baseline' | 'elevated' | 'high' | null }) {
+/** The stages; on a tile, just their names, with today's in bold. */
+function StrainScale({ level, compact = false }: { level: StrainToday['level']; compact?: boolean }) {
   return (
     <div
-      role="img"
-      aria-label={level
+      role={compact ? undefined : 'img'}
+      aria-hidden={compact || undefined}
+      aria-label={compact ? undefined : level
         ? `Today sits at ${level}. Baseline is 0 or 1 signals off, Elevated 2, High 3 or 4`
         : "Baseline is 0 or 1 signals off, Elevated 2, High 3 or 4; no position until today's readings arrive"}
     >
-      {level && (
+      {level && !compact && (
         <div className="grid grid-cols-3 mb-1 text-[9px] font-bold tracking-[0.12em]">
           {LEVELS.map((l) => <span key={l.key} className={l.today}>{l.key === level ? 'TODAY' : ''}</span>)}
         </div>
       )}
-      <div className="grid grid-cols-3 gap-1">
-        {LEVELS.map((l) => <span key={l.key} className={`h-2 ${l.bar} ${l.key === level ? 'opacity-65' : 'opacity-20'}`} />)}
+      <div className={`grid grid-cols-3 ${compact ? 'gap-[3px]' : 'gap-1'}`}>
+        {LEVELS.map((l) => <span key={l.key} className={`${compact ? 'h-1.5' : 'h-2'} ${l.bar} ${l.key === level ? 'opacity-65' : 'opacity-20'}`} />)}
       </div>
-      <div className="mt-1.5 grid grid-cols-3 text-[10.5px] text-zinc-500">
-        {LEVELS.map((l) => <span key={l.key} className={`${l.align} ${l.key === level ? 'font-semibold text-zinc-200' : ''}`}>{l.label}</span>)}
+      <div className={`${compact ? 'mt-[5px] text-[10px] leading-[13px] text-zinc-600' : 'mt-1.5 text-[10.5px] text-zinc-500'} grid grid-cols-3`}>
+        {LEVELS.map((l) => (
+          <span key={l.key} className={`${l.align} ${l.key === level ? 'font-semibold text-zinc-200' : ''}`}>{compact ? l.name : l.label}</span>
+        ))}
       </div>
     </div>
   );
 }
 
-function MiniDots({ signals, rose, w, h }: { signals: StrainSignal[]; rose: boolean; w: number; h: number }) {
-  return (
-    <MiniSvg w={w} h={h}>
-      {signals.map((s, i) => {
-        const cx = (i + 0.5) * (w / signals.length);
-        return s.status === 'none'
-          ? <circle key={s.key} cx={cx} cy={h / 2} r={4.5} fill="none" stroke={HEX.zinc600} strokeWidth={1.5} />
-          : <circle key={s.key} cx={cx} cy={h / 2} r={4.5} fill={s.status === 'off' ? (rose ? HEX.rose : HEX.amber) : HEX.emerald} fillOpacity={s.status === 'in' ? 0.7 : 1} />;
-      })}
-    </MiniSvg>
-  );
-}
-
 function strainLab(days: Days): Lab {
   const r = strainToday(days);
-  const base = { key: 'strain' as const, title: 'System Strain Radar', gloss: 'physiological deviations' };
+  const base = { key: 'strain' as const, title: 'System Strain Radar', gloss: 'physiological deviations', graph: <StrainScale level={r.level} compact /> };
   const rose = r.level === 'high';
-  const mini = (w: number, h: number) => <MiniDots signals={r.signals} rose={rose} w={w} h={h} />;
   const off = r.signals.filter((s) => s.status === 'off');
   const offWords = listOf(off.map((s) => STRAIN_WORDS[s.key]));
   const picture = <><StrainTiles signals={r.signals} rose={rose} /><StrainScale level={r.level} /></>;
 
   if (r.status === 'collecting') {
     return {
-      ...base, tone: 'wait', mark: 'collecting', chip: 'Collecting', glance: 'Collecting · learning your ranges', found: false, mini,
+      ...base, tone: 'wait', mark: 'collecting', chip: 'Collecting', glance: 'Collecting · learning your ranges', found: false,
       parts: <><Answer text="Learning your usual ranges" sub="Needs about four weeks of readings before today can be compared with them." />{picture}</>,
     };
   }
   if (r.status === 'waiting') {
     return {
-      ...base, tone: 'wait', mark: 'waiting', chip: 'Waiting', glance: "Waiting for today's readings", found: false, mini,
+      ...base, tone: 'wait', mark: 'waiting', chip: 'Waiting', glance: "Waiting for today's readings", found: false,
       parts: (
         <>
           <Answer
@@ -547,7 +536,7 @@ function strainLab(days: Days): Lab {
   if (r.level === 'high') {
     const chip = `High · ${r.off} signals off`;
     return {
-      ...base, tone: 'found', mark: 'found', chip, glance: chip, found: true, mini,
+      ...base, tone: 'found', mark: 'found', chip, glance: chip, found: true,
       parts: (
         <>
           <Answer text={`${r.off} of 4 signals off today`} />
@@ -561,7 +550,7 @@ function strainLab(days: Days): Lab {
   }
   if (r.level === 'elevated') {
     return {
-      ...base, tone: 'wait', mark: 'notice', chip: 'Elevated · 2 signals off', glance: 'Elevated · 2 signals off', found: true, mini,
+      ...base, tone: 'wait', mark: 'notice', chip: 'Elevated · 2 signals off', glance: 'Elevated · 2 signals off', found: true,
       parts: (
         <>
           <Answer
@@ -578,47 +567,34 @@ function strainLab(days: Days): Lab {
     ? `Only ${STRAIN_WORDS[off[0].key]} is ${STRAIN_DIR[off[0].key]} usual. One on its own doesn't count.`
     : judged === 4 ? 'All four are inside your usual range.' : `Today's ${judged} readings so far are inside your usual range.`;
   return {
-    ...base, tone: 'quiet', mark: 'quiet', chip: 'Baseline', glance: `Baseline · ${r.off} of 4 off`, found: false, mini,
+    ...base, tone: 'quiet', mark: 'quiet', chip: 'Baseline', glance: `Baseline · ${r.off} of 4 off`, found: false,
     parts: <><Answer text="Baseline today" sub={sub} />{picture}</>,
   };
 }
 
 // ── card 3 · irregular rhythm notifications ───────────────────────────────
 
-function IrnStrip({ days, ghost = false }: { days: Days; ghost?: boolean }) {
+function IrnStrip({ days, ghost = false, compact = false }: { days: Days; ghost?: boolean; compact?: boolean }) {
   if (!days.length) return null;
   const marked = days.filter((d) => d.irn && d.irn > 0);
+  const h = compact ? 16 : 20;
   const aria = ghost
     ? 'Not synced, so there are no days to show'
     : marked.length
       ? `The last ${days.length} days, with notifications on ${listOf(marked.map((d) => fmtDay(d.date)))}`
       : `The last ${days.length} days, with no notifications synced`;
   return (
-    <div role="img" aria-label={aria}>
+    <div role={compact ? undefined : 'img'} aria-hidden={compact || undefined} aria-label={compact ? undefined : aria}>
       <div className="relative">
-        <svg viewBox={`0 0 ${days.length * 10} 20`} preserveAspectRatio="none" width="100%" height="20" className={`block ${ghost ? 'opacity-30' : ''}`}>
+        <svg viewBox={`0 0 ${days.length * 10} ${h}`} preserveAspectRatio="none" width="100%" height={h} className={`block ${ghost ? 'opacity-30' : ''}`}>
           {days.map((d, i) => (!ghost && d.irn && d.irn > 0
-            ? <rect key={d.date} x={i * 10} y={0} width={6.5} height={20} rx={1} fill={HEX.amber} />
-            : <rect key={d.date} x={i * 10} y={6} width={6.5} height={8} rx={1} fill={HEX.zinc800} />))}
+            ? <rect key={d.date} x={i * 10} y={0} width={6.5} height={h} rx={1} fill={HEX.amber} />
+            : <rect key={d.date} x={i * 10} y={h * 0.3} width={6.5} height={h * 0.4} rx={1} fill={HEX.zinc800} />))}
         </svg>
-        {ghost && <span className="absolute inset-0 flex items-center justify-center text-[10.5px] text-zinc-400">not synced</span>}
+        {ghost && <span className="absolute inset-0 flex items-center justify-center text-[10px] text-zinc-400">not synced</span>}
       </div>
-      <div className="mt-1.5 flex justify-between text-[10px] text-zinc-600"><span>{fmtDay(days[0].date)}</span><span>today</span></div>
+      <Ends compact={compact} left={fmtDay(days[0].date)} right="today" />
     </div>
-  );
-}
-
-function MiniTicks({ days, synced, w, h }: { days: Days; synced: boolean; w: number; h: number }) {
-  const n = days.length;
-  return (
-    <MiniSvg w={w} h={h}>
-      {synced
-        ? <rect x={0} y={h / 2 - 1} width={w} height={2} rx={1} fill={HEX.zinc800} />
-        : <line x1={0} x2={w} y1={h / 2} y2={h / 2} stroke={HEX.zinc700} strokeWidth={1.5} strokeDasharray="2 2" />}
-      {days.map((d, i) => (d.irn && d.irn > 0
-        ? <rect key={d.date} x={(i / Math.max(n - 1, 1)) * (w - 3)} y={1} width={3} height={h - 2} rx={1} fill={HEX.amber} />
-        : null))}
-    </MiniSvg>
   );
 }
 
@@ -628,12 +604,11 @@ function irnLab(data: SyncResult): Lab {
   const stream = data.meta.streams.find((s) => s.dataType === 'irregular-rhythm-notification');
   const synced = !!stream && stream.status !== 'skipped' && stream.status !== 'unauthorized' && stream.status !== 'error';
   const base = { key: 'irn' as const, title: 'Irregular rhythm notifications', gloss: 'reported by your device' };
-  const mini = (w: number, h: number) => <MiniTicks days={days} synced={synced || events.length > 0} w={w} h={h} />;
 
   if (events.length) {
     const text = `${plural(events.length, 'day')} with notifications`;
     return {
-      ...base, tone: 'wait', mark: 'reported', chip: 'Reported', glance: text, found: true, mini,
+      ...base, tone: 'wait', mark: 'reported', chip: 'Reported', glance: text, found: true, graph: <IrnStrip days={days} compact />,
       parts: (
         <>
           <Answer text={text} />
@@ -646,12 +621,12 @@ function irnLab(data: SyncResult): Lab {
   }
   if (!synced) {
     return {
-      ...base, tone: 'wait', mark: 'unsynced', chip: 'Not synced', glance: 'Not synced', found: false, mini,
+      ...base, tone: 'wait', mark: 'unsynced', chip: 'Not synced', glance: 'Not synced', found: false, graph: <IrnStrip days={days} ghost compact />,
       parts: <><Answer text="Not shared with Healthier" sub="Its permission wasn't granted, or the last sync couldn't read it." /><IrnStrip days={days} ghost /></>,
     };
   }
   return {
-    ...base, tone: 'neutral', mark: 'none', chip: 'None synced', glance: 'None synced', found: false, mini,
+    ...base, tone: 'neutral', mark: 'none', chip: 'None synced', glance: 'None synced', found: false, graph: <IrnStrip days={days} compact />,
     parts: <><Answer text="No notifications synced" sub={`Nothing in the last ${days.length} days.`} /><IrnStrip days={days} /></>,
   };
 }
@@ -675,50 +650,43 @@ const DROP_LABEL: Record<string, string> = {
   riser: 'Higher at night',
 };
 
-function Corridor({ median, rose = false }: { median: number | null; rose?: boolean }) {
+function Corridor({ median, rose = false, compact = false }: { median: number | null; rose?: boolean; compact?: boolean }) {
   const left = median === null ? null : corridorLeft(median);
   return (
     <div
-      role="img"
-      aria-label={median === null
+      role={compact ? undefined : 'img'}
+      aria-hidden={compact || undefined}
+      aria-label={compact ? undefined : median === null
         ? 'The bands your median drop will be placed on: rise below 0%, small 0 to 10%, typical 10 to 20%, large over 20%'
         : `Your median drop, ${median}%, on the bands: rise below 0%, small 0 to 10%, typical 10 to 20%, large over 20%`}
     >
-      {left === null && <p className="mb-1.5 text-[10.5px] text-zinc-500">Your median drop will be marked on these bands</p>}
-      <div className={`relative ${left === null ? '' : 'pt-[17px]'}`}>
+      {left === null && !compact && <p className="mb-1.5 text-[10.5px] text-zinc-500">Your median drop will be marked on these bands</p>}
+      <div className={`relative ${left === null ? '' : compact ? 'pt-[15px]' : 'pt-[17px]'}`}>
         {left !== null && (
           <span
-            className={`absolute top-0 -translate-x-1/2 text-[9px] leading-3 font-bold tracking-[0.1em] whitespace-nowrap ${rose ? 'text-rose-300' : 'text-zinc-50'}`}
+            className={`absolute top-0 -translate-x-1/2 text-[9px] ${compact ? 'leading-[11px]' : 'leading-3'} font-bold tracking-[0.1em] whitespace-nowrap ${rose ? 'text-rose-300' : 'text-zinc-50'}`}
             style={{ left: `${Math.min(Math.max(left, 9), 91)}%` }}
           >
             YOU · {median}%
           </span>
         )}
-        <div className={`h-2.5 rounded-md overflow-hidden flex ${left === null ? 'opacity-60' : ''}`}>
+        <div className={`${compact ? 'h-2 rounded' : 'h-2.5 rounded-md'} overflow-hidden flex ${left === null ? 'opacity-60' : ''}`}>
           <div className="shrink-0 basis-[28%] bg-rose-500/30" />
           <div className="shrink-0 basis-[28%] bg-amber-400/30" />
           <div className="shrink-0 basis-[30%] bg-emerald-400/30" />
           <div className="flex-1 bg-emerald-400/10" />
         </div>
         {left !== null && (
-          <span className={`absolute top-[13px] w-[3px] h-[18px] -ml-[1.5px] rounded-sm ${rose ? 'bg-rose-300' : 'bg-zinc-50'}`} style={{ left: `${left}%` }} />
+          <span
+            className={`absolute ${compact ? 'top-3 h-3.5' : 'top-[13px] h-[18px]'} w-[3px] -ml-[1.5px] rounded-sm ${rose ? 'bg-rose-300' : 'bg-zinc-50'}`}
+            style={{ left: `${left}%` }}
+          />
         )}
-        <div className="mt-1.5 flex justify-between text-[9px] uppercase tracking-[0.06em] text-zinc-600">
+        <div className={`${compact ? 'mt-[5px] text-[8.5px] tracking-[0.05em]' : 'mt-1.5 text-[9px] tracking-[0.06em]'} flex justify-between uppercase text-zinc-600`}>
           <span>Rise &lt; 0%</span><span>Small 0–10%</span><span>Typical 10–20%</span><span>Large &gt; 20%</span>
         </div>
       </div>
     </div>
-  );
-}
-
-function MiniCorridor({ median, rose, w, h }: { median: number; rose: boolean; w: number; h: number }) {
-  const zones: [number, number, string][] = [[0, 0.28, 'rgba(244,63,94,.3)'], [0.28, 0.56, 'rgba(251,191,36,.3)'], [0.56, 0.86, 'rgba(52,211,153,.3)'], [0.86, 1, 'rgba(52,211,153,.1)']];
-  const x = (corridorLeft(median) / 100) * w;
-  return (
-    <MiniSvg w={w} h={h}>
-      {zones.map(([a, b, fill]) => <rect key={a} x={a * w} y={(h - 6) / 2} width={(b - a) * w} height={6} fill={fill} />)}
-      <rect x={Math.min(Math.max(x - 1.25, 0), w - 2.5)} y={1} width={2.5} height={h - 2} rx={1} fill={rose ? HEX.rose : HEX.zinc50} />
-    </MiniSvg>
   );
 }
 
@@ -740,7 +708,7 @@ function dipLab(days: Days, intraday: IntradayDays): Lab {
   if (r.status === 'collecting' || median === null) {
     return {
       ...base, tone: 'wait', mark: 'collecting', chip: 'Collecting', glance: `Collecting · ${r.daysCollected} of ${r.daysWanted} days`, found: false,
-      mini: (w, h) => <MiniProgress done={r.daysCollected} total={r.daysWanted} w={w} h={h} />,
+      graph: <Corridor median={null} compact />,
       parts: (
         <>
           <Collecting
@@ -757,13 +725,13 @@ function dipLab(days: Days, intraday: IntradayDays): Lab {
   const stats = (
     <Stats items={[daytime, sleeping, ['Median drop', `${median}%`, '30 days'], ['Nights under 10%', `${r.nightsUnder10} of ${r.measurableNights}`]]} />
   );
-  const mini = (w: number, h: number) => <MiniCorridor median={median} rose={r.status === 'pattern'} w={w} h={h} />;
 
   if (r.status === 'pattern') {
     const chip = r.riser ? 'Higher at night' : 'Smaller drop';
     const text = median < 0 ? `Heart rate is ${-median}% higher at night` : median === 0 ? "Heart rate doesn't drop at night" : `Heart rate drops ${median}% at night`;
     return {
-      ...base, tone: 'found', mark: 'found', chip, glance: r.riser ? chip : `${chip} · ${median}%`, found: true, mini,
+      ...base, tone: 'found', mark: 'found', chip, glance: r.riser ? chip : `${chip} · ${median}%`, found: true,
+      graph: <Corridor median={median} rose compact />,
       parts: (
         <>
           <Answer text={text} />
@@ -785,7 +753,8 @@ function dipLab(days: Days, intraday: IntradayDays): Lab {
   const label = DROP_LABEL[r.category] ?? 'No pattern';
   const band = r.category === 'extreme dipper' ? 'In the large band, over 20%.' : 'In the typical 10–20% band.';
   return {
-    ...base, tone: 'quiet', mark: 'quiet', chip: label, glance: `${label} · ${median}%`, found: false, mini,
+    ...base, tone: 'quiet', mark: 'quiet', chip: label, glance: `${label} · ${median}%`, found: false,
+    graph: <Corridor median={median} compact />,
     parts: (
       <>
         <Answer text={`Heart rate drops ${median}% at night`} sub={`${band} ${r.nightsUnder10} of ${r.measurableNights} measured nights dropped less than 10%.`} />
@@ -814,72 +783,65 @@ function entropyScale(r: EntropyShift, top: number, bottom: number) {
   return (v: number) => top + ((hi - v) / (hi - lo || 1)) * (bottom - top);
 }
 
-function EntropyPlot({ r }: { r: EntropyShift }) {
+function EntropyPlot({ r, compact = false }: { r: EntropyShift; compact?: boolean }) {
   const [ref, W] = useWidth<HTMLDivElement>();
   const pts = r.recent;
-  if (!pts.length) return <p className="text-[11.5px] text-zinc-500">No nights with HRV entropy synced yet.</p>;
-  const H = 66;
+  if (!pts.length) {
+    return compact
+      ? <div aria-hidden className="h-[28px] border-t border-dashed border-zinc-700 mt-3.5" />
+      : <p className="text-[11.5px] text-zinc-500">No nights with HRV entropy synced yet.</p>;
+  }
+  const H = compact ? 28 : 66;
   const band = r.usualLow !== null && r.usualHigh !== null && r.baselineMedian !== null;
-  const y = entropyScale(r, 6, H - 8);
-  const x = (i: number) => (pts.length === 1 ? W / 2 : 8 + i * ((W - 16) / (pts.length - 1)));
+  const y = compact ? entropyScale(r, 3, H - 3) : entropyScale(r, 6, H - 8);
+  const inset = compact ? 4 : 8;
+  const x = (i: number) => (pts.length === 1 ? W / 2 : inset + i * ((W - 2 * inset) / (pts.length - 1)));
   const alone = pts.some((_, i) => entropyFill(r, i) === HEX.amber);
   const aria = band
     ? `The last ${plural(pts.length, 'night')} against your usual range of ${r.usualLow!.toFixed(2)} to ${r.usualHigh!.toFixed(2)}`
     : `${plural(pts.length, 'night')} so far, with no usual range yet`;
   return (
-    <div>
-      <div ref={ref} className="h-[66px]">
+    <div aria-hidden={compact || undefined}>
+      <div ref={ref} style={{ height: H }}>
         {W > 0 && (
-          <svg width={W} height={H} role="img" aria-label={aria} className="block">
+          <svg width={W} height={H} role={compact ? undefined : 'img'} aria-label={compact ? undefined : aria} className="block">
             {band && (
               <>
-                <rect x={0} y={y(r.usualHigh!)} width={W} height={y(r.usualLow!) - y(r.usualHigh!)} rx={4} fill={HEX.emerald} opacity={0.08} />
-                <line x1={0} x2={W} y1={y(r.baselineMedian!)} y2={y(r.baselineMedian!)} stroke={HEX.emerald} strokeOpacity={0.4} strokeDasharray="3 4" />
+                <rect x={0} y={y(r.usualHigh!)} width={W} height={y(r.usualLow!) - y(r.usualHigh!)} rx={compact ? 3 : 4} fill={HEX.emerald} opacity={compact ? 0.12 : 0.08} />
+                {!compact && <line x1={0} x2={W} y1={y(r.baselineMedian!)} y2={y(r.baselineMedian!)} stroke={HEX.emerald} strokeOpacity={0.4} strokeDasharray="3 4" />}
               </>
             )}
-            {pts.map((p, i) => <circle key={p.date} cx={x(i)} cy={y(p.value)} r={i === pts.length - 1 ? 4 : 3} fill={entropyFill(r, i)} />)}
+            {pts.map((p, i) => (
+              <circle key={p.date} cx={x(i)} cy={y(p.value)} r={i === pts.length - 1 ? (compact ? 3.2 : 4) : (compact ? 2.4 : 3)} fill={entropyFill(r, i)} />
+            ))}
           </svg>
         )}
       </div>
-      <div className="mt-1 flex justify-between text-[10px] text-zinc-600"><span>{fmtDay(pts[0].date)}</span><span>{fmtDay(pts[pts.length - 1].date)}</span></div>
-      <div className="mt-1.5">
-        <Keys items={band
-          ? [
-            [<span className="w-3.5 h-2 rounded-[2px] bg-emerald-400/15" />, 'your usual range'],
-            [<Dot className="bg-zinc-50" />, 'latest night'],
-            ...(alone ? [[<Dot className="bg-amber-400" />, 'outside, on its own'] as [React.ReactNode, string]] : []),
-            ...(r.status === 'shift' ? [[<Dot className="bg-rose-400" />, 'outside, nights in a row'] as [React.ReactNode, string]] : []),
-          ]
-          : [
-            [<Dot className="bg-zinc-400" />, 'nights so far'],
-            [<Dot className="bg-zinc-50" />, 'latest night'],
-            [<span className="w-3.5 h-2 rounded-[2px] border border-dashed border-zinc-700" />, 'usual range: after about 3 weeks'],
-          ]}
-        />
-      </div>
-    </div>
-  );
-}
-
-function MiniEntropy({ r, w, h }: { r: EntropyShift; w: number; h: number }) {
-  if (!r.recent.length) return <MiniSvg w={w} h={h}><line x1={0} x2={w} y1={h / 2} y2={h / 2} stroke={HEX.zinc700} strokeDasharray="2 2" /></MiniSvg>;
-  const y = entropyScale(r, 2, h - 2);
-  const x = (i: number) => (r.recent.length === 1 ? w / 2 : 3 + i * ((w - 6) / (r.recent.length - 1)));
-  const last = r.recent.length - 1;
-  return (
-    <MiniSvg w={w} h={h}>
-      {r.usualLow !== null && r.usualHigh !== null && (
-        <rect x={0} y={y(r.usualHigh)} width={w} height={y(r.usualLow) - y(r.usualHigh)} rx={2} fill={HEX.emerald} opacity={0.14} />
+      <Ends compact={compact} left={fmtDay(pts[0].date)} right={fmtDay(pts[pts.length - 1].date)} />
+      {!compact && (
+        <div className="mt-1.5">
+          <Keys items={band
+            ? [
+              [<span className="w-3.5 h-2 rounded-[2px] bg-emerald-400/15" />, 'your usual range'],
+              [<Dot className="bg-zinc-50" />, 'latest night'],
+              ...(alone ? [[<Dot className="bg-amber-400" />, 'outside, on its own'] as [React.ReactNode, string]] : []),
+              ...(r.status === 'shift' ? [[<Dot className="bg-rose-400" />, 'outside, nights in a row'] as [React.ReactNode, string]] : []),
+            ]
+            : [
+              [<Dot className="bg-zinc-400" />, 'nights so far'],
+              [<Dot className="bg-zinc-50" />, 'latest night'],
+              [<span className="w-3.5 h-2 rounded-[2px] border border-dashed border-zinc-700" />, 'usual range: after about 3 weeks'],
+            ]}
+          />
+        </div>
       )}
-      {r.recent.map((p, i) => <circle key={p.date} cx={x(i)} cy={y(p.value)} r={i === last ? 2 : 1.5} fill={entropyFill(r, i)} />)}
-    </MiniSvg>
+    </div>
   );
 }
 
 function entropyLab(days: Days): Lab {
   const r = entropyShift(days);
-  const base = { key: 'entropy' as const, title: 'HRV entropy', gloss: 'a nightly HRV metric from your device' };
-  const mini = (w: number, h: number) => <MiniEntropy r={r} w={w} h={h} />;
+  const base = { key: 'entropy' as const, title: 'HRV entropy', gloss: 'a nightly HRV metric from your device', graph: <EntropyPlot r={r} compact /> };
   const fmt = (v: number | null) => (v === null ? '—' : v.toFixed(2));
   const stats: Stat[] = [
     ['Latest night', fmt(r.lastNight)],
@@ -889,7 +851,7 @@ function entropyLab(days: Days): Lab {
 
   if (r.status === 'collecting') {
     return {
-      ...base, tone: 'wait', mark: 'collecting', chip: 'Collecting', glance: 'Collecting · needs about 3 weeks', found: false, mini,
+      ...base, tone: 'wait', mark: 'collecting', chip: 'Collecting', glance: 'Collecting · needs about 3 weeks', found: false,
       parts: <><Answer text="Learning your usual range" sub="Needs about 3 weeks of nights before it can judge a change." /><EntropyPlot r={r} /><Stats items={stats} /></>,
     };
   }
@@ -897,7 +859,7 @@ function entropyLab(days: Days): Lab {
     const chip = `Shift · ${r.shiftNights} nights`;
     const below = r.recent[r.recent.length - 1].side < 0;
     return {
-      ...base, tone: 'found', mark: 'found', chip, glance: chip, found: true, mini,
+      ...base, tone: 'found', mark: 'found', chip, glance: chip, found: true,
       parts: (
         <>
           <Answer text={`${below ? 'Below' : 'Above'} your usual range ${r.shiftNights} nights in a row`} />
@@ -913,7 +875,7 @@ function entropyLab(days: Days): Lab {
   }
   const alone = r.recent.filter((p) => p.shifted).length;
   return {
-    ...base, tone: 'quiet', mark: 'quiet', chip: 'Steady', glance: `Steady · ${plural(r.steadyNights, 'night')}`, found: false, mini,
+    ...base, tone: 'quiet', mark: 'quiet', chip: 'Steady', glance: `Steady · ${plural(r.steadyNights, 'night')}`, found: false,
     parts: (
       <>
         <Answer
@@ -929,7 +891,7 @@ function entropyLab(days: Days): Lab {
 
 // ── card 6 · high heart rate during sleep ─────────────────────────────────
 
-/** 40 bpm at the bottom of a 40-unit box, 120 at the top: the 100 bpm line sits at 10. */
+/** 40 bpm at the bottom of an h-unit box and 120 at the top, so 100 bpm sits a quarter of the way down. */
 const bpmY = (bpm: number, h = 40) => h - ((Math.min(Math.max(bpm, 40), 120) - 40) / 80) * h;
 
 /** Polylines through the trace, broken wherever readings are more than five minutes apart. */
@@ -950,57 +912,62 @@ function traceLines(trace: NightTrace, xOf: (min: number) => number, yOf: (bpm: 
   return lines;
 }
 
-function NightTraceChart({ trace }: { trace: NightTrace }) {
+function NightTraceChart({ trace, compact = false }: { trace: NightTrace; compact?: boolean }) {
+  const H = compact ? 22 : 40;
   const X = (min: number) => (min / trace.durationMin) * 1000;
-  const Y = (bpm: number) => bpmY(bpm);
+  const Y = (bpm: number) => bpmY(bpm, H);
   const what = trace.isNap ? 'nap' : 'night';
   return (
-    <div>
-      <div className="relative">
-        <svg
-          viewBox="0 0 1000 40" preserveAspectRatio="none" width="100%" height="40" className="block rounded-md bg-[#17171b]"
-          role="img"
-          aria-label={`Heart rate through the ${what} filed under ${fmtDate(trace.date)}${trace.stretches.length
-            ? `, above 100 bpm for ${plural(trace.stretches.length, 'stretch', 'stretches')}`
-            : ', with no stretch above 100 bpm while asleep'}`}
-        >
-          {trace.stretches.map((s, i) => (
-            <rect key={i} x={X(s.from)} y={0} width={Math.max(X(s.to) - X(s.from), 3)} height={40} fill={HEX.rose} opacity={0.14} />
-          ))}
-          <line x1={0} x2={1000} y1={Y(100)} y2={Y(100)} stroke={HEX.rose} strokeOpacity={0.45} strokeDasharray="4 4" vectorEffect="non-scaling-stroke" />
-          {traceLines(trace, X, Y).map((pts, i) => (
-            <polyline key={i} points={pts} fill="none" stroke={HEX.zinc500} strokeWidth={1.5} strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
-          ))}
-          {trace.stretches.flatMap((s, i) => traceLines(trace, X, Y, s.from, s.to).map((pts, j) => (
-            <polyline key={`${i}-${j}`} points={pts} fill="none" stroke={HEX.rose} strokeWidth={2} strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
-          )))}
-        </svg>
-      </div>
-      <div className="mt-1.5 flex justify-between text-[10px] text-zinc-600">
-        <span>{fmtClock(trace.bedtimeMin)}</span>
-        <span className="text-zinc-500">{trace.isNap ? 'Nap' : 'Night'} · {fmtDate(trace.date)}</span>
-        <span>{fmtClock(trace.wakeMin)}</span>
-      </div>
-      <div className="mt-2">
-        <Keys items={[
-          [<span className="w-3.5 border-t border-dashed border-rose-400/60" />, '100 bpm'],
-          [<span className="w-3.5 h-0.5 rounded-full bg-zinc-500" />, 'heart rate'],
-          ...(trace.stretches.length ? [[<span className="w-3.5 h-0.5 rounded-full bg-rose-400" />, '10+ minutes above'] as [React.ReactNode, string]] : []),
-        ]} />
-      </div>
+    <div aria-hidden={compact || undefined}>
+      <svg
+        viewBox={`0 0 1000 ${H}`} preserveAspectRatio="none" width="100%" height={H} className={`block ${compact ? 'rounded' : 'rounded-md'} bg-[#17171b]`}
+        role={compact ? undefined : 'img'}
+        aria-label={compact ? undefined : `Heart rate through the ${what} filed under ${fmtDate(trace.date)}${trace.stretches.length
+          ? `, above 100 bpm for ${plural(trace.stretches.length, 'stretch', 'stretches')}`
+          : ', with no stretch above 100 bpm while asleep'}`}
+      >
+        {trace.stretches.map((s, i) => (
+          <rect key={i} x={X(s.from)} y={0} width={Math.max(X(s.to) - X(s.from), 3)} height={H} fill={HEX.rose} opacity={0.14} />
+        ))}
+        <line x1={0} x2={1000} y1={Y(100)} y2={Y(100)} stroke={HEX.rose} strokeOpacity={0.45} strokeDasharray={compact ? '3 3' : '4 4'} vectorEffect="non-scaling-stroke" />
+        {traceLines(trace, X, Y).map((pts, i) => (
+          <polyline key={i} points={pts} fill="none" stroke={HEX.zinc500} strokeWidth={compact ? 1.1 : 1.5} strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+        ))}
+        {trace.stretches.flatMap((s, i) => traceLines(trace, X, Y, s.from, s.to).map((pts, j) => (
+          <polyline key={`${i}-${j}`} points={pts} fill="none" stroke={HEX.rose} strokeWidth={compact ? 1.6 : 2} strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+        )))}
+      </svg>
+      <Ends compact={compact} left={fmtClock(trace.bedtimeMin)} mid={`${trace.isNap ? 'Nap' : 'Night'} · ${fmtDate(trace.date)}`} right={fmtClock(trace.wakeMin)} />
+      {!compact && (
+        <div className="mt-2">
+          <Keys items={[
+            [<span className="w-3.5 border-t border-dashed border-rose-400/60" />, '100 bpm'],
+            [<span className="w-3.5 h-0.5 rounded-full bg-zinc-500" />, 'heart rate'],
+            ...(trace.stretches.length ? [[<span className="w-3.5 h-0.5 rounded-full bg-rose-400" />, '10+ minutes above'] as [React.ReactNode, string]] : []),
+          ]} />
+        </div>
+      )}
     </div>
   );
 }
 
-function EmptyNight() {
+function EmptyNight({ compact = false }: { compact?: boolean }) {
   return (
-    <div role="img" aria-label="One night of sleep with the 100 bpm line; stretches of ten minutes or more above it would show here">
-      <div className="relative h-10 rounded-md bg-[#17171b]">
-        <span className="absolute inset-x-0 top-[10px] border-t border-dashed border-rose-400/45" />
-        <span className="absolute right-1.5 top-0 text-[9px] leading-[9px] text-zinc-400">100 bpm</span>
-        <span className="absolute inset-x-0 top-[17px] text-center text-[10px] text-zinc-600">10+ minutes above the line would show here</span>
+    <div
+      role={compact ? undefined : 'img'}
+      aria-hidden={compact || undefined}
+      aria-label={compact ? undefined : 'One night of sleep with the 100 bpm line; stretches of ten minutes or more above it would show here'}
+    >
+      <div className={`relative ${compact ? 'h-[22px] rounded' : 'h-10 rounded-md'} bg-[#17171b]`}>
+        <span className={`absolute inset-x-0 ${compact ? 'top-1.5' : 'top-[10px]'} border-t border-dashed border-rose-400/45`} />
+        {!compact && (
+          <>
+            <span className="absolute right-1.5 top-0 text-[9px] leading-[9px] text-zinc-400">100 bpm</span>
+            <span className="absolute inset-x-0 top-[17px] text-center text-[10px] text-zinc-600">10+ minutes above the line would show here</span>
+          </>
+        )}
       </div>
-      <div className="mt-1.5 flex justify-between text-[10px] text-zinc-600"><span>fell asleep</span><span>woke up</span></div>
+      <Ends compact={compact} left="fell asleep" right="woke up" />
     </div>
   );
 }
@@ -1025,20 +992,6 @@ function EventRows({ events }: { events: TachycardiaEvent[] }) {
   );
 }
 
-function MiniTrace({ trace, w, h }: { trace: NightTrace; w: number; h: number }) {
-  const X = (min: number) => (min / trace.durationMin) * w;
-  const Y = (bpm: number) => 1 + bpmY(bpm, h - 2);
-  return (
-    <MiniSvg w={w} h={h}>
-      <line x1={0} x2={w} y1={Y(100)} y2={Y(100)} stroke={HEX.rose} strokeOpacity={0.45} strokeWidth={1} strokeDasharray="2 2" />
-      {traceLines(trace, X, Y).map((pts, i) => <polyline key={i} points={pts} fill="none" stroke={HEX.zinc500} strokeWidth={1} />)}
-      {trace.stretches.flatMap((s, i) => traceLines(trace, X, Y, s.from, s.to).map((pts, j) => (
-        <polyline key={`${i}-${j}`} points={pts} fill="none" stroke={HEX.rose} strokeWidth={1.5} />
-      )))}
-    </MiniSvg>
-  );
-}
-
 function tachyLab(days: Days, intraday: IntradayDays): Lab {
   const r = nocturnalTachycardia(days, intraday);
   const base = { key: 'tachy' as const, title: 'Nocturnal tachycardia', gloss: 'high heart rate during sleep' };
@@ -1048,7 +1001,7 @@ function tachyLab(days: Days, intraday: IntradayDays): Lab {
     const collected = Math.min(completedIntradayDays(intraday).length, 7);
     return {
       ...base, tone: 'wait', mark: 'collecting', chip: 'Collecting', glance: `Collecting · ${collected} of 7 days`, found: false,
-      mini: (w, h) => <MiniProgress done={collected} total={7} w={w} h={h} />,
+      graph: <EmptyNight compact />,
       parts: (
         <>
           <Collecting
@@ -1064,14 +1017,14 @@ function tachyLab(days: Days, intraday: IntradayDays): Lab {
     };
   }
 
-  const mini = (w: number, h: number) => <MiniTrace trace={trace} w={w} h={h} />;
+  const graph = <NightTraceChart trace={trace} compact />;
   if (r.status === 'events') {
     const n = r.events.length;
     const longest = r.events.reduce((a, e) => Math.max(a, e.durationMin), 0);
     const peak = Math.max(...r.events.map((e) => e.peakBpm));
     const chip = `${plural(n, 'stretch', 'stretches')} · ${r.nightsScanned} nights`;
     return {
-      ...base, tone: 'found', mark: 'found', chip, glance: chip, found: true, mini,
+      ...base, tone: 'found', mark: 'found', chip, glance: chip, found: true, graph,
       parts: (
         <>
           <Answer text={`${plural(n, 'stretch', 'stretches')} above 100 bpm in ${plural(r.nightsScanned, 'night')}`} />
@@ -1087,7 +1040,7 @@ function tachyLab(days: Days, intraday: IntradayDays): Lab {
     };
   }
   return {
-    ...base, tone: 'quiet', mark: 'quiet', chip: 'None found', glance: `None found · ${plural(r.nightsScanned, 'night')}`, found: false, mini,
+    ...base, tone: 'quiet', mark: 'quiet', chip: 'None found', glance: `None found · ${plural(r.nightsScanned, 'night')}`, found: false, graph,
     parts: (
       <>
         <Answer text="No stretches above 100 bpm" sub={`In ${plural(r.nightsScanned, 'night')} with enough heart-rate data.`} />
@@ -1127,6 +1080,20 @@ function Legend() {
   );
 }
 
+/** Icon, title and status line: the head of every tile. */
+function TileHead({ lab, chevron, center = false }: { lab: Lab; chevron: React.ReactNode; center?: boolean }) {
+  return (
+    <span className={`flex gap-3 ${center ? 'items-center' : ''}`}>
+      <span className={`flex ${center ? '' : 'self-start'}`}><StatusIcon mark={lab.mark} /></span>
+      <span className="flex-1 min-w-0">
+        <span className="block text-[13px] leading-snug font-semibold text-zinc-100">{lab.title}</span>
+        <span className={`block mt-0.5 text-[11.5px] leading-snug ${GLANCE[lab.tone]}`}>{lab.glance}</span>
+      </span>
+      {chevron}
+    </span>
+  );
+}
+
 function LabCard({ lab }: { lab: Lab }) {
   return (
     <section id={`lab-${lab.key}`} aria-label={lab.title} className="scroll-mt-20 min-w-0 bg-[#0c0c0e] border border-zinc-800/80 rounded-2xl p-5 flex flex-col gap-3">
@@ -1144,23 +1111,22 @@ function LabCard({ lab }: { lab: Lab }) {
   );
 }
 
-/** A phone row: the glance closed, the whole card open. */
+/** A phone tile: the glance and its graph closed; the whole card, in the same tile, open. */
 function LabRow({ lab }: { lab: Lab }) {
   return (
-    <details className="group border-b border-zinc-800/60">
-      <summary className="list-none [&::-webkit-details-marker]:hidden cursor-pointer flex items-center gap-3 min-h-[60px] py-2">
-        <StatusIcon mark={lab.mark} />
-        <span className="flex-1 min-w-0">
-          <span className="block text-[13px] leading-snug font-semibold text-zinc-100">{lab.title}</span>
-          <span className={`block mt-0.5 text-[11.5px] leading-snug ${GLANCE[lab.tone]}`}>{lab.glance}</span>
-        </span>
-        {lab.mini(60, 16)}
-        <ChevronDown size={14} aria-hidden className="shrink-0 text-zinc-600 transition-transform group-open:rotate-180" />
+    <details className="group bg-[#0c0c0e] border border-zinc-800/80 rounded-2xl px-3.5">
+      <summary className="list-none [&::-webkit-details-marker]:hidden cursor-pointer block py-3.5">
+        <TileHead
+          lab={lab} center
+          chevron={<ChevronDown size={14} aria-hidden className="shrink-0 text-zinc-600 transition-transform group-open:rotate-180" />}
+        />
+        {/* The full picture is in the card once the tile is open. */}
+        <span className="block mt-2.5 group-open:hidden">{lab.graph}</span>
       </summary>
-      <div className="-mx-1.5 mb-3 px-2.5 pt-3 rounded-[14px] bg-[#111114] border border-[#222226] flex flex-col gap-3">
+      <div className="border-t border-zinc-800/80 pt-3 flex flex-col gap-3">
         <p className="text-[11px] text-zinc-500">{lab.gloss}</p>
         {lab.parts}
-        {!lab.found && <Spec k={lab.key} inset />}
+        {!lab.found && <Spec k={lab.key} />}
         <HowItWorks k={lab.key} />
       </div>
     </details>
@@ -1168,22 +1134,20 @@ function LabRow({ lab }: { lab: Lab }) {
 }
 
 function Overview({ labs }: { labs: Lab[] }) {
-  const jump = (key: LabKey) => document.getElementById(`lab-${key}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  const jump = (e: React.MouseEvent, key: LabKey) => {
+    e.preventDefault();
+    document.getElementById(`lab-${key}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
   return (
     <nav aria-label="Labs at a glance" className="grid grid-cols-3 gap-2.5">
       {labs.map((lab) => (
-        <button
-          key={lab.key} type="button" onClick={() => jump(lab.key)}
-          className="text-left flex gap-3 px-3.5 py-3 rounded-[14px] bg-[#0c0c0e] border border-zinc-800/80 hover:border-zinc-700 transition-colors"
+        <a
+          key={lab.key} href={`#lab-${lab.key}`} onClick={(e) => jump(e, lab.key)}
+          className="flex flex-col gap-3 px-3.5 pt-3 pb-3.5 rounded-[14px] bg-[#0c0c0e] border border-zinc-800/80 hover:border-zinc-700 transition-colors"
         >
-          <span className="self-start flex"><StatusIcon mark={lab.mark} /></span>
-          <span className="flex-1 min-w-0 flex flex-col">
-            <span className="text-[13px] leading-snug font-semibold text-zinc-100">{lab.title}</span>
-            <span className={`mt-0.5 text-[11.5px] leading-snug ${GLANCE[lab.tone]}`}>{lab.glance}</span>
-            <span className="mt-auto pt-2.5">{lab.mini(128, 18)}</span>
-          </span>
-          <ChevronRight size={14} aria-hidden className="self-start mt-0.5 shrink-0 text-zinc-600" />
-        </button>
+          <TileHead lab={lab} chevron={<ChevronRight size={14} aria-hidden className="self-start mt-0.5 shrink-0 text-zinc-600" />} />
+          <span className="block mt-auto">{lab.graph}</span>
+        </a>
       ))}
     </nav>
   );
@@ -1200,13 +1164,13 @@ export function LabsView({ data, intraday = {} }: { data: SyncResult; intraday?:
     return (
       <div>
         <Intro />
-        <section aria-label="Labs" className="mt-4 bg-[#0c0c0e] border border-zinc-800/80 rounded-2xl px-3.5 py-1">
-          <div className="flex items-baseline justify-between pt-2.5 pb-1">
+        <section aria-label="Labs" className="mt-4 flex flex-col gap-2">
+          <div className="flex items-baseline justify-between px-1">
             <span className="text-[9px] font-bold tracking-[0.16em] uppercase text-zinc-500">{labs.length} labs</span>
             <span className="text-[10.5px] text-zinc-600">tap one to open it</span>
           </div>
           {labs.map((lab) => <LabRow key={lab.key} lab={lab} />)}
-          <Legend />
+          <div className="px-1"><Legend /></div>
         </section>
       </div>
     );
