@@ -2044,6 +2044,115 @@ describe('insight engine — all time and the week in review', () => {
   });
 });
 
+describe('insight engine — records in the past year', () => {
+  /** Older days up to 30 June, before a window of syntheticDays (1 July on). */
+  const older = (from: string, fill: (d: ReturnType<typeof emptyRecord>, i: number) => void) =>
+    dateRange(from, '2026-06-30').map((date, i) => {
+      const d = emptyRecord(date);
+      fill(d, i);
+      return d;
+    });
+  const feedsWith = (window: Days, before: Days, now: Date) =>
+    insightFeeds({ days: window, answers: answerQueries(HISTORY_QUERIES, before, window.at(-1)!.date, window[0].date, before[0]?.date ?? null) } as any, now);
+  const cardIn = (f: ReturnType<typeof feedsWith>, id: string) => [...f.today, ...Object.values(f.pages).flat()].find((o) => o.id === id);
+  const whereIn = (f: ReturnType<typeof feedsWith>, id: string) =>
+    f.today.some((o) => o.id === id) ? 'today' : Object.entries(f.pages).find(([, os]) => os.some((o) => o.id === id))?.[0] ?? '-';
+  // 63 days of syntheticDays end on Tue 1 September; a year back reaches 1 September 2025.
+  const SEP1 = new Date('2026-09-01T08:00:00');
+  const YEAR_AGO = '2025-09-01';
+
+  it('celebrates your most active week in a year, and lets a ramp alert speak when the week is a sudden jump', () => {
+    const window = syntheticDays(63);
+    for (let i = 55; i < 62; i++) window[i].steps = 11500;
+    const card = cardIn(feedsWith(window, older(YEAR_AGO, (d, i) => { d.steps = i >= 100 && i < 107 ? 10000 : 8000; }), SEP1), 'activity-week-record')!;
+    assert.equal(card.title, 'Your most active week in a year');
+    assert.equal(card.text, "You took 80,500 steps over the last 7 days. That's your most active week in the past year.");
+    assert.equal(cardIn(feedsWith(window, older('2026-03-01', (d) => { d.steps = 8000; }), SEP1), 'activity-week-record')?.title,
+      'Your most active week yet', 'shorter history: since it began');
+    assert.equal(cardIn(feedsWith(window, older(YEAR_AGO, (d, i) => { d.steps = i >= 100 && i < 107 ? 12000 : 8000; }), SEP1), 'activity-week-record'), undefined);
+
+    const jump = syntheticDays(63);
+    for (let i = 55; i < 62; i++) jump[i].steps = 14000;
+    const f = feedsWith(jump, older(YEAR_AGO, (d) => { d.steps = 8000; }), SEP1);
+    assert.equal(cardIn(f, 'activity-week-record'), undefined, 'a cautious card beats good news in its family');
+    assert.ok(cardIn(f, 'ramp'));
+  });
+
+  it('celebrates your longest walk, most floors and hardest day', () => {
+    const window = syntheticDays(63);
+    for (const d of window) { d.distanceKm = 5; d.floors = 8; d.zoneMinutes = { fatBurn: 20, cardio: 5, peak: 0 }; }
+    window[61].distanceKm = 21.4;
+    window[61].floors = 48;
+    window[61].zoneMinutes = { fatBurn: 60, cardio: 30, peak: 10 };
+    const before = older(YEAR_AGO, (d, i) => {
+      d.distanceKm = i === 50 ? 18 : 6;
+      d.floors = i === 50 ? 40 : 9;
+      d.zoneMinutes = { fatBurn: i === 50 ? 70 : 20, cardio: 5, peak: 0 };
+    });
+    const f = feedsWith(window, before, SEP1);
+    assert.equal(cardIn(f, 'activity-longest-walk')?.text, 'You covered 21.4 km on 31 August, your furthest day in the past year. Your previous best was 18.0 km.');
+    assert.equal(cardIn(f, 'activity-most-floors')?.text, 'You climbed 48 floors on 31 August, your most in a day in the past year. Your previous best was 40.');
+    assert.equal(cardIn(f, 'activity-hardest-day')?.text, 'You earned 140 active zone minutes on 31 August, your most in a day in the past year. Your previous best was 80.');
+    assert.equal(whereIn(f, 'activity-longest-walk'), 'today');
+
+    const beaten = older(YEAR_AGO, (d, i) => { d.distanceKm = i === 50 ? 25 : 6; });
+    assert.equal(cardIn(feedsWith(window, beaten, SEP1), 'activity-longest-walk'), undefined, 'a longer day in the past year');
+  });
+
+  it('puts a day record on Today the mornings after, then on its page for the rest of the week', () => {
+    const window = syntheticDays(70);
+    for (const d of window) d.distanceKm = 5;
+    window[60].distanceKm = 21.4; // 30 August
+    const before = older(YEAR_AGO, (d) => { d.distanceKm = 6; });
+    const trace: string[] = [];
+    for (let n = 61; n <= 69; n++) {
+      const cut = window.slice(0, n);
+      trace.push(whereIn(feedsWith(cut, before, new Date(`${cut.at(-1)!.date}T08:00:00`)), 'activity-longest-walk'));
+    }
+    assert.equal(trace.join(' '), '- today today today activity activity activity activity -');
+  });
+
+  it('needs two months of readings behind a record before it calls one', () => {
+    const window = syntheticDays(63);
+    for (const d of window) d.distanceKm = 5;
+    window[61].distanceKm = 21.4;
+    assert.ok(cardIn(feedsWith(window, [], SEP1), 'activity-longest-walk'), '61 days in the window are enough');
+    const short = window.slice(20);
+    assert.equal(cardIn(feedsWith(short, [], SEP1), 'activity-longest-walk'), undefined, 'six weeks are not');
+  });
+
+  it("celebrates your best night's sleep in a year, in place of the good-night card", () => {
+    const window = syntheticDays(63);
+    window[62].sleep!.minutesAsleep = 500;
+    window[62].sleep!.stages = { deep: 95, rem: 105, light: 290, awake: 10 };
+    const before = older(YEAR_AGO, (d) => { d.sleep = { ...syntheticDays(1)[0].sleep!, date: d.date, minutesAsleep: 430, minutesInBed: 445, efficiency: 95 }; });
+    const f = feedsWith(window, before, SEP1);
+    assert.equal(cardIn(f, 'sleep-best-night')?.text, "Last night's sleep score was 92, your best in the past year. Your previous best was 83.");
+    assert.equal(whereIn(f, 'sleep-best-night'), 'today');
+    assert.equal(cardIn(f, 'night-good'), undefined, 'one card about last night');
+  });
+
+  it('celebrates your lowest resting heart rate in a year, but never a single HRV night', () => {
+    const window = syntheticDays(63);
+    window[62].restingHr = 51;
+    window[62].hrv = 60;
+    const before = older(YEAR_AGO, (d) => { d.restingHr = 58; d.hrv = 34; });
+    const f = feedsWith(window, before, SEP1);
+    assert.equal(cardIn(f, 'vitals-lowest-rhr')?.text, 'Your resting heart rate was 51 bpm this morning, your lowest in the past year. Your previous low was 58 bpm.');
+    assert.equal(cardIn(f, 'rhr-acute-low'), undefined, 'one card about this morning');
+    assert.ok([...f.today, ...Object.values(f.pages).flat()].every((o) => !/highest HRV|HRV yet/i.test(o.title)), 'no single-night HRV record');
+  });
+
+  it('looks back one year: a better month before that no longer counts', () => {
+    const window = syntheticDays(63);
+    for (const d of window) if (d.date.startsWith('2026-08')) d.steps = 10000;
+    // July 2025 was busier, but it's more than a year before 1 September 2026.
+    const before = older('2025-07-01', (d) => { d.steps = d.date.startsWith('2025-07') ? 15000 : 7000; });
+    const card = cardIn(feedsWith(window, before, SEP1), 'activity-best-month');
+    assert.equal(card?.text, "You averaged 10,000 steps a day in August. That's your most active month in the past year.");
+  });
+});
+
 describe('insight engine — conflict rules', () => {
   const finding = (f: Partial<Finding> & Pick<Finding, 'id'>): Finding => ({
     domain: 'cardio', page: 'vitals', kind: 'trend', tone: 'neutral', title: f.id, text: '',

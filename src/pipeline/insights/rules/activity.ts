@@ -3,11 +3,11 @@ import type { DailyRecord } from '../../../types/health';
 import { completedDays, goalStreak, periodShift, series, stats, values, type Point } from '../../derive';
 import type { InsightContext } from '../context';
 import {
-  ENTRY_WINDOW, STEP_GOAL, briskMins, clk, dayMonth, fmtInt, heldFor, listOf, monthName, plural, sinceHistory, sinceNote,
+  ENTRY_WINDOW, STEP_GOAL, briskMins, clk, dayMonth, fmtInt, heldFor, listOf, monthName, pastYear, plural, sinceNote,
   zoneMins,
 } from '../helpers';
 import { movementHrvAssociation } from '../association';
-import { WEEKDAYS, activeHours, lastMonthBest, monthsOf, weekdayExtremes } from '../patterns';
+import { WEEKDAYS, activeHours, dayRecord, lastMonthBest, monthsOf, weekdayExtremes } from '../patterns';
 import type { HistoryQueries } from '../../history';
 import type { Finding } from '../types';
 
@@ -15,10 +15,18 @@ type Add = (f: Finding) => void;
 
 const base = { domain: 'movement' as const, page: 'activity' as const };
 
-/** What Activity asks of your older days: monthly steps, and the biggest day on record. */
+/**
+ * What Activity asks of the past year before the window: monthly steps, and the
+ * best day and week for the records it celebrates.
+ */
 export const activityQueries = {
-  stepsByMonth: { measure: 'steps', group: 'month', aggregate: ['sum', 'count'], back: 'all' },
-  biggestStepDay: { measure: 'steps', aggregate: 'max', back: 'all' },
+  stepsByMonth: { measure: 'steps', group: 'month', aggregate: ['sum', 'count'], back: 365 },
+  biggestStepDay: { measure: 'steps', aggregate: ['max', 'first'], back: 365 },
+  mostActiveWeek: { measure: 'steps', rolling: { days: 7, minReadings: 7 }, aggregate: ['max', 'count', 'first'], back: 365 },
+  longestWalk: { measure: 'distanceKm', aggregate: ['max', 'count', 'first'], back: 365 },
+  mostFloors: { measure: 'floors', aggregate: ['max', 'count', 'first'], back: 365 },
+  hardestDay: { measure: 'activeZoneMinutes', aggregate: ['max', 'count', 'first'], back: 365 },
+  hardestBriskDay: { measure: 'briskMinutes', aggregate: ['max', 'count', 'first'], back: 365 },
 } satisfies HistoryQueries;
 
 /** Steps, active minutes, when and how you move, and the moments in the day worth a nudge. */
@@ -37,6 +45,8 @@ export function activityRules(ctx: InsightContext, add: Add): void {
   weekShape(ctx, add);
   peakHours(ctx, add);
   bestMonth(ctx, add);
+  weekRecord(ctx, add);
+  dayRecords(ctx, add);
   nudges(ctx, add);
   association(ctx, add);
 }
@@ -106,16 +116,18 @@ function milestones(ctx: InsightContext, add: Add): void {
   const record = finished[at];
   if (record && at >= 14 && record.value! >= 8000) {
     const age = daysBetween(record.date, today);
-    const before = ctx.answers.biggestStepDay?.rows[0]?.max ?? null;
-    // All time once it also beats every stored day before the window.
-    const allTime = before !== null && record.value! > before.value;
-    const priorMax = Math.max(...finished.slice(0, at).map((pt) => pt.value!), allTime ? before!.value : 0);
+    const answered = ctx.answers.biggestStepDay?.rows[0];
+    const before = answered?.max ?? null;
+    // A year's record once it also beats every stored day in the past year before the window.
+    const yearly = before !== null && record.value! > before.value;
+    const priorMax = Math.max(...finished.slice(0, at).map((pt) => pt.value!), yearly ? before!.value : 0);
+    const span = pastYear(answered?.first?.date ?? null, today);
     if (age <= 7) {
       add({
         ...base, id: 'step-record', kind: 'milestone', tone: 'good',
         importance: 77, topic: 'step-record', family: 'movement-milestone', today: 'as-news', news: age <= ENTRY_WINDOW + 1,
-        title: allTime ? 'Your biggest day yet' : 'Your biggest day in two months',
-        text: `You walked ${fmtInt(record.value!)} steps on ${dayMonth(record.date)}. That's your biggest day ${allTime ? sinceHistory(monthsOf(ctx.days, 'steps', ctx.answers.stepsByMonth)[0].month, today) : 'in the last two months'}. Your previous best was ${fmtInt(priorMax)}.`,
+        title: !yearly ? 'Your biggest day in two months' : span === 'in the past year' ? 'Your biggest day in a year' : 'Your biggest day yet',
+        text: `You walked ${fmtInt(record.value!)} steps on ${dayMonth(record.date)}. That's your biggest day ${yearly ? span : 'in the last two months'}. Your previous best was ${fmtInt(priorMax)}.`,
       });
     }
   }
@@ -472,6 +484,76 @@ function bestMonth(ctx: InsightContext, add: Add): void {
     ...base, id: 'activity-best-month', kind: 'milestone', tone: 'good',
     importance: 64, topic: 'best-month-steps', family: 'monthly-best', today: 'as-news', news: ctx.dom <= 2,
     title: 'Your most active month',
-    text: `You averaged ${fmtInt(best.value)} steps a day in ${monthName(best.month, ctx.today)}. That's your most active month ${sinceHistory(best.since, ctx.today)}.`,
+    text: `You averaged ${fmtInt(best.value)} steps a day in ${monthName(best.month, ctx.today)}. That's your most active month ${pastYear(`${best.since}-01`, ctx.today)}.`,
   });
+}
+
+/**
+ * Your most active 7 days in the past year, finished days only: news the
+ * morning it's set, then on the page while it holds. It speaks for "You've
+ * been moving more this week", and a ramp alert outranks it.
+ */
+function weekRecord(ctx: InsightContext, add: Add): void {
+  const { doneSteps, today } = ctx;
+  const weeks: { end: number; sum: number }[] = [];
+  for (let end = 7; end <= doneSteps.length; end++) {
+    const v = values(doneSteps.slice(end - 7, end));
+    if (v.length === 7) weeks.push({ end, sum: v.reduce((a, b) => a + b, 0) });
+  }
+  const last = weeks[weeks.length - 1];
+  if (!last || last.end !== doneSteps.length || last.sum < 35000) return;
+  const answered = ctx.answers.mostActiveWeek?.rows[0];
+  const before = answered?.max ? answered.max.value * 7 : null;
+  // At least eight weeks behind it, from the window and the year before.
+  if ((answered?.count ?? 0) + weeks.length - 1 < 56) return;
+  const beats = (i: number) =>
+    weeks[i].sum > Math.max(...weeks.slice(0, i).map((w) => w.sum), before ?? 0);
+  if (!beats(weeks.length - 1)) return;
+  const span = pastYear(answered?.first?.date ?? ctx.days[0].date, today);
+  add({
+    ...base, id: 'activity-week-record', kind: 'milestone', tone: 'good',
+    importance: 65, topic: 'movement-volume', family: 'movement-volume', today: 'as-news',
+    news: weeks.length < 2 || !beats(weeks.length - 2),
+    title: span === 'in the past year' ? 'Your most active week in a year' : 'Your most active week yet',
+    text: `You took ${fmtInt(last.sum)} steps over the last 7 days. That's your most active week ${span}.`,
+  });
+}
+
+/** Longest walk, most floors and hardest day: news the mornings after, then on the page for the rest of the week. */
+function dayRecords(ctx: InsightContext, add: Add): void {
+  const { days, today, answers } = ctx;
+  const azm = days.slice(-28).some((d) => d.zoneMinutes !== null);
+  const defs = [
+    {
+      id: 'activity-longest-walk', topic: 'distance-record', measure: 'distanceKm' as const, answer: answers.longestWalk, mustReach: 5,
+      title: (yet: string) => `Your longest walk ${yet}`,
+      text: (v: number, date: string, span: string, prev: number) =>
+        `You covered ${v.toFixed(1)} km on ${date}, your furthest day ${span}. Your previous best was ${prev.toFixed(1)} km.`,
+    },
+    {
+      id: 'activity-most-floors', topic: 'floors', measure: 'floors' as const, answer: answers.mostFloors, mustReach: 10,
+      title: (yet: string) => `Your most floors ${yet}`,
+      text: (v: number, date: string, span: string, prev: number) =>
+        `You climbed ${fmtInt(v)} floors on ${date}, your most in a day ${span}. Your previous best was ${fmtInt(prev)}.`,
+    },
+    {
+      id: 'activity-hardest-day', topic: 'hardest-day', measure: azm ? 'activeZoneMinutes' as const : 'briskMinutes' as const,
+      answer: azm ? answers.hardestDay : answers.hardestBriskDay, mustReach: 30,
+      title: (yet: string) => `Your hardest day ${yet}`,
+      text: (v: number, date: string, span: string, prev: number) => azm
+        ? `You earned ${fmtInt(v)} active zone minutes on ${date}, your most in a day ${span}. Your previous best was ${fmtInt(prev)}.`
+        : `You did ${fmtInt(v)} minutes of brisk activity on ${date}, harder minutes counting double. That's your most in a day ${span}. Your previous best was ${fmtInt(prev)}.`,
+    },
+  ];
+  for (const def of defs) {
+    const r = dayRecord(days, today, def.measure, 'max', def.answer, { finishedOnly: true, mustReach: def.mustReach });
+    if (!r) continue;
+    const span = pastYear(r.since, today);
+    add({
+      ...base, id: def.id, kind: 'milestone', tone: 'good',
+      importance: 66, topic: def.topic, family: 'movement-milestone', today: 'as-news', news: r.age <= ENTRY_WINDOW + 1,
+      title: def.title(span === 'in the past year' ? 'in a year' : 'yet'),
+      text: def.text(r.value, dayMonth(r.date), span, r.previous),
+    });
+  }
 }

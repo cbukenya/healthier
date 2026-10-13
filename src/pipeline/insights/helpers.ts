@@ -1,4 +1,4 @@
-import { civilClock, isoWeekdayIndex, type CivilDate } from '../../lib/date';
+import { civilClock, daysBetween, isoWeekdayIndex, type CivilDate } from '../../lib/date';
 import type { DailyRecord } from '../../types/health';
 import { BATTERY_TIERS } from '../derive';
 import type { Daypart } from './types';
@@ -70,6 +70,14 @@ export const monthName = (monthOrDate: string, today: CivilDate) => {
 
 /** "since March 2025, as far back as your history goes": all time, said honestly. */
 export const sinceHistory = (month: string, today: CivilDate) => `since ${monthName(month, today)}, as far back as your history goes`;
+
+/**
+ * How far back a record reaches. Records look back one year: "in the past year"
+ * once readings go back that far (a month's grace for a late start), else since
+ * the readings began.
+ */
+export const pastYear = (first: CivilDate | null, today: CivilDate) =>
+  !first || daysBetween(first, today) >= 335 ? 'in the past year' : sinceHistory(first, today);
 
 /** "a, b and c". */
 export const listOf = (items: string[]) =>

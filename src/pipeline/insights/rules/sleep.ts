@@ -6,11 +6,12 @@ import {
 import { scoreSleep } from '../../sleep';
 import type { InsightContext } from '../context';
 import {
-  ENTRY_WINDOW, beforeLatestMorning, circDelta, clk, cut, dayMonth, heldFor, hm, hoursText, isWorkday, monthName, plural,
-  sinceHistory, sinceNote, sleepMins, trailingDays,
+  ENTRY_WINDOW, beforeLatestMorning, circDelta, clk, cut, dayMonth, heldFor, hm, hoursText, isWorkday, monthName, pastYear,
+  plural, sinceNote, sleepMins, trailingDays,
 } from '../helpers';
 import {
-  WEEKDAYS, bestBedtime, lastMonthBest, monthsOf, sleepHrvAssociation, weekdayExtremes, workFreeNights, type BestBedtime,
+  WEEKDAYS, bestBedtime, dayRecord, lastMonthBest, monthsOf, sleepHrvAssociation, weekdayExtremes, workFreeNights,
+  type BestBedtime,
 } from '../patterns';
 import type { HistoryQueries } from '../../history';
 import type { Finding } from '../types';
@@ -19,10 +20,11 @@ type Add = (f: Finding) => void;
 
 const base = { domain: 'sleep' as const, page: 'sleep' as const };
 
-/** What Sleep asks of your older days: monthly sleep score and length. */
+/** What Sleep asks of the past year before the window: monthly sleep score and length, and the best night. */
 export const sleepQueries = {
-  sleepScoreByMonth: { measure: 'sleepScore', group: 'month', aggregate: ['sum', 'count'], back: 'all' },
-  sleepMinutesByMonth: { measure: 'sleepMinutes', group: 'month', aggregate: ['sum', 'count'], back: 'all' },
+  sleepScoreByMonth: { measure: 'sleepScore', group: 'month', aggregate: ['sum', 'count'], back: 365 },
+  sleepMinutesByMonth: { measure: 'sleepMinutes', group: 'month', aggregate: ['sum', 'count'], back: 365 },
+  bestNight: { measure: 'sleepScore', aggregate: ['max', 'count', 'first'], back: 365 },
 } satisfies HistoryQueries;
 
 /** Last night, the week's debt, timing and regularity, how you sleep, and the gaps in the record. */
@@ -42,6 +44,7 @@ export function sleepRules(ctx: InsightContext, add: Add): void {
   naps(ctx, add);
   hrvLink(ctx, add);
   bestMonth(ctx, add);
+  bestNight(ctx, add);
   coverage(ctx, add);
 }
 
@@ -492,7 +495,24 @@ function bestMonth(ctx: InsightContext, add: Add): void {
     ...base, id: 'sleep-best-month', kind: 'milestone', tone: 'good',
     importance: 63, topic: 'best-month-sleep', family: 'monthly-best', today: 'as-news', news: ctx.dom <= 2,
     title: 'Your best month of sleep',
-    text: `In ${monthName(best.month, ctx.today)} you slept ${hm(month.sum / month.n)} a night on average, and your average sleep score was ${Math.round(best.value)}. That's your best month of sleep ${sinceHistory(best.since, ctx.today)}.`,
+    text: `In ${monthName(best.month, ctx.today)} you slept ${hm(month.sum / month.n)} a night on average, and your average sleep score was ${Math.round(best.value)}. That's your best month of sleep ${pastYear(`${best.since}-01`, ctx.today)}.`,
+  });
+}
+
+/**
+ * Your best night's sleep in the past year, by sleep score: on Today the
+ * morning after, then on the page for a couple of days. It speaks for "You
+ * slept really well", and the debt card outranks it the way it does that one.
+ */
+function bestNight(ctx: InsightContext, add: Add): void {
+  const r = dayRecord(ctx.days, ctx.today, 'sleepScore', 'max', ctx.answers.bestNight, { mustReach: 80, maxAge: 3 });
+  if (!r) return;
+  const span = pastYear(r.since, ctx.today);
+  add({
+    ...base, id: 'sleep-best-night', kind: 'milestone', tone: 'good',
+    importance: 80, topic: 'sleep-night', family: 'sleep-amount', today: 'as-news', news: r.age <= 1,
+    title: span === 'in the past year' ? "Your best night's sleep in a year" : "Your best night's sleep yet",
+    text: `${r.age === 0 ? "Last night's sleep score was" : `Your sleep score on ${dayMonth(r.date)} was`} ${Math.round(r.value)}, your best ${span}. Your previous best was ${Math.round(r.previous)}.`,
   });
 }
 
