@@ -75,9 +75,7 @@ export default function App() {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center p-6">
         <div className="max-w-md w-full p-8 rounded-2xl bg-zinc-900 border border-zinc-800 shadow-2xl">
-          <div className="w-12 h-12 rounded-xl bg-zinc-800 flex items-center justify-center mb-6">
-            <Heart size={24} className="text-zinc-400" />
-          </div>
+          <img src="/logo.svg" alt="" width={48} height={48} className="mb-6" />
           <h1 className="text-2xl font-bold text-white mb-2">Healthier</h1>
           <p className="text-sm text-zinc-400 mb-8 leading-relaxed">
             {needsReconnect
@@ -129,9 +127,7 @@ export default function App() {
       <header className="sticky top-0 z-30 bg-black/80 backdrop-blur-md border-b border-zinc-800/80">
         <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-7 h-7 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center">
-              <Heart size={14} className="text-zinc-400" />
-            </div>
+            <img src="/logo.svg" alt="" width={28} height={28} />
             <span className="text-sm font-semibold text-white tracking-wide">Healthier</span>
           </div>
           
