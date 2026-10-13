@@ -382,7 +382,7 @@ export function SleepView({ data }: { data: SyncResult }) {
               })()}
 
               <div className="flex-1">
-                <Hypnogram session={latest} height={156} />
+                <Hypnogram session={latest} height={200} />
               </div>
               <StageLegend />
               
