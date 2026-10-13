@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { addDays, civilFromGH, civilFromInstant, dateRange, formatCivilDay, isoWeekdayIndex, parseUtcOffsetSeconds, todayCivil } from '../../lib/date';
+import { addDays, civilFromGH, civilFromInstant, dateRange, formatCivilDay, formatCivilRange, isoWeekdayIndex, parseUtcOffsetSeconds, todayCivil } from '../../lib/date';
 import { int, num, nullIf, round } from '../coerce';
 import { splitWindow, MAX_ROLLUP_WINDOW_DAYS } from '../transport';
 import { syncHealthData } from '../sync';
@@ -117,6 +117,12 @@ describe('civil dates', () => {
   it('writes the day under the tabs as weekday, month, day and year', () => {
     assert.equal(formatCivilDay('2026-10-12'), 'Mon Oct 12 2026');
     assert.equal(formatCivilDay('2026-08-05'), 'Wed Aug 5 2026');
+  });
+
+  it('writes a span of days compactly, naming the month once when it can', () => {
+    assert.equal(formatCivilRange('2026-08-11', '2026-08-17'), '11–17 Aug');
+    assert.equal(formatCivilRange('2026-07-29', '2026-08-04'), '29 Jul – 4 Aug');
+    assert.equal(formatCivilRange('2025-12-29', '2026-01-04'), '29 Dec – 4 Jan');
   });
 });
 

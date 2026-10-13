@@ -70,6 +70,11 @@ export function groupDays<T extends { date: CivilDate }>(days: T[], bucket: Buck
   return out;
 }
 
+/** Monday-to-Sunday weeks lying wholly inside the days given, oldest first; a week cut by either end is left out. */
+export function wholeWeeks<T extends { date: CivilDate }>(days: T[]): { date: CivilDate; days: T[] }[] {
+  return groupDays(days, 'week').filter((w) => w.days.length === 7);
+}
+
 export const mean = (xs: number[]): number | null => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);
 
 export function median(xs: number[]): number | null {
