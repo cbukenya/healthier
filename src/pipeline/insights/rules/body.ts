@@ -2,13 +2,19 @@ import { addDays, daysBetween, isoWeekdayIndex, type CivilDate } from '../../../
 import type { DailyRecord } from '../../../types/health';
 import { bodyComposition, coverage, latestPoint, series, stats, weightTrend } from '../../derive';
 import type { InsightContext } from '../context';
-import { ENTRY_WINDOW, dayMonth, plural } from '../helpers';
+import { ENTRY_WINDOW, dayMonth, monthName, plural } from '../helpers';
 import { trendLine } from '../patterns';
+import type { HistoryQueries } from '../../history';
 import type { Finding } from '../types';
 
 type Add = (f: Finding) => void;
 
 const base = { domain: 'body' as const, page: 'body' as const };
+
+/** What Body asks of your older days: your first weigh-in on record. */
+export const bodyQueries = {
+  firstWeighIn: { measure: 'weightKg', aggregate: 'first', back: 'all' },
+} satisfies HistoryQueries;
 
 /** A trend fires from this slope, either way. */
 export const TREND_KG_PER_WEEK = 0.15;
@@ -26,6 +32,7 @@ export function bodyRules(ctx: InsightContext, add: Add): void {
   fatTrend(ctx, add);
   weighInRhythm(ctx, add);
   bmi(ctx, add);
+  sinceStart(ctx, add);
 }
 
 type Reading = { date: CivilDate; value: number };
@@ -225,5 +232,26 @@ function bmi(ctx: InsightContext, add: Add): void {
     importance: 32, topic: 'bmi', family: 'weight', today: 'never', news: true,
     title: 'Your BMI changed',
     text: `Going by your weight trend and your height of ${m.toFixed(2)} m, your BMI went from ${from.toFixed(1)} to ${to.toFixed(1)} over the last month.`,
+  });
+}
+
+/**
+ * Your latest weigh-in against your first on record, before the window or in
+ * it: news on the 1st and 2nd of the month, then on the page. Silent under
+ * 2 kg, where a single morning's swing could be most of it.
+ */
+function sinceStart(ctx: InsightContext, add: Add): void {
+  const { days, today } = ctx;
+  const window = readings(days, (d) => d.weightKg);
+  const first = ctx.answers.firstWeighIn?.rows[0]?.first ?? window[0];
+  const last = window[window.length - 1];
+  if (!first || !last || daysBetween(first.date, last.date) < 60 || daysBetween(last.date, today) >= 30) return;
+  const change = last.value - first.value;
+  if (Math.abs(change) < 2) return;
+  add({
+    ...base, id: 'body-since-start', kind: 'milestone', tone: 'neutral',
+    importance: 42, topic: 'since-start', family: 'weight', today: 'as-news', news: ctx.dom <= 2,
+    title: 'Since you started',
+    text: `You've ${change < 0 ? 'lost' : 'gained'} ${Math.abs(change).toFixed(1)} kg since ${monthName(first.date, today)}, going from ${first.value.toFixed(1)} kg to ${last.value.toFixed(1)} kg.`,
   });
 }

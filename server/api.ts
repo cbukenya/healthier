@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import type { DatasetResponse, HistoryResponse, MeResponse, ProfileResponse, SyncResponse } from '../src/types/api';
 import type { Gender } from '../src/pipeline/registry';
+import { parseQueries } from '../src/pipeline/history';
 import { requireUser, SESSION_COOKIE, sessionCookieOptions } from './auth';
 import { revokeToken } from './google';
 import { asyncHandler, type Deps } from './http';
@@ -57,20 +58,20 @@ export function apiRoutes(deps: Deps): Router {
     }),
   );
 
-  router.get(
-    '/dataset',
-    asyncHandler(async (req, res) => {
-      const userId: string = res.locals.userId;
-      const stored = await loadDataset(deps, userId);
-      const body: DatasetResponse = {
-        dataset: stored?.dataset ?? null,
-        syncedAt: stored?.syncedAt.toISOString() ?? null,
-        history: stored?.history ?? null,
-        sync: syncStatus(userId),
-      };
-      res.json(body);
-    }),
-  );
+  /** The dashboard's dataset. POST it with `queries` to have history questions answered alongside. */
+  const dataset = asyncHandler(async (req, res) => {
+    const userId: string = res.locals.userId;
+    const stored = await loadDataset(deps, userId, parseQueries(req.body?.queries));
+    const body: DatasetResponse = {
+      dataset: stored?.dataset ?? null,
+      syncedAt: stored?.syncedAt.toISOString() ?? null,
+      history: stored?.history ?? null,
+      sync: syncStatus(userId),
+    };
+    res.json(body);
+  });
+  router.get('/dataset', dataset);
+  router.post('/dataset', dataset);
 
   /** Long-span history for the 90d / 1y / All views; fetched only when one is chosen. */
   router.get(

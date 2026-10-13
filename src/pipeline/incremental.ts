@@ -1,5 +1,6 @@
 import { addDays, dateRange, type CivilDate } from '../lib/date';
 import type { DailyRecord, HealthDataset, SleepSession, SourceRef, StreamReport, StreamStatus } from '../types/health';
+import { answerQueries, queriesSpan, type HistoryAnswers, type HistoryQueries } from './history';
 import { fetchIntradayHeartRate, sampleCount, unpackIntraday, type IntradayDay } from './intraday';
 import { emptyRecord, normalize } from './normalize';
 import {
@@ -56,6 +57,8 @@ const MAX_LIST_PAGES = 40;
 
 export interface SyncResult extends HealthDataset {
   profile: ProfileFacts;
+  /** Answers to the history queries the app asked with this dataset, from the stored days before the window. */
+  answers?: HistoryAnswers;
 }
 
 /** A dataset as stored and sent: intraday kept column-wise until the browser unpacks it. */
@@ -442,6 +445,22 @@ export async function backfillStream(
   };
 }
 
+/**
+ * History queries answered from stored rows held in memory (demo mode, one-shot
+ * syncs and tests): the same arithmetic the server runs over Postgres rows.
+ */
+export function answerFromRows(
+  rows: ReadonlyMap<string, ReadonlyMap<CivilDate, StreamDay>>,
+  queries: HistoryQueries,
+  windowFrom: CivilDate,
+  today: CivilDate,
+): HistoryAnswers {
+  let oldest: CivilDate | null = null;
+  for (const days of rows.values()) for (const date of days.keys()) if (!oldest || date < oldest) oldest = date;
+  const span = queriesSpan(queries, today, windowFrom, oldest);
+  return answerQueries(queries, span ? assembleHistory(rows, span.from, span.to) : [], today, windowFrom, oldest);
+}
+
 /** Daily records for a long span, without the per-minute detail only "last night" views need. */
 export function assembleHistory(
   rows: ReadonlyMap<string, ReadonlyMap<CivilDate, StreamDay>>,
@@ -613,8 +632,9 @@ export class MemoryStore implements StoredData {
     }
   }
 
-  assemble(from: CivilDate, to: CivilDate): PackedDataset {
-    return assembleDataset(this, from, to);
+  assemble(from: CivilDate, to: CivilDate, queries?: HistoryQueries): PackedDataset {
+    const dataset = assembleDataset(this, from, to);
+    return queries ? { ...dataset, answers: answerFromRows(this.rows, queries, from, to) } : dataset;
   }
 }
 

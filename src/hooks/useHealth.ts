@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { DASHBOARD_WINDOW_DAYS, syncHealthData, type SyncResult } from '../pipeline/sync';
 import { unpackDataset } from '../pipeline/incremental';
 import { FIXTURE_CLOCK, buildFixturePayloads, createFixtureFetch } from '../pipeline/fixtures';
+import { HISTORY_QUERIES } from '../pipeline/insights';
 import { api, ApiError } from '../lib/api';
 import type { DatasetResponse, HistoryInfo, SyncResponse } from '../types/api';
 
@@ -54,6 +55,11 @@ function wait(ms: number, signal: AbortSignal) {
   });
 }
 
+/** The assembled dataset, with the insights' history queries answered from the days before it. */
+function readDataset(signal: AbortSignal) {
+  return api<DatasetResponse>('/api/dataset', { method: 'POST', body: { queries: HISTORY_QUERIES }, signal });
+}
+
 /** Start (or join) a server sync, follow it to completion, then read the assembled dataset. */
 async function serverSync(
   signal: AbortSignal,
@@ -68,7 +74,7 @@ async function serverSync(
     ({ sync } = await api<SyncResponse>('/api/sync', { signal }));
   }
   if (sync.error) throw new ApiError(409, sync.errorCode ?? 'sync_failed', sync.error);
-  const { dataset, history } = await api<DatasetResponse>('/api/dataset', { signal });
+  const { dataset, history } = await readDataset(signal);
   if (!dataset) throw new Error('Sync finished but stored no data');
   return { data: unpackDataset(dataset), history };
 }
@@ -83,6 +89,7 @@ function demoSync(signal: AbortSignal, onProgress: Progress): Promise<SyncResult
     now: FIXTURE_CLOCK.now,
     timeZone: FIXTURE_CLOCK.timeZone,
     includeIntraday: true,
+    queries: HISTORY_QUERIES,
     signal,
     onProgress: (done, total, label) => onProgress({ done, total, label }),
   });
@@ -150,7 +157,7 @@ export function useHealth({ live, demo = false, onSignInRequired }: UseHealthOpt
     abortRef.current = ctl;
     (async () => {
       try {
-        const res = await api<DatasetResponse>('/api/dataset', { signal: ctl.signal });
+        const res = await readDataset(ctl.signal);
         if (ctl.signal.aborted) return;
         if (!res.dataset) {
           void run('cold');

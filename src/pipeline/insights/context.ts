@@ -1,5 +1,6 @@
 import type { CivilDate } from '../../lib/date';
 import type { DailyRecord, HealthDataset, SleepSession } from '../../types/health';
+import type { HistoryAnswers } from '../history';
 import type { IntradayDays } from '../labs';
 import type { ProfileFacts } from '../registry';
 import {
@@ -18,7 +19,11 @@ export interface InsightOptions {
 type ReadinessPart = Readiness['parts'][number];
 
 /** The day grid, and the profile when the dataset carries one. */
-export type InsightDataset = HealthDataset & { profile?: Pick<ProfileFacts, 'age' | 'heightCm'> };
+export type InsightDataset = HealthDataset & {
+  profile?: Pick<ProfileFacts, 'age' | 'heightCm'>;
+  /** Answers to the history queries, from the stored days before the window. */
+  answers?: HistoryAnswers;
+};
 
 /**
  * Everything the rules share, worked out once. "Today" is always the grid's
@@ -37,6 +42,8 @@ export interface InsightContext {
   /** Years and centimetres, from the Google Health profile, when they're known. */
   age: number | null;
   heightCm: number | null;
+  /** What the history queries found before the window: empty without older history, or before it has loaded. */
+  answers: HistoryAnswers;
   /** Personal sleep need in minutes, and as "7h 20m" (or "7h 00m", to read alongside a night's "5h 40m"). */
   need: number;
   needH: string;
@@ -88,6 +95,7 @@ export function buildContext(ds: InsightDataset, now: Date, extras?: InsightOpti
     intraday: extras?.intraday,
     age: ds.profile?.age ?? null,
     heightCm: ds.profile?.heightCm ?? null,
+    answers: ds.answers ?? {},
     need,
     needH: hm(need),
     stepsSeries,

@@ -7,7 +7,7 @@ import { splitWindow, MAX_ROLLUP_WINDOW_DAYS } from '../transport';
 import { syncHealthData } from '../sync';
 import { FIXTURE_CLOCK, buildFixturePayloads, createFixtureFetch } from '../fixtures';
 import {
-  evaluate, insightFeeds, needLabel, observations, recoveryTax, settle, todaySummary, weekSummary, type Finding,
+  HISTORY_QUERIES, evaluate, insightFeeds, needLabel, observations, recoveryTax, settle, todaySummary, weekSummary, type Finding,
 } from '../insights';
 import { scoreSleep } from '../sleep';
 import {
@@ -16,6 +16,8 @@ import {
   personalSleepNeed, goalStreak, weightTrend, batteryTier, latestBody,
 } from '../derive';
 import { STREAMS } from '../registry';
+import { answerQueries, parseQueries, queryRange, type HistoryQueries } from '../history';
+import { answerFromRows } from '../incremental';
 import { emptyRecord } from '../normalize';
 import type { SyncResult } from '../sync';
 
@@ -1836,6 +1838,209 @@ describe('insight engine — Body in depth', () => {
     const card = insightFeeds({ days: bmi, profile: { heightCm: 180 } } as any, sep1).pages.body.find((o) => o.id === 'body-bmi');
     assert.equal(card?.text, 'Going by your weight trend and your height of 1.80 m, your BMI went from 25.6 to 25.0 over the last month.');
     assert.equal(insightFeeds({ days: bmi } as any, sep1).pages.body.find((o) => o.id === 'body-bmi'), undefined, 'no height, no BMI');
+  });
+});
+
+describe('history queries', () => {
+  /** Days from one date to another, each filled in by `fill`. */
+  const span = (from: string, to: string, fill: (d: ReturnType<typeof emptyRecord>, i: number) => void = () => {}) =>
+    dateRange(from, to).map((date, i) => {
+      const d = emptyRecord(date);
+      fill(d, i);
+      return d;
+    });
+  const TODAY = '2026-09-01';
+  const WINDOW_FROM = addDays(TODAY, -61); // 2 July
+
+  it('answers each aggregate, with dates for the readings it picks', () => {
+    const days = span('2026-03-01', '2026-03-05', (d, i) => { d.steps = [9000, 12000, 7000, 12000, 8000][i]; });
+    const answer = answerQueries(
+      { steps: { measure: 'steps', aggregate: ['sum', 'count', 'mean', 'min', 'max', 'first', 'last'], back: 'all' } },
+      days, TODAY, WINDOW_FROM, '2026-03-01',
+    ).steps!;
+    assert.deepEqual(answer.rows, [{
+      key: null, sum: 48000, count: 5, mean: 9600,
+      min: { date: '2026-03-03', value: 7000 },
+      max: { date: '2026-03-02', value: 12000 }, // the first of two equal days: a later one hasn't beaten it
+      first: { date: '2026-03-01', value: 9000 },
+      last: { date: '2026-03-05', value: 8000 },
+    }]);
+  });
+
+  it('groups by month, ISO week, weekday and year', () => {
+    const days = span('2026-03-28', '2026-04-03', (d) => { d.steps = 1000; });
+    const run = (group: 'month' | 'week' | 'weekday' | 'year') =>
+      answerQueries({ q: { measure: 'steps', aggregate: 'count', group, back: 'all' } }, days, TODAY, WINDOW_FROM, '2026-03-28').q!.rows
+        .map((r) => `${r.key}:${r.count}`).join(' ');
+    assert.equal(run('month'), '2026-03:4 2026-04:3');
+    assert.equal(run('week'), '2026-03-23:2 2026-03-30:5'); // Sat 28 and Sun 29 March, then Monday 30 March on
+    assert.equal(run('weekday'), '0:1 1:1 2:1 3:1 4:1 5:1 6:1');
+    assert.equal(run('year'), '2026:7');
+  });
+
+  it('reads rolling means only where enough days have readings, and never across a gap', () => {
+    const days = span('2026-03-01', '2026-03-10', (d, i) => { d.restingHr = i === 2 ? null : 60 + i; });
+    const answer = answerQueries(
+      { week: { measure: 'restingHr', rolling: { days: 7, minReadings: 6 }, aggregate: ['min', 'count'], back: 'all' } },
+      days, TODAY, WINDOW_FROM, '2026-03-01',
+    ).week!;
+    assert.equal(answer.rows[0].count, 4); // runs ending 7 to 10 March
+    assert.deepEqual(answer.rows[0].min, { date: '2026-03-07', value: (60 + 61 + 63 + 64 + 65 + 66) / 6 });
+    const gappy = days.filter((d) => d.date !== '2026-03-05');
+    const none = answerQueries({ week: { measure: 'restingHr', rolling: { days: 7, minReadings: 1 }, aggregate: 'count', back: 'all' } },
+      gappy, TODAY, WINDOW_FROM, '2026-03-01').week!;
+    assert.equal(none.rows[0].count, 0, 'only runs of seven real calendar days');
+  });
+
+  it('says how far back with back and until, and never reaches into the window', () => {
+    const q = (back: number | 'all', until?: number) => ({ measure: 'steps' as const, aggregate: 'count' as const, back, until });
+    assert.deepEqual(queryRange(q('all'), TODAY, WINDOW_FROM, '2025-01-01'), { from: '2025-01-01', to: '2026-07-01' });
+    assert.deepEqual(queryRange(q(365), TODAY, WINDOW_FROM, '2025-01-01'), { from: '2025-09-01', to: '2026-07-01' });
+    assert.deepEqual(queryRange(q(395, 365), TODAY, WINDOW_FROM, '2025-01-01'), { from: '2025-08-02', to: '2025-09-01' });
+    assert.deepEqual(queryRange(q(400), TODAY, WINDOW_FROM, '2026-05-01'), { from: '2026-05-01', to: '2026-07-01' }, 'no further back than what is stored');
+    assert.equal(queryRange(q('all', 30), TODAY, WINDOW_FROM, '2025-01-01'), null, 'until inside the window');
+    const empty = answerQueries({ q: q(30) }, [], TODAY, WINDOW_FROM, '2025-01-01').q!;
+    assert.deepEqual(empty.rows, [{ key: null, count: 0 }], 'a range that ends before it starts finds nothing');
+  });
+
+  it('drops anything it does not understand', () => {
+    const parsed = parseQueries({
+      ok: { measure: 'steps', aggregate: ['sum', 'count'], group: 'month', back: 'all' },
+      badMeasure: { measure: 'password', aggregate: 'count', back: 'all' },
+      badAggregate: { measure: 'steps', aggregate: 'median', back: 'all' },
+      badBack: { measure: 'steps', aggregate: 'count', back: -3 },
+      badRolling: { measure: 'hrv', aggregate: 'max', rolling: { days: 7, minReadings: 9 }, back: 'all' },
+      'bad name!': { measure: 'steps', aggregate: 'count', back: 'all' },
+    });
+    assert.deepEqual(Object.keys(parsed), ['ok']);
+    assert.deepEqual(parseQueries('nonsense'), {});
+  });
+
+  it('answers from stored rows before the window only, as demo mode and the server do', () => {
+    const day = (steps: number) => ({ fields: { steps }, present: ['steps'], sources: [], sourceByType: {} });
+    const rows = new Map([['steps', new Map([
+      ['2026-05-01', day(9000)], ['2026-05-02', day(11000)], ['2026-07-10', day(30000)],
+    ])]]);
+    const queries: HistoryQueries = { biggest: { measure: 'steps', aggregate: 'max', back: 'all' } };
+    const answers = answerFromRows(rows as any, queries, WINDOW_FROM, TODAY);
+    assert.deepEqual(answers.biggest!.rows[0].max, { date: '2026-05-02', value: 11000 }, "the window's own record isn't in it");
+    assert.equal(answers.biggest!.from, '2026-05-01');
+    assert.equal(answers.biggest!.to, '2026-07-01');
+  });
+
+  it('finds nothing before the window in demo mode, where the fixture is just the window', async () => {
+    const ds = await syncHealthData({
+      token: 'demo',
+      fetchImpl: createFixtureFetch(buildFixturePayloads()),
+      windowDays: 62,
+      now: FIXTURE_CLOCK.now,
+      timeZone: FIXTURE_CLOCK.timeZone,
+      queries: HISTORY_QUERIES,
+    });
+    assert.deepEqual(Object.keys(ds.answers!).sort(), Object.keys(HISTORY_QUERIES).sort());
+    assert.equal(ds.answers!.stepsByMonth!.rows.length, 0);
+    assert.equal(ds.answers!.biggestStepDay!.rows[0].max, null);
+  });
+});
+
+describe('insight engine — all time and the week in review', () => {
+  /** Older days from 1 March to 30 June, before a window of syntheticDays (1 July on). */
+  const older = (fill: (d: ReturnType<typeof emptyRecord>, i: number) => void) =>
+    dateRange('2026-03-01', '2026-06-30').map((date, i) => {
+      const d = emptyRecord(date);
+      fill(d, i);
+      return d;
+    });
+  /** The app's real history queries, answered from older days as the server would answer them. */
+  const feedsWith = (window: Days, before: Days, now: Date) =>
+    insightFeeds({ days: window, answers: answerQueries(HISTORY_QUERIES, before, window.at(-1)!.date, window[0].date, before[0]?.date ?? null) } as any, now);
+  const find = (f: ReturnType<typeof feedsWith>, id: string) => {
+    if (f.today.some((o) => o.id === id)) return { where: 'today', card: f.today.find((o) => o.id === id)! };
+    for (const [page, os] of Object.entries(f.pages)) {
+      const card = os.find((o) => o.id === id);
+      if (card) return { where: page, card };
+    }
+    return null;
+  };
+  const SEP1 = new Date('2026-09-01T08:00:00');
+  // 63 days of syntheticDays run from 1 July to Tue 1 September; 67 to Sat 5 September.
+  const window = (n = 63) => {
+    const days = syntheticDays(n);
+    for (const d of days) if (d.date.startsWith('2026-08')) d.steps = 10000;
+    return days;
+  };
+
+  it('names last month your most active on record: news on the 1st, on Activity after', () => {
+    const before = older((d) => { d.steps = 7000; });
+    const sep1 = find(feedsWith(window(), before, SEP1), 'activity-best-month')!;
+    assert.equal(sep1.where, 'today');
+    assert.equal(sep1.card.text, "You averaged 10,000 steps a day in August. That's your most active month since March, as far back as your history goes.");
+    assert.equal(find(feedsWith(window(67), before, new Date('2026-09-05T08:00:00')), 'activity-best-month')?.where, 'activity');
+    assert.equal(find(feedsWith(window(), [], SEP1), 'activity-best-month'), null, 'two months are no record');
+    const may = older((d) => { d.steps = d.date.startsWith('2026-05') ? 12000 : 7000; });
+    assert.equal(find(feedsWith(window(), may, SEP1), 'activity-best-month'), null);
+  });
+
+  it('finds your best month of sleep and your calmest month the same way', () => {
+    const days = syntheticDays(63);
+    for (const d of days) {
+      if (!d.date.startsWith('2026-07')) continue;
+      d.restingHr = 64;
+      d.sleep!.minutesAsleep = 400;
+    }
+    const before = older((d) => {
+      d.restingHr = 66;
+      d.sleep = { ...syntheticDays(1)[0].sleep!, date: d.date, minutesAsleep: 380, minutesInBed: 390 };
+    });
+    const f = feedsWith(days, before, SEP1);
+    assert.match(find(f, 'sleep-best-month')!.card.text,
+      /^In August you slept 7h 30m a night on average, and your average sleep score was \d+\. That's your best month of sleep since March, as far back as your history goes\.$/);
+    assert.match(find(f, 'vitals-calmest-month')!.card.text,
+      /^Your resting heart rate averaged 62\.\d bpm in August\. That's your lowest month since March, as far back as your history goes\.$/);
+  });
+
+  it('calls a step record all time only when it beats every stored day', () => {
+    const days = syntheticDays(28);
+    days[26].steps = 24000;
+    const at = new Date('2026-07-28T08:00:00');
+    const beaten = find(feedsWith(days, older((d, i) => { d.steps = i === 40 ? 20000 : 8000; }), at), 'step-record')!;
+    assert.equal(beaten.card.title, 'Your biggest day yet');
+    assert.equal(beaten.card.text, "You walked 24,000 steps on 27 July. That's your biggest day since March, as far back as your history goes. Your previous best was 20,000.");
+    const unbeaten = find(feedsWith(days, older((d, i) => { d.steps = i === 40 ? 30000 : 8000; }), at), 'step-record')!;
+    assert.equal(unbeaten.card.title, 'Your biggest day in two months');
+    assert.match(unbeaten.card.text, /That's your biggest day in the last two months\./);
+  });
+
+  it('calls a record week all time only when it beats every stored week', () => {
+    // 63 days end on a jitter-free morning, so the battery doesn't move and nothing cautious shares the family.
+    const days = syntheticDays(63);
+    for (let i = 56; i < 63; i++) days[i].restingHr = 55;
+    const at = SEP1;
+    const calmer = find(feedsWith(days, older((d, i) => { d.restingHr = i >= 30 && i < 37 ? 58 : 62; }), at), 'record-rhr')!;
+    assert.equal(calmer.card.title, 'Your calmest week yet');
+    assert.equal(calmer.card.text, "Your resting heart rate averaged 55.0 bpm this week. That's your lowest week since March, as far back as your history goes.");
+    const notYet = find(feedsWith(days, older((d, i) => { d.restingHr = i >= 30 && i < 37 ? 54 : 62; }), at), 'record-rhr')!;
+    assert.equal(notYet.card.title, 'Your calmest week in two months');
+  });
+
+  it('measures weight since your first weigh-in on record', () => {
+    const days = syntheticDays(63);
+    [10, 25, 40, 55, 60].forEach((i, k) => { days[i].weightKg = 88 - k * 0.4; });
+    const since = find(feedsWith(days, older((d, i) => { if (i === 1) d.weightKg = 90; }), SEP1), 'body-since-start')!;
+    assert.equal(since.where, 'today');
+    assert.equal(since.card.text, "You've lost 3.6 kg since March, going from 90.0 kg to 86.4 kg.");
+  });
+
+  it('reviews last week on Monday mornings only, from measures with 5 days or more', () => {
+    const days = syntheticDays(27); // ends on Monday 27 July
+    for (const d of days) d.zoneMinutes = { fatBurn: 20, cardio: 5, peak: 0 };
+    const card = cardOf(days, 'weekly-review', new Date('2026-07-27T08:00:00'))!;
+    assert.equal(card.title, 'Your week in review');
+    assert.equal(card.text,
+      'Last week you averaged 8,000 steps a day, about the same as the week before. You earned 210 active zone minutes and slept 7h 30m a night on average. Your HRV was about usual.');
+    assert.equal(whereIs(days, 'weekly-review', new Date('2026-07-27T08:00:00')), 'today');
+    assert.equal(cardOf(days, 'weekly-review', new Date('2026-07-27T14:00:00')), undefined, 'a morning card');
+    assert.equal(cardOf(syntheticDays(28), 'weekly-review'), undefined, 'Tuesday');
   });
 });
 

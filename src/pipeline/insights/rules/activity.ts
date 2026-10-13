@@ -3,15 +3,23 @@ import type { DailyRecord } from '../../../types/health';
 import { completedDays, goalStreak, periodShift, series, stats, values, type Point } from '../../derive';
 import type { InsightContext } from '../context';
 import {
-  ENTRY_WINDOW, STEP_GOAL, briskMins, clk, dayMonth, fmtInt, heldFor, listOf, plural, sinceNote, zoneMins,
+  ENTRY_WINDOW, STEP_GOAL, briskMins, clk, dayMonth, fmtInt, heldFor, listOf, monthName, plural, sinceHistory, sinceNote,
+  zoneMins,
 } from '../helpers';
 import { movementHrvAssociation } from '../association';
-import { WEEKDAYS, activeHours, weekdayExtremes } from '../patterns';
+import { WEEKDAYS, activeHours, lastMonthBest, monthsOf, weekdayExtremes } from '../patterns';
+import type { HistoryQueries } from '../../history';
 import type { Finding } from '../types';
 
 type Add = (f: Finding) => void;
 
 const base = { domain: 'movement' as const, page: 'activity' as const };
+
+/** What Activity asks of your older days: monthly steps, and the biggest day on record. */
+export const activityQueries = {
+  stepsByMonth: { measure: 'steps', group: 'month', aggregate: ['sum', 'count'], back: 'all' },
+  biggestStepDay: { measure: 'steps', aggregate: 'max', back: 'all' },
+} satisfies HistoryQueries;
 
 /** Steps, active minutes, when and how you move, and the moments in the day worth a nudge. */
 export function activityRules(ctx: InsightContext, add: Add): void {
@@ -28,6 +36,7 @@ export function activityRules(ctx: InsightContext, add: Add): void {
   goalDays(ctx, add);
   weekShape(ctx, add);
   peakHours(ctx, add);
+  bestMonth(ctx, add);
   nudges(ctx, add);
   association(ctx, add);
 }
@@ -97,13 +106,16 @@ function milestones(ctx: InsightContext, add: Add): void {
   const record = finished[at];
   if (record && at >= 14 && record.value! >= 8000) {
     const age = daysBetween(record.date, today);
-    const priorMax = Math.max(...finished.slice(0, at).map((pt) => pt.value!));
+    const before = ctx.answers.biggestStepDay?.rows[0]?.max ?? null;
+    // All time once it also beats every stored day before the window.
+    const allTime = before !== null && record.value! > before.value;
+    const priorMax = Math.max(...finished.slice(0, at).map((pt) => pt.value!), allTime ? before!.value : 0);
     if (age <= 7) {
       add({
         ...base, id: 'step-record', kind: 'milestone', tone: 'good',
         importance: 77, topic: 'step-record', family: 'movement-milestone', today: 'as-news', news: age <= ENTRY_WINDOW + 1,
-        title: 'Your biggest day yet',
-        text: `You walked ${fmtInt(record.value!)} steps on ${dayMonth(record.date)}. That's your biggest day in the last two months. Your previous best was ${fmtInt(priorMax)}.`,
+        title: allTime ? 'Your biggest day yet' : 'Your biggest day in two months',
+        text: `You walked ${fmtInt(record.value!)} steps on ${dayMonth(record.date)}. That's your biggest day ${allTime ? sinceHistory(monthsOf(ctx.days, 'steps', ctx.answers.stepsByMonth)[0].month, today) : 'in the last two months'}. Your previous best was ${fmtInt(priorMax)}.`,
       });
     }
   }
@@ -449,5 +461,17 @@ function peakHours(ctx: InsightContext, add: Add): void {
     importance: 45, topic: 'peak-hours', family: 'activity-patterns', today: 'never', news: false,
     title: "When you're most active",
     text: `${lead} That's when your heart rate most often reaches a brisk-walking level, ${h.threshold} bpm or more. It's based on ${h.days} days of heart-rate readings from the last four weeks.`,
+  });
+}
+
+/** Last month, if it was your most active on record: news on the 1st and 2nd, then on the page all month. */
+function bestMonth(ctx: InsightContext, add: Add): void {
+  const best = lastMonthBest(monthsOf(ctx.days, 'steps', ctx.answers.stepsByMonth), ctx.today, 20, 'max');
+  if (!best) return;
+  add({
+    ...base, id: 'activity-best-month', kind: 'milestone', tone: 'good',
+    importance: 64, topic: 'best-month-steps', family: 'monthly-best', today: 'as-news', news: ctx.dom <= 2,
+    title: 'Your most active month',
+    text: `You averaged ${fmtInt(best.value)} steps a day in ${monthName(best.month, ctx.today)}. That's your most active month ${sinceHistory(best.since, ctx.today)}.`,
   });
 }

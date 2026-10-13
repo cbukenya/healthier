@@ -59,6 +59,18 @@ export const hoursText = (mins: number) => {
 
 export const plural = (n: number, word: string, many = `${word}s`) => `${n} ${n === 1 ? word : many}`;
 
+const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+/** "September" this year, "March 2025" in another, from a 'YYYY-MM' month or a date. */
+export const monthName = (monthOrDate: string, today: CivilDate) => {
+  const [y, m] = monthOrDate.split('-');
+  const name = MONTH_NAMES[Number(m) - 1];
+  return y === today.slice(0, 4) ? name : `${name} ${y}`;
+};
+
+/** "since March 2025, as far back as your history goes": all time, said honestly. */
+export const sinceHistory = (month: string, today: CivilDate) => `since ${monthName(month, today)}, as far back as your history goes`;
+
 /** "a, b and c". */
 export const listOf = (items: string[]) =>
   items.length < 2 ? items.join('') : `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`;
