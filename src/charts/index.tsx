@@ -707,17 +707,22 @@ export function Spark({
   color,
   height = 26,
   width = 120,
+  baseline,
 }: {
   series: Point[];
   color: string;
   height?: number;
   width?: number;
+  /** Your usual range, shaded behind the line: centre ± spread, as the full charts shade it. */
+  baseline?: { centre: number; spread: number } | null;
 }) {
   const v = series.map((p) => p.value);
   const known = v.filter((x): x is number => x !== null);
   if (known.length < 2) return <div style={{ height }} />;
-  const lo = Math.min(...known);
-  const hi = Math.max(...known);
+  const band = baseline ? { lo: baseline.centre - baseline.spread, hi: baseline.centre + baseline.spread } : null;
+  // The scale takes in the band too, so a line that stays above or below it shows that it does.
+  const lo = Math.min(...known, ...(band ? [band.lo] : []));
+  const hi = Math.max(...known, ...(band ? [band.hi] : []));
   const y = (val: number) => height - 2 - ((val - lo) / (hi - lo || 1)) * (height - 4);
   const x = (i: number) => (i / (v.length - 1 || 1)) * width;
 
@@ -736,6 +741,12 @@ export function Spark({
   const lastIdx = v.length - 1 - [...v].reverse().findIndex((x) => x !== null);
   return (
     <svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" className="w-full" style={{ height }}>
+      {band && (
+        <>
+          <title>Shaded: your usual range</title>
+          <rect x={0} y={y(band.hi)} width={width} height={Math.max(0, y(band.lo) - y(band.hi))} fill="#a1a1aa" opacity={0.12} />
+        </>
+      )}
       {paths.map((d, i) => (
         <path key={i} d={d} fill="none" stroke={color} strokeWidth={1.5} strokeLinecap="round" opacity={0.85} />
       ))}

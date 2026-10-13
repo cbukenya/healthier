@@ -6,6 +6,7 @@ import { useHealth } from './hooks/useHealth';
 import { HistoryProvider } from './hooks/useHistory';
 import { DASHBOARD_WINDOW_DAYS } from './pipeline/sync';
 import { FIXTURE_CLOCK } from './pipeline/fixtures';
+import { formatCivilDay } from './lib/date';
 
 import { DOMAIN, NavButton } from './ui/primitives';
 import { TodayView } from './views/TodayView';
@@ -53,6 +54,8 @@ export default function App() {
   }, [health.data]);
 
   const [view, setView] = useState<'today' | 'activity' | 'sleep' | 'vitals' | 'body' | 'labs' | 'data'>('today');
+  // The data's last day: yours on live data, the fixture's in demo mode.
+  const today = health.data?.days.at(-1)?.date ?? null;
 
   useEffect(() => {
     if (user || demo) {
@@ -160,7 +163,7 @@ export default function App() {
                 if (demo) setDemo(false);
                 else signOut();
               }}
-              className="px-3 py-1.5 rounded-lg text-[11px] font-medium text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
+              className="min-h-11 md:min-h-0 px-3 py-1.5 rounded-lg text-[12.5px] md:text-[11px] font-medium text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
             >
               {demo ? 'Exit Demo' : 'Sign Out'}
             </button>
@@ -169,8 +172,8 @@ export default function App() {
       </header>
 
       {/* Navigation & Status */}
-      <div className="max-w-5xl mx-auto px-4 py-6">
-        <nav className="flex items-center gap-1 overflow-x-auto pb-2 scrollbar-hide">
+      <div className="max-w-5xl mx-auto px-4 pt-3 pb-6 md:pt-6">
+        <nav className="flex items-center justify-between md:justify-start gap-0.5 md:gap-1 overflow-x-auto pb-2 no-scrollbar">
           <NavButton 
             active={view === 'today'} onClick={() => setView('today')} 
             icon={<User size={14} />} label="Today" 
@@ -195,12 +198,17 @@ export default function App() {
             active={view === 'labs'} onClick={() => setView('labs')} 
             icon={<FlaskConical size={14} />} label="Labs" color="text-yellow-400" 
           />
-          <div className="w-px h-4 bg-zinc-800 mx-2 shrink-0" />
+          <div className="hidden md:block w-px h-4 bg-zinc-800 mx-2 shrink-0" />
           <NavButton 
             active={view === 'data'} onClick={() => setView('data')} 
             icon={<FileCode2 size={14} />} label="Data" color="text-zinc-400" 
           />
         </nav>
+        {today && (
+          <time dateTime={today} className="block mt-1 px-3 text-right text-[12px] text-zinc-500">
+            {formatCivilDay(today)}
+          </time>
+        )}
 
         {health.error && health.phase === 'error' && (
           <div className="mt-4 p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-start gap-3">
@@ -250,7 +258,7 @@ export default function App() {
 
         {health.data && (
           <HistoryProvider data={health.data} info={health.history} live={!demo}>
-          <main className="mt-6 animate-in fade-in duration-500">
+          <main className="mt-3 md:mt-6 animate-in fade-in duration-500">
             {view === 'today' && <TodayView data={health.data} intraday={intradayDays} clock={demo ? FIXTURE_CLOCK : undefined} />}
             {view === 'activity' && <ActivityView data={health.data} />}
             {view === 'sleep' && <SleepView data={health.data} />}
