@@ -263,10 +263,10 @@ export default function App() {
           <HistoryProvider data={health.data} info={health.history} live={!demo}>
           <main className="mt-3 md:mt-6 animate-in fade-in duration-500">
             {view === 'today' && <TodayView data={health.data} intraday={intradayDays} clock={demo ? FIXTURE_CLOCK : undefined} />}
-            {view === 'activity' && <ActivityView data={health.data} />}
-            {view === 'sleep' && <SleepView data={health.data} />}
-            {view === 'vitals' && <VitalsView data={health.data} />}
-            {view === 'body' && <BodyView data={health.data} onGender={demo ? undefined : saveGender} />}
+            {view === 'activity' && <ActivityView data={health.data} intraday={intradayDays} clock={demo ? FIXTURE_CLOCK : undefined} />}
+            {view === 'sleep' && <SleepView data={health.data} intraday={intradayDays} clock={demo ? FIXTURE_CLOCK : undefined} />}
+            {view === 'vitals' && <VitalsView data={health.data} intraday={intradayDays} clock={demo ? FIXTURE_CLOCK : undefined} />}
+            {view === 'body' && <BodyView data={health.data} onGender={demo ? undefined : saveGender} intraday={intradayDays} clock={demo ? FIXTURE_CLOCK : undefined} />}
             {view === 'labs' && <LabsView data={health.data} intraday={intradayDays} />}
             {view === 'data' && <DataView data={health.data} onFullSync={health.fullSync} onDisconnect={demo ? undefined : disconnect} />}
           </main>

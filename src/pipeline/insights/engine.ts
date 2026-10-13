@@ -1,0 +1,66 @@
+import type { HealthDataset } from '../../types/health';
+import { buildContext, type InsightOptions } from './context';
+import { settle } from './conflicts';
+import { PAGES, place, placeable } from './place';
+import { activityRules } from './rules/activity';
+import { bodyRules } from './rules/body';
+import { sleepRules } from './rules/sleep';
+import { todayRules } from './rules/today';
+import { vitalsRules } from './rules/vitals';
+import type { Finding, InsightFeeds } from './types';
+
+/**
+ * The insight engine.
+ *
+ * Everything here is deterministic arithmetic over the day grid plus the
+ * clock: no model call, no invented causation, no stored state. "Today" is
+ * always the grid's last day (the server ends the window on the user's today);
+ * the clock only says whether it's morning, midday or evening. Novelty is
+ * a property *derived from the data*: to know whether an insight is new, the
+ * engine re-evaluates the same rule on a truncated window ("the yesterday
+ * test") and calls it news only when the state wasn't already true. Nothing is
+ * persisted, so behaviour is identical across devices and every guard is a
+ * pure function you can unit-test.
+ *
+ * Guard vocabulary (all stateless):
+ *
+ *   fresh-fact   about last night / today; new each day by nature
+ *   entry        true on the full window, false ENTRY_WINDOW+1 days ago
+ *   hysteresis   entry measured against a *reset* threshold, so a value
+ *                oscillating around the fire threshold cannot re-fire daily
+ *   milestone    predicate only true at discrete values (streak ∈ set,
+ *                a strictly-beaten record, staleness crossing 15/30/60)
+ *   alert        shows while true; copy escalates with the trailing
+ *                consecutive-day count instead of repeating verbatim
+ *   calendar     fires on a clock condition (1st of the month)
+ *
+ * One pass, five feeds: every rule file adds findings for its page, the
+ * conflict rules settle them all together, and each one goes to exactly one
+ * place. Today while it's key (an alert or nudge while true, anything else
+ * while it's news), otherwise its own page for as long as it holds.
+ *
+ * Copy laws, enforced in the rules: plain sentences with the figures inside
+ * them; evidence first, the action on its own line after it; wins carry no
+ * homework; neutral metrics carry no moral tone; escalation, never repetition.
+ */
+export function evaluate(ds: HealthDataset, now: Date = new Date(), extras?: InsightOptions) {
+  const ctx = buildContext(ds, now, extras);
+  if (!ctx) return null;
+  const found: Finding[] = [];
+  const add = (f: Finding) => found.push(f);
+  todayRules(ctx, add);
+  activityRules(ctx, add);
+  sleepRules(ctx, add);
+  vitalsRules(ctx, add);
+  bodyRules(ctx, add);
+  const settled = settle(found.filter((f) => placeable(f, ctx.part)));
+  return { ctx, found, settled, feeds: place(settled, ctx) };
+}
+
+/** Today's key insights and each page's own, for the carousels. */
+export function insightFeeds(ds: HealthDataset, now: Date = new Date(), extras?: InsightOptions): InsightFeeds {
+  return evaluate(ds, now, extras)?.feeds ?? {
+    today: [],
+    pages: Object.fromEntries(PAGES.map((p) => [p, []])) as unknown as InsightFeeds['pages'],
+  };
+}
