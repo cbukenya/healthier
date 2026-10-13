@@ -90,6 +90,14 @@ const MIGRATIONS: { id: number; name: string; sql: string }[] = [
       );
     `,
   },
+  {
+    id: 2,
+    name: 'user gender',
+    sql: `
+      -- Set by the person on the Body page; Google Health doesn't provide it.
+      ALTER TABLE users ADD COLUMN gender text CHECK (gender IN ('female', 'male', 'other'));
+    `,
+  },
 ];
 
 export function createDb(connectionString: string): Db {

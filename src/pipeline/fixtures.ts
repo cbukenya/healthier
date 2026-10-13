@@ -391,6 +391,8 @@ export function createFixtureFetch(
 ): FetchLike {
   return async (url: string, init?: RequestInit) => {
     const u = new URL(url, 'https://health.googleapis.com');
+    // The account profile: the demo person's age.
+    if (u.pathname.endsWith('/profile')) return json({ name: 'users/me/profile', age: 41 });
     const m = u.pathname.match(/dataTypes\/([^/]+)\/dataPoints/);
     const dataType = m?.[1] ?? '';
     if (opts.latencyMs) await new Promise((r) => setTimeout(r, opts.latencyMs));

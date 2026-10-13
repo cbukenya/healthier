@@ -236,7 +236,8 @@ export async function loadDataset(
     getStreamStates(deps.db, userId),
   ]);
   const dataset = assembleDataset(
-    { rows, intraday, states: states.values(), profile: state.profile, run: state.run },
+    // Gender is the person's own setting, kept on their account rather than read from Google.
+    { rows, intraday, states: states.values(), profile: { ...state.profile, gender: user.gender }, run: state.run },
     from,
     to,
   );
