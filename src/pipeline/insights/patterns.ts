@@ -1,6 +1,6 @@
-import { addDays, isoWeekdayIndex } from '../../lib/date';
+import { addDays, daysBetween, isoWeekdayIndex, type CivilDate } from '../../lib/date';
 import type { DailyRecord, SleepSession } from '../../types/health';
-import { circularMeanMinutes, stats, type Point } from '../derive';
+import { circularMeanMinutes, compareToBaseline, series, stats, theilSen, type Point } from '../derive';
 import { illnessDates, type IntradayDays } from '../labs';
 import { scoreSleep } from '../sleep';
 import { welch } from './association';
@@ -38,6 +38,77 @@ export function weekdayExtremes(s: Point[], minEach: number): { low: WeekdayMedi
   if (meds.some((m) => m.median === null || m.n < minEach)) return null;
   const sorted = [...meds].sort((a, b) => a.median! - b.median!);
   return { low: sorted[0], high: sorted[6] };
+}
+
+// ─────────────────────────────────────────────────── nights against your usual
+
+export interface NightReading {
+  date: CivilDate;
+  value: number;
+  /** The 28 days before it: median and robust z, null until 8 readings exist. */
+  baseline: number | null;
+  z: number | null;
+}
+
+/**
+ * Each of the last `n` days' reading against the 28 days before that day,
+ * oldest first: the same comparison the single-night cards make, taken back
+ * night by night. Null where the day has no reading.
+ */
+export function nightsAgainstUsual(
+  days: DailyRecord[],
+  get: (d: DailyRecord) => number | null,
+  floor: number,
+  n: number,
+): (NightReading | null)[] {
+  const s = series(days, get);
+  const out: (NightReading | null)[] = [];
+  for (let i = Math.max(0, s.length - n); i < s.length; i++) {
+    const pt = s[i];
+    if (pt.value === null) { out.push(null); continue; }
+    const c = compareToBaseline(s.slice(0, i + 1), 28, 8, floor);
+    out.push({ date: pt.date, value: pt.value, baseline: c.baseline, z: c.z });
+  }
+  return out;
+}
+
+/**
+ * The run of readings meeting a test, counted back from the newest, oldest
+ * first. Days without a reading after the run (not synced yet) are skipped; one
+ * inside it ends it, so a run never reaches across a gap.
+ */
+export function trailingRun<T>(xs: (T | null)[], test: (x: T) => boolean): T[] {
+  const run: T[] = [];
+  for (let i = xs.length - 1; i >= 0; i--) {
+    const x = xs[i];
+    if (x === null) {
+      if (run.length) break;
+      continue;
+    }
+    if (!test(x)) break;
+    run.unshift(x);
+  }
+  return run;
+}
+
+/** A Theil–Sen line through sparse readings: robust to the odd weigh-in, readable at any date. */
+export interface TrendLine {
+  perDay: number;
+  at: (date: CivilDate) => number;
+  first: CivilDate;
+  last: CivilDate;
+  n: number;
+}
+
+export function trendLine(points: Point[]): TrendLine | null {
+  const pts = points.filter((p): p is { date: CivilDate; value: number } => p.value !== null);
+  if (pts.length < 2) return null;
+  const first = pts[0].date;
+  const xy = pts.map((p) => ({ x: daysBetween(first, p.date), y: p.value }));
+  const perDay = theilSen(xy);
+  if (perDay === null) return null;
+  const intercept = stats(xy.map((p) => p.y - perDay * p.x))!.median;
+  return { perDay, at: (date) => intercept + perDay * daysBetween(first, date), first, last: pts[pts.length - 1].date, n: pts.length };
 }
 
 // ─────────────────────────────────────────────────── when in the day you move

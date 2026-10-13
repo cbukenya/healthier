@@ -1131,7 +1131,7 @@ describe('insight engine — stateless guards', () => {
     const f = feedsAt(days);
     assert.deepEqual(f.today.map((o) => o.id), ['floor-morning'], listing(days));
     assert.match(f.today[0].text, /Nothing new needs your attention/);
-    assert.equal(f.pages.vitals[0].title, 'Everything looks steady');
+    assert.equal(f.pages.vitals[0].id, 'vitals-all-quiet');
     assert.equal(cardOf(days, 'bed-settling')?.title, 'Your bedtime has been steady', 'standing, not news');
   });
 
@@ -1696,6 +1696,146 @@ describe('insight engine — Sleep in depth', () => {
     const flat = syntheticDays(40);
     flat.forEach((d, i) => { d.sleep!.minutesAsleep = i % 2 === 0 ? 470 : 380; });
     assert.equal(cardOf(flat, 'sleep-hrv-link', AUG9), undefined, 'no relationship, no story');
+  });
+});
+
+describe('insight engine — Vitals in depth', () => {
+  // Grid ends: 40 days on Sun 9 Aug, 58 on Thu 27 Aug, 62 on Mon 31 Aug.
+  const AUG9 = new Date('2026-08-09T08:00:00');
+  const AUG27 = new Date('2026-08-27T08:00:00');
+  const AUG31 = new Date('2026-08-31T08:00:00');
+
+  it('flags two nights of faster breathing or running warm, and steps aside for the several-signals card', () => {
+    const breathing = syntheticDays(28);
+    breathing[26].respiratoryRate = 16.2;
+    breathing[27].respiratoryRate = 16.0;
+    assert.equal(whereIs(breathing, 'vitals-breathing-up'), 'today', listing(breathing));
+    assert.match(cardOf(breathing, 'vitals-breathing-up')!.text, /^Your breathing rate has been about 16\.1 breaths a minute for the last 2 nights\. It's usually around 14\.0\./);
+    breathing[26].respiratoryRate = 14;
+    assert.equal(cardOf(breathing, 'vitals-breathing-up'), undefined, 'one night is not a run');
+
+    const warm = syntheticDays(28);
+    warm[26].skinTempDeviationC = 0.7;
+    warm[27].skinTempDeviationC = 0.6;
+    assert.match(cardOf(warm, 'vitals-warm')!.text, /^Your skin temperature has been about 0\.6 °C above your normal for the last 2 nights\./);
+
+    const rough = syntheticDays(28, { restingHr: 70, resp: 17.5, tempDev: 0.8, hrv: 24 });
+    rough[26].respiratoryRate = 17.5;
+    rough[26].skinTempDeviationC = 0.8;
+    assert.equal(cardOf(rough, 'vitals-breathing-up'), undefined);
+    assert.equal(cardOf(rough, 'vitals-warm'), undefined);
+  });
+
+  it('puts lower overnight oxygen on Vitals, and on Today the morning it makes three nights', () => {
+    const days = syntheticDays(40);
+    days.forEach((d, i) => { d.spo2 = { avg: i >= 37 ? 93.5 : 96 + (i % 3) * 0.2, ciLower: null, ciUpper: null, rollingAvgSd: null }; });
+    const trace: string[] = [];
+    for (let n = 37; n <= 40; n++) trace.push(whereIs(days.slice(0, n), 'vitals-oxygen-lower', AUG9) ?? '-');
+    assert.equal(trace.join(' '), '- vitals vitals today');
+    assert.equal(cardOf(days, 'vitals-oxygen-lower', AUG9)?.text,
+      "Your overnight oxygen averaged 93.5% over the last 3 nights. It's usually around 96.2%. You can see these nights in Labs.");
+  });
+
+  it('calls everything steady only after a week with nothing far from usual, and never beside a cautious card', () => {
+    assert.equal(cardOf(syntheticDays(28), 'vitals-all-quiet')?.text,
+      "Your resting heart rate, HRV, breathing and temperature haven't strayed far from their usual range for 20 nights.");
+    const off = syntheticDays(28);
+    off[24].restingHr = 75; // far above, four nights ago
+    assert.equal(cardOf(off, 'vitals-all-quiet'), undefined, 'the run restarts after a far night');
+    const warm = syntheticDays(28);
+    warm[26].skinTempDeviationC = 0.7;
+    warm[27].skinTempDeviationC = 0.6;
+    assert.equal(cardOf(warm, 'vitals-all-quiet'), undefined);
+  });
+
+  it('notices HRV steadier than usual, worded as its typical swing', () => {
+    const days = syntheticDays(58);
+    for (let i = 51; i < 58; i++) days[i].hrv = 34 + (i % 2 ? 0.4 : -0.4);
+    days[57].hrv = 34;
+    assert.match(cardOf(days, 'vitals-hrv-stability', AUG27)!.text,
+      /^This week your HRV varied by about \d+% around its average\. Usually it varies by about \d+%\. Steadier HRV often goes with good recovery\.$/);
+    assert.equal(cardOf(syntheticDays(58), 'vitals-hrv-stability', AUG27), undefined, 'an ordinary week is no news');
+  });
+
+  it('reads how quickly HRV is back in range after your hardest days', () => {
+    const quick = syntheticDays(62);
+    quick.forEach((d, i) => { const hard = i % 7 < 2; d.zoneMinutes = { fatBurn: hard ? 50 : 10, cardio: hard ? 10 : 0, peak: 0 }; });
+    assert.equal(cardOf(quick, 'vitals-bounce-back', AUG31)?.title, 'You bounce back quickly');
+
+    const slower = syntheticDays(62);
+    slower.forEach((d, i) => {
+      const hard = i % 4 === 0;
+      d.zoneMinutes = { fatBurn: hard ? 50 : 10, cardio: hard ? 10 : 0, peak: 0 };
+      if (i % 4 === 1) d.hrv = 24;
+    });
+    assert.match(cardOf(slower, 'vitals-bounce-back', AUG31)!.text,
+      /^After your hardest days, your HRV usually takes about 2 nights to get back to its normal range\. That's based on \d+ days with 25 active zone minutes or more in the last 8 weeks\.$/);
+  });
+
+  it('finds a weekly HRV pattern only when it beats night-to-night noise', () => {
+    const days = syntheticDays(56);
+    days.forEach((d) => { const w = isoWeekdayIndex(d.date); d.hrv = w === 0 ? 29 : w === 3 ? 38 : 34; });
+    assert.match(cardOf(days, 'vitals-week-shape', new Date('2026-08-25T08:00:00'))!.text,
+      /^Your HRV is usually lowest on Monday mornings and highest on Thursday mornings\. On Monday mornings it's about \d+% below your weekly average\.$/);
+    assert.equal(cardOf(syntheticDays(56), 'vitals-week-shape', new Date('2026-08-25T08:00:00')), undefined);
+  });
+
+  it("gives Google's fitness band for your age, and steps aside while a revision is news", () => {
+    const days = syntheticDays(40);
+    days.forEach((d, i) => { d.vo2Max = i < 5 ? 42.0 : 43.2; d.cardioFitnessLevel = 'GOOD'; });
+    assert.equal(cardOf(days, 'vitals-fitness-level', AUG9)?.text,
+      "Your VO₂ max is 43.2, which Google rates as Good for your age. It's 1.2 points higher than on 1 July.");
+    const fresh = syntheticDays(40);
+    fresh.forEach((d, i) => { d.vo2Max = i < 30 ? 42.0 : 43.2; d.cardioFitnessLevel = 'GOOD'; });
+    assert.equal(cardOf(fresh, 'vitals-fitness-level', AUG9), undefined, 'one card about VO₂ max at a time');
+    assert.ok(cardOf(fresh, 'vo2-up', AUG9));
+  });
+});
+
+describe('insight engine — Body in depth', () => {
+  const AUG9 = new Date('2026-08-09T08:00:00');
+
+  it('alerts to a fast change either way, and it speaks for the weight trend', () => {
+    const days = syntheticDays(40);
+    for (let k = 0; k < 6; k++) days[4 + k * 6].weightKg = Math.round((90 - k * 6 * ((90 * 0.012) / 7)) * 10) / 10;
+    assert.equal(whereIs(days, 'body-fast-change', AUG9), 'today');
+    assert.equal(cardOf(days, 'body-fast-change', AUG9)?.text,
+      "You've been losing about 1.3% of your body weight a week for 4 weeks. Most guidance suggests 0.5 to 1% a week for changes that last.");
+    assert.equal(cardOf(days, 'weight-down', AUG9), undefined, 'one card about weight at a time');
+  });
+
+  it('says when weight holds steady, and how much it swings day to day', () => {
+    const steady = syntheticDays(40);
+    [3, 10, 17, 24, 31, 38].forEach((i, k) => { steady[i].weightKg = 80 + [0.2, -0.1, 0.3, -0.2, 0.1, 0][k]; });
+    assert.equal(cardOf(steady, 'body-holding-steady', AUG9)?.text,
+      'Your weight has stayed within 0.3 kg either way of 80.0 kg for 5 weeks, across 6 weigh-ins.');
+
+    const swings = syntheticDays(40);
+    for (let i = 28; i < 40; i++) swings[i].weightKg = 80 + (i % 2 ? 0.8 : 0) - (i - 28) * 0.03;
+    assert.match(cardOf(swings, 'body-swings', AUG9)!.text, /^Your weight can swing by about 0\.8 kg from one day to the next\./);
+  });
+
+  it('reads fat and lean mass from paired readings, news when the newest pair shows it', () => {
+    const days = syntheticDays(40);
+    [4, 16, 28, 39].forEach((i, k) => { days[i].weightKg = 80 - k * 0.15; days[i].bodyFatPct = 22 - k * 0.35; });
+    assert.equal(whereIs(days, 'body-composition', AUG9), 'today');
+    assert.equal(cardOf(days, 'body-composition', AUG9)?.text,
+      'Over the last 5 weeks you gained 0.5 kg of lean mass and lost 0.9 kg of fat. That\'s from 4 readings that measured both.');
+    assert.equal(cardOf(days, 'body-fat-trend', AUG9), undefined, 'one card about composition at a time');
+  });
+
+  it('counts weeks with a weigh-in, and notes BMI on the first days of the month', () => {
+    const rhythm = syntheticDays(44);
+    [2, 9, 16, 23, 30, 37, 43].forEach((i) => { rhythm[i].weightKg = 80; });
+    assert.equal(cardOf(rhythm, 'body-weigh-in-rhythm', new Date('2026-08-13T08:00:00'))?.text,
+      "You've weighed in every week for 7 weeks. That's enough for a trend you can trust.");
+
+    const bmi = syntheticDays(63);
+    for (let i = 3; i < 63; i += 5) bmi[i].weightKg = Math.round((85 - (i / 7) * 0.5) * 10) / 10;
+    const sep1 = new Date('2026-09-01T08:00:00');
+    const card = insightFeeds({ days: bmi, profile: { heightCm: 180 } } as any, sep1).pages.body.find((o) => o.id === 'body-bmi');
+    assert.equal(card?.text, 'Going by your weight trend and your height of 1.80 m, your BMI went from 25.6 to 25.0 over the last month.');
+    assert.equal(insightFeeds({ days: bmi } as any, sep1).pages.body.find((o) => o.id === 'body-bmi'), undefined, 'no height, no BMI');
   });
 });
 
