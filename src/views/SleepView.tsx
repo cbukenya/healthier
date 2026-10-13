@@ -10,6 +10,9 @@ import { BandPill, Card, CardHead, DOMAIN, Delta, EmptyState, Row, Segmented, Va
 import { SpanSelector, spanName, useSpan } from '../ui/span';
 import { ChartChips } from '../ui/ChartChips';
 import { useMediaQuery } from '../hooks/useMediaQuery';
+import { InsightsCarousel } from '../components/InsightsCarousel';
+import { usePageInsights, type Clock } from '../hooks/usePageInsights';
+import type { IntradayDays } from '../pipeline/labs';
 import { groupSeries } from '../pipeline/aggregate';
 import type { SyncResult } from '../pipeline/sync';
 import type { DailyRecord, SleepSession } from '../types/health';
@@ -17,8 +20,9 @@ import { LastSevenNights, Naps, getScoreTier } from './SleepCards';
 
 type SleepChart = 'window' | 'duration' | 'rem' | 'deep' | 'naps';
 
-export function SleepView({ data }: { data: SyncResult }) {
+export function SleepView({ data, clock, intraday }: { data: SyncResult; clock?: Clock; intraday?: IntradayDays }) {
   const days = data.days;
+  const insights = usePageInsights(data, 'sleep', clock, intraday);
   const spanState = useSpan(data, '30');
   const { days: window, bucket } = spanState;
   // A phone shows one chart at a time behind chips; wider screens show them all.
@@ -289,6 +293,8 @@ export function SleepView({ data }: { data: SyncResult }) {
           {shownChart.card}
         </>
       )}
+
+      <InsightsCarousel observations={insights} page="sleep" />
     </div>
   );
 }

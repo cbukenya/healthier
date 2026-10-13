@@ -4,8 +4,9 @@ import { formatCivilLong, formatCivilRange, weekdayLetter, weekdayShort, type Ci
 import type { PeriodShift } from '../pipeline/derive';
 import { Card, CardHead, CardSummary, DOMAIN, Delta, Meter, Row, fmtNum } from '../ui/primitives';
 import type { DailyRecord } from '../types/health';
+import { STEP_GOAL } from '../pipeline/insights';
 
-export const STEP_GOAL = 10000;
+export { STEP_GOAL };
 /** A brisk day: the WHO's 150 weekly minutes spread over five days. */
 const BRISK_GOAL = 30;
 const WHO_WEEK = 150;

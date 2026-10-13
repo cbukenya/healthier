@@ -6,7 +6,9 @@ import { int, num, nullIf, round } from '../coerce';
 import { splitWindow, MAX_ROLLUP_WINDOW_DAYS } from '../transport';
 import { syncHealthData } from '../sync';
 import { FIXTURE_CLOCK, buildFixturePayloads, createFixtureFetch } from '../fixtures';
-import { needLabel, observations, recoveryTax, todaySummary, weekSummary } from '../insights';
+import {
+  evaluate, insightFeeds, needLabel, observations, recoveryTax, settle, todaySummary, weekSummary, type Finding,
+} from '../insights';
 import { scoreSleep } from '../sleep';
 import {
   compareToBaseline, coverage, findGaps, periodShift, rollingMean, series, stats, values,
@@ -1096,68 +1098,92 @@ describe('typical sleep window (circular mean)', () => {
 
 // ─────────────────────────────────────────────── insight engine
 
-/** observations() only reads ds.days; a minimal dataset shell is enough. */
+/** The engine only reads ds.days; a minimal dataset shell is enough. */
 const dsOf = (days: ReturnType<typeof emptyRecord>[]): any => ({ days });
 // Synthetic grids start 2026-07-01; 28 days end on 2026-07-28. Container TZ is
 // UTC, so these Dates land in the intended daypart on the grid's last day.
 const MORNING = new Date('2026-07-28T08:00:00');
 const MIDDAY = new Date('2026-07-28T14:00:00');
 const EVENING = new Date('2026-07-28T18:00:00');
-const titles = (days: ReturnType<typeof emptyRecord>[], now: Date = MORNING) =>
-  observations(dsOf(days), now).map((o) => o.title);
-const byTitle = (days: ReturnType<typeof emptyRecord>[], t: string, now: Date = MORNING) =>
-  observations(dsOf(days), now).find((o) => o.title === t);
+type Days = ReturnType<typeof emptyRecord>[];
+const feedsAt = (days: Days, now: Date = MORNING) => insightFeeds(dsOf(days), now);
+const everyCard = (days: Days, now: Date = MORNING) => {
+  const f = feedsAt(days, now);
+  return [...f.today, ...Object.values(f.pages).flat()];
+};
+/** Where a card shows: 'today', its page, or null when it shows nowhere. */
+const whereIs = (days: Days, id: string, now: Date = MORNING) => {
+  const f = feedsAt(days, now);
+  if (f.today.some((o) => o.id === id)) return 'today';
+  return Object.entries(f.pages).find(([, os]) => os.some((o) => o.id === id))?.[0] ?? null;
+};
+const cardOf = (days: Days, id: string, now: Date = MORNING) => everyCard(days, now).find((o) => o.id === id);
+const listing = (days: Days, now: Date = MORNING) => {
+  const f = feedsAt(days, now);
+  return [...f.today.map((o) => `today:${o.id}`), ...Object.entries(f.pages).flatMap(([p, os]) => os.map((o) => `${p}:${o.id}`))].join(' | ');
+};
 
 describe('insight engine — stateless guards', () => {
   it('shows exactly the daypart floor card on a fully typical, unchanged month', () => {
     // Steadiness that has held all along is not news: the yesterday test
-    // silences every entry rule, and the floor card carries the quiet.
-    const obs = observations(dsOf(syntheticDays(28)), MORNING);
-    assert.equal(obs.length, 1, obs.map((o) => o.title).join(' | '));
-    assert.equal(obs[0].id, 'floor-morning');
-    assert.match(obs[0].text, /No news is the good kind/);
-  });
-
-  it('fires settling-in only when the schedule tightened recently, not when it was always tight', () => {
+    // keeps every entry rule off Today, and the floor card carries the quiet.
     const days = syntheticDays(28);
-    days.forEach((d, i) => { if (d.sleep) d.sleep.bedtimeMin = i < 14 ? 1290 + (i % 5) * 90 : 1380; });
-    const t = titles(days);
-    assert.ok(t.includes('Your nights are settling in'), t.join(' | '));
-    // …and the always-steady month (previous test) stayed silent. QED.
+    const f = feedsAt(days);
+    assert.deepEqual(f.today.map((o) => o.id), ['floor-morning'], listing(days));
+    assert.match(f.today[0].text, /Nothing new needs your attention/);
+    assert.equal(f.pages.vitals[0].title, 'Everything looks steady');
+    assert.equal(cardOf(days, 'bed-settling')?.title, 'Your bedtime has been steady', 'standing, not news');
   });
 
-  it('reports an HRV slide once at entry, then goes quiet while it persists', () => {
-    const enteredNow = syntheticDays(28);
-    // Crossed the 8% threshold only in the last couple of days — a fresh entry.
-    for (let i = 24; i < 28; i++) enteredNow[i].hrv = 25 + (i % 2);
-    assert.ok(titles(enteredNow).includes('Recovery has been slipping'));
-    assert.ok(!titles(enteredNow).includes('Your body is asking for rest'), 'trend mutes the single-night card');
+  it('calls a bedtime settling only when it tightened recently, and steady when it always was', () => {
+    const days = syntheticDays(28);
+    days.forEach((d, i) => { if (d.sleep) d.sleep.bedtimeMin = i < 14 ? 1380 + (i % 2 ? 90 : -90) : 1380; });
+    assert.equal(cardOf(days, 'bed-settling')?.title, 'Your bedtime is settling down', listing(days));
+    assert.equal(whereIs(days, 'bed-settling'), 'sleep', 'a page insight, never Today');
+  });
 
-    const persisting = syntheticDays(28);
-    for (let i = 10; i < 28; i++) persisting[i].hrv = 25 + (i % 2);
-    assert.ok(!titles(persisting).includes('Recovery has been slipping'), 'an old slide is not news');
+  it('puts an HRV slide on Today as it starts, then on Vitals while it lasts', () => {
+    const enteredNow = syntheticDays(28);
+    // Crossed the 8% threshold only in the last couple of days: a fresh entry.
+    for (let i = 24; i < 28; i++) enteredNow[i].hrv = 25 + (i % 2);
+    assert.equal(whereIs(enteredNow, 'hrv-trend-down'), 'today', listing(enteredNow));
+    assert.equal(cardOf(enteredNow, 'hrv-acute-low'), undefined, 'the trend speaks for the single night');
+    assert.doesNotMatch(cardOf(enteredNow, 'hrv-trend-down')!.text, /been like this/);
+
+    const lasting = syntheticDays(28);
+    for (let i = 21; i < 28; i++) lasting[i].hrv = 25 + (i % 2);
+    assert.equal(whereIs(lasting, 'hrv-trend-down'), 'vitals', listing(lasting));
+    assert.match(cardOf(lasting, 'hrv-trend-down')!.text, /It's been like this for 5 days\./);
+
+    const over = syntheticDays(28);
+    for (let i = 10; i < 28; i++) over[i].hrv = 25 + (i % 2);
+    assert.equal(whereIs(over, 'hrv-trend-down'), null, 'two low weeks in a row are no longer a slide');
   });
 
   it('flags one clearly elevated morning as an alert, escalating by trailing days', () => {
     const one = syntheticDays(28, { restingHr: 75 });
-    const card1 = byTitle(one, 'Something has your heart working harder')!;
-    assert.ok(card1);
+    const card1 = cardOf(one, 'rhr-acute-high')!;
+    assert.ok(card1, listing(one));
+    assert.equal(whereIs(one, 'rhr-acute-high'), 'today');
+    assert.match(card1.text, /75 bpm this morning\. It's usually around 62/);
     assert.ok(card1.action, 'first day carries the easy-day suggestion');
 
     const three = syntheticDays(28);
     for (let i = 25; i < 28; i++) three[i].restingHr = 75;
-    const card3 = byTitle(three, 'Something has your heart working harder')!;
-    assert.ok(card3, titles(three).join(' | '));
-    assert.match(card3.text, /Third morning/);
+    const card3 = cardOf(three, 'rhr-acute-high')!;
+    assert.ok(card3, listing(three));
+    assert.match(card3.text, /third morning/);
   });
 
-  it('the illness pattern replaces the single-signal cards', () => {
+  it('the illness pattern speaks for every recovery card', () => {
     const rough = syntheticDays(28, { restingHr: 70, resp: 17.5, tempDev: 0.8, hrv: 24 });
-    const obs = observations(dsOf(rough), MORNING);
-    const t = obs.map((o) => o.title);
-    assert.ok(t.includes('Several signals are off at once'), t.join(' | '));
-    assert.ok(!t.includes('Something has your heart working harder'));
-    assert.ok(!t.includes('Your body is asking for rest'));
+    const f = feedsAt(rough);
+    assert.ok(f.today.some((o) => o.id === 'illness-pattern'), listing(rough));
+    for (const id of ['rhr-acute-high', 'hrv-acute-low', 'battery-low', 'battery-drain']) {
+      assert.equal(cardOf(rough, id), undefined, `${id} steps aside`);
+    }
+    assert.equal(f.pages.vitals[0].id, 'vitals-on-today', 'Vitals points to Today instead of calling itself steady');
+    assert.match(f.pages.vitals[0].text, /“Several of your signals are off” is on Today/);
   });
 
   it('shows all qualifying watch cards past the daypart gate without arbitrary quotas', () => {
@@ -1165,111 +1191,119 @@ describe('insight engine — stateless guards', () => {
     for (let i = 21; i < 28; i++) { awful[i].hrv = 23; awful[i].sleep!.minutesAsleep = 300; }
     const obs = observations(dsOf(awful), MORNING);
     assert.ok(obs.filter((o) => o.tone === 'watch').length >= 1, obs.map((o) => `${o.tone}:${o.title}`).join(' | '));
-    assert.ok(obs.length >= 1);
   });
 
-  it('merges the short night into one card with the repair-window action, escalating on the second', () => {
+  it('says a short night plainly, escalating on the second, and moves it to Sleep after the morning', () => {
     const one = syntheticDays(28, { sleepMin: 300 });
-    const card = byTitle(one, "Last night didn't quite deliver")!;
-    assert.ok(card, titles(one).join(' | '));
-    assert.match(card.action!, /repair window/);
-    assert.doesNotMatch(card.text, /Second short night/);
+    const card = cardOf(one, 'night-short')!;
+    assert.ok(card, listing(one));
+    assert.equal(card.title, "Last night wasn't your best sleep");
+    assert.match(card.text, /^Your sleep score is \d+ out of 100 from last night\. You slept 5h 00m compared to your 7h 30m need\.$/);
+    assert.match(card.action!, /30 minutes earlier/);
+    assert.equal(whereIs(one, 'night-short'), 'today');
+    assert.equal(whereIs(one, 'night-short', MIDDAY), 'sleep', 'one place at a time: the page once the morning is over');
 
     const two = syntheticDays(28, { sleepMin: 300 });
     two[26].sleep!.minutesAsleep = 305;
-    const card2 = byTitle(two, "Last night didn't quite deliver")!;
-    assert.match(card2.text, /Second short night/);
-    assert.match(card2.action!, /compounding/);
+    const card2 = cardOf(two, 'night-short')!;
+    assert.match(card2.text, /That makes two short nights in a row\./);
+    assert.match(card2.action!, /adds up/);
   });
 
   it('gives wins no homework', () => {
     const days = syntheticDays(28, { sleepMin: 500 });
     days[27].sleep!.stages = { deep: 95, rem: 105, light: 290, awake: 10 };
-    const card = byTitle(days, 'That was a good night')!;
-    assert.ok(card, titles(days).join(' | '));
+    const card = cardOf(days, 'night-good')!;
+    assert.ok(card, listing(days));
     assert.equal(card.action, undefined, 'good news never arrives with a task attached');
   });
 
   it('measures sleep debt against the personal need, not a hardcoded 8 hours', () => {
     const natural = syntheticDays(28, {}, { sleepMin: 405 });
     assert.equal(personalSleepNeed(natural), 420);
-    assert.ok(!titles(natural).includes('Significant sleep debt accumulated'));
+    assert.equal(cardOf(natural, 'sleep-debt'), undefined, listing(natural));
     const short = syntheticDays(28, {}, { sleepMin: 330 });
-    assert.ok(titles(short).includes('Significant sleep debt accumulated'));
+    assert.equal(cardOf(short, 'sleep-debt')?.title, "You're very short on sleep this week", listing(short));
   });
 
   it('notices bedtime creeping later, with both clock times cited', () => {
     const days = syntheticDays(28);
     // Three fresh late nights (+90 min): the recent-7 circular mean lands
-    // ~23:38 against the prior fortnight's 23:00 — past the 30-minute trigger,
+    // ~23:38 against the prior fortnight's 23:00, past the 30-minute trigger,
     // and absent from the entry-window cut, so it still reads as news.
     for (let i = 25; i < 28; i++) days[i].sleep!.bedtimeMin = 1470;
-    const card = byTitle(days, 'Bedtime has been creeping later')!;
-    assert.ok(card, titles(days).join(' | '));
-    assert.match(card.text, /23:38/);
-    assert.match(card.text, /23:00/);
-    assert.match(card.text, /minutes later/);
-    assert.ok(!titles(days).includes('Your nights are settling in'));
+    const card = cardOf(days, 'bed-creep-later')!;
+    assert.ok(card, listing(days));
+    assert.equal(whereIs(days, 'bed-creep-later'), 'today');
+    assert.equal(card.text, 'This week your average bedtime was 23:38. In the two weeks before, it was 23:00.');
+    assert.equal(cardOf(days, 'bed-settling'), undefined);
   });
 
-  it('fires streak milestones at exactly the milestone, silence in between', () => {
-    const at3 = syntheticDays(28);
-    for (let i = 25; i < 28; i++) at3[i].steps = 11000;
-    assert.ok(titles(at3).includes("You're on a rolling streak"));
-
-    const at4 = syntheticDays(28);
-    for (let i = 24; i < 28; i++) at4[i].steps = 11000;
-    assert.ok(!titles(at4).includes("You're on a rolling streak"), '4 is not a milestone');
+  it('celebrates a streak on Activity, and on Today only when a week or more lands', () => {
+    const streak = (n: number) => {
+      const days = syntheticDays(28);
+      for (let i = 28 - n; i < 28; i++) days[i].steps = 11000;
+      return days;
+    };
+    // Today's count joins the streak once it clears the goal, so n days end today.
+    assert.equal(whereIs(streak(3), 'streak'), 'activity', 'three days is a page milestone');
+    assert.equal(whereIs(streak(4), 'streak'), 'activity', 'still standing between milestones');
+    assert.equal(whereIs(streak(7), 'streak'), 'today', listing(streak(7)));
+    assert.equal(whereIs(streak(8), 'streak'), 'activity', 'the day after, back on its page');
+    assert.match(cardOf(streak(7), 'streak')!.text, /every day for 7 days in a row/);
   });
 
   it('declares records only on completed days above a floor', () => {
     const days = syntheticDays(28);
     days[26].steps = 24000;
-    const card = byTitle(days, 'Setting a new pace')!;
-    assert.ok(card);
-    assert.match(card.text, /24,000/);
+    const card = cardOf(days, 'step-record')!;
+    assert.ok(card, listing(days));
+    assert.equal(whereIs(days, 'step-record'), 'today');
+    assert.match(card.text, /You walked 24,000 steps on 27 July\./);
 
     const tiny = syntheticDays(28, {}, { steps: 3000 });
     tiny[26].steps = 7000;
-    assert.ok(!titles(tiny).includes('Setting a new pace'));
+    assert.equal(cardOf(tiny, 'step-record'), undefined);
   });
 
-  it('gates today-cards by daypart and expiry', () => {
+  it('keeps nudges to Today, in their part of the day', () => {
     // Within reach: only in the evening, only when close.
     const close = syntheticDays(28, { steps: 8700 });
-    assert.ok(titles(close, EVENING).includes('Within reach'));
-    assert.ok(!titles(close, MORNING).includes('Within reach'));
+    assert.equal(whereIs(close, 'within-reach', EVENING), 'today');
+    assert.equal(whereIs(close, 'within-reach', MORNING), null, 'a nudge never waits on a page');
 
     // Slow day: only past 13:00, and never two low days running.
     const slow = syntheticDays(28, { steps: 1500 });
-    assert.ok(titles(slow, MIDDAY).includes('A quiet start to the day'), titles(slow, MIDDAY).join(' | '));
-    assert.ok(!titles(slow, new Date('2026-07-28T09:00:00')).includes('A quiet start to the day'));
+    assert.equal(whereIs(slow, 'slow-day', MIDDAY), 'today', listing(slow, MIDDAY));
+    assert.equal(whereIs(slow, 'slow-day', new Date('2026-07-28T09:00:00')), null);
     const slowTwice = syntheticDays(28, { steps: 1500 });
     slowTwice[26].steps = 1200;
-    assert.ok(!titles(slowTwice, MIDDAY).includes('A quiet start to the day'), 'never nags twice running');
+    assert.equal(whereIs(slowTwice, 'slow-day', MIDDAY), null, 'never nags twice running');
   });
 
   it('offers the wind-down only when debt or drift earned it', () => {
     const indebted = syntheticDays(28, {}, { sleepMin: 330 });
-    const card = byTitle(indebted, 'Wind-down window', EVENING)!;
-    assert.ok(card, titles(indebted, EVENING).join(' | '));
-    assert.match(card.text, /short of your/);
+    const card = cardOf(indebted, 'wind-down', EVENING)!;
+    assert.ok(card, listing(indebted, EVENING));
+    assert.match(card.text, /hours short on sleep this week/);
     assert.ok(card.action);
 
     const fine = syntheticDays(28);
-    assert.ok(!titles(fine, EVENING).includes('Wind-down window'));
+    assert.equal(cardOf(fine, 'wind-down', EVENING), undefined);
   });
 
-  it('reports weight direction without judgement, and only on a fresh reading', () => {
+  it('reports weight direction without judgement: news on a fresh reading, then on Body', () => {
     const down = syntheticDays(28);
     down[0].weightKg = 90; down[10].weightKg = 89; down[26].weightKg = 87.8;
-    const card = byTitle(down, 'Your weight is trending down')!;
-    assert.ok(card, titles(down).join(' | '));
+    const card = cardOf(down, 'weight-down')!;
+    assert.ok(card, listing(down));
     assert.equal(card.tone, 'neutral');
+    assert.equal(whereIs(down, 'weight-down'), 'today');
+    assert.match(card.text, /^You're losing about 0\.\d\d kg a week\. Your latest weigh-in was 87\.8 kg on 27 July\./);
 
-    const staleReadings = syntheticDays(28);
-    staleReadings[0].weightKg = 90; staleReadings[5].weightKg = 89; staleReadings[22].weightKg = 87.8;
-    assert.ok(!titles(staleReadings).includes('Your weight is trending down'), 'no new reading, no card');
+    const older = syntheticDays(28);
+    older[0].weightKg = 90; older[5].weightKg = 89; older[22].weightKg = 87.8;
+    assert.equal(whereIs(older, 'weight-down'), 'body', 'no new reading: not news, still true');
   });
 
   it('crosses the WHO weekly bar on the crossing day', () => {
@@ -1277,10 +1311,15 @@ describe('insight engine — stateless guards', () => {
     const days = syntheticDays(28);
     days[26].activeMinutes = { light: 20, moderate: 70, vigorous: 10 }; // Mon: 80
     days[27].activeMinutes = { light: 20, moderate: 60, vigorous: 15 }; // Tue: +75 → 155 crosses
-    const card = byTitle(days, 'A benchmark week')!;
-    assert.ok(card, titles(days).join(' | '));
-    assert.match(card.text, /brisk minutes/);
+    const card = cardOf(days, 'who-week')!;
+    assert.ok(card, listing(days));
+    assert.equal(whereIs(days, 'who-week'), 'today');
+    assert.match(card.text, /minutes of brisk activity this week/);
     assert.match(card.text, /with 5 days to spare/);
+
+    const next = [...days, emptyRecord('2026-07-29')];
+    next[28].activeMinutes = { light: 20, moderate: 10, vigorous: 0 };
+    assert.equal(whereIs(next, 'who-week', new Date('2026-07-29T08:00:00')), 'activity', 'the day after, on its page');
   });
 
   it('finds a real recovery tax and stays silent on a null one', () => {
@@ -1300,23 +1339,203 @@ describe('insight engine — stateless guards', () => {
     assert.equal(recoveryTax(flat), null, 'no relationship, no story');
   });
 
-  it('keeps every card checkable on real data: figures, ids', async () => {
+  it('keeps every card checkable on real data: figures, ids, plain words', async () => {
     const ds = await dataset();
-    const obs = observations(ds as any, new Date('2026-08-19T08:00:00'));
-    assert.ok(obs.length >= 1, `got ${obs.length}`);
-    for (const o of obs) {
-      assert.ok(o.id.length > 0 && o.title.length > 0);
-      assert.ok(/\d/.test(o.text), `"${o.title}" must cite at least one figure: ${o.text}`);
+    for (const at of ['2026-08-19T08:00:00', '2026-08-19T14:00:00', '2026-08-19T19:00:00']) {
+      const f = insightFeeds(ds as any, new Date(at), { timeZone: 'UTC' });
+      assert.ok(f.today.length >= 1, `got ${f.today.length}`);
+      for (const page of ['activity', 'sleep', 'vitals', 'body'] as const) assert.ok(f.pages[page].length >= 1, `${page} is never empty`);
+      for (const o of [...f.today, ...Object.values(f.pages).flat()]) {
+        assert.ok(o.id.length > 0 && o.title.length > 0);
+        const floor = o.kind === 'review' && /floor|on-today/.test(o.id);
+        if (!floor) assert.ok(/\d/.test(o.text), `"${o.title}" must cite at least one figure: ${o.text}`);
+        assert.doesNotMatch(`${o.title} ${o.text} ${o.action ?? ''}`, /\d\/100|→|×| vs |·|~/, `"${o.title}" reads as shorthand`);
+      }
     }
     const s = todaySummary(ds as any, new Date('2026-08-19T08:00:00'));
     assert.ok(Array.isArray(s.observations));
   });
 });
 
+describe('insight engine — one place at a time', () => {
+  const scenarios: [string, Days, Date][] = [
+    ['typical', syntheticDays(28), MORNING],
+    ['short night, midday', syntheticDays(28, { sleepMin: 300 }), MIDDAY],
+    ['illness', syntheticDays(28, { restingHr: 70, resp: 17.5, tempDev: 0.8, hrv: 24 }), MORNING],
+    ['indebted evening', syntheticDays(28, {}, { sleepMin: 330 }), EVENING],
+    ['quiet day', syntheticDays(28, { steps: 1500 }), MIDDAY],
+  ];
+
+  it('shows each card in exactly one place', () => {
+    for (const [name, days, now] of scenarios) {
+      const f = feedsAt(days, now);
+      const ids = [...f.today, ...Object.values(f.pages).flat()].map((o) => o.id);
+      assert.equal(new Set(ids).size, ids.length, `${name}: ${ids.join(', ')}`);
+    }
+  });
+
+  it('replays each news rule a day at a time: Today as it starts, then its page while it lasts', () => {
+    // The yesterday test, run forward: the same grid cut to each length in turn.
+    const trace = (days: Days, id: string, from: number) => {
+      const out: string[] = [];
+      for (let n = from; n <= days.length; n++) out.push(whereIs(days.slice(0, n), id) ?? '-');
+      return out.join(' ');
+    };
+    const grid = (n: number, from: number, change: (d: Days[number], i: number) => void) => {
+      const days = syntheticDays(n);
+      for (let i = from; i < n; i++) change(days[i], i);
+      return days;
+    };
+
+    assert.equal(trace(grid(44, 30, (d, i) => { d.hrv = 25 + (i % 2); }), 'hrv-trend-down', 29),
+      '- - - - today today today vitals vitals vitals vitals vitals vitals - - -');
+    // Hysteresis: two days in, the shift was already halfway there, so it's news for two days, not three.
+    assert.equal(trace(grid(44, 30, (d) => { d.sleep!.bedtimeMin = 1470; }), 'bed-creep-later', 29),
+      '- - - - today today sleep sleep sleep sleep sleep sleep sleep sleep sleep sleep');
+    assert.equal(trace(grid(60, 40, (d, i) => { d.restingHr = 64.5 + (i % 2); }), 'rhr-shift-up', 39),
+      '- - - - - - - - - - today today today vitals vitals vitals vitals vitals vitals vitals vitals vitals');
+    // A record is news the mornings after it lands, then stands on the page for the rest of its week.
+    assert.equal(trace(grid(44, 30, (d, i) => { if (i === 30) d.steps = 24000; }), 'step-record', 29),
+      '- - - today today today activity activity activity activity - - - - - -');
+    // The weekly target is news on the day it's crossed, and stands until the week ends.
+    assert.equal(trace(grid(44, 30, (d) => { d.activeMinutes = { light: 10, moderate: 40, vigorous: 0 }; }), 'who-week', 29),
+      '- - - - - - - - today activity activity activity - - - today');
+    // Streaks stand on the page from 3 days, and reach Today on 7, 10 and 14.
+    assert.equal(trace(grid(44, 30, (d) => { d.steps = 11000; }), 'streak', 29),
+      '- - - - activity activity activity activity today activity activity today activity activity activity today');
+  });
+
+  it('keeps page-only insights off Today and nudges off the pages', () => {
+    for (const [name, days, now] of scenarios) {
+      const r = evaluate(dsOf(days), now)!;
+      const never = new Set(r.found.filter((x) => x.today === 'never').map((x) => x.id));
+      assert.ok(r.feeds.today.every((o) => !never.has(o.id)), name);
+      for (const [page, os] of Object.entries(r.feeds.pages)) {
+        assert.ok(os.every((o) => o.kind !== 'nudge'), `${name}: a nudge on ${page}`);
+        assert.ok(os.every((o) => o.page === page), `${name}: a stray card on ${page}`);
+      }
+    }
+  });
+
+  it('settles every feed so no family mixes tones and no metric is claimed both ways', () => {
+    for (const [name, days, now] of scenarios) {
+      const r = evaluate(dsOf(days), now)!;
+      const shown = new Set([...r.feeds.today, ...Object.values(r.feeds.pages).flat()].map((o) => o.id));
+      const cards = r.settled.filter((x) => shown.has(x.id));
+      for (const fam of new Set(cards.map((x) => x.family))) {
+        const tones = new Set(cards.filter((x) => x.family === fam).map((x) => x.tone));
+        assert.ok(!(tones.has('watch') && tones.has('good')), `${name}: ${fam} mixes tones`);
+      }
+      const claims = new Map<string, string>();
+      for (const x of cards) {
+        if (!x.claims) continue;
+        assert.ok(!claims.has(x.claims.metric) || claims.get(x.claims.metric) === x.claims.direction, `${name}: ${x.claims.metric} both ways`);
+        claims.set(x.claims.metric, x.claims.direction);
+      }
+    }
+  });
+});
+
+describe('insight engine — data cards', () => {
+  it('tells a new sleep record from a thin one', () => {
+    /** The pipeline marks each stream a day recorded; synthetic days start unmarked. */
+    const marked = (days: Days) => { for (const d of days) if (d.sleep) d.present.push('sleep'); return days; };
+    const fresh = syntheticDays(40);
+    for (let i = 0; i < 25; i++) fresh[i].sleep = null;
+    marked(fresh);
+    assert.match(cardOf(fresh, 'sleep-coverage')!.text, /^Your sleep records start on 26 July, so there are 15 nights so far\./);
+
+    const thin = syntheticDays(40);
+    thin.forEach((d, i) => { if (i % 3) d.sleep = null; });
+    marked(thin);
+    const card = cardOf(thin, 'sleep-coverage')!;
+    assert.equal(card.title, 'Some nights have no record');
+    assert.match(card.text, /^Your watch recorded sleep on 14 of the last 40 nights\./);
+    assert.equal(cardOf(thin, 'sleep-gap'), undefined, 'one card about the record at a time');
+  });
+
+  it('never calls the body page empty when weigh-ins are just older than the window', () => {
+    const days = syntheticDays(28);
+    const card = feedsAt(days).pages.body[0];
+    assert.equal(card.id, 'body-floor');
+    assert.equal(card.title, 'No recent weigh-ins');
+    assert.match(card.text, /in the last 28 days/);
+  });
+});
+
+describe('insight engine — conflict rules', () => {
+  const finding = (f: Partial<Finding> & Pick<Finding, 'id'>): Finding => ({
+    domain: 'cardio', page: 'vitals', kind: 'trend', tone: 'neutral', title: f.id, text: '',
+    importance: 50, topic: f.id, family: f.id, today: 'as-news', news: true, ...f,
+  });
+  const ids = (fs: Finding[]) => settle(fs).map((f) => f.id).sort();
+
+  it('lets the cautious claim win: a low HRV night over an improving week', () => {
+    assert.deepEqual(ids([
+      finding({ id: 'hrv-trend-up', tone: 'good', family: 'recovery', topic: 'hrv', importance: 80, claims: { metric: 'hrv', direction: 'up' }, evidence: 14 }),
+      finding({ id: 'hrv-acute-low', tone: 'watch', family: 'recovery', topic: 'hrv-night', importance: 85, claims: { metric: 'hrv', direction: 'down' }, evidence: 1 }),
+    ]), ['hrv-acute-low']);
+  });
+
+  it('never suggests a hard workout beside a recovery alert', () => {
+    assert.deepEqual(ids([
+      finding({ id: 'battery-green', tone: 'good', page: 'today', family: 'battery', topic: 'battery', advice: 'push' }),
+      finding({ id: 'rhr-acute-high', tone: 'watch', family: 'heart', topic: 'rhr', advice: 'rest' }),
+    ]), ['rhr-acute-high']);
+  });
+
+  it('lets several signals off speak for the whole recovery family', () => {
+    assert.deepEqual(ids([
+      finding({ id: 'illness-pattern', tone: 'watch', page: 'today', family: 'recovery' }),
+      finding({ id: 'running-warm', tone: 'watch', family: 'recovery' }),
+      finding({ id: 'breathing-faster', tone: 'watch', family: 'recovery' }),
+      finding({ id: 'who-week', tone: 'good', page: 'activity', family: 'movement-milestone' }),
+    ]), ['illness-pattern', 'who-week']);
+  });
+
+  it('folds a good night into the debt card instead of showing both', () => {
+    assert.deepEqual(ids([
+      finding({ id: 'night-good', tone: 'good', page: 'sleep', family: 'sleep-amount', topic: 'sleep-night' }),
+      finding({ id: 'sleep-debt', tone: 'watch', page: 'sleep', family: 'sleep-amount', topic: 'sleep-debt' }),
+    ]), ['sleep-debt']);
+
+    const days = syntheticDays(28);
+    for (let i = 20; i < 27; i++) days[i].sleep!.minutesAsleep = 330;
+    days[27].sleep!.minutesAsleep = 520;
+    assert.equal(cardOf(days, 'night-good'), undefined, listing(days));
+    assert.match(cardOf(days, 'sleep-debt')!.text, /^Last night's 8h 40m helped\. Over the 7 nights before it, you slept [\d.]+ hours less than you need\./);
+  });
+
+  it('keeps a later bedtime over a settling one', () => {
+    assert.deepEqual(ids([
+      finding({ id: 'bed-creep-later', tone: 'watch', page: 'sleep', family: 'sleep-timing', topic: 'bedtime-shift', claims: { metric: 'bedtime', direction: 'up' }, evidence: 21 }),
+      finding({ id: 'bed-settling', tone: 'good', page: 'sleep', family: 'sleep-timing', topic: 'bedtime-spread', claims: { metric: 'bedtime', direction: 'steady' }, evidence: 14 }),
+    ]), ['bed-creep-later']);
+  });
+
+  it('lets unrelated news stand beside an alert', () => {
+    assert.deepEqual(ids([
+      finding({ id: 'who-week', tone: 'good', page: 'activity', family: 'movement-milestone' }),
+      finding({ id: 'battery-low', tone: 'watch', page: 'today', family: 'recovery', topic: 'battery', advice: 'rest' }),
+    ]), ['battery-low', 'who-week']);
+  });
+
+  it('breaks equal caution by evidence, and keeps one card per topic', () => {
+    assert.deepEqual(ids([
+      finding({ id: 'a', tone: 'good', claims: { metric: 'm', direction: 'up' }, evidence: 21 }),
+      finding({ id: 'b', tone: 'good', claims: { metric: 'm', direction: 'steady' }, evidence: 14 }),
+    ]), ['a']);
+    assert.deepEqual(ids([
+      finding({ id: 'low', topic: 't', importance: 57 }),
+      finding({ id: 'high', topic: 't', importance: 74 }),
+    ]), ['high']);
+  });
+});
+
 describe('one today: freshness, partial days, the demo clock', () => {
+  /** A low battery without the several-signals pattern: short sleep and a low HRV, heart rate as usual. */
   const lowMorning = (d: ReturnType<typeof emptyRecord>) => {
     d.hrv = 20;
-    d.restingHr = 72;
     d.sleep!.minutesAsleep = 300;
   };
 
@@ -1376,7 +1595,7 @@ describe('one today: freshness, partial days, the demo clock', () => {
     rough.push(emptyRecord('2026-07-29'));
     const card = observations(dsOf(rough), new Date('2026-07-29T08:00:00')).find((o) => o.id === 'illness-pattern');
     assert.ok(card);
-    assert.doesNotMatch(card!.text, /Still there/);
+    assert.doesNotMatch(card!.text, /second morning/);
 
     // Two low mornings and an empty today make two, not three.
     const low = syntheticDays(28);
@@ -1385,19 +1604,19 @@ describe('one today: freshness, partial days, the demo clock', () => {
     low.push(emptyRecord('2026-07-29'));
     const battery = observations(dsOf(low), new Date('2026-07-29T08:00:00')).find((o) => o.id === 'battery-low');
     assert.ok(battery);
-    assert.doesNotMatch(battery!.text, /Third low morning/);
-    low[25] && lowMorning(low[25]);
+    assert.doesNotMatch(battery!.text, /third low morning/);
+    lowMorning(low[25]);
     const third = observations(dsOf(low), new Date('2026-07-29T08:00:00')).find((o) => o.id === 'battery-low');
-    assert.match(third!.text, /Third low morning/);
+    assert.match(third!.text, /This is your third low morning in a row\./);
   });
 
   it('never counts a run across a missing night', () => {
     const days = syntheticDays(28, { sleepMin: 300 });
     days[25].sleep!.minutesAsleep = 305;
     days[26].sleep = null;
-    const card = byTitle(days, "Last night didn't quite deliver")!;
-    assert.ok(card, titles(days).join(' | '));
-    assert.doesNotMatch(card.text, /Second short night/);
+    const card = cardOf(days, 'night-short')!;
+    assert.ok(card, listing(days));
+    assert.doesNotMatch(card.text, /two short nights/);
   });
 
   it("doesn't read this morning's steps as a quieter stretch", () => {
@@ -1405,7 +1624,7 @@ describe('one today: freshness, partial days, the demo clock', () => {
     const days = syntheticDays(28, {}, { steps: 11000 });
     for (let i = 21; i < 27; i++) days[i].steps = 9000;
     days[27].steps = 300;
-    assert.ok(!titles(days).includes("You've had a quieter stretch"), titles(days).join(' | '));
+    assert.equal(cardOf(days, 'steps-down'), undefined, listing(days));
   });
 
   it('keeps a streak alive while today is still counting', () => {
@@ -1429,21 +1648,22 @@ describe('one today: freshness, partial days, the demo clock', () => {
     days[25].activeMinutes = { light: 0, moderate: 100, vigorous: 0 }; // Sun 26 Jul
     days[26].activeMinutes = { light: 0, moderate: 80, vigorous: 0 }; // Mon 27 Jul
     days[27].activeMinutes = { light: 0, moderate: 75, vigorous: 0 }; // Tue 28 Jul
-    assert.ok(byTitle(days, 'A benchmark week'), titles(days).join(' | '));
+    assert.equal(whereIs(days, 'who-week'), 'today', listing(days));
 
     // Weekend lie-ins are free days; Friday and Sunday mornings aren't swapped.
     const month = syntheticDays(32); // ends Sat 1 Aug, when the monthly cards run
     for (const d of month) d.sleep!.minutesAsleep = isoWeekdayIndex(d.date) >= 5 ? 540 : 420;
-    const card = observations(dsOf(month), new Date('2026-08-01T08:00:00')).find((o) => o.id === 'weekday-deficit');
+    const card = cardOf(month, 'weekday-deficit', new Date('2026-08-01T08:00:00'));
     assert.ok(card);
-    assert.match(card!.text, /2h 00m longer on free days/);
+    assert.equal(whereIs(month, 'weekday-deficit', new Date('2026-08-01T08:00:00')), 'sleep');
+    assert.match(card!.text, /On free days you usually sleep about 9h 00m, but on workdays only 7h 00m\./);
   });
 
   it('needs a fortnight of readings before calling a resting-HR shift', () => {
     const days = syntheticDays(28);
     for (let i = 14; i < 27; i++) days[i].restingHr = null;
     days[27].restingHr = 64; // one reading, a little above
-    assert.ok(!titles(days).includes('Your heart is working a little harder'), titles(days).join(' | '));
+    assert.equal(cardOf(days, 'rhr-shift-up'), undefined, listing(days));
   });
 
   it('draws no weight trend from two readings or under three weeks', () => {

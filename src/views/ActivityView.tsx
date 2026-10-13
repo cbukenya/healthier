@@ -12,12 +12,16 @@ import { emptyRecord } from '../pipeline/normalize';
 import { SpanSelector, spanName, useSpan } from '../ui/span';
 import { ChartChips } from '../ui/ChartChips';
 import { useMediaQuery } from '../hooks/useMediaQuery';
+import { InsightsCarousel } from '../components/InsightsCarousel';
+import { usePageInsights, type Clock } from '../hooks/usePageInsights';
+import type { IntradayDays } from '../pipeline/labs';
 import { LastSevenDays, STEP_GOAL, TodaySoFar, WeeklyTotals, briskOf, type WeekTotal } from './ActivityCards';
 
 type ActivityChart = 'steps' | 'energy' | 'intensity' | 'distance' | 'weekdays' | 'weekly';
 
-export function ActivityView({ data }: { data: SyncResult }) {
+export function ActivityView({ data, clock, intraday }: { data: SyncResult; clock?: Clock; intraday?: IntradayDays }) {
   const days = data.days;
+  const insights = usePageInsights(data, 'activity', clock, intraday);
   const spanState = useSpan(data, '30');
   const { days: window, bucket } = spanState;
   // A phone shows one chart at a time behind chips; wider screens show them all.
@@ -237,6 +241,8 @@ export function ActivityView({ data }: { data: SyncResult }) {
           {shownChart.card}
         </>
       )}
+
+      <InsightsCarousel observations={insights} page="activity" />
     </div>
   );
 }
