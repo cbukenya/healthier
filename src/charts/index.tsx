@@ -1,6 +1,6 @@
 export * from './SleepWindowChart';
 
-import React, { useMemo } from 'react';
+import React, { useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, ComposedChart, Line, ReferenceArea,
   ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis,
@@ -479,8 +479,24 @@ const STAGE_STYLE = {
  * Hand-drawn SVG rather than a chart library: a hypnogram is a step function
  * across four ordered categories, which no generic chart type expresses well.
  * Rows run awake → deep so downward reads as deeper, matching sleep-lab convention.
+ *
+ * Drawn at its true pixel width: a fixed 1000-unit viewBox shrank the whole
+ * drawing to fit, so on a phone the bars were a few pixels tall and the stage
+ * names unreadable.
  */
-export function Hypnogram({ session, height = 172 }: { session: SleepSession; height?: number }) {
+export function Hypnogram({ session, height = 200 }: { session: SleepSession; height?: number }) {
+  const box = useRef<HTMLDivElement>(null);
+  const [W, setW] = useState(0);
+  const uid = useId().replace(/[^\w-]/g, '');
+  useLayoutEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    setW(el.clientWidth);
+    const ro = new ResizeObserver(() => setW(el.clientWidth));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
   const segs = session.segments;
   if (!segs.length) {
     return (
@@ -492,64 +508,125 @@ export function Hypnogram({ session, height = 172 }: { session: SleepSession; he
     );
   }
   const total = segs.reduce((a, s) => a + s.durationMin, 0);
-  const PL = 46, PR = 12, PT = 16, PB = 26;
-  const W = 1000; // viewBox width; scales to the container
-  const w = W - PL - PR;
+  const PL = 46, PR = 6, PT = 16, PB = 26;
+  const w = Math.max(0, W - PL - PR);
   const rowH = (height - PT - PB) / 4;
+  const barH = Math.round(rowH * 0.62);
   const x = (min: number) => PL + (min / total) * w;
+  const rowY = (stage: keyof typeof STAGE_STYLE) => PT + STAGE_STYLE[stage].row * rowH + rowH / 2;
 
-  const hourTicks: number[] = [];
+  // Consecutive pieces of one stage draw as a single block.
+  const runs: { stage: keyof typeof STAGE_STYLE; from: number; to: number; clockMin: number }[] = [];
+  for (const sg of segs) {
+    const last = runs[runs.length - 1];
+    if (last && last.stage === sg.stage && Math.abs(last.to - sg.offsetMin) < 0.5) last.to = sg.offsetMin + sg.durationMin;
+    else runs.push({ stage: sg.stage, from: sg.offsetMin, to: sg.offsetMin + sg.durationMin, clockMin: sg.clockMin });
+  }
+  // Each change of stage is a thin link that sits flush inside the end of one block and the start
+  // of the next, whose touching corners are square, so block, link and block join without a seam.
+  // The outer corners stay rounded. Blocks are at least MIN_W wide, so a one-minute stage still
+  // shows; the extra width pushes the next block along until a longer one absorbs it.
+  const LINK = 1.25, MIN_W = 5, RADIUS = 6;
+  const linked = (i: number) => i > 0 && Math.abs(runs[i - 1].to - runs[i].from) < 0.5;
+  const laid: { x0: number; x1: number }[] = [];
+  runs.forEach((r, i) => {
+    const x0 = linked(i) ? laid[i - 1].x1 - LINK : x(r.from);
+    laid.push({ x0, x1: Math.min(PL + w, Math.max(x(r.to), x0 + MIN_W)) });
+  });
+  const above = (a: keyof typeof STAGE_STYLE, b: keyof typeof STAGE_STYLE) => STAGE_STYLE[a].row < STAGE_STYLE[b].row;
+  /** A block's outline, square at the corners a link leaves from or arrives at. */
+  const blockPath = (i: number) => {
+    const r = runs[i];
+    const { x0, x1 } = laid[i];
+    const y0 = rowY(r.stage) - barH / 2;
+    const y1 = y0 + barH;
+    const rad = Math.min(RADIUS, (x1 - x0) / 2, barH / 2);
+    const prev = linked(i) ? runs[i - 1].stage : null;
+    const next = i + 1 < runs.length && linked(i + 1) ? runs[i + 1].stage : null;
+    const tl = prev && above(prev, r.stage) ? 0 : rad;
+    const bl = prev && !above(prev, r.stage) ? 0 : rad;
+    const tr = next && above(next, r.stage) ? 0 : rad;
+    const br = next && !above(next, r.stage) ? 0 : rad;
+    const arc = (rr: number, ex: number, ey: number) => (rr ? `A${rr},${rr} 0 0 1 ${ex},${ey}` : '');
+    return [
+      `M${x0 + tl},${y0}`, `H${x1 - tr}`, arc(tr, x1, y0 + tr),
+      `V${y1 - br}`, arc(br, x1 - br, y1),
+      `H${x0 + bl}`, arc(bl, x0, y1 - bl),
+      `V${y0 + tl}`, arc(tl, x0 + tl, y0), 'Z',
+    ].join(' ');
+  };
+
+  // An hour label wherever there's room for one; every other hour on a long night on a phone.
   const startClock = segs[0].clockMin;
-  for (let m = (60 - (startClock % 60)) % 60; m < total; m += 60) hourTicks.push(m);
+  const hourStep = (60 / total) * w < 44 ? 120 : 60;
+  const hourTicks: number[] = [];
+  for (let m = (60 - (startClock % 60)) % 60; m < total; m += 60) {
+    if ((startClock + m) % hourStep === 0) hourTicks.push(m);
+  }
 
   return (
     <div className="px-3 pb-2">
-      <svg viewBox={`0 0 ${W} ${height}`} className="w-full" style={{ height }} role="img"
-        aria-label={`Sleep stages, ${fmtDuration(session.minutesAsleep)} asleep`}>
-        {Object.entries(STAGE_STYLE).map(([k, st]) => {
-          const y = PT + st.row * rowH + rowH / 2;
-          return (
-            <g key={k}>
-              <line x1={PL} x2={W - PR} y1={y} y2={y} stroke={GRID} strokeWidth={1} />
-              <text x={PL - 8} y={y + 3.5} textAnchor="end" fontSize={10} fill={AXIS}>{st.label}</text>
-            </g>
-          );
-        })}
-        {segs.map((s, i) => {
-          const st = STAGE_STYLE[s.stage];
-          const y = PT + st.row * rowH + rowH / 2 - 6;
-          const bw = Math.max(1.5, (s.durationMin / total) * w);
-          const prev = i > 0 ? segs[i - 1] : null;
-          return (
-            <g key={i}>
-              {prev && (
-                <line
-                  x1={x(s.offsetMin)} x2={x(s.offsetMin)}
-                  y1={PT + STAGE_STYLE[prev.stage].row * rowH + rowH / 2}
-                  y2={y + 6}
-                  stroke={st.color} strokeWidth={1} opacity={0.35}
-                />
-              )}
-              <rect x={x(s.offsetMin)} y={y} width={bw} height={12} rx={2} fill={st.color}>
-                <title>{`${st.label} · ${Math.round(s.durationMin)} min · from ${formatClock(s.clockMin)}`}</title>
-              </rect>
-            </g>
-          );
-        })}
-        {session.shortAwakeningsMin.map((m, i) => (
-          <line key={i} x1={x(m)} x2={x(m)} y1={PT - 6} y2={PT + 1} stroke="#e4e4e7" strokeWidth={1.6}>
-            <title>{`Brief awakening at ${formatClock(segs[0].clockMin + m)}`}</title>
-          </line>
-        ))}
-        {hourTicks.map((m) => (
-          <g key={m}>
-            <line x1={x(m)} x2={x(m)} y1={height - PB + 2} y2={height - PB + 6} stroke={GRID} />
-            <text x={x(m)} y={height - PB + 18} textAnchor="middle" fontSize={10} fill={AXIS}>
-              {formatClock(startClock + m)}
-            </text>
-          </g>
-        ))}
-      </svg>
+      <div ref={box} style={{ height }}>
+        {W > 0 && (
+          <svg width={W} height={height} viewBox={`0 0 ${W} ${height}`} className="block" role="img"
+            aria-label={`Sleep stages, ${fmtDuration(session.minutesAsleep)} asleep`}>
+            <defs>
+              {runs.map((r, i) => {
+                if (!linked(i)) return null;
+                const prev = runs[i - 1];
+                const down = above(prev.stage, r.stage);
+                return (
+                  <linearGradient key={i} id={`${uid}-t${i}`} gradientUnits="userSpaceOnUse" x1={0} x2={0}
+                    y1={rowY(prev.stage) + (down ? barH / 2 : -barH / 2)} y2={rowY(r.stage) + (down ? -barH / 2 : barH / 2)}>
+                    <stop offset="0" stopColor={STAGE_STYLE[prev.stage].color} />
+                    <stop offset="1" stopColor={STAGE_STYLE[r.stage].color} />
+                  </linearGradient>
+                );
+              })}
+            </defs>
+            {Object.entries(STAGE_STYLE).map(([k, st]) => {
+              const y = PT + st.row * rowH + rowH / 2;
+              return (
+                <g key={k}>
+                  <line x1={PL} x2={W - PR} y1={y} y2={y} stroke={GRID} strokeWidth={1} />
+                  <text x={PL - 10} y={y + 3.5} textAnchor="end" fontSize={10.5} fill={AXIS}>{st.label}</text>
+                </g>
+              );
+            })}
+            {/* Links first; each block covers the part of its links that runs inside it. */}
+            {runs.map((r, i) => {
+              if (!linked(i)) return null;
+              const ya = rowY(runs[i - 1].stage);
+              const yb = rowY(r.stage);
+              return (
+                <rect key={i} x={laid[i - 1].x1 - LINK} width={LINK} y={Math.min(ya, yb)} height={Math.abs(yb - ya)}
+                  fill={`url(#${uid}-t${i})`} />
+              );
+            })}
+            {runs.map((r, i) => {
+              const st = STAGE_STYLE[r.stage];
+              return (
+                <path key={i} d={blockPath(i)} fill={st.color}>
+                  <title>{`${st.label} · ${Math.round(r.to - r.from)} min · from ${formatClock(r.clockMin)}`}</title>
+                </path>
+              );
+            })}
+            {session.shortAwakeningsMin.map((m, i) => (
+              <line key={i} x1={x(m)} x2={x(m)} y1={PT - 12} y2={PT - 4} stroke="#e4e4e7" strokeWidth={1.6} strokeLinecap="round">
+                <title>{`Brief awakening at ${formatClock(segs[0].clockMin + m)}`}</title>
+              </line>
+            ))}
+            {hourTicks.map((m) => (
+              <g key={m}>
+                <line x1={x(m)} x2={x(m)} y1={height - PB + 2} y2={height - PB + 6} stroke={GRID} />
+                <text x={x(m)} y={height - PB + 19} textAnchor="middle" fontSize={10.5} fill={AXIS}>
+                  {formatClock(startClock + m)}
+                </text>
+              </g>
+            ))}
+          </svg>
+        )}
+      </div>
     </div>
   );
 }
