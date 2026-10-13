@@ -6,7 +6,8 @@ import {
   ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts';
 import { formatCivil, formatClock, weekdayLetter, type CivilDate } from '../lib/date';
-import { rollingMean, values, type Point } from '../pipeline/derive';
+import { lastIndexWithValue, rollingMean, values, type Point } from '../pipeline/derive';
+import { niceScale } from '../lib/scale';
 import { bucketLabel, bucketStart, meanLabel, meanWindowFor, type Bucket } from '../pipeline/aggregate';
 import { AXIS, GRID, fmtDuration, fmtNum } from '../ui/primitives';
 import type { DailyRecord, SleepSession } from '../types/health';
@@ -41,12 +42,15 @@ interface ChartRow {
 
 function toRows(s: Point[], meanWindow?: number, bucket: Bucket = 'day'): ChartRow[] {
   const mean = meanWindow ? rollingMean(s, meanWindow, Math.ceil(meanWindow / 2)) : null;
+  // The average ends at the last reading: a day with nothing recorded yet, usually today, has no
+  // average of its own, and carrying the line on would draw a value nobody measured.
+  const last = lastIndexWithValue(s);
   return s.map((p, i) => ({
     date: p.date,
     ...labels(p.date, bucket),
     wd: weekdayLetter(p.date),
     value: p.value,
-    mean: mean ? mean[i].value : undefined,
+    mean: mean ? (i <= last ? mean[i].value : null) : undefined,
   }));
 }
 
@@ -59,6 +63,12 @@ function labels(date: CivilDate, bucket: Bucket) {
 
 /** Recharts passes the axis label; show the row's full heading instead. */
 const tooltipHeading = (label: unknown, payload: readonly any[] | undefined) => payload?.[0]?.payload?.full ?? String(label ?? '');
+
+/**
+ * Y-axis ticks: thousands as "18k" or "4.5k". The axis column is about 28px wide, so a full
+ * "18,000" lost its first digits and read as "000".
+ */
+export const axisTick = (v: number) => (Math.abs(v) >= 1000 ? `${Number((v / 1000).toFixed(2))}k` : `${v}`);
 
 /** Sparse x-axis labels: roughly one per week, always including the last day. */
 function tickInterval(n: number): number {
@@ -102,6 +112,14 @@ export function TrendChart({
   const n = rows.length;
   const id = useMemo(() => `g${Math.random().toString(36).slice(2, 8)}`, []);
   const known = values(series).length;
+  // The axis covers the readings and the usual band. Left to itself, Recharts sized the axis to the
+  // readings alone and then dropped the band entirely whenever it reached past them.
+  const ticks = useMemo(() => {
+    const v = values(series);
+    if (domain || !v.length) return null;
+    const edges = baseline ? [baseline.centre - baseline.spread, baseline.centre + baseline.spread] : [];
+    return niceScale(Math.min(...v, ...edges), Math.max(...v, ...edges));
+  }, [series, domain, baseline?.centre, baseline?.spread]);
   if (!known) return <NoSeries height={height} />;
 
   /**
@@ -116,10 +134,12 @@ export function TrendChart({
    */
   const sparse = known / Math.max(1, n) < 0.6;
   const curve = sparse ? 'linear' : 'monotone';
+  const showMean = !!meanWindow && !sparse;
 
   return (
+    <div>
     <ResponsiveContainer width="100%" height={height}>
-      <ComposedChart data={rows} margin={{ top: 8, right: 8, left: -24, bottom: 0 }}>
+      <ComposedChart data={rows} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
         <defs>
           <linearGradient id={id} x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor={color} stopOpacity={0.28} />
@@ -131,10 +151,11 @@ export function TrendChart({
           <ReferenceArea
             y1={baseline.centre - baseline.spread}
             y2={baseline.centre + baseline.spread}
+            ifOverflow="extendDomain"
             {...({ fill: '#a1a1aa', fillOpacity: 0.06, stroke: 'none' } as any)}
           />
         )}
-        {baseline && <ReferenceLine y={baseline.centre} stroke="#71717a" strokeDasharray="3 3" strokeWidth={1} />}
+        {baseline && <ReferenceLine y={baseline.centre} ifOverflow="extendDomain" stroke="#71717a" strokeDasharray="3 3" strokeWidth={1} />}
         <XAxis
           dataKey="label"
           axisLine={false}
@@ -147,7 +168,9 @@ export function TrendChart({
           axisLine={false}
           tickLine={false}
           tick={{ fill: AXIS, fontSize: 10 }}
-          domain={domain ?? ['auto', 'auto']}
+          tickFormatter={axisTick}
+          domain={domain ?? (ticks ? [ticks[0], ticks[ticks.length - 1]] : ['auto', 'auto'])}
+          ticks={ticks ?? undefined}
           width={52}
         />
         <Tooltip
@@ -180,7 +203,7 @@ export function TrendChart({
           dot={sparse ? { r: 3, fill: color, stroke: 'none' } : false}
           connectNulls={false} isAnimationActive={false}
         />
-        {meanWindow && !sparse && (
+        {showMean && (
           <Line
             type={curve} dataKey="mean" stroke={color} strokeWidth={2.4}
             dot={false} connectNulls={false} isAnimationActive={false}
@@ -188,6 +211,30 @@ export function TrendChart({
         )}
       </ComposedChart>
     </ResponsiveContainer>
+    {/* A key, so the thin line, the thick one and the band each say what they are. */}
+    {(showMean || baseline) && (
+      <div className="flex flex-wrap gap-x-4 gap-y-1 px-3 pt-1 text-[10.5px] text-zinc-500">
+        {showMean && (
+          <>
+            <span className="flex items-center gap-1.5">
+              <i className="block w-3.5 h-px" style={{ background: color, opacity: 0.6 }} />
+              {bucket === 'day' ? 'Each day' : `Each ${bucket}`}
+            </span>
+            <span className="flex items-center gap-1.5">
+              <i className="block w-3.5 h-[2.5px] rounded-full" style={{ background: color }} />
+              {`${meanWindow}-${bucket === 'week' ? 'week' : 'day'} average`}
+            </span>
+          </>
+        )}
+        {baseline && (
+          <span className="flex items-center gap-1.5">
+            <i className="block w-3.5 h-2 rounded-sm bg-zinc-400/20" />
+            Your usual range
+          </span>
+        )}
+      </div>
+    )}
+    </div>
   );
 }
 
@@ -215,16 +262,16 @@ export function BarSeries({
   if (!values(series).length) return <NoSeries height={height} />;
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <BarChart data={rows} margin={{ top: 8, right: 8, left: -24, bottom: 0 }}>
+      <BarChart data={rows} margin={{ top: 8, right: goal !== undefined ? 28 : 8, left: -16, bottom: 0 }}>
         <CartesianGrid stroke={GRID} strokeDasharray="2 4" vertical={false} />
         {goal !== undefined && (
           <ReferenceLine
             y={goal} stroke="#a1a1aa" strokeDasharray="4 3" strokeWidth={1}
-            label={{ value: format(goal), position: 'right', fill: AXIS, fontSize: 9 }}
+            label={{ value: axisTick(goal), position: 'right', fill: AXIS, fontSize: 9 }}
           />
         )}
         <XAxis dataKey="label" axisLine={false} tickLine={false} interval={tickInterval(rows.length)} tick={{ fill: AXIS, fontSize: 10 }} dy={6} />
-        <YAxis axisLine={false} tickLine={false} tick={{ fill: AXIS, fontSize: 10 }} width={52} />
+        <YAxis axisLine={false} tickLine={false} tick={{ fill: AXIS, fontSize: 10 }} tickFormatter={axisTick} width={52} />
         <Tooltip
           contentStyle={tooltipStyle} itemStyle={{ color: '#a1a1aa' }}
           labelStyle={{ color: '#e4e4e7', fontWeight: 600 }}
@@ -281,10 +328,10 @@ export function StackedBars({
   if (!rows.some((r) => r.__any)) return <NoSeries height={height} />;
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <BarChart data={rows} margin={{ top: 8, right: 8, left: -24, bottom: 0 }}>
+      <BarChart data={rows} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
         <CartesianGrid stroke={GRID} strokeDasharray="2 4" vertical={false} />
         <XAxis dataKey="label" axisLine={false} tickLine={false} interval={tickInterval(rows.length)} tick={{ fill: AXIS, fontSize: 10 }} dy={6} />
-        <YAxis axisLine={false} tickLine={false} tick={{ fill: AXIS, fontSize: 10 }} width={52} />
+        <YAxis axisLine={false} tickLine={false} tick={{ fill: AXIS, fontSize: 10 }} tickFormatter={axisTick} width={52} />
         <Tooltip
           contentStyle={tooltipStyle} itemStyle={{ color: '#a1a1aa' }}
           labelStyle={{ color: '#e4e4e7', fontWeight: 600, marginBottom: 2 }}
@@ -348,10 +395,10 @@ export function RangeBandChart({
   const period = bucket === 'day' ? 'nightly' : `${bucket}'s`;
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <ComposedChart data={rows} margin={{ top: 8, right: 8, left: -24, bottom: 0 }}>
+      <ComposedChart data={rows} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
         <CartesianGrid stroke={GRID} strokeDasharray="2 4" vertical={false} />
         <XAxis dataKey="label" axisLine={false} tickLine={false} interval={tickInterval(rows.length)} tick={{ fill: AXIS, fontSize: 10 }} dy={6} />
-        <YAxis axisLine={false} tickLine={false} tick={{ fill: AXIS, fontSize: 10 }} domain={domain ?? ['auto', 'auto']} width={52} />
+        <YAxis axisLine={false} tickLine={false} tick={{ fill: AXIS, fontSize: 10 }} tickFormatter={axisTick} domain={domain ?? ['auto', 'auto']} width={52} />
         <Tooltip
           contentStyle={tooltipStyle} itemStyle={{ color: '#a1a1aa' }}
           labelStyle={{ color: '#e4e4e7', fontWeight: 600, marginBottom: 2 }}
@@ -395,11 +442,11 @@ export function DivergingBars({
   if (!values(series).length) return <NoSeries height={height} />;
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <BarChart data={rows} margin={{ top: 8, right: 8, left: -24, bottom: 0 }}>
+      <BarChart data={rows} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
         <CartesianGrid stroke={GRID} strokeDasharray="2 4" vertical={false} />
         <ReferenceLine y={0} stroke="#52525b" strokeWidth={1} />
         <XAxis dataKey="label" axisLine={false} tickLine={false} interval={tickInterval(rows.length)} tick={{ fill: AXIS, fontSize: 10 }} dy={6} />
-        <YAxis axisLine={false} tickLine={false} tick={{ fill: AXIS, fontSize: 10 }} width={52} />
+        <YAxis axisLine={false} tickLine={false} tick={{ fill: AXIS, fontSize: 10 }} tickFormatter={axisTick} width={52} />
         <Tooltip
           contentStyle={tooltipStyle} itemStyle={{ color: '#a1a1aa' }}
           labelStyle={{ color: '#e4e4e7', fontWeight: 600 }}
@@ -662,10 +709,13 @@ export function WeekdayProfile({
   data,
   color,
   format = (v: number) => fmtNum(v, 0),
+  className = 'h-[112px]',
 }: {
   data: { weekday: number; mean: number | null; n: number }[];
   color: string;
   format?: (v: number) => string;
+  /** Its height; pass a flex-1 to let it fill a stretched card. */
+  className?: string;
 }) {
   // Monday-first reads better for weekly habits than the JS Sunday-first order.
   const order = [1, 2, 3, 4, 5, 6, 0];
@@ -673,7 +723,7 @@ export function WeekdayProfile({
   const full = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   const max = Math.max(...data.map((d) => d.mean ?? 0), 1);
   return (
-    <div className="flex items-end gap-1.5 px-5 pb-5 h-[112px]">
+    <div className={`flex items-end gap-1.5 px-5 pb-5 ${className}`}>
       {order.map((wd) => {
         const d = data.find((x) => x.weekday === wd)!;
         const h = d.mean === null ? 0 : (d.mean / max) * 100;
@@ -770,25 +820,14 @@ export function IntradayTrace({
 }) {
   if (samples.length < 5) return <NoSeries height={height} />;
 
-  // Apply a moving average for smoothing
-  const windowSize = 6;
-  const smoothedSamples = [];
-  for (let i = 0; i < samples.length; i++) {
-    let sum = 0;
-    let count = 0;
-    for (let j = Math.max(0, i - windowSize + 1); j <= i; j++) {
-      sum += samples[j].value;
-      count++;
-    }
-    smoothedSamples.push({ ...samples[i], value: Math.round(sum / count) });
-  }
-
-  const rows = smoothedSamples.map((s) => ({ label: formatClock(s.minutesOfDay), value: s.value }));
+  // The readings as they are. A trailing moving average used to shave the peaks and shift them
+  // later, so the trace never reached the highest reading quoted beside it.
+  const rows = samples.map((s) => ({ label: formatClock(s.minutesOfDay), value: s.value }));
   const gradientId = `gradient-${color.replace('#', '')}`;
 
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <AreaChart data={rows} margin={{ top: 8, right: 8, left: -24, bottom: 0 }}>
+      <AreaChart data={rows} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
         <defs>
           <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
             <stop offset="5%" stopColor={color} stopOpacity={0.6} />
@@ -797,7 +836,7 @@ export function IntradayTrace({
         </defs>
         <CartesianGrid stroke={GRID} strokeDasharray="2 4" vertical={false} />
         <XAxis dataKey="label" axisLine={false} tickLine={false} interval={Math.floor(rows.length / 6)} tick={{ fill: AXIS, fontSize: 10 }} dy={6} />
-        <YAxis axisLine={false} tickLine={false} tick={{ fill: AXIS, fontSize: 10 }} domain={['auto', 'auto']} width={52} />
+        <YAxis axisLine={false} tickLine={false} tick={{ fill: AXIS, fontSize: 10 }} tickFormatter={axisTick} domain={['auto', 'auto']} width={52} />
         <Tooltip contentStyle={tooltipStyle} itemStyle={{ color: '#a1a1aa' }} labelStyle={{ color: '#e4e4e7', fontWeight: 600 }} formatter={(v: any) => [`${v} bpm`, '']} cursor={{ stroke: '#52525b', strokeWidth: 1, strokeDasharray: '4 4', fill: 'transparent' }} />
         <Area type="monotone" dataKey="value" stroke={color} strokeWidth={1.5} fill={`url(#${gradientId})`} isAnimationActive={false} dot={false} />
       </AreaChart>
