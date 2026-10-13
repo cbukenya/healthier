@@ -1,5 +1,4 @@
-import type { HealthDataset } from '../../types/health';
-import { buildContext, type InsightOptions } from './context';
+import { buildContext, type InsightDataset, type InsightOptions } from './context';
 import { settle } from './conflicts';
 import { PAGES, place, placeable } from './place';
 import { activityRules } from './rules/activity';
@@ -43,7 +42,7 @@ import type { Finding, InsightFeeds } from './types';
  * them; evidence first, the action on its own line after it; wins carry no
  * homework; neutral metrics carry no moral tone; escalation, never repetition.
  */
-export function evaluate(ds: HealthDataset, now: Date = new Date(), extras?: InsightOptions) {
+export function evaluate(ds: InsightDataset, now: Date = new Date(), extras?: InsightOptions) {
   const ctx = buildContext(ds, now, extras);
   if (!ctx) return null;
   const found: Finding[] = [];
@@ -58,7 +57,7 @@ export function evaluate(ds: HealthDataset, now: Date = new Date(), extras?: Ins
 }
 
 /** Today's key insights and each page's own, for the carousels. */
-export function insightFeeds(ds: HealthDataset, now: Date = new Date(), extras?: InsightOptions): InsightFeeds {
+export function insightFeeds(ds: InsightDataset, now: Date = new Date(), extras?: InsightOptions): InsightFeeds {
   return evaluate(ds, now, extras)?.feeds ?? {
     today: [],
     pages: Object.fromEntries(PAGES.map((p) => [p, []])) as unknown as InsightFeeds['pages'],

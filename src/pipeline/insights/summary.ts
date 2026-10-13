@@ -1,15 +1,15 @@
 import { addDays, dateRange, type CivilDate } from '../../lib/date';
-import type { DailyRecord, HealthDataset } from '../../types/health';
+import type { DailyRecord } from '../../types/health';
 import { scoreSleep } from '../sleep';
 import {
   NOISE_FLOOR, compareToBaseline, estimatedSleepTarget, isRecent, readiness, series, sleepDebt,
 } from '../derive';
-import type { InsightOptions } from './context';
+import type { InsightDataset, InsightOptions } from './context';
 import { STEP_GOAL, briskMins, sleepMins, zoneMins } from './helpers';
 import { insightFeeds } from './engine';
 
 /** Convenience: everything the Today view needs, computed once. */
-export function todaySummary(ds: HealthDataset, now: Date = new Date(), extras?: InsightOptions) {
+export function todaySummary(ds: InsightDataset, now: Date = new Date(), extras?: InsightOptions) {
   const days = ds.days;
   const last = days[days.length - 1] ?? null;
   // Cards about now show readings from today or yesterday; anything older is history, not last night.
