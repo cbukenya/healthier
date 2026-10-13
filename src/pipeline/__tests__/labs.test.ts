@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { addDays, formatCivil } from '../../lib/date';
 import { readiness, sleepDebt, estimatedSleepTarget } from '../derive';
 import { observations } from '../insights';
-import { dipping, entropyShift, illnessDates, nocturnalTachycardia, sdbScreen, type IntradayDays } from '../labs';
+import { calculateOffSignals, dipping, entropyShift, illnessDates, nocturnalTachycardia, sdbScreen, strainToday, type IntradayDays } from '../labs';
 import { emptyRecord } from '../normalize';
 import type { DailyRecord, IntradaySample, SleepSession } from '../../types/health';
 
@@ -114,6 +114,22 @@ describe('HRV entropy', () => {
   it('waits for a baseline instead of judging the recent nights against themselves', () => {
     assert.equal(entropyShift(nights(20)).status, 'collecting');
   });
+
+  it('shows the nights so far while it collects, judging none of them', () => {
+    const r = entropyShift(nights(20));
+    assert.equal(r.recent.length, 14);
+    assert.ok(r.recent.every((p) => !p.shifted));
+    assert.equal(r.lastNight, 2.78);
+    assert.equal(r.usualLow, null);
+  });
+
+  it('gives its usual range as the band it judges by', () => {
+    // Baseline 2.8 with a spread under the 0.05 floor: the range is 2.8 ± 0.1.
+    const r = entropyShift(nights(56));
+    assert.equal(r.status, 'monitor');
+    assert.equal(r.usualLow, 2.7);
+    assert.equal(r.usualHigh, 2.9);
+  });
 });
 
 describe('night breathing and oxygen', () => {
@@ -142,6 +158,23 @@ describe('night breathing and oxygen', () => {
     const r = sdbScreen(nights(20));
     assert.equal(r.status, 'collecting');
     assert.equal(r.nightsWanted, 21);
+    assert.ok(r.nights.every((n) => !n.oxygen && !n.breathing && !n.awake), 'no night is off without a usual range');
+    assert.equal(r.beforeNights + r.testedNights, r.nightsInWindow);
+  });
+
+  it('shows each of the last 14 nights signal by signal, agreeing with the nights it flags', () => {
+    const days = nights(42);
+    for (const i of [33, 36, 40]) {
+      days[i].spo2 = { avg: 93.8, ciLower: 90, ciUpper: 97, rollingAvgSd: null };
+      days[i].respiratoryRate = 15.6;
+    }
+    days[38].respiratoryRate = 15.6; // breathing up alone
+    const r = sdbScreen(days);
+    assert.equal(r.nights.length, 14);
+    const off = (n: (typeof r.nights)[number]) => Number(n.oxygen) + Number(n.breathing) + Number(n.awake);
+    assert.deepEqual(r.nights.filter((n) => off(n) >= 2).map((n) => formatCivil(n.date)), r.flags.map((f) => f.label));
+    const alone = r.nights.find((n) => n.date === days[38].date)!;
+    assert.deepEqual([alone.oxygen, alone.breathing, alone.awake], [false, true, false]);
   });
 });
 
@@ -187,6 +220,62 @@ describe('high heart rate during sleep', () => {
     const r = nocturnalTachycardia(days, intraday);
     assert.equal(r.nightsScanned, 0);
     assert.equal(r.status, 'collecting');
+    assert.equal(r.trace, null);
+  });
+
+  it('draws the night with the stretch, minute by minute', () => {
+    const samples = minutes(prev, 23 * 60, 480, (i) => (i >= 120 && i < 132 ? 112 : 60));
+    const { days, intraday } = night(date, samples);
+    const trace = nocturnalTachycardia(days, intraday).trace!;
+    assert.equal(trace.date, date);
+    assert.equal(trace.points.length, 480);
+    assert.deepEqual(trace.stretches, [{ from: 120, to: 131 }]);
+  });
+
+  it('draws the latest night when none has a stretch', () => {
+    const later = addDays(date, 1);
+    const a = emptyRecord(date);
+    a.sleep = session(date, 23 * 60, 7 * 60, 450, 30);
+    const b = emptyRecord(later);
+    b.sleep = session(later, 23 * 60, 7 * 60, 450, 30);
+    const samples = [...minutes(prev, 23 * 60, 480, () => 60), ...minutes(date, 23 * 60, 480, () => 62)];
+    const r = nocturnalTachycardia([a, b], byDate(samples));
+    assert.equal(r.status, 'monitor');
+    assert.equal(r.trace!.date, later);
+    assert.deepEqual(r.trace!.stretches, []);
+  });
+});
+
+describe('system strain', () => {
+  it('counts what the shared off-signal test counts when every reading is in', () => {
+    const days = nights(40);
+    const last = days[days.length - 1];
+    last.restingHr = 70;
+    last.respiratoryRate = 17;
+    last.hrv = 40;
+    const r = strainToday(days);
+    assert.equal(r.status, 'ready');
+    assert.equal(r.off, calculateOffSignals(days, days.length - 1));
+    assert.equal(r.level, 'elevated');
+    assert.deepEqual(r.signals.filter((s) => s.status === 'off').map((s) => s.key), ['restingHr', 'breathing']);
+    assert.equal(r.signals.find((s) => s.key === 'skinTemp')!.status, 'none', 'no reading is no data, not normal');
+  });
+
+  it("waits for today's readings instead of judging yesterday's", () => {
+    const days = nights(40);
+    const last = days[days.length - 1];
+    last.restingHr = null;
+    last.respiratoryRate = null;
+    last.hrv = null;
+    const r = strainToday(days);
+    assert.equal(r.status, 'waiting');
+    assert.equal(r.arrived, 0);
+    assert.ok(r.signals.every((s) => s.status === 'none'));
+    assert.equal(r.level, null);
+  });
+
+  it('collects until it has usual ranges', () => {
+    assert.equal(strainToday(nights(20)).status, 'collecting');
   });
 });
 
