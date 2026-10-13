@@ -118,7 +118,7 @@ function SdbCard({ data }: { data: SyncResult }) {
 
   return (
     <LabCard
-      title="Night breathing & oxygen" gloss="how your night signals move together" badge={badge}
+      title="Sleep-disordered breathing patterns" gloss="breathing during sleep" badge={badge}
       footer="Uses nightly average oxygen saturation, breathing rate and time awake as your device reports them. Wrist sensors miss a lot during sleep, so a quiet card doesn't rule anything out."
     >
       <Explainer>
@@ -194,7 +194,7 @@ function DipCard({ data, intraday }: { data: SyncResult; intraday: IntradayDays 
 
   return (
     <LabCard
-      title="Day-to-night heart rate" gloss="how much it drops while you sleep" badge={badge}
+      title="Nocturnal HR dipping" gloss="day-to-night heart rate" badge={badge}
       footer="Daytime is the 08:00–20:00 average of your minute-level heart rate; night is your non-REM sleeping heart rate. A 10% drop is a night/day ratio of 0.90. The 10% and 20% lines come from overnight blood-pressure research and are only a rough guide for heart rate."
     >
       <Explainer>
@@ -341,7 +341,7 @@ function TachyCard({ data, intraday }: { data: SyncResult; intraday: IntradayDay
 
   return (
     <LabCard
-      title="High heart rate during sleep" gloss="one-minute averages above 100 bpm" badge={badge}
+      title="Nocturnal tachycardia" gloss="high heart rate during sleep" badge={badge}
       footer="Uses the one-minute heart-rate averages synced from your watch. Wrist readings during sleep can be noisy, and movement or waking raises them."
     >
       <Explainer>
@@ -415,25 +415,25 @@ function SystemStrainCard({ data }: { data: SyncResult }) {
   const enough = hasStrainInputs(data.days);
   const latestOffSignals = enough ? calculateOffSignals(data.days, data.days.length - 1) : 0;
 
-  let label = 'Usual';
+  let label = 'Baseline';
   let badgeKind: 'monitor' | 'collect' | 'alert' = 'monitor';
-  let badgeText = enough ? 'Usual' : 'Not enough data';
+  let badgeText = enough ? 'Baseline' : 'Not enough data';
   if (!enough) {
     label = '';
     badgeKind = 'collect';
   } else if (latestOffSignals === 2) {
-    label = 'Two off';
+    label = 'Elevated';
     badgeKind = 'collect';
-    badgeText = '2 signals off';
+    badgeText = 'Elevated · 2 signals off';
   } else if (latestOffSignals >= 3) {
-    label = 'Three or more';
+    label = 'High';
     badgeKind = 'alert';
-    badgeText = `${latestOffSignals} signals off`;
+    badgeText = `High · ${latestOffSignals} signals off`;
   }
 
   return (
     <LabCard
-      title="Signals off together" gloss="resting HR, breathing, temperature, HRV" badge={<Badge kind={badgeKind}>{badgeText}</Badge>}
+      title="System Strain Radar" gloss="physiological deviations" badge={<Badge kind={badgeKind}>{badgeText}</Badge>}
       footer="Counts how many of resting heart rate, breathing rate, skin temperature and HRV are outside your usual range on the latest day. Several at once often follows hard training, short sleep, alcohol, heat or travel, or feeling under the weather."
     >
       <Explainer>
@@ -442,16 +442,16 @@ function SystemStrainCard({ data }: { data: SyncResult }) {
       </Explainer>
       <div className="flex items-center justify-around py-6 mt-2">
         <div className="flex flex-col items-center gap-3 relative">
-          <div className={`w-5 h-5 rounded-full border-2 transition-all ${label === 'Usual' ? 'bg-emerald-500/20 border-emerald-500 ring-4 ring-emerald-500/10' : 'bg-zinc-800/50 border-zinc-700/50'}`} />
-          <span className={`text-[11.5px] font-medium tracking-wide ${label === 'Usual' ? 'text-zinc-200' : 'text-zinc-600'}`}>Usual</span>
+          <div className={`w-5 h-5 rounded-full border-2 transition-all ${label === 'Baseline' ? 'bg-emerald-500/20 border-emerald-500 ring-4 ring-emerald-500/10' : 'bg-zinc-800/50 border-zinc-700/50'}`} />
+          <span className={`text-[11.5px] font-medium tracking-wide ${label === 'Baseline' ? 'text-zinc-200' : 'text-zinc-600'}`}>Baseline</span>
         </div>
         <div className="flex flex-col items-center gap-3 relative">
-          <div className={`w-5 h-5 rounded-full border-2 transition-all ${label === 'Two off' ? 'bg-amber-500/20 border-amber-500 ring-4 ring-amber-500/10' : 'bg-zinc-800/50 border-zinc-700/50'}`} />
-          <span className={`text-[11.5px] font-medium tracking-wide ${label === 'Two off' ? 'text-zinc-200' : 'text-zinc-600'}`}>Two off</span>
+          <div className={`w-5 h-5 rounded-full border-2 transition-all ${label === 'Elevated' ? 'bg-amber-500/20 border-amber-500 ring-4 ring-amber-500/10' : 'bg-zinc-800/50 border-zinc-700/50'}`} />
+          <span className={`text-[11.5px] font-medium tracking-wide ${label === 'Elevated' ? 'text-zinc-200' : 'text-zinc-600'}`}>Elevated</span>
         </div>
         <div className="flex flex-col items-center gap-3 relative">
-          <div className={`w-5 h-5 rounded-full border-2 transition-all ${label === 'Three or more' ? 'bg-rose-500/20 border-rose-500 ring-4 ring-rose-500/10' : 'bg-zinc-800/50 border-zinc-700/50'}`} />
-          <span className={`text-[11.5px] font-medium tracking-wide ${label === 'Three or more' ? 'text-zinc-200' : 'text-zinc-600'}`}>Three or more</span>
+          <div className={`w-5 h-5 rounded-full border-2 transition-all ${label === 'High' ? 'bg-rose-500/20 border-rose-500 ring-4 ring-rose-500/10' : 'bg-zinc-800/50 border-zinc-700/50'}`} />
+          <span className={`text-[11.5px] font-medium tracking-wide ${label === 'High' ? 'text-zinc-200' : 'text-zinc-600'}`}>High</span>
         </div>
       </div>
     </LabCard>
