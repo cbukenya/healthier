@@ -28,8 +28,11 @@ export const isWorkday = (d: CivilDate) => isoWeekdayIndex(d) <= 4;
 
 // ──────────────────────────────────────────────────────── plain-language figures
 
-export const hm = (mins: number) =>
-  `${Math.floor(mins / 60)}h ${String(Math.round(mins) % 60).padStart(2, '0')}m`;
+/** "7h 05m", rounded to the minute first so 479.6 reads 8h 00m, not 7h 00m. */
+export const hm = (mins: number) => {
+  const m = Math.round(mins);
+  return `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, '0')}m`;
+};
 
 /** A sleep need as "7h" or "7h 18m"; the median behind it can land on a half minute. */
 export const needLabel = (need: number) => {

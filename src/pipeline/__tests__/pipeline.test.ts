@@ -1463,6 +1463,242 @@ describe('insight engine — data cards', () => {
   });
 });
 
+describe('insight engine — Activity in depth', () => {
+  /** The same grid cut to each length in turn: the yesterday test, run forward. */
+  const trace = (days: Days, id: string, from: number) => {
+    const out: string[] = [];
+    for (let n = from; n <= days.length; n++) out.push(whereIs(days.slice(0, n), id) ?? '-');
+    return out.join(' ');
+  };
+  // Grids of 56 days end on Tue 25 Aug.
+  const AUG25 = new Date('2026-08-25T08:00:00');
+
+  it('names your most and least active weekdays once six weeks back them', () => {
+    const days = syntheticDays(56);
+    days.forEach((d) => { const w = isoWeekdayIndex(d.date); d.steps = w === 5 ? 12000 : w === 0 ? 6000 : 8000; });
+    assert.equal(cardOf(days, 'activity-week-shape', AUG25)?.text,
+      'Saturday is usually your most active day, at about 12,000 steps. Monday is usually your quietest, at about 6,000.');
+    days.forEach((d) => { d.steps = isoWeekdayIndex(d.date) === 5 ? 9000 : 8000; });
+    assert.equal(cardOf(days, 'activity-week-shape', AUG25), undefined, 'under 20% apart is no pattern');
+  });
+
+  it('says plainly when several days were very quiet', () => {
+    const days = syntheticDays(28);
+    for (const i of [21, 23, 25]) days[i].steps = 2000;
+    assert.equal(cardOf(days, 'activity-quiet-days')?.text,
+      "You had 3 days in the last week with fewer than 4,000 steps. That's under half of your usual day, which is about 8,000 steps.");
+    days[25].steps = 8000;
+    assert.equal(cardOf(days, 'activity-quiet-days'), undefined);
+  });
+
+  it('counts active days in a row, in zone minutes or brisk minutes', () => {
+    const zone = syntheticDays(28);
+    for (let i = 21; i < 28; i++) zone[i].zoneMinutes = { fatBurn: 20, cardio: 5, peak: 0 };
+    assert.match(cardOf(zone, 'activity-azm-streak')!.text, /^You've earned at least 22 active zone minutes every day for 7 days\./);
+
+    const brisk = syntheticDays(28);
+    for (let i = 24; i < 28; i++) brisk[i].activeMinutes = { light: 10, moderate: 20, vigorous: 2 };
+    assert.match(cardOf(brisk, 'activity-azm-streak')!.text, /^You've done at least 22 minutes of brisk activity every day for 4 days/);
+
+    const grid = syntheticDays(44);
+    for (let i = 30; i < 44; i++) grid[i].zoneMinutes = { fatBurn: 20, cardio: 5, peak: 0 };
+    assert.equal(trace(grid, 'activity-azm-streak', 29),
+      '- - - - activity activity activity activity today activity activity activity activity activity activity today');
+  });
+
+  it('marks the first goal day after a week or more without one, with no homework', () => {
+    const days = syntheticDays(28, {}, { steps: 6000 });
+    days[15].steps = 11000;
+    days[27].steps = 10400;
+    const card = cardOf(days, 'activity-back-at-it')!;
+    assert.equal(card.text, 'You passed 10,000 steps today for the first time in 12 days.');
+    assert.equal(card.action, undefined);
+
+    const grid = syntheticDays(44, {}, { steps: 6000 });
+    grid[20].steps = 11000;
+    grid[33].steps = 10500;
+    assert.equal(trace(grid, 'activity-back-at-it', 31), '- - - today today activity activity - - - - - - -');
+
+    const close = syntheticDays(28, {}, { steps: 6000 });
+    close[22].steps = 11000;
+    close[27].steps = 10400;
+    assert.equal(cardOf(close, 'activity-back-at-it'), undefined, 'five days is no break');
+  });
+
+  it("celebrates a marathon's distance in a week on the day it's passed", () => {
+    const days = syntheticDays(44);
+    for (const d of days) d.distanceKm = 8;
+    // Weeks start on Monday; 8 km a day passes 42.2 km on Saturday.
+    assert.equal(trace(days, 'activity-distance', 29), '- - - today activity - - - - - today activity - - - -');
+    assert.match(cardOf(days.slice(0, 32), 'activity-distance')!.text, /^You've covered 48\.0 km this week\. That's more than the length of a marathon\.$/);
+  });
+
+  it('notes 100, 200 and 300 km months', () => {
+    const days = syntheticDays(28);
+    for (const d of days) d.distanceKm = 4;
+    days[27].distanceKm = 10;
+    const card = cardOf(days, 'activity-distance-month')!;
+    assert.equal(card.title, "You've passed 100 km this month");
+    assert.equal(whereIs(days, 'activity-distance-month'), 'activity', 'passed days ago: on the page');
+  });
+
+  it('finds your most floors in any week', () => {
+    const days = syntheticDays(56);
+    days.forEach((d, i) => { d.floors = i >= 48 ? 14 : 5; });
+    assert.equal(cardOf(days, 'activity-floors', AUG25)?.text,
+      'You climbed 98 floors in the last 7 days, the most in any week of the last two months.');
+  });
+
+  it('describes how hard you work and when the weekend does most of it', () => {
+    const days = syntheticDays(28);
+    days.forEach((d, i) => { d.zoneMinutes = { fatBurn: 30, cardio: i % 4 === 0 ? 8 : 0, peak: 0 }; });
+    assert.match(cardOf(days, 'activity-intensity-mix')!.text, /^Most of your active minutes in the last four weeks were at a moderate effort, in the fat-burn zone\. You spent at least 5 minutes in the cardio or peak zone on 7 days\.$/);
+
+    // 2026-07-28 is a Tuesday, so last week ran Mon 20 to Sun 26 July.
+    const load = syntheticDays(28);
+    for (const d of load) d.zoneMinutes = { fatBurn: 5, cardio: 0, peak: 0 };
+    load[24].zoneMinutes = { fatBurn: 40, cardio: 10, peak: 0 };
+    load[25].zoneMinutes = { fatBurn: 40, cardio: 10, peak: 0 };
+    const card = cardOf(load, 'activity-weekend-load')!;
+    assert.equal(card.title, 'Your weekends do most of the work');
+    assert.equal(card.tone, 'neutral');
+    assert.match(card.text, /^Last week, 83% of your active zone minutes came on Saturday and Sunday\./);
+  });
+
+  it('tracks how often you reach your goal, and says when it sits far from your usual day', () => {
+    const days = syntheticDays(60);
+    days.forEach((d, i) => { d.steps = i >= 31 ? (i % 7 < 5 ? 11000 : 7000) : i % 7 < 2 ? 11000 : 7000; });
+    const AUG29 = new Date('2026-08-29T08:00:00');
+    assert.equal(cardOf(days, 'activity-consistency', AUG29)?.text,
+      'You reached 10,000 steps on 20 of the last 28 days. In the four weeks before, it was 8 of 28 days.');
+    assert.equal(cardOf(days, 'activity-goal-fit', AUG29), undefined, 'one card about goal days at a time');
+
+    const high = syntheticDays(28, {}, { steps: 13500 });
+    assert.equal(cardOf(high, 'activity-goal-fit')?.text,
+      'On a typical day you take about 13,500 steps, well past the 10,000 goal. You reached 10,000 on every one of 27 recorded days in the last four weeks.');
+  });
+
+  it('finds when in the day you move from minute heart rate, your resting heart rate and age', () => {
+    const days = syntheticDays(30);
+    const intraday: Record<string, { iso: string; date: string; minutesOfDay: number; value: number }[]> = {};
+    for (const d of days) {
+      const weekend = isoWeekdayIndex(d.date) >= 5;
+      intraday[d.date] = [];
+      for (let m = 360; m < 1320; m++) {
+        const h = Math.floor(m / 60);
+        const active = weekend ? h >= 10 && h < 12 : h >= 17 && h < 19;
+        intraday[d.date].push({ iso: '', date: d.date, minutesOfDay: m, value: active ? 120 : 70 });
+      }
+    }
+    const at = new Date('2026-07-30T08:00:00');
+    const card = (age: number | null) => insightFeeds({ days, profile: { age } } as any, at, { intraday }).pages.activity.find((o) => o.id === 'activity-peak-hours');
+    // Resting 62 and age 40: 62 + 0.4 × (208 − 0.7 × 40 − 62) = 109 bpm.
+    assert.equal(card(40)?.text,
+      "On weekdays you're most active between 17:00 and 19:00. At weekends it's between 10:00 and 12:00. That's when your heart rate most often reaches a brisk-walking level, 109 bpm or more. It's based on 28 days of heart-rate readings from the last four weeks.");
+    assert.equal(card(null), undefined, 'no age, no threshold, no card');
+  });
+});
+
+describe('insight engine — Sleep in depth', () => {
+  const trace = (days: Days, id: string, from: number) => {
+    const out: string[] = [];
+    for (let n = from; n <= days.length; n++) out.push(whereIs(days.slice(0, n), id) ?? '-');
+    return out.join(' ');
+  };
+  // Grids of 40 days end on Sun 9 Aug; 56 days on Tue 25 Aug.
+  const AUG9 = new Date('2026-08-09T08:00:00');
+  const AUG25 = new Date('2026-08-25T08:00:00');
+
+  it('explains the need every sleep card measures against', () => {
+    assert.equal(cardOf(syntheticDays(28), 'sleep-need')?.text,
+      "Your sleep cards measure each night against about 7h 30m. That's the middle of your last 28 recorded nights.");
+    assert.equal(cardOf(syntheticDays(28, {}, { sleepMin: 330 }), 'sleep-need')?.text,
+      'Your sleep cards measure each night against 7 hours. Your nights are usually shorter, about 5h 30m, but most adults need at least 7 hours.');
+  });
+
+  it('says when a week of debt is behind you: news the morning it clears, then on Sleep', () => {
+    const days = syntheticDays(44);
+    for (let i = 26; i < 33; i++) days[i].sleep!.minutesAsleep = 330;
+    for (let i = 33; i < 44; i++) days[i].sleep!.minutesAsleep = 520;
+    assert.equal(trace(days, 'sleep-debt-cleared', 33), '- - - - - - today sleep sleep sleep sleep sleep');
+    assert.match(cardOf(days.slice(0, 39), 'sleep-debt-cleared', AUG9)!.text,
+      /^Last week you were [\d.]+ hours short on sleep\. Over the 7 nights before last night, your sleep added up to what you need\.$/);
+  });
+
+  it('counts good nights in a row: on Sleep from 3, on Today at 7 and 14', () => {
+    const days = syntheticDays(44);
+    days[29].sleep!.minutesAsleep = 300;
+    for (let i = 30; i < 44; i++) days[i].sleep!.minutesAsleep = 480;
+    assert.equal(trace(days, 'sleep-rested-streak', 29), '- - - - sleep sleep sleep sleep today sleep sleep sleep sleep sleep sleep today');
+  });
+
+  it('finds the bedtime you sleep best by, and the wind-down nudge uses it', () => {
+    const days = syntheticDays(40);
+    days.forEach((d, i) => {
+      const early = i % 9 < 5;
+      d.sleep!.bedtimeMin = early ? 1350 : 30;
+      d.sleep!.minutesAsleep = (early ? 480 : 370) + (i % 3) * 10;
+      d.sleep!.minutesInBed = d.sleep!.minutesAsleep + 10;
+    });
+    const card = cardOf(days, 'sleep-best-bedtime', AUG9)!;
+    assert.equal(card.title, 'You sleep best before 22:30');
+    assert.match(card.text, /^On nights you went to sleep by 22:30, your sleep score averaged \d+\. On later nights it averaged \d+\. That's based on 24 earlier nights and 16 later ones, so it's a pattern rather than a rule\.$/);
+    assert.match(cardOf(days, 'wind-down', new Date('2026-08-09T19:00:00'))!.text, /^You tend to sleep best when you're asleep by 22:30\./);
+  });
+
+  it('reads your natural rhythm and weekend shift from free and work nights', () => {
+    const days = syntheticDays(28);
+    for (const d of days) {
+      const free = isoWeekdayIndex(d.date) >= 5;
+      d.sleep!.bedtimeMin = free ? 60 : 1380;
+      d.sleep!.wakeMin = free ? 570 : 420;
+    }
+    assert.equal(cardOf(days, 'sleep-weekend-shift')?.text,
+      "At weekends you sleep about 2h 15m later than on weekdays. For your body, that's a bit like flying across a time zone and back every week.");
+    assert.equal(cardOf(days, 'sleep-natural-rhythm')?.text,
+      "When you don't have to be up early, you usually sleep from about 01:00 to 09:30. The middle of your sleep falls around 05:15.");
+  });
+
+  it('names your shortest and longest nights by the evening they start', () => {
+    const days = syntheticDays(56);
+    days.forEach((d) => { const w = isoWeekdayIndex(d.date); d.sleep!.minutesAsleep = w === 0 ? 360 : w === 5 ? 510 : 450; });
+    assert.equal(cardOf(days, 'sleep-week-shape', AUG25)?.text,
+      'Sunday night is usually your shortest, at about 6h 00m. Friday night is usually your longest, at about 8h 30m.');
+  });
+
+  it('notices more time awake and less REM, and keeps the efficiency card quiet beside them', () => {
+    const restless = syntheticDays(40);
+    restless.forEach((d, i) => { d.sleep!.minutesAwake = i >= 33 ? 40 : 10 + (i % 3); });
+    assert.match(cardOf(restless, 'sleep-restless', AUG9)!.text, /^You spent about 40 minutes awake each night this week, compared with your usual 11\./);
+    assert.equal(cardOf(restless, 'sleep-efficiency', AUG9), undefined, 'a cautious card beats good news in its family');
+    assert.equal(cardOf(syntheticDays(40), 'sleep-efficiency', AUG9)?.title, 'You use your time in bed well');
+
+    const rem = syntheticDays(40);
+    rem.forEach((d, i) => { d.sleep!.stages = { deep: 70, rem: i >= 33 ? 60 : 90 + (i % 5) * 2, light: 280, awake: 10 }; });
+    assert.match(cardOf(rem, 'sleep-rem-short', AUG9)!.text, /^On each of the last 7 nights you got less REM sleep than usual, about 60 minutes instead of 94\./);
+  });
+
+  it('notes naps, and the short nights before them', () => {
+    const days = syntheticDays(28);
+    for (const i of [24, 26]) {
+      days[i].sleep!.minutesAsleep = 330;
+      days[i].naps = [{ ...days[i].sleep!, isNap: true, isMainSleep: false, minutesAsleep: 35 }];
+    }
+    assert.equal(cardOf(days, 'sleep-naps')?.text,
+      'You took 2 naps in the last week, about 35 minutes each. Each one came after a night shorter than your 7h 30m need.');
+  });
+
+  it('finds long nights in your HRV, worded as a pattern', () => {
+    const days = syntheticDays(40);
+    days.forEach((d, i) => { const long = i % 2 === 0; d.sleep!.minutesAsleep = long ? 470 : 380; d.hrv = (long ? 40 : 33) + (i % 3); });
+    assert.match(cardOf(days, 'sleep-hrv-link', AUG9)!.text,
+      /^On nights of 7 hours or more, your overnight HRV is usually about 21% higher than on shorter nights\. That's based on 20 longer nights and 20 shorter ones\. It's a pattern in your data, not proof that one causes the other\.$/);
+    const flat = syntheticDays(40);
+    flat.forEach((d, i) => { d.sleep!.minutesAsleep = i % 2 === 0 ? 470 : 380; });
+    assert.equal(cardOf(flat, 'sleep-hrv-link', AUG9), undefined, 'no relationship, no story');
+  });
+});
+
 describe('insight engine — conflict rules', () => {
   const finding = (f: Partial<Finding> & Pick<Finding, 'id'>): Finding => ({
     domain: 'cardio', page: 'vitals', kind: 'trend', tone: 'neutral', title: f.id, text: '',
