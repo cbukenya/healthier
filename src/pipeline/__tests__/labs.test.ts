@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 
 import { addDays, formatCivil } from '../../lib/date';
 import { readiness, sleepDebt, estimatedSleepTarget } from '../derive';
-import { observations } from '../insights';
+import { insightFeeds, observations } from '../insights';
 import { calculateOffSignals, dipping, entropyShift, illnessDates, nocturnalTachycardia, sdbScreen, strainToday, type IntradayDays } from '../labs';
 import { emptyRecord } from '../normalize';
 import type { DailyRecord, IntradaySample, SleepSession } from '../../types/health';
@@ -302,7 +302,9 @@ describe('sleep debt', () => {
     const debt = sleepDebt(days, need)!;
     const part = readiness(days).parts.find((p) => p.label === 'Recent sleep debt')!;
     assert.match(part.detail, new RegExp(`^${(debt.netMin / 60).toFixed(1)}h short`));
-    const card = observations({ days } as any, new Date(`${days[27].date}T09:00:00`)).find((o) => o.id === 'sleep-debt')!;
+    // A week into the debt it waits on the Sleep page, so look everywhere.
+    const feeds = insightFeeds({ days } as any, new Date(`${days[27].date}T09:00:00`));
+    const card = [...feeds.today, ...Object.values(feeds.pages).flat()].find((o) => o.id === 'sleep-debt')!;
     assert.ok(card);
     assert.match(card.text, new RegExp(`${(debt.netMin / 60).toFixed(1)} hours less than you need`));
   });

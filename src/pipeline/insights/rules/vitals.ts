@@ -6,7 +6,8 @@ import {
 import type { HistoryQueries } from '../../history';
 import type { InsightContext } from '../context';
 import {
-  ENTRY_WINDOW, briskMins, dayMonth, entered, heldFor, listOf, monthName, pastYear, sinceNote, trailingDays, zoneMins,
+  ENTRY_WINDOW, briskMins, dayMonth, entered, heldFor, listOf, monthName, pastYear, freshEntry, sinceNote, trailingDays,
+  zoneMins,
 } from '../helpers';
 import {
   WEEKDAYS, dayRecord, lastMonthBest, monthsOf, nightsAgainstUsual, trailingRun, weekdayExtremes, weekdayMedians,
@@ -67,7 +68,7 @@ function hrvTrends(ctx: InsightContext, add: Add): 'up' | 'down' | null {
     const rel = Math.abs(Math.round((Math.exp(sh.delta!) - 1) * 100));
     const cur = Math.round(Math.exp(sh.current!));
     const prev = Math.round(Math.exp(sh.previous!));
-    const news = !holds(ln.slice(0, -(ENTRY_WINDOW + 1)), dir);
+    const news = freshEntry((n) => holds(ln.slice(0, ln.length - n), dir));
     const held = heldFor(days, (w) => holds(lnHrv(w), dir));
     const up = dir === 1;
     add({
@@ -145,7 +146,7 @@ function restingHeartRate(ctx: InsightContext, add: Add): void {
     if (!shiftP(rhrSeries, dir)) continue;
     shiftDir = dir === 1 ? 'up' : 'down';
     const sh = periodShift(rhrSeries, 14);
-    const news = !shiftP(rhrSeries.slice(0, -(ENTRY_WINDOW + 1)), dir);
+    const news = freshEntry((n) => shiftP(rhrSeries.slice(0, rhrSeries.length - n), dir));
     const held = heldFor(days, (w) => shiftP(series(w, (d) => d.restingHr), dir));
     const up = dir === 1;
     add({

@@ -9,6 +9,7 @@ import { FIXTURE_CLOCK, buildFixturePayloads, createFixtureFetch } from '../fixt
 import {
   HISTORY_QUERIES, evaluate, insightFeeds, needLabel, observations, recoveryTax, settle, todaySummary, weekSummary, type Finding,
 } from '../insights';
+import { freshEntry } from '../insights/helpers';
 import { scoreSleep } from '../sleep';
 import {
   compareToBaseline, coverage, findGaps, periodShift, rollingMean, series, stats, values,
@@ -1283,7 +1284,7 @@ describe('insight engine — stateless guards', () => {
     assert.equal(whereIs(slowTwice, 'slow-day', MIDDAY), null, 'never nags twice running');
   });
 
-  it('offers the wind-down only when debt or drift earned it', () => {
+  it("offers the wind-down after a short night, carrying the week's debt", () => {
     const indebted = syntheticDays(28, {}, { sleepMin: 330 });
     const card = cardOf(indebted, 'wind-down', EVENING)!;
     assert.ok(card, listing(indebted, EVENING));
@@ -1292,6 +1293,11 @@ describe('insight engine — stateless guards', () => {
 
     const fine = syntheticDays(28);
     assert.equal(cardOf(fine, 'wind-down', EVENING), undefined);
+
+    // A long debt alone doesn't earn it every evening: last night was fine.
+    const recovering = syntheticDays(28, { sleepMin: 450 }, { sleepMin: 330 });
+    assert.equal(whereIs(recovering, 'wind-down', EVENING), null, listing(recovering, EVENING));
+    assert.equal(whereIs(recovering, 'sleep-debt', EVENING), 'sleep', 'the debt still stands on its page');
   });
 
   it('reports weight direction without judgement: news on a fresh reading, then on Body', () => {
@@ -1642,6 +1648,9 @@ describe('insight engine — Sleep in depth', () => {
       d.sleep!.minutesAsleep = (early ? 480 : 370) + (i % 3) * 10;
       d.sleep!.minutesInBed = d.sleep!.minutesAsleep + 10;
     });
+    // A short last night, so the evening nudge has earned its place.
+    days[39].sleep!.minutesAsleep = 300;
+    days[39].sleep!.minutesInBed = 310;
     const card = cardOf(days, 'sleep-best-bedtime', AUG9)!;
     assert.equal(card.title, 'You sleep best before 22:30');
     assert.match(card.text, /^On nights you went to sleep by 22:30, your sleep score averaged \d+\. On later nights it averaged \d+\. That's based on 24 earlier nights and 16 later ones, so it's a pattern rather than a rule\.$/);
@@ -2219,6 +2228,80 @@ describe('insight engine — conflict rules', () => {
       finding({ id: 'low', topic: 't', importance: 57 }),
       finding({ id: 'high', topic: 't', importance: 74 }),
     ]), ['high']);
+  });
+});
+
+describe('insight engine — calibrated against stored history', () => {
+  const trace = (days: Days, id: string, from: number, now: Date = MORNING) => {
+    const out: string[] = [];
+    for (let n = from; n <= days.length; n++) out.push(whereIs(days.slice(0, n), id, now) ?? '-');
+    return out.join(' ');
+  };
+
+  it('calls a wobbling state news only when it began lately, after a quiet week', () => {
+    // heldAgo(n): did the state hold with the grid cut back n days?
+    const held = (...ns: number[]) => (n: number) => ns.includes(n);
+    assert.equal(freshEntry(held(0)), true, 'began today');
+    assert.equal(freshEntry(held(0, 1, 2)), true, 'third day running');
+    assert.equal(freshEntry(held(0, 1, 2, 3)), false, 'a fourth day is no longer news');
+    assert.equal(freshEntry(held()), false, 'not holding at all');
+    assert.equal(freshEntry(held(0, 4)), false, 'lapsed for three days and came back');
+    // It began yesterday (n = 1), so the quiet week is n = 2 to 8.
+    assert.equal(freshEntry(held(0, 1, 8)), false, 'back within a week of the last run');
+    assert.equal(freshEntry(held(0, 1, 9)), true, 'a full quiet week before it began');
+  });
+
+  it('puts sleep debt on Today as it starts and as it deepens, and on Sleep in between', () => {
+    const days = syntheticDays(60);
+    for (let i = 30; i < 60; i++) {
+      days[i].sleep!.minutesAsleep = i < 44 ? 390 : 330;
+      days[i].sleep!.minutesInBed = days[i].sleep!.minutesAsleep + 10;
+    }
+    assert.equal(trace(days, 'sleep-debt', 31),
+      '- - - today today today sleep sleep sleep sleep sleep sleep sleep sleep sleep today today today sleep sleep sleep sleep sleep sleep sleep sleep sleep sleep sleep sleep');
+    assert.match(cardOf(days.slice(0, 37), 'sleep-debt')!.text, / It's been like this for 4 nights\.$/);
+    assert.equal(cardOf(days.slice(0, 47), 'sleep-debt')!.title, "You're very short on sleep this week");
+  });
+
+  it('lets the wind-down carry the debt in the evening, and keeps the debt card on Sleep', () => {
+    const days = syntheticDays(34);
+    for (let i = 30; i < 34; i++) {
+      days[i].sleep!.minutesAsleep = 330;
+      days[i].sleep!.minutesInBed = 340;
+    }
+    assert.equal(whereIs(days, 'sleep-debt'), 'today', listing(days));
+    assert.equal(whereIs(days, 'sleep-debt', EVENING), 'sleep', listing(days, EVENING));
+    assert.equal(whereIs(days, 'wind-down', EVENING), 'today');
+    assert.match(cardOf(days, 'wind-down', EVENING)!.text, /hours short on sleep this week/);
+  });
+
+  it('warns about a jump in steps as it starts, then keeps it on Activity', () => {
+    const days = syntheticDays(56);
+    for (let i = 35; i < 56; i++) days[i].steps = 16000;
+    assert.equal(trace(days, 'ramp', 34),
+      '- - - - - - today today today activity activity activity activity activity activity activity - - - - - - -');
+    assert.match(cardOf(days.slice(0, 44), 'ramp')!.text, / It's been like this for 5 days\.$/);
+  });
+
+  it('keeps a trend that lapses and comes back within a week on its page', () => {
+    const climb = (a: number, dip: number, b: number) => {
+      const days = syntheticDays(64);
+      for (let i = 30; i < 64; i++) days[i].steps = i < 37 ? a : i < 39 ? dip : b;
+      return days;
+    };
+    // Back after six days: the same story resuming, so it waits on Activity.
+    assert.equal(trace(climb(11000, 9500, 14000), 'steps-up', 30),
+      '- - - - - - today today today activity - - - - - - activity - activity activity - - - - - - - - - - - - - - -');
+    // Back after a full quiet week: news again.
+    assert.equal(trace(climb(10000, 9000, 12500), 'steps-up', 30),
+      '- - - - - - - today today - - - - - - - today today today - - - - - - - - - - - - - - - -');
+  });
+
+  it('counts one minute of brisk activity as one minute', () => {
+    const days = syntheticDays(28);
+    days.forEach((d, i) => { d.activeMinutes = { light: 200, moderate: i < 20 ? 10 : 1, vigorous: 0 }; });
+    assert.equal(cardOf(days, 'mvpa-down')?.text,
+      "You're averaging 1 minute of brisk activity a day this week, down from 10 last week.");
   });
 });
 
