@@ -120,6 +120,25 @@ export function entered(
   return firesNow(days) && !heldBefore(cut(days, ENTRY_WINDOW + 1));
 }
 
+/** A trend that lapsed for less than this many days and came back is the same story resuming, not news. */
+export const QUIET_DAYS = 7;
+
+/**
+ * Entry guard for states that wobble around their threshold: news when the state
+ * began within the entry window (it has held for at most ENTRY_WINDOW + 1 days
+ * running) and held on none of the QUIET_DAYS days before it began. A trend that
+ * lapsed for a day or two and came back stays on its page, saying how long it has
+ * held, instead of arriving on Today as if it were new. `heldAgo(n)` re-runs the
+ * state on the grid cut back n days; `heldAgo(0)` is now.
+ */
+export function freshEntry(heldAgo: (n: number) => boolean): boolean {
+  let run = 0;
+  while (run <= ENTRY_WINDOW + 1 && heldAgo(run)) run++;
+  if (run === 0 || run > ENTRY_WINDOW + 1) return false;
+  for (let n = run; n < run + QUIET_DAYS; n++) if (heldAgo(n)) return false;
+  return true;
+}
+
 /**
  * How many days a state has held, by re-running it on the window cut back a
  * day at a time: the yesterday test, repeated. Standing cards use it to say
