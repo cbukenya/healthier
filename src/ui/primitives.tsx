@@ -77,6 +77,19 @@ export const Label = ({ children, className = '' }: { children: React.ReactNode;
 
 // ─────────────────────────────────────────────────────────────────── values
 
+/** How the h and m of a duration in a big figure are set: small and grey, like "steps". */
+export const DURATION_UNIT = 'font-sans text-unit font-medium text-zinc-400';
+
+/**
+ * A duration such as "5h 32m" with its h and m set as units, the way "steps" sits beside
+ * a step count. Anything else comes back as it was.
+ */
+export function withUnits(shown: string, unitClass: string): React.ReactNode {
+  const m = /^(−?\d+)h (\d+)m$/.exec(shown);
+  if (!m) return shown;
+  return <>{m[1]}<span className={unitClass}>h</span>{' '}{m[2]}<span className={unitClass}>m</span></>;
+}
+
 /**
  * The em-dash is load-bearing. A metric with no observation shows "—", never 0,
  * and never last week's number silently carried forward.
@@ -110,7 +123,7 @@ export function Value({
   return (
     <span className="inline-flex items-baseline gap-1.5 tabular-nums">
       <span className={`font-display ${cls} ${missing ? 'text-zinc-600' : tone}`}>
-        {shown}
+        {withUnits(shown, DURATION_UNIT)}
       </span>
       {unit && !missing && <span className="text-caption font-medium text-zinc-500">{unit}</span>}
     </span>

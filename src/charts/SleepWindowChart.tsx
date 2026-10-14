@@ -191,7 +191,7 @@ export function SleepWindowChart({
                 <div className="text-tag sm:text-tag-lg" style={{ color: REG_COPY[reg.band].color }}>
                   {REG_COPY[reg.band].label}
                 </div>
-                <div className="font-display text-number-sm sm:text-number-md font-bold text-zinc-50 tabular-nums leading-tight">
+                <div className="font-display text-number-sm sm:text-number-md text-zinc-50 tabular-nums leading-tight">
                   {reg.score}
                   <span className="font-sans text-body-sm font-medium text-zinc-500">/100</span>
                 </div>

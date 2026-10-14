@@ -132,9 +132,11 @@ describe the last 28 days.
 Text is set in named roles from `src/index.css` (`text-caption`, `text-eyebrow`, `text-title`,
 `text-number-lg` and so on), not in one-off pixel sizes. Each role carries its size, line height,
 tracking and weight; an element's own `leading-*`, `tracking-*` or `font-*` class still wins.
-Page titles, verdicts, card titles, big numbers and insights also take `font-display`, so the
-face for those is `--font-display` and their roles, in one file. Chart ticks share `TICK` in
-`src/charts/index.tsx`, because SVG text can't read the CSS tokens.
+Running text is DM Sans. Page titles, verdicts, card titles, big numbers and insights also take
+`font-display`, which is Fraunces, so the face for those is `--font-display` and their roles, in
+one file. The h and m of a big duration are set as units by `withUnits` in
+`src/ui/primitives.tsx`. Chart ticks share `TICK` in `src/charts/index.tsx`, because SVG text
+can't read the CSS tokens.
 
 ## History queries
 
