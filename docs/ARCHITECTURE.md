@@ -92,7 +92,7 @@ without knowing where. The server applies that to Postgres; demo mode and the te
   fully succeeded. A failure (429, 5xx, network, a failed rollup chunk) replaces nothing and leaves
   coverage where it was, so the next sync retries the same range.
 - **Full rebuilds** run weekly (`FULL_RESYNC_DAYS`), after every sign-in (granted scopes may have
-  changed), from "Force full sync" on the Data tab, and whenever `PIPELINE_VERSION` changes. They
+  changed), from "Full sync" on the Data tab, and whenever `PIPELINE_VERSION` changes. They
   refetch the window; history older than the window is kept, except after a `PIPELINE_VERSION`
   change, when it is dropped and backfilled again by the new code.
 - **History backfills in the background.** After a sync stores the window, each stream's coverage
