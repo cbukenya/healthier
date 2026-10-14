@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { formatCivilLong, formatCivilRange, formatClock, weekdayLetter, weekdayShort } from '../lib/date';
 import { bedtimeConsistency, type PeriodShift, type SleepDebt } from '../pipeline/derive';
 import { scoreSleep } from '../pipeline/sleep';
-import { Card, CardHead, Delta, Row, fmtDuration } from '../ui/primitives';
+import { Card, CardHead, DURATION_UNIT, Delta, Row, fmtDuration, withUnits } from '../ui/primitives';
 import type { DailyRecord, SleepSession } from '../types/health';
 import { Stat } from './ActivityCards';
 
@@ -112,7 +112,7 @@ export function LastSevenNights({ days, shift, needMin, debt, wide }: {
       <div className="grid grid-cols-1 lg:grid-cols-[220px_minmax(0,1fr)_230px] gap-3 lg:gap-7 items-center">
         <div>
           <div className="whitespace-nowrap">
-            <span className="font-display text-number-md md:text-number-lg text-zinc-50 tabular-nums">{fmtDuration(shift.current)}</span>
+            <span className="font-display text-number-md md:text-number-lg text-zinc-50 tabular-nums">{withUnits(fmtDuration(shift.current), DURATION_UNIT)}</span>
             <span className="text-detail md:text-body-sm text-zinc-500"> a night</span>
           </div>
           <div className="mt-1 md:mt-1.5">

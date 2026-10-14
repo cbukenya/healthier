@@ -2,7 +2,7 @@ import React from 'react';
 import { formatCivilRange, weekdayLetter, weekdayShort } from '../lib/date';
 import { batteryTier } from '../pipeline/derive';
 import { STEP_GOAL, needLabel, type WeekSummary } from '../pipeline/insights';
-import { DOMAIN, Meter, fmtDuration } from '../ui/primitives';
+import { DOMAIN, Meter, fmtDuration, withUnits } from '../ui/primitives';
 import { TIER_STYLE } from './BodyBattery';
 
 /** The WHO's weekly bar: 150 moderate minutes, vigorous ones counting double. */
@@ -119,7 +119,7 @@ function WeekRow({ label, value, unit, pct, color, note }: {
       <div className="flex items-baseline justify-between gap-3">
         <span className="text-body text-zinc-200">{label}</span>
         <span className="text-body font-semibold text-zinc-50 tabular-nums">
-          {value}
+          {withUnits(value, 'text-caption font-normal text-zinc-500')}
           {unit && <span className="font-normal text-zinc-500"> {unit}</span>}
         </span>
       </div>

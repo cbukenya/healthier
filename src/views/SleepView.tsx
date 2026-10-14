@@ -181,7 +181,7 @@ export function SleepView({ data, clock, intraday }: { data: SyncResult; clock?:
                     </div>
                     <div className="flex items-baseline justify-between">
                       <div className="flex items-baseline gap-1.5">
-                        <span className="font-display text-number-lg font-bold text-white tabular-nums">
+                        <span className="font-display text-number-lg text-white tabular-nums">
                           {score.total}
                         </span>
                         <span className="text-detail text-zinc-500 font-medium">/ 100</span>

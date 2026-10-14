@@ -272,7 +272,7 @@ export function BodyBatteryCompact({ score, parts, confidence, label, missing, c
           {/* The figure takes the room it needs, so the number steps down a size on narrower phones, and once more for a full 100. */}
           <div className="inline-flex items-baseline gap-1 bg-[#17171a] rounded-2xl px-3 min-[380px]:px-3.5 pt-1 pb-2">
             <span
-              className={`font-display ${score === 100 ? 'text-number-lg min-[380px]:text-number-xl' : 'text-number-xl min-[380px]:text-number-2xl'} font-bold tabular-nums text-[#f4f4f5]`}
+              className={`font-display ${score === 100 ? 'text-number-lg min-[380px]:text-number-xl' : 'text-number-xl min-[380px]:text-number-2xl'} tabular-nums text-[#f4f4f5]`}
             >
               {score ?? '—'}
             </span>
