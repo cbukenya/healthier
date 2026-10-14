@@ -1,10 +1,10 @@
 import { addDays, daysBetween, isoWeekdayIndex } from '../../../lib/date';
 import type { DailyRecord } from '../../../types/health';
-import { completedDays, goalStreak, periodShift, series, stats, values, type Point } from '../../derive';
+import { completedDays, goalStreak, loadRatio, periodShift, series, stats, values, type Point } from '../../derive';
 import type { InsightContext } from '../context';
 import {
-  ENTRY_WINDOW, STEP_GOAL, briskMins, clk, dayMonth, fmtInt, heldFor, listOf, monthName, pastYear, plural, sinceNote,
-  zoneMins,
+  ENTRY_WINDOW, STEP_GOAL, briskMins, clk, dayMonth, fmtInt, heldFor, listOf, monthName, pastYear, plural, freshEntry,
+  sinceNote, zoneMins,
 } from '../helpers';
 import { movementHrvAssociation } from '../association';
 import { WEEKDAYS, activeHours, dayRecord, lastMonthBest, monthsOf, weekdayExtremes } from '../patterns';
@@ -58,12 +58,17 @@ const about = (v: number, to = 100) => fmtInt(Math.round(v / to) * to);
 function volume(ctx: InsightContext, add: Add): void {
   const { load, doneSteps, days } = ctx;
   if (load.ratio !== null && load.ratio > 1.5) {
+    // On Today as the jump starts; after that it waits on Activity, saying how long it has lasted,
+    // because a big week stays in the ratio for days and the same warning every morning is noise.
+    const ramping = (steps: Point[]) => (loadRatio(steps).ratio ?? 0) > 1.5;
+    const news = freshEntry((n) => ramping(doneSteps.slice(0, doneSteps.length - n)));
+    const held = heldFor(days, (w) => ramping(series(w, (d) => d.steps).slice(0, -1)));
     add({
       ...base, id: 'ramp', kind: 'alert', tone: 'watch', direction: 'up',
-      importance: 84, topic: 'movement-volume', family: 'movement-volume', today: 'while-true', news: true,
+      importance: 84, topic: 'movement-volume', family: 'movement-volume', today: 'as-news', news,
       claims: { metric: 'steps', direction: 'up' }, evidence: 28,
       title: "You're moving a lot more than usual",
-      text: `This week you've taken ${load.ratio.toFixed(1)} times as many steps as in an average week over the three before. Big jumps are easy to make without noticing, so let how you feel be your guide.`,
+      text: `This week you've taken ${load.ratio.toFixed(1)} times as many steps as in an average week over the three before. Big jumps are easy to make without noticing, so let how you feel be your guide.${news ? '' : sinceNote(held)}`,
     });
   }
 
@@ -74,7 +79,7 @@ function volume(ctx: InsightContext, add: Add): void {
   for (const dir of [1, -1] as const) {
     if (!shiftP(doneSteps, dir)) continue;
     const sh = periodShift(doneSteps, 7);
-    const news = !shiftP(doneSteps.slice(0, -(ENTRY_WINDOW + 1)), dir);
+    const news = freshEntry((n) => shiftP(doneSteps.slice(0, doneSteps.length - n), dir));
     const held = heldFor(days, (w) => shiftP(series(w, (d) => d.steps).slice(0, -1), dir));
     add({
       ...base, id: dir === 1 ? 'steps-up' : 'steps-down', kind: 'trend', tone: dir === 1 ? 'good' : 'neutral',
@@ -167,10 +172,10 @@ function intensity(ctx: InsightContext, add: Add): void {
       ...base, id: dir === 1 ? 'mvpa-up' : 'mvpa-down', kind: 'trend', tone: dir === 1 ? 'good' : 'neutral',
       direction: dir === 1 ? 'up' : 'down',
       importance: dir === 1 ? 59 : 38, topic: 'movement-intensity', family: 'movement-volume', today: 'never',
-      news: !shiftP(mvpa.slice(0, -(ENTRY_WINDOW + 1)), dir),
+      news: freshEntry((n) => shiftP(mvpa.slice(0, mvpa.length - n), dir)),
       claims: { metric: 'brisk', direction: dir === 1 ? 'up' : 'down' }, evidence: sh.nCurrent + sh.nPrevious,
       title: dir === 1 ? 'More brisk activity this week' : 'Less brisk activity this week',
-      text: `You're averaging ${Math.round(sh.current!)} minutes of brisk activity a day this week, ${dir === 1 ? 'up' : 'down'} from ${Math.round(sh.previous!)} last week.${dir === 1 ? " That's the kind of activity the guidelines count." : ''}`,
+      text: `You're averaging ${plural(Math.round(sh.current!), 'minute')} of brisk activity a day this week, ${dir === 1 ? 'up' : 'down'} from ${Math.round(sh.previous!)} last week.${dir === 1 ? " That's the kind of activity the guidelines count." : ''}`,
     });
     break;
   }

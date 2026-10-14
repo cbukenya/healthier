@@ -26,12 +26,18 @@ import type { Finding, InsightFeeds } from './types';
  *
  *   fresh-fact   about last night / today; new each day by nature
  *   entry        true on the full window, false ENTRY_WINDOW+1 days ago
+ *   fresh entry  began within the entry window after a quiet week, so a
+ *                trend that lapses for a day or two and comes back stays
+ *                on its page instead of returning to Today (freshEntry)
  *   hysteresis   entry measured against a *reset* threshold, so a value
  *                oscillating around the fire threshold cannot re-fire daily
  *   milestone    predicate only true at discrete values (streak ∈ set,
  *                a strictly-beaten record, staleness crossing 15/30/60)
  *   alert        shows while true; copy escalates with the trailing
- *                consecutive-day count instead of repeating verbatim
+ *                consecutive-day count instead of repeating verbatim.
+ *                States that can last for weeks (sleep debt, a jump in
+ *                steps) reach Today as they start and as they deepen, and
+ *                wait on their page in between, saying how long they've held
  *   calendar     fires on a clock condition (1st of the month)
  *
  * One pass, five feeds: every rule file adds findings for its page, the

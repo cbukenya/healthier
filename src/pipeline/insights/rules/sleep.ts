@@ -1,20 +1,21 @@
 import { addDays, daysBetween } from '../../../lib/date';
 import type { DailyRecord } from '../../../types/health';
 import {
-  circularMeanMinutes, compareToBaseline, findGaps, firstObserved, series, sleepDebt, sleepRegularity, stats, values,
+  circularMeanMinutes, compareToBaseline, estimatedSleepTarget, findGaps, firstObserved, series, sleepDebt, sleepRegularity,
+  stats, values,
 } from '../../derive';
 import { scoreSleep } from '../../sleep';
 import type { InsightContext } from '../context';
 import {
   ENTRY_WINDOW, beforeLatestMorning, circDelta, clk, cut, dayMonth, heldFor, hm, hoursText, isWorkday, monthName, pastYear,
-  plural, sinceNote, sleepMins, trailingDays,
+  freshEntry, plural, sinceNote, sleepMins, trailingDays,
 } from '../helpers';
 import {
   WEEKDAYS, bestBedtime, dayRecord, lastMonthBest, monthsOf, sleepHrvAssociation, weekdayExtremes, workFreeNights,
   type BestBedtime,
 } from '../patterns';
 import type { HistoryQueries } from '../../history';
-import type { Finding } from '../types';
+import type { Daypart, Finding } from '../types';
 
 type Add = (f: Finding) => void;
 
@@ -29,13 +30,15 @@ export const sleepQueries = {
 
 /** Last night, the week's debt, timing and regularity, how you sleep, and the gaps in the record. */
 export function sleepRules(ctx: InsightContext, add: Add): void {
-  lastNight(ctx, add);
+  const shift = bedtimeShift(ctx.days);
+  const tonight = windDownDue(ctx, shift);
+  lastNight(ctx, add, tonight);
   debtCleared(ctx, add);
   restedStreak(ctx, add);
   sleepNeed(ctx, add);
-  const laterShiftNews = timing(ctx, add);
+  timing(ctx, add, shift);
   const best = bestBedtimeCard(ctx, add);
-  windDown(ctx, add, laterShiftNews, best);
+  if (tonight) windDown(ctx, add, shift, best);
   rhythm(ctx, add);
   weekdays(ctx, add);
   weekShape(ctx, add);
@@ -62,7 +65,7 @@ const nightOf = (ctx: InsightContext) => {
   return { night, sc, short, good };
 };
 
-function lastNight(ctx: InsightContext, add: Add): void {
+function lastNight(ctx: InsightContext, add: Add, tonight: boolean): void {
   const n = nightOf(ctx);
   if (!n) return;
   const { night, sc } = n;
@@ -107,24 +110,41 @@ function lastNight(ctx: InsightContext, add: Add): void {
     });
   }
 
-  debt(ctx, add, n.good ? night.minutesAsleep : null);
+  debt(ctx, add, n.good ? night.minutesAsleep : null, tonight);
 }
+
+/** Sleep debt worth a card, and debt worth calling very short. */
+const SHORT_DEBT = 180;
+const SEVERE_DEBT = 360;
 
 /**
  * The battery's own debt figure, netted over the week before last night. A week with under 5
  * recorded nights is an estimate, not a weekly total, so the card stays quiet rather than
  * extrapolating. A good last night becomes a clause here instead of a card of its own.
+ *
+ * Debt can last for weeks, and the same warning every morning stops being read. So it's on
+ * Today as it starts and again when it deepens into very short; in between it waits on the
+ * Sleep page, saying how long it has lasted. In the evening the wind-down nudge carries it.
  */
-function debt(ctx: InsightContext, add: Add, goodNightMin: number | null): void {
-  const { debtMin } = ctx;
-  if (debtMin === null || debtMin <= 180) return;
-  const severe = debtMin > 360;
+function debt(ctx: InsightContext, add: Add, goodNightMin: number | null, tonight: boolean): void {
+  const { debtMin, days } = ctx;
+  if (debtMin === null || debtMin <= SHORT_DEBT) return;
+  const severe = debtMin > SEVERE_DEBT;
   const nights = ctx.debt!.nightsKnown;
+  // The debt as the card showed it on an earlier day, against the need as it stood then.
+  const owed = (w: DailyRecord[]) => {
+    const d = sleepDebt(w, estimatedSleepTarget(w));
+    return d && d.coverage === 'full' ? d.netMin : 0;
+  };
+  const news = freshEntry((n) => owed(cut(days, n)) > SHORT_DEBT)
+    || (severe && freshEntry((n) => owed(cut(days, n)) > SEVERE_DEBT));
+  const held = heldFor(days, (w) => owed(w) > SHORT_DEBT);
   add({
     ...base, id: 'sleep-debt', kind: 'alert', tone: 'watch',
-    importance: 89, topic: 'sleep-debt', family: 'sleep-amount', today: 'while-true', news: true, advice: 'rest',
+    importance: 89, topic: 'sleep-debt', family: 'sleep-amount', today: 'as-news', news, advice: 'rest',
+    ...(tonight ? { daypart: ['morning', 'midday'] as Daypart[] } : {}),
     title: severe ? "You're very short on sleep this week" : "You're short on sleep this week",
-    text: `${goodNightMin !== null ? `Last night's ${hm(goodNightMin)} helped. Over the ${nights} nights before it` : `Over the ${nights} nights before last night`}, you slept ${hoursText(debtMin)} less than you need.${severe ? ' Short nights like these add up and wear on your focus and recovery.' : ''}`,
+    text: `${goodNightMin !== null ? `Last night's ${hm(goodNightMin)} helped. Over the ${nights} nights before it` : `Over the ${nights} nights before last night`}, you slept ${hoursText(debtMin)} less than you need.${severe ? ' Short nights like these add up and wear on your focus and recovery.' : ''}${news ? '' : sinceNote(held, 'night')}`,
     action: severe
       ? 'Debt like this clears over several nights. Try adding 30 to 45 minutes of sleep over the next few nights.'
       : 'A few earlier nights would help you catch up.',
@@ -135,29 +155,40 @@ function debt(ctx: InsightContext, add: Add, goodNightMin: number | null): void 
 const within = (sdMin: number, mean: number, every: 'night' | 'morning') =>
   Math.round(sdMin) < 5 ? `at about ${clk(mean)} every ${every}` : `within about ${Math.round(sdMin)} minutes of ${clk(mean)}`;
 
-/** Bedtime shifts and spread, and wake-time steadiness: all on the 24-hour circle. Returns whether a later bedtime is news. */
-function timing(ctx: InsightContext, add: Add): boolean {
-  const { days } = ctx;
+type BedtimeShift = { later: boolean; news: boolean; held: number };
+
+/**
+ * This week's average bedtime against the two weeks before, when it moved 30 minutes or more.
+ * News uses hysteresis (not if it was already halfway there) and a quiet week (not if the
+ * same shift held days ago and is only coming back).
+ */
+function bedtimeShift(days: DailyRecord[]): BedtimeShift | null {
   const shiftDelta = (w: DailyRecord[]): number | null => {
     const recent = circularMeanMinutes(sleepMins(w.slice(-7), (x) => x.bedtimeMin));
     const prior = circularMeanMinutes(sleepMins(w.slice(-21, -7), (x) => x.bedtimeMin));
     if (!recent || !prior || recent.n < 4 || prior.n < 5) return null;
     return circDelta(recent.mean, prior.mean);
   };
-
-  let laterNews = false;
   const now = shiftDelta(days);
-  if (now !== null && Math.abs(now) >= 30) {
-    const then = shiftDelta(cut(days, ENTRY_WINDOW + 1));
-    const news = then === null || Math.abs(then) < 15 || Math.sign(then) !== Math.sign(now);
-    const later = now > 0;
-    laterNews = later && news;
+  if (now === null || Math.abs(now) < 30) return null;
+  const sameWay = (w: DailyRecord[]) => {
+    const d = shiftDelta(w);
+    return d !== null && Math.abs(d) >= 30 && Math.sign(d) === Math.sign(now);
+  };
+  const then = shiftDelta(cut(days, ENTRY_WINDOW + 1));
+  const news = (then === null || Math.abs(then) < 15 || Math.sign(then) !== Math.sign(now))
+    && freshEntry((n) => sameWay(cut(days, n)));
+  return { later: now > 0, news, held: heldFor(days, sameWay) };
+}
+
+/** Bedtime shifts and spread, and wake-time steadiness: all on the 24-hour circle. */
+function timing(ctx: InsightContext, add: Add, shift: BedtimeShift | null): void {
+  const { days } = ctx;
+
+  if (shift) {
+    const { later, news, held } = shift;
     const recent = circularMeanMinutes(sleepMins(days.slice(-7), (x) => x.bedtimeMin))!;
     const prior = circularMeanMinutes(sleepMins(days.slice(-21, -7), (x) => x.bedtimeMin))!;
-    const held = heldFor(days, (w) => {
-      const d = shiftDelta(w);
-      return d !== null && Math.abs(d) >= 30 && Math.sign(d) === Math.sign(now);
-    });
     add({
       ...base, id: later ? 'bed-creep-later' : 'bed-creep-earlier', kind: 'trend', tone: later ? 'watch' : 'good',
       direction: later ? 'up' : 'down',
@@ -222,19 +253,29 @@ function timing(ctx: InsightContext, add: Add): boolean {
       });
     }
   }
-  return laterNews;
 }
 
 /**
- * The evening nudge, anchored to your own bedtime, only when it earns its place.
- * Once your best bedtime is known, it leads with that.
+ * The evening nudge earns its place after a short night, or when a later bedtime is news:
+ * the evenings when tonight matters most. Every evening of a long debt would make it wallpaper.
  */
-function windDown(ctx: InsightContext, add: Add, laterShiftNews: boolean, best: BestBedtime | null): void {
-  const { debtMin } = ctx;
-  const owed = debtMin !== null && debtMin > 120;
-  if (ctx.part !== 'evening' || !(owed || laterShiftNews)) return;
+function windDownDue(ctx: InsightContext, shift: BedtimeShift | null): boolean {
+  if (ctx.part !== 'evening') return false;
+  if (!nightOf(ctx)?.short && !(shift?.later && shift.news)) return false;
   const avg = circularMeanMinutes(sleepMins(ctx.days.slice(-14), (x) => x.bedtimeMin));
-  if (!avg || avg.n < 5) return;
+  return !!avg && avg.n >= 5;
+}
+
+/**
+ * The evening nudge, anchored to your own bedtime. Once your best bedtime is known, it leads
+ * with that. It carries the week's debt, so the debt card doesn't sit beside it.
+ */
+function windDown(ctx: InsightContext, add: Add, shift: BedtimeShift | null, best: BestBedtime | null): void {
+  const { debtMin } = ctx;
+  const laterShiftNews = !!shift?.later && shift.news;
+  const owed = debtMin !== null && debtMin > 120;
+  const shortNight = !!nightOf(ctx)?.short;
+  const avg = circularMeanMinutes(sleepMins(ctx.days.slice(-14), (x) => x.bedtimeMin))!;
   const target = best?.earlierBetter ? best.cut : null;
   const week = circularMeanMinutes(sleepMins(ctx.days.slice(-7), (x) => x.bedtimeMin));
   const pastTarget = target !== null && week !== null && circDelta(week.mean, target) > 0;
@@ -245,8 +286,10 @@ function windDown(ctx: InsightContext, add: Add, laterShiftNews: boolean, best: 
     text: target !== null
       ? `You tend to sleep best when you're asleep by ${clk(target)}.${owed
         ? ` You're also ${hoursText(debtMin!)} short on sleep this week, so an early night would help.`
+        : shortNight ? ' Last night was short, so an early night would help.'
         : pastTarget ? ` This week you've been going to bed around ${clk(week!.mean)}.` : ' Lately your bedtime has been getting later.'}`
-      : `You've been going to bed around ${clk(avg.mean)} lately${laterShiftNews ? ", and it's been getting later" : ''}.${owed ? ` You're also ${hoursText(debtMin!)} short on sleep this week.` : ''}`,
+      : `You've been going to bed around ${clk(avg.mean)} lately${laterShiftNews ? ", and it's been getting later" : ''}.${owed
+        ? ` You're also ${hoursText(debtMin!)} short on sleep this week.` : shortNight ? ' Last night was short.' : ''}`,
     action: target !== null
       ? `Being asleep by ${clk(target)} tonight would help.`
       : 'Getting to bed around your usual time tonight will help. A steady bedtime matters as much as the extra sleep.',
