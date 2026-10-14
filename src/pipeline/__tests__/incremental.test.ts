@@ -328,7 +328,12 @@ describe('time zones', () => {
     const store = await fullAt(D1);
     const samples = unpackIntraday(store.intraday);
     // The fixture's evening run starts 21:00 UTC: 23:00 in Stockholm in August.
-    assert.equal(samples[0].date, '2026-08-18');
-    assert.equal(samples[0].minutesOfDay, 23 * 60);
+    const run = samples.find((s) => s.iso === '2026-08-18T21:00:00.000Z')!;
+    assert.equal(run.date, '2026-08-18');
+    assert.equal(run.minutesOfDay, 23 * 60);
+    // Half past eleven UTC is already half past one the next morning there.
+    const late = samples.find((s) => s.iso === '2026-08-18T23:30:00.000Z')!;
+    assert.equal(late.date, '2026-08-19');
+    assert.equal(late.minutesOfDay, 90);
   });
 });

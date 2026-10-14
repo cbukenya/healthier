@@ -92,6 +92,18 @@ export interface SleepSession {
  * One row per calendar day. Sparse by design: a field is absent when the day
  * holds no observation for it.
  */
+/**
+ * Where each heart rate zone starts that day, in bpm, as Google Health sets them from resting
+ * heart rate (the Karvonen method). Light starts at a floor of 30 bpm, so in practice it's
+ * everything below Moderate.
+ */
+export interface HeartRateZones {
+  light: number;
+  moderate: number;
+  vigorous: number;
+  peak: number;
+}
+
 export interface DailyRecord {
   date: CivilDate;
 
@@ -118,6 +130,8 @@ export interface DailyRecord {
   
   
   restingHr: number | null;
+  /** The day's heart rate zones. */
+  hrZones: HeartRateZones | null;
   /** Overnight average HRV in ms (Google's `averageHeartRateVariabilityMilliseconds`). */
   hrv: number | null;
   /** HRV during deep sleep only (RMSSD), a less noisy signal on some nights. */

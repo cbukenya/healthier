@@ -2,7 +2,7 @@ export * from './SleepWindowChart';
 
 import React, { useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
-  Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, ComposedChart, Line, ReferenceArea,
+  Area, Bar, BarChart, CartesianGrid, Cell, ComposedChart, Line, ReferenceArea,
   ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts';
 import { formatCivil, formatClock, weekdayLetter, type CivilDate } from '../lib/date';
@@ -922,41 +922,6 @@ export function Spark({
 }
 
 // ────────────────────────────────────────────────────────── intraday trace
-
-export function IntradayTrace({
-  samples,
-  color,
-  height = 140,
-}: {
-  samples: { minutesOfDay: number; value: number; iso: string }[];
-  color: string;
-  height?: number;
-}) {
-  if (samples.length < 5) return <NoSeries height={height} />;
-
-  // The readings as they are. A trailing moving average used to shave the peaks and shift them
-  // later, so the trace never reached the highest reading quoted beside it.
-  const rows = samples.map((s) => ({ label: formatClock(s.minutesOfDay), value: s.value }));
-  const gradientId = `gradient-${color.replace('#', '')}`;
-
-  return (
-    <ResponsiveContainer width="100%" height={height}>
-      <AreaChart data={rows} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
-        <defs>
-          <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor={color} stopOpacity={0.6} />
-            <stop offset="95%" stopColor={color} stopOpacity={0.0} />
-          </linearGradient>
-        </defs>
-        <CartesianGrid stroke={GRID} strokeDasharray="2 4" vertical={false} />
-        <XAxis dataKey="label" axisLine={false} tickLine={false} interval={Math.floor(rows.length / 6)} tick={TICK} dy={6} />
-        <YAxis axisLine={false} tickLine={false} tick={TICK} tickFormatter={axisTick} domain={['auto', 'auto']} width={52} />
-        <Tooltip contentStyle={tooltipStyle} itemStyle={{ color: '#a1a1aa' }} labelStyle={{ color: '#e4e4e7', fontWeight: 600 }} formatter={(v: any) => [`${v} bpm`, '']} cursor={{ stroke: '#52525b', strokeWidth: 1, strokeDasharray: '4 4', fill: 'transparent' }} />
-        <Area type="monotone" dataKey="value" stroke={color} strokeWidth={1.5} fill={`url(#${gradientId})`} isAnimationActive={false} dot={false} />
-      </AreaChart>
-    </ResponsiveContainer>
-  );
-}
 
 function NoSeries({ height }: { height: number }) {
   return (
