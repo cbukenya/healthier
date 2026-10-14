@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from 'react';
-import { formatCivilRange, weekdayLetter, weekdayShort } from '../lib/date';
+import React, { useMemo, useRef, useState } from 'react';
+import { formatCivil, formatCivilRange, weekdayLetter, weekdayShort } from '../lib/date';
 import { batteryTier } from '../pipeline/derive';
 import { STEP_GOAL, monthSummary, needLabel, type PeriodSummary } from '../pipeline/insights';
 import type { DailyRecord } from '../types/health';
@@ -9,21 +9,25 @@ import { TIER_STYLE } from './BodyBattery';
 
 /** The WHO's weekly bar: 150 moderate minutes, vigorous ones counting double. */
 const WHO_WEEK = 150;
-/** Tallest bar, at a battery of 100. */
+/** Tallest bar in the week, at a battery of 100. */
 const BAR_MAX_PX = 76;
+/** The month's bars stand a pixel per point, under a line marking 100. */
+const MONTH_MAX_PX = 100;
+/** Room on the right for the line's "100". */
+const GUTTER = 'right-[26px]';
 
 /** A gap as "48 min" or "1h 12m". */
 const gap = (mins: number) => (Math.round(mins) < 60 ? `${Math.round(mins)} min` : fmtDuration(mins));
 
 type View = 'week' | 'month';
 
-/** A morning's bar: its height and colour, and a dimmed one for every day but today. */
-const barStyle = (score: number | null, isToday: boolean): React.CSSProperties => {
+/** A morning's bar: its height and colour, dimmed unless it's the day in focus. */
+const barStyle = (score: number | null, lit: boolean, maxPx = BAR_MAX_PX): React.CSSProperties => {
   const hex = score === null ? null : TIER_STYLE[batteryTier(score).tag].hex;
   return {
-    height: score === null ? 3 : Math.max(4, (score / 100) * BAR_MAX_PX),
+    height: score === null ? 3 : Math.max(4, (score / 100) * maxPx),
     background: hex ?? '#27272a',
-    opacity: hex && !isToday ? 0.55 : 1,
+    opacity: hex && !lit ? 0.55 : 1,
   };
 };
 
@@ -40,6 +44,9 @@ export function ThisWeek({ week, days, needMin, className = '' }: {
 }) {
   const [view, setView] = useState<View>('week');
   const month = useMemo(() => (view === 'month' ? monthSummary(days) : null), [view, days]);
+  // The month's chart scrubs: the bar under the pointer is the one in focus, today's otherwise.
+  const [picked, setPicked] = useState<number | null>(null);
+  const plotRef = useRef<HTMLDivElement>(null);
   const p = month ?? week;
   const isMonth = view === 'month' && month !== null;
   const first = p.battery[0].date;
@@ -74,6 +81,20 @@ export function ThisWeek({ week, days, needMin, className = '' }: {
     ? `No finished days with steps ${span}`
     : `10,000 or more on ${steps.atGoal} of ${steps.days} full day${steps.days === 1 ? '' : 's'}`;
 
+  const n = p.battery.length;
+  const focus = picked === null ? n - 1 : Math.min(picked, n - 1);
+  const focusDay = p.battery[focus];
+  const pickAt = (clientX: number) => {
+    const box = plotRef.current?.getBoundingClientRect();
+    if (box && box.width > 0) setPicked(Math.max(0, Math.min(n - 1, Math.floor(((clientX - box.left) / box.width) * n))));
+  };
+  const onKey = (e: React.KeyboardEvent) => {
+    const to = { ArrowLeft: focus - 1, ArrowRight: focus + 1, Home: 0, End: n - 1 }[e.key];
+    if (to === undefined) return;
+    e.preventDefault();
+    setPicked(Math.max(0, Math.min(n - 1, to)));
+  };
+
   const scores = p.battery.map((b) => b.score).filter((s): s is number => s !== null);
   const range = scores.length
     ? { avg: Math.round(scores.reduce((a, b) => a + b, 0) / scores.length), min: Math.min(...scores), max: Math.max(...scores) }
@@ -94,7 +115,7 @@ export function ThisWeek({ week, days, needMin, className = '' }: {
               type="button"
               role="tab"
               aria-selected={view === v}
-              onClick={() => setView(v)}
+              onClick={() => { setView(v); setPicked(null); }}
               className={`min-h-11 px-2 text-body-sm transition-colors ${view === v ? 'font-semibold text-zinc-50' : 'font-medium text-zinc-500 hover:text-zinc-300'}`}
             >
               <span className={`inline-block pb-1 border-b-2 ${view === v ? 'border-zinc-50' : 'border-transparent'}`}>{v === 'week' ? 'Week' : 'Month'}</span>
@@ -106,24 +127,37 @@ export function ThisWeek({ week, days, needMin, className = '' }: {
       <div className="mt-3.5 text-eyebrow uppercase text-[#6b6f78]">Body battery</div>
       {isMonth ? (
         <>
-          <div
-            role="img"
-            aria-label={`Body battery each morning over the last 30 days${range ? `: averaged ${range.avg}, between ${range.min} and ${range.max}` : ''}`}
-            className="mt-2 h-[96px] grid gap-0.5 items-end"
-            style={{ gridTemplateColumns: `repeat(${p.battery.length}, minmax(0, 1fr))` }}
-          >
-            {p.battery.map((b) => {
-              const isToday = b.date === today;
-              return (
+          <div className="mt-2 relative h-[116px]">
+            {/* Full charge, so each bar reads against it. */}
+            <div aria-hidden="true" className={`absolute left-0 ${GUTTER} bottom-[100px] border-t border-dashed border-zinc-400/60`} />
+            <span aria-hidden="true" className="absolute right-0 bottom-[100px] translate-y-1/2 text-note leading-none text-zinc-500">100</span>
+            {/* Hover, drag or use the arrow keys to read any morning; a touch keeps its pick, a mouse leaving lets go. */}
+            <div
+              ref={plotRef}
+              role="slider"
+              tabIndex={0}
+              aria-label={`Body battery each morning over the last 30 days${range ? `, averaged ${range.avg}, between ${range.min} and ${range.max}` : ''}`}
+              aria-valuemin={1}
+              aria-valuemax={n}
+              aria-valuenow={focus + 1}
+              aria-valuetext={`${weekdayShort(focusDay.date)} ${formatCivil(focusDay.date)}: ${focusDay.score ?? 'no score'}`}
+              onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); pickAt(e.clientX); }}
+              onPointerMove={(e) => { if (e.pointerType === 'mouse' || e.buttons) pickAt(e.clientX); }}
+              onPointerLeave={(e) => { if (e.pointerType === 'mouse') setPicked(null); }}
+              onKeyDown={onKey}
+              className={`absolute inset-y-0 left-0 ${GUTTER} grid gap-0.5 items-end touch-pan-y select-none rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-zinc-600`}
+              style={{ gridTemplateColumns: `repeat(${n}, minmax(0, 1fr))` }}
+            >
+              {p.battery.map((b, i) => (
                 <div key={b.date} className="h-full flex flex-col items-center justify-end gap-1">
-                  {isToday && <span className="text-caption font-bold tabular-nums text-zinc-50">{b.score ?? '—'}</span>}
-                  <div className="w-full rounded-[3px]" style={barStyle(b.score, isToday)} />
+                  {i === focus && <span className="text-caption leading-tight font-bold tabular-nums text-zinc-50">{b.score ?? '—'}</span>}
+                  <div className="w-full rounded-[3px]" style={barStyle(b.score, i === focus, MONTH_MAX_PX)} />
                 </div>
-              );
-            })}
+              ))}
+            </div>
           </div>
           {/* Thirty bars are too narrow to date one by one, so a ruler marks the days. */}
-          <DayRuler dates={p.battery.map((b) => b.date)} gapPx={2} />
+          <DayRuler dates={p.battery.map((b) => b.date)} gapPx={2} active={focus} className="mr-[26px]" />
           {range && <p className="mt-1.5 text-caption text-zinc-500">Averaged {range.avg}, between {range.min} and {range.max}</p>}
         </>
       ) : (
