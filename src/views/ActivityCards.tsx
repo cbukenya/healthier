@@ -29,8 +29,8 @@ export function TodaySoFar({ day, isToday, wide }: { day: DailyRecord; isToday: 
   return (
     <Card className="px-[18px] pt-4 pb-[18px] md:px-5 flex flex-col gap-3.5">
       <div className="flex items-baseline justify-between gap-2">
-        <h2 className="text-[15px] font-semibold text-zinc-50">{isToday ? 'Today so far' : `Latest day, ${formatCivilLong(day.date)}`}</h2>
-        {goalNote && <span className="text-[12px] text-zinc-400 whitespace-nowrap">{goalNote}</span>}
+        <h2 className="font-display text-title text-zinc-50">{isToday ? 'Today so far' : `Latest day, ${formatCivilLong(day.date)}`}</h2>
+        {goalNote && <span className="text-detail text-zinc-400 whitespace-nowrap">{goalNote}</span>}
       </div>
       <div className="flex-1 flex items-center gap-[22px] md:gap-7">
         <GoalRings
@@ -76,8 +76,8 @@ export function LastSevenDays({ days, shift, ratio, wide }: {
   const headline = (
     <div>
       <div className="whitespace-nowrap">
-        <span className="text-[28px] md:text-[30px] leading-tight font-semibold tracking-[-0.01em] text-zinc-50 tabular-nums">{fmtNum(shift.current, 0)}</span>
-        <span className="text-[12px] md:text-[13px] text-zinc-500"> steps a day</span>
+        <span className="font-display text-number-md md:text-number-lg text-zinc-50 tabular-nums">{fmtNum(shift.current, 0)}</span>
+        <span className="text-detail md:text-body-sm text-zinc-500"> steps a day</span>
       </div>
       <div className="mt-1 md:mt-1.5">
         <Delta value={shift.delta} goodWhen="up" digits={0} suffix="vs the week before" />
@@ -89,8 +89,8 @@ export function LastSevenDays({ days, shift, ratio, wide }: {
   return (
     <Card className="px-[18px] pt-4 pb-3.5 md:px-5 md:pb-[18px] flex flex-col gap-3 md:gap-3.5">
       <div className="flex items-baseline justify-between gap-2">
-        <h2 className="text-[15px] font-semibold text-zinc-50">Last 7 days</h2>
-        <span className="text-[12px] text-zinc-500">{formatCivilRange(days[0].date, days[days.length - 1].date)}</span>
+        <h2 className="font-display text-title text-zinc-50">Last 7 days</h2>
+        <span className="text-detail text-zinc-500">{formatCivilRange(days[0].date, days[days.length - 1].date)}</span>
       </div>
       {wide ? (
         <div className="flex-1 grid grid-cols-[minmax(0,1fr)_minmax(250px,1.4fr)] gap-4 items-center">
@@ -156,12 +156,12 @@ export function WeeklyTotals({ weeks }: { weeks: WeekTotal[] }) {
       <div className="px-5 pb-5 space-y-2">
         {shown.map((w) => (
           <div key={w.start} className="flex items-center gap-3">
-            <span className="w-[96px] shrink-0 whitespace-nowrap text-[11px] text-zinc-500">{formatCivilRange(w.start, w.end)}</span>
+            <span className="w-[96px] shrink-0 whitespace-nowrap text-caption text-zinc-500">{formatCivilRange(w.start, w.end)}</span>
             <div className="flex-1">
               <Meter pct={(w.total / (STEP_GOAL * 7)) * 100} color={DOMAIN.movement.hex} />
             </div>
-            <span className="w-[64px] shrink-0 text-right text-[11.5px] text-zinc-200 tabular-nums">{fmtNum(w.total, 0)}</span>
-            <span className="w-[54px] shrink-0 text-right text-[10px] text-zinc-600">{w.days}/7 days</span>
+            <span className="w-[64px] shrink-0 text-right text-detail text-zinc-200 tabular-nums">{fmtNum(w.total, 0)}</span>
+            <span className="w-[54px] shrink-0 text-right text-note text-zinc-600">{w.days}/7 days</span>
           </div>
         ))}
         {weeks.length > WEEKS_SHOWN && (
@@ -169,7 +169,7 @@ export function WeeklyTotals({ weeks }: { weeks: WeekTotal[] }) {
             type="button"
             onClick={() => setShowAll(!showAll)}
             aria-expanded={showAll}
-            className="mt-1.5 w-full min-h-11 rounded-xl border border-[#27272a] text-[13px] text-[#a1a1aa] hover:text-zinc-100 hover:bg-zinc-900 transition-colors"
+            className="mt-1.5 w-full min-h-11 rounded-xl border border-[#27272a] text-body-sm text-[#a1a1aa] hover:text-zinc-100 hover:bg-zinc-900 transition-colors"
           >
             {showAll ? `Show the latest ${WEEKS_SHOWN}` : `Show all ${weeks.length} weeks`}
           </button>
@@ -232,11 +232,11 @@ function GoalValue({ color, label, value, goal }: { color: string; label: string
     <div>
       <div className="flex items-center gap-1.5">
         <span className="size-2 shrink-0 rounded-full" style={{ background: color }} />
-        <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-500">{label}</span>
+        <span className="text-eyebrow uppercase text-zinc-500">{label}</span>
       </div>
       <div className="mt-1 whitespace-nowrap">
-        <span className="text-[26px] md:text-[30px] leading-tight font-semibold tracking-[-0.01em] text-zinc-50 tabular-nums">{value}</span>
-        <span className="text-[12px] md:text-[13px] text-zinc-500"> {goal}</span>
+        <span className="font-display text-number-md md:text-number-lg text-zinc-50 tabular-nums">{value}</span>
+        <span className="text-detail md:text-body-sm text-zinc-500"> {goal}</span>
       </div>
     </div>
   );
@@ -246,10 +246,10 @@ function GoalValue({ color, label, value, goal }: { color: string; label: string
 export function Stat({ label, value, unit, tone }: { label: string; value: string; unit?: string; tone?: string }) {
   return (
     <div className="flex flex-col gap-0.5 min-w-0">
-      <span className="text-[9.5px] font-semibold uppercase tracking-[0.14em] text-zinc-500">{label}</span>
-      <span className={`text-[17px] leading-tight font-semibold tabular-nums ${tone ?? 'text-zinc-50'}`}>
+      <span className="text-eyebrow-sm uppercase text-zinc-500">{label}</span>
+      <span className={`font-display text-number-xs leading-tight tabular-nums ${tone ?? 'text-zinc-50'}`}>
         {value}
-        {unit && <span className="text-[11px] font-medium text-zinc-500"> {unit}</span>}
+        {unit && <span className="font-sans text-caption font-medium text-zinc-500"> {unit}</span>}
       </span>
     </div>
   );
@@ -283,11 +283,11 @@ function WeekBars({ days, long }: { days: DailyRecord[]; long: boolean }) {
         </div>
         {/* The 10,000 line, over the bars, labelled in the gutter on the right. */}
         <div className="absolute left-0 right-7 border-t border-dashed border-zinc-400/70" style={{ bottom: px(STEP_GOAL) + 1 }} />
-        <span className="absolute right-0 translate-y-1/2 text-[10px] leading-none text-zinc-500" style={{ bottom: px(STEP_GOAL) + 1 }}>10k</span>
+        <span className="absolute right-0 translate-y-1/2 text-note leading-none text-zinc-500" style={{ bottom: px(STEP_GOAL) + 1 }}>10k</span>
       </div>
       <div className={`${columns} pr-7 mt-1.5`}>
         {days.map((d) => (
-          <span key={d.date} className="text-center text-[10.5px] text-zinc-500">{long ? weekdayShort(d.date) : weekdayLetter(d.date)}</span>
+          <span key={d.date} className="text-center text-note text-zinc-500">{long ? weekdayShort(d.date) : weekdayLetter(d.date)}</span>
         ))}
       </div>
     </div>

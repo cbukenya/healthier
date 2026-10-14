@@ -127,6 +127,15 @@ years, monthly beyond, as averages per recorded day. Sparse series such as weigh
 unless they would exceed 120 points. Baseline bands are hidden on grouped charts, because they
 describe the last 28 days.
 
+## Type roles
+
+Text is set in named roles from `src/index.css` (`text-caption`, `text-eyebrow`, `text-title`,
+`text-number-lg` and so on), not in one-off pixel sizes. Each role carries its size, line height,
+tracking and weight; an element's own `leading-*`, `tracking-*` or `font-*` class still wins.
+Page titles, verdicts, card titles, big numbers and insights also take `font-display`, so the
+face for those is `--font-display` and their roles, in one file. Chart ticks share `TICK` in
+`src/charts/index.tsx`, because SVG text can't read the CSS tokens.
+
 ## History queries
 
 Insights that describe the past need days older than the window. Each page's rules declare what

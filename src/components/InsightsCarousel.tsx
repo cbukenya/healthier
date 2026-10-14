@@ -180,12 +180,12 @@ export function InsightsCarousel({ observations, page }: { observations: Observa
       <div className="bg-[#09090b] border border-zinc-800/80 rounded-[20px] pt-5 pb-4 md:pt-6 md:pb-5 overflow-hidden w-full relative flex-1 flex flex-col">
         <div className="flex justify-between items-center md:items-start gap-3 md:gap-6 px-4 md:px-6 pb-4">
           <div>
-            <h2 className="text-zinc-100 text-[16px] md:text-[15px] font-semibold md:font-medium tracking-tight">{copy?.title ?? 'Key insights'}</h2>
+            <h2 className="font-display text-title text-zinc-100">{copy?.title ?? 'Key insights'}</h2>
             {/* A phone has room for the count, not the explanation. */}
-            <p className="md:hidden text-zinc-500 text-[12px] mt-0.5 tabular-nums">
+            <p className="md:hidden text-detail text-zinc-500 mt-0.5 tabular-nums">
               {activeIndex + 1} of {observations.length}
             </p>
-            <p className="hidden md:block text-zinc-500 text-[13px] mt-1 leading-[1.55] max-w-[640px]">
+            <p className="hidden md:block text-body-sm text-zinc-500 mt-1 max-w-[640px]">
               {copy?.description ?? (
                 <>
                   Derived from your data to give you a quick overview of what it means — the
@@ -226,7 +226,7 @@ export function InsightsCarousel({ observations, page }: { observations: Observa
               }}
             >
               <span
-                className="self-end text-[13px] font-medium flex items-center gap-1.5"
+                className="self-end text-body-sm font-medium flex items-center gap-1.5"
                 style={{
                   color: copy ? KIND_COLOR : DOMAIN_STYLES[obs.domain].color,
                 }}
@@ -236,14 +236,14 @@ export function InsightsCarousel({ observations, page }: { observations: Observa
               </span>
               <div className="flex-1" />
               <div>
-                <h3 className="text-[#fafafa] text-[17px] md:text-[16.5px] font-bold tracking-[-0.015em] mt-3 leading-[1.25]">
+                <h3 className="font-display text-insight text-[#fafafa] mt-3">
                   {obs.title}
                 </h3>
-                <p className="text-[15.5px] md:text-[18.5px] leading-[1.55] text-[#9ca0a8] mt-2">
+                <p className="font-display text-insight-body md:text-insight-body-lg text-[#9ca0a8] mt-2">
                   {obs.text}
                 </p>
                 {obs.action && (
-                  <p className="text-[15.5px] md:text-[18.5px] leading-[1.55] text-[#d4d4d8] md:text-[#9ca0a8] mt-3 md:mt-4">
+                  <p className="font-display text-insight-body md:text-insight-body-lg text-[#d4d4d8] md:text-[#9ca0a8] mt-3 md:mt-4">
                     {obs.action}
                   </p>
                 )}
@@ -266,7 +266,7 @@ export function InsightsCarousel({ observations, page }: { observations: Observa
           ))}
         </div>
         
-        <p className="text-zinc-500 text-[11px] mt-1 px-4 md:px-0 text-center max-w-lg mx-auto">
+        <p className="text-caption text-zinc-500 mt-1 px-4 md:px-0 text-center max-w-lg mx-auto">
           General wellness information, not medical advice. Healthier is not a medical device. If you're worried about your health, talk to a clinician.
         </p>
       </div>

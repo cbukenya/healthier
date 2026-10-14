@@ -106,14 +106,14 @@ export function LastSevenNights({ days, shift, needMin, debt, wide }: {
   return (
     <Card className="px-[18px] pt-4 pb-3.5 md:px-5 md:py-[18px] flex flex-col gap-3 md:gap-3.5">
       <div className="flex items-baseline justify-between gap-2">
-        <h2 className="text-[15px] font-semibold text-zinc-50">Last 7 nights</h2>
-        <span className="text-[12px] text-zinc-500">{formatCivilRange(days[0].date, days[days.length - 1].date)}</span>
+        <h2 className="font-display text-title text-zinc-50">Last 7 nights</h2>
+        <span className="text-detail text-zinc-500">{formatCivilRange(days[0].date, days[days.length - 1].date)}</span>
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-[220px_minmax(0,1fr)_230px] gap-3 lg:gap-7 items-center">
         <div>
           <div className="whitespace-nowrap">
-            <span className="text-[28px] md:text-[30px] leading-tight font-semibold tracking-[-0.01em] text-zinc-50 tabular-nums">{fmtDuration(shift.current)}</span>
-            <span className="text-[12px] md:text-[13px] text-zinc-500"> a night</span>
+            <span className="font-display text-number-md md:text-number-lg text-zinc-50 tabular-nums">{fmtDuration(shift.current)}</span>
+            <span className="text-detail md:text-body-sm text-zinc-500"> a night</span>
           </div>
           <div className="mt-1 md:mt-1.5">
             <Delta value={shift.delta} goodWhen="up" digits={0} suffix="min vs the 7 before" />
@@ -175,22 +175,22 @@ function NightBars({ days, needMin, need, wide }: { days: DailyRecord[]; needMin
         </div>
         {/* The need line, over the bars, labelled in the gutter on the right. */}
         <div className="absolute left-0 right-[30px] border-t border-dashed border-zinc-400/70" style={{ bottom: px(needMin) + 1 }} />
-        <span className="absolute right-0 translate-y-1/2 text-[10px] leading-none text-zinc-500" style={{ bottom: px(needMin) + 1 }}>{need}</span>
+        <span className="absolute right-0 translate-y-1/2 text-note leading-none text-zinc-500" style={{ bottom: px(needMin) + 1 }}>{need}</span>
       </div>
       <div className={`${columns} mt-1.5`}>
         {scored.map((n) => (
-          <span key={n.date} className="text-center text-[10.5px] text-zinc-500">{wide ? weekdayShort(n.date) : weekdayLetter(n.date)}</span>
+          <span key={n.date} className="text-center text-note text-zinc-500">{wide ? weekdayShort(n.date) : weekdayLetter(n.date)}</span>
         ))}
       </div>
       <div className={`relative ${columns} mt-1`}>
         {scored.map((n) => (
-          <span key={n.date} className="text-center text-[11px] font-semibold tabular-nums" style={{ color: n.score === null ? '#52525b' : getScoreTier(n.score).dotColor }}>
+          <span key={n.date} className="text-center text-caption font-semibold tabular-nums" style={{ color: n.score === null ? '#52525b' : getScoreTier(n.score).dotColor }}>
             {n.score ?? '–'}
           </span>
         ))}
-        <span className="absolute right-0 top-0.5 text-[9.5px] font-medium text-zinc-500">score</span>
+        <span className="absolute right-0 top-0.5 text-micro font-medium text-zinc-500">score</span>
       </div>
-      <div className="mt-2.5 flex gap-3.5 text-[10px] text-zinc-500">
+      <div className="mt-2.5 flex gap-3.5 text-note text-zinc-500">
         {STAGES.map((s) => (
           <span key={s.key} className="flex items-center gap-1.5">
             <span className="size-2 rounded-[2px]" style={{ background: s.color }} />
@@ -226,7 +226,7 @@ export function Naps({ naps, spanDays, wide }: { naps: SleepSession[]; spanDays:
         )}
       />
       <div className="px-5 pb-4 md:pb-5">
-        {naps.length === 0 && <p className="text-[11px] text-zinc-500">No naps in these {spanDays} days.</p>}
+        {naps.length === 0 && <p className="text-caption text-zinc-500">No naps in these {spanDays} days.</p>}
         {shown.map((n) => (
           <Row key={n.bedtimeIso} dense={!wide} label={formatCivilLong(n.date)}>
             {napLength(n.minutesAsleep)}
@@ -238,7 +238,7 @@ export function Naps({ naps, spanDays, wide }: { naps: SleepSession[]; spanDays:
             type="button"
             onClick={() => setShowAll(!showAll)}
             aria-expanded={showAll}
-            className="mt-2 w-full min-h-11 rounded-xl border border-[#27272a] text-[13px] text-[#a1a1aa] hover:text-zinc-100 hover:bg-zinc-900 transition-colors"
+            className="mt-2 w-full min-h-11 rounded-xl border border-[#27272a] text-body-sm text-[#a1a1aa] hover:text-zinc-100 hover:bg-zinc-900 transition-colors"
           >
             {showAll ? `Show the latest ${NAPS_SHOWN}` : `Show all ${naps.length} naps`}
           </button>

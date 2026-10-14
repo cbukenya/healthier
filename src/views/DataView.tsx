@@ -78,16 +78,16 @@ export function DataView({ data, onFullSync, onDisconnect }: { data: SyncResult;
           <CardHead title="Sync status" />
           <div className="px-5 pb-5">
             <div className="space-y-3">
-              <div className="flex justify-between text-[11px]">
+              <div className="flex justify-between text-caption">
                 <span className="text-zinc-500">Window</span>
                 <span className="text-zinc-200">{formatCivil(data.meta.from)} → {formatCivil(data.meta.to)}</span>
               </div>
-              <div className="flex justify-between text-[11px]">
+              <div className="flex justify-between text-caption">
                 <span className="text-zinc-500">Total days</span>
                 <span className="text-zinc-200 tabular-nums">{data.days.length}</span>
               </div>
               {history?.from && (
-                <div className="flex justify-between text-[11px]">
+                <div className="flex justify-between text-caption">
                   <span className="text-zinc-500">History</span>
                   <span className="text-zinc-200 text-right">
                     from {formatCivil(history.from)} {history.from.slice(0, 4)} ·{' '}
@@ -101,15 +101,15 @@ export function DataView({ data, onFullSync, onDisconnect }: { data: SyncResult;
                   </span>
                 </div>
               )}
-              <div className="flex justify-between text-[11px]">
+              <div className="flex justify-between text-caption">
                 <span className="text-zinc-500">Total requests</span>
                 <span className="text-zinc-200 tabular-nums">{data.meta.totalRequests}</span>
               </div>
-              <div className="flex justify-between text-[11px]">
+              <div className="flex justify-between text-caption">
                 <span className="text-zinc-500">Sync duration</span>
                 <span className="text-zinc-200 tabular-nums">{data.meta.ms} ms</span>
               </div>
-              <div className="flex justify-between text-[11px]">
+              <div className="flex justify-between text-caption">
                 <span className="text-zinc-500">Served from</span>
                 <span className={data.meta.fromCache ? 'text-emerald-400' : 'text-zinc-200'}>
                   {data.meta.fromCache ? `Server (${Math.round(data.meta.cacheAgeMs! / 60000)}m old)` : 'Network'}
@@ -119,14 +119,14 @@ export function DataView({ data, onFullSync, onDisconnect }: { data: SyncResult;
             
             <button
               onClick={onFullSync}
-              className="mt-6 w-full flex items-center justify-center gap-2 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 transition-colors text-[11px] font-medium text-zinc-200"
+              className="mt-6 w-full flex items-center justify-center gap-2 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 transition-colors text-caption font-medium text-zinc-200"
             >
               <RefreshCw size={12} /> Force full sync
             </button>
             {onDisconnect && (
               <button
                 onClick={onDisconnect}
-                className="mt-2 w-full py-2 rounded-lg text-[11px] font-medium text-rose-400 hover:bg-rose-500/10 transition-colors"
+                className="mt-2 w-full py-2 rounded-lg text-caption font-medium text-rose-400 hover:bg-rose-500/10 transition-colors"
               >
                 Disconnect Google &amp; delete my data
               </button>
@@ -159,7 +159,7 @@ export function DataView({ data, onFullSync, onDisconnect }: { data: SyncResult;
             />
             <div className="px-5 pb-5 overflow-x-auto">
               <div className={`min-w-[400px] ${hrRows.length > 20 ? 'space-y-1' : 'space-y-1.5'}`}>
-                <div className="flex gap-0.5 pl-[64px] text-[9px] text-zinc-500 mb-1">
+                <div className="flex gap-0.5 pl-[64px] text-micro text-zinc-500 mb-1">
                   {Array.from({ length: 24 }).map((_, i) => (
                     <div key={i} className="flex-1 text-center">
                       {String(i).padStart(2, '0')}
@@ -168,7 +168,7 @@ export function DataView({ data, onFullSync, onDisconnect }: { data: SyncResult;
                 </div>
                 {hrRows.map((row, index) => (
                   <div key={row.key} className="flex items-center gap-2">
-                    <div className="w-14 text-[10px] text-zinc-400 shrink-0 tabular-nums text-right">
+                    <div className="w-14 text-note text-zinc-400 shrink-0 tabular-nums text-right">
                       {hrRows.length <= 14 || index % 2 === 0 ? row.label : ''}
                     </div>
                     <div className="flex gap-0.5 flex-1">
@@ -197,7 +197,7 @@ export function DataView({ data, onFullSync, onDisconnect }: { data: SyncResult;
         </div>
         <Card className="lg:col-span-4">
           <CardHead title="Intraday Data Sync and smoothing" domain="cardio" />
-          <div className="px-5 pb-5 text-[11px] text-zinc-400 space-y-4">
+          <div className="px-5 pb-5 text-caption text-zinc-400 space-y-4">
             <p>
               Google's raw heart rate feed provides a sample every few seconds. Rather than downloading those, this app
               asks Google to roll them up into 1-minute averages, which covers the whole {data.days.length}-day window in
@@ -218,7 +218,7 @@ export function DataView({ data, onFullSync, onDisconnect }: { data: SyncResult;
           domain="data"
         />
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-[11px]">
+          <table className="w-full text-left text-caption">
             <thead>
               <tr className="border-b border-zinc-800 text-zinc-500">
                 <th className="font-normal px-5 py-2">dataType</th>
@@ -243,10 +243,10 @@ export function DataView({ data, onFullSync, onDisconnect }: { data: SyncResult;
                     >
                       <td className="px-5 py-2.5 font-mono text-zinc-400">
                         {s.dataType}
-                        {s.truncated && <span className="ml-2 text-[9px] px-1 py-0.5 rounded bg-amber-500/20 text-amber-300">TRUNCATED</span>}
+                        {s.truncated && <span className="ml-2 text-micro px-1 py-0.5 rounded bg-amber-500/20 text-amber-300">TRUNCATED</span>}
                       </td>
                       <td className="px-2 py-2.5">
-                        <span className={`px-1.5 py-0.5 rounded text-[10px] uppercase tracking-wider font-medium ${
+                        <span className={`px-1.5 py-0.5 rounded text-note uppercase tracking-wider font-medium ${
                           isErr ? 'bg-rose-500/10 text-rose-400' : 
                           isSkipped ? 'bg-zinc-800 text-zinc-500' :
                           isEmpty ? 'bg-amber-500/10 text-amber-400/80' : 
@@ -264,7 +264,7 @@ export function DataView({ data, onFullSync, onDisconnect }: { data: SyncResult;
                     {selectedStream === s.dataType && s.error && (
                       <tr className="bg-zinc-950/80">
                         <td colSpan={7} className="px-5 py-4 border-b border-zinc-900">
-                          <div className="p-2 rounded bg-rose-500/10 border border-rose-500/20 text-rose-400 text-[11px] font-mono whitespace-pre-wrap">
+                          <div className="p-2 rounded bg-rose-500/10 border border-rose-500/20 text-rose-400 text-caption font-mono whitespace-pre-wrap">
                             {s.error}
                           </div>
                         </td>

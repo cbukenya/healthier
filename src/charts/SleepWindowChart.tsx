@@ -165,11 +165,11 @@ export function SleepWindowChart({
     <Card>
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 sm:gap-6 px-5 pt-4 pb-1">
         <div className="min-w-0">
-          <h3 className="text-[13px] font-semibold text-zinc-100 tracking-tight flex items-center gap-2">
+          <h3 className="font-display text-title-sm text-zinc-100 flex items-center gap-2">
             <span className="w-1.5 h-1.5 rounded-full bg-indigo-500/10 ring-2 ring-indigo-500/25" />
             Sleep window
           </h3>
-          <p className="text-[11px] text-zinc-500 mt-1 leading-relaxed max-w-none sm:max-w-md">
+          <p className="text-caption text-zinc-500 mt-1 leading-relaxed max-w-none sm:max-w-md">
             {bucket === 'day'
               ? 'One bar per night, bed to wake, coloured by stage.'
               : `One bar per ${unitName}: its typical bedtime and time in bed, coloured by average stage.`}{' '}
@@ -182,27 +182,27 @@ export function SleepWindowChart({
 
         {/* ── Sleep Regularity Index, computed over exactly these days ── */}
         <div className="text-left sm:text-right shrink-0 w-full sm:w-auto sm:max-w-[280px] pt-3 sm:pt-0 border-t border-zinc-800/60 sm:border-t-0">
-          <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
+          <div className="text-eyebrow uppercase text-zinc-500">
             Sleep regularity
           </div>
           {reg ? (
             <>
               <div className="flex sm:block items-baseline gap-2.5 sm:gap-0 mt-0.5 sm:mt-0">
-                <div className="text-[16px] sm:text-[19px] font-bold tracking-wide" style={{ color: REG_COPY[reg.band].color }}>
+                <div className="text-tag sm:text-tag-lg" style={{ color: REG_COPY[reg.band].color }}>
                   {REG_COPY[reg.band].label}
                 </div>
-                <div className="text-[22px] sm:text-[27px] font-bold text-zinc-50 tabular-nums leading-tight">
+                <div className="font-display text-number-sm sm:text-number-md font-bold text-zinc-50 tabular-nums leading-tight">
                   {reg.score}
-                  <span className="text-[13px] font-medium text-zinc-500">/100</span>
+                  <span className="font-sans text-body-sm font-medium text-zinc-500">/100</span>
                 </div>
               </div>
-              <p className="text-[10.5px] text-zinc-500 mt-1.5 leading-relaxed">
+              <p className="text-note text-zinc-500 mt-1.5 leading-relaxed">
                 {REG_COPY[reg.band].text} Scored from how often you're asleep or awake at the same clock
                 times on back-to-back days ({reg.pairs} pairs of nights).
               </p>
             </>
           ) : (
-            <p className="text-[10.5px] text-zinc-500 mt-1.5 leading-relaxed">
+            <p className="text-note text-zinc-500 mt-1.5 leading-relaxed">
               Needs five back-to-back recorded nights in this span.
             </p>
           )}
@@ -337,12 +337,12 @@ export function SleepWindowChart({
 
       <div className="flex flex-wrap gap-x-4 gap-y-1.5 px-5 pb-4">
         {STAGE_FILL.map(([k, color]) => (
-          <span key={k} className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-zinc-500">
+          <span key={k} className="flex items-center gap-1.5 text-note uppercase tracking-wider text-zinc-500">
             <i className="w-2.5 h-2.5 rounded-sm" style={{ background: color }} />
             {k}
           </span>
         ))}
-        <span className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-zinc-500">
+        <span className="flex items-center gap-1.5 text-note uppercase tracking-wider text-zinc-500">
           <i className="w-3 h-2.5 rounded-[2px] border border-dashed"
             style={{ borderColor: useAvg ? '#818cf8aa' : '#34d399aa' }} />
           {useAvg
