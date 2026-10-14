@@ -29,7 +29,7 @@ export function ChartChips<K extends string>({ label, options, value, onChange }
           type="button"
           onClick={() => onChange(o.key)}
           aria-pressed={value === o.key}
-          className={`${SPAN[spanOf(i, options.length)]} min-h-11 px-1.5 rounded-xl border text-[13px] font-medium transition-colors ${
+          className={`${SPAN[spanOf(i, options.length)]} min-h-11 px-1.5 rounded-xl border text-body-sm font-medium transition-colors ${
             value === o.key ? 'bg-zinc-800 border-zinc-700 text-zinc-50' : 'border-zinc-800 text-zinc-400 hover:text-zinc-200'
           }`}
         >

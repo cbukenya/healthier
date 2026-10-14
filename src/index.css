@@ -2,7 +2,129 @@
 
 @theme {
   --font-sans: "DM Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --font-display: "Syne", "DM Sans", -apple-system, sans-serif;
+  /* Titles, big numbers and insights: the voice of the app. Everything else is set in --font-sans. */
+  --font-display: "DM Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+
+  /*
+   * Type roles. Each sets a size, plus the line height, tracking and weight the role is
+   * set in; an element's own leading-*, tracking-* and font-* classes still win.
+   * Roles in the display face pair with font-display.
+   */
+
+  /* Text, small to large */
+  --text-micro: 9px;
+  --text-micro--line-height: 1.5;
+  --text-note: 10px;
+  --text-note--line-height: 1.5;
+  --text-caption: 11px;
+  --text-caption--line-height: 1.5;
+  --text-detail: 12px;
+  --text-detail--line-height: 1.5;
+  --text-body-sm: 13px;
+  --text-body-sm--line-height: 1.5;
+  --text-body: 14px;
+  --text-body--line-height: 1.5;
+  --text-body-lg: 17px;
+  --text-body-lg--line-height: 1.5;
+  --text-lead: 18.5px;
+  --text-lead--line-height: 1.55;
+
+  /* Labels: uppercase, tracked out */
+  --text-eyebrow-sm: 9.5px;
+  --text-eyebrow-sm--line-height: 1.5;
+  --text-eyebrow-sm--letter-spacing: 0.12em;
+  --text-eyebrow-sm--font-weight: 600;
+  --text-eyebrow: 10.5px;
+  --text-eyebrow--line-height: 1.5;
+  --text-eyebrow--letter-spacing: 0.16em;
+  --text-eyebrow--font-weight: 600;
+  --text-eyebrow-lg: 13px;
+  --text-eyebrow-lg--line-height: 1.5;
+  --text-eyebrow-lg--letter-spacing: 0.2em;
+  --text-eyebrow-lg--font-weight: 600;
+  --text-section: 11px;
+  --text-section--line-height: 1.5;
+  --text-section--letter-spacing: 0.1em;
+  --text-section--font-weight: 700;
+
+  /* Status tags such as [BALANCED] */
+  --text-tag: 14px;
+  --text-tag--line-height: 1.5;
+  --text-tag--letter-spacing: 0.02em;
+  --text-tag--font-weight: 700;
+  --text-tag-lg: 21px;
+  --text-tag-lg--line-height: 1.5;
+  --text-tag-lg--letter-spacing: 0.02em;
+  --text-tag-lg--font-weight: 700;
+
+  /* Display face: page titles, verdicts, card titles, insights */
+  --text-display: 22px;
+  --text-display--line-height: 1.5;
+  --text-display--letter-spacing: -0.02em;
+  --text-display--font-weight: 700;
+  --text-display-lg: 34px;
+  --text-display-lg--line-height: 1.5;
+  --text-display-lg--letter-spacing: -0.02em;
+  --text-display-lg--font-weight: 700;
+  --text-headline-sm: 16px;
+  --text-headline-sm--line-height: 1.25;
+  --text-headline-sm--font-weight: 700;
+  --text-headline: 18px;
+  --text-headline--line-height: 1.25;
+  --text-headline--font-weight: 700;
+  --text-headline-lg: 29px;
+  --text-headline-lg--line-height: 1.5;
+  --text-headline-lg--letter-spacing: -0.01em;
+  --text-headline-lg--font-weight: 700;
+  --text-title-sm: 13px;
+  --text-title-sm--line-height: 1.5;
+  --text-title-sm--letter-spacing: -0.025em;
+  --text-title-sm--font-weight: 600;
+  --text-title: 16px;
+  --text-title--line-height: 1.5;
+  --text-title--font-weight: 600;
+  --text-insight: 17px;
+  --text-insight--line-height: 1.25;
+  --text-insight--letter-spacing: -0.015em;
+  --text-insight--font-weight: 700;
+  --text-insight-body: 15.5px;
+  --text-insight-body--line-height: 1.55;
+  --text-insight-body-lg: 18.5px;
+  --text-insight-body-lg--line-height: 1.55;
+
+  /* Display face: numbers, from a row's stat to the battery score */
+  --text-number-xs: 18px;
+  --text-number-xs--line-height: 1.5;
+  --text-number-xs--letter-spacing: -0.01em;
+  --text-number-xs--font-weight: 600;
+  --text-number-sm: 22px;
+  --text-number-sm--line-height: 1.5;
+  --text-number-sm--letter-spacing: -0.01em;
+  --text-number-sm--font-weight: 600;
+  --text-number: 24px;
+  --text-number--line-height: 1.333;
+  --text-number--letter-spacing: -0.02em;
+  --text-number--font-weight: 600;
+  --text-number-md: 28px;
+  --text-number-md--line-height: 1.25;
+  --text-number-md--letter-spacing: -0.01em;
+  --text-number-md--font-weight: 600;
+  --text-number-lg: 30px;
+  --text-number-lg--line-height: 1.25;
+  --text-number-lg--letter-spacing: -0.01em;
+  --text-number-lg--font-weight: 600;
+  --text-number-xl: 44px;
+  --text-number-xl--line-height: 1.1;
+  --text-number-xl--letter-spacing: -0.025em;
+  --text-number-xl--font-weight: 600;
+  --text-number-2xl: 56px;
+  --text-number-2xl--line-height: 1.05;
+  --text-number-2xl--letter-spacing: -0.03em;
+  --text-number-2xl--font-weight: 700;
+  --text-number-3xl: 84px;
+  --text-number-3xl--line-height: 1.1;
+  --text-number-3xl--letter-spacing: -0.03em;
+  --text-number-3xl--font-weight: 700;
 }
 
 @layer base {

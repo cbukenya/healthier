@@ -114,7 +114,7 @@ export function ActivityView({ data, clock, intraday }: { data: SyncResult; cloc
             const modMean = stats(values(series(window, d => d.activeMinutes?.moderate ?? null)))?.mean ?? 0;
             const vigMean = stats(values(series(window, d => d.activeMinutes?.vigorous ?? null)))?.mean ?? 0;
             return (
-              <div className="flex items-center gap-2.5 text-[11px] font-medium text-zinc-300">
+              <div className="flex items-center gap-2.5 text-caption font-medium text-zinc-300">
                 <span className="text-zinc-500">{latestMixRow.date === today ? 'avg vs today so far (min):' : 'avg vs latest (min):'}</span>
                 <span className="flex items-center gap-1.5" title="Light minutes"><i className="w-2 h-2 rounded-full bg-[#22c55e]" /> {fmtNum(lightMean, 0)}/{fmtNum(latestMixRow.activeMinutes.light, 0)}</span>
                 <span className="flex items-center gap-1.5" title="Moderate minutes"><i className="w-2 h-2 rounded-full bg-[#eab308]" /> {fmtNum(modMean, 0)}/{fmtNum(latestMixRow.activeMinutes.moderate, 0)}</span>
@@ -212,7 +212,7 @@ export function ActivityView({ data, clock, intraday }: { data: SyncResult; cloc
       </div>
 
       <div className="flex items-center justify-between px-1">
-        <h2 className="text-[11px] font-bold text-zinc-500 uppercase tracking-widest">
+        <h2 className="text-section uppercase text-zinc-500">
           Your movement over time
         </h2>
         <SpanSelector state={spanState} />

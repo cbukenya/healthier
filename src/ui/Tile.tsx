@@ -29,8 +29,8 @@ export function Tile({ label, icon, value, pill, chart, rows, empty, note }: {
           {shown.map(([k, v]) => <Row key={k} label={k} dense>{v}</Row>)}
         </div>
       )}
-      {empty && <p className="text-[11.5px] leading-[1.5] text-zinc-500">{empty}</p>}
-      {note && <p className="text-[10px] text-amber-400/80">{note}</p>}
+      {empty && <p className="text-caption text-zinc-500">{empty}</p>}
+      {note && <p className="text-note text-amber-400/80">{note}</p>}
     </article>
   );
 }
