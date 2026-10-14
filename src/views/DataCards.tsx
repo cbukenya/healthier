@@ -1,13 +1,15 @@
 import React, { useEffect, useId, useMemo, useState } from 'react';
 import { ChevronDown, Lock, Minus, Plus, RefreshCw } from 'lucide-react';
 import { daysBetween, formatCivil, type CivilDate } from '../lib/date';
-import { NEED_ESTIMATE } from '../pipeline/derive';
+import { BASELINE_DAYS, NEED_ESTIMATE } from '../pipeline/derive';
+import { REFETCH_DAYS } from '../pipeline/incremental';
 import { DEFAULT_GOALS, GOAL_LIMITS, WHO_WEEK, fitGoal, sameGoals, type GoalLimit, type Goals } from '../pipeline/goals';
 import { DOMAIN_LABELS, INTRADAY_HEART_RATE, STREAMS, STREAMS_BY_TYPE } from '../pipeline/registry';
 import type { SyncResult } from '../pipeline/sync';
 import type { HistoryInfo } from '../types/api';
 import type { MetricDomain, StreamReport } from '../types/health';
 import { useGoalsControl } from '../hooks/useGoals';
+import { SPANS } from '../ui/span';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 import { Card, CardHead, DURATION_UNIT, fmtDuration, withUnits } from '../ui/primitives';
 
@@ -114,6 +116,68 @@ export function SyncStatus({
           </button>
         )}
       </div>
+    </Card>
+  );
+}
+
+// ─────────────────────────────────────────────────────────── data facts
+
+/** "August 2024". */
+const monthYear = (date: CivilDate) =>
+  new Date(`${date}T12:00:00Z`).toLocaleDateString('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+
+/**
+ * What anyone needs to know to trust the numbers, in everyday words: no AI,
+ * what "usual" means, the span things cover, how missing days are treated and
+ * where the data is smoothed. Each figure comes from the constant it describes.
+ */
+export function DataFacts({ windowDays, windowFrom, historyFrom, className = '' }: {
+  windowDays: number;
+  /** The window's first day: history older than this reaches the longer views. */
+  windowFrom: CivilDate;
+  historyFrom: CivilDate | null;
+  className?: string;
+}) {
+  // The words are the app's own: body battery, sleep score, insights, usual, window, history, sync, Today so far, Labs.
+  // The span buttons past the window, by their own labels: "90d, 1y and All".
+  const longer = SPANS.filter((s) => s.days > windowDays).map((s) => s.label);
+  const views = longer.length < 2 ? longer.join('') : `${longer.slice(0, -1).join(', ')} and ${longer[longer.length - 1]}`;
+  const history = historyFrom && historyFrom < windowFrom && longer.length
+    ? ` The ${views} views add your history, back to ${monthYear(historyFrom)}.`
+    : '';
+  const facts: [lead: string, text: string][] = [
+    [
+      'Arithmetic, not AI',
+      "Your body battery, sleep score and insights are worked out with plain arithmetic from your own data. Nothing is written or guessed by AI. Sleep stages and cardio fitness are your watch's own estimates.",
+    ],
+    [
+      'Usual means usual for you',
+      `Anything called usual or unusual is compared with your own last ${BASELINE_DAYS} days, not with other people. One odd day won't change what's normal for you.`,
+    ],
+    [
+      `Your ${windowDays}-day window`,
+      `Your insights and most charts use your window, the last ${windowDays} days.${history} Every sync re-checks the last ${REFETCH_DAYS} days, because watches often send data late.`,
+    ],
+    [
+      'Missing days stay blank',
+      'A day with nothing recorded shows a dash, not a zero, and is left out of every average. Today so far joins your averages once the day is over.',
+    ],
+    [
+      'Heart rate, minute by minute',
+      'Your watch measures your heart rate every few seconds. Healthier keeps one average per minute for the heart rate charts and Labs, so very short spikes are smoothed out.',
+    ],
+  ];
+  return (
+    <Card className={className}>
+      <CardHead title="Data facts" domain="data" />
+      <ul className="px-5 pb-2">
+        {facts.map(([lead, text], i) => (
+          <li key={lead} className={i ? 'py-3 border-t border-zinc-800/60' : 'pt-1 pb-3'}>
+            <div className="text-body-sm font-medium text-zinc-200">{lead}</div>
+            <p className="mt-0.5 text-caption leading-relaxed text-zinc-400">{text}</p>
+          </li>
+        ))}
+      </ul>
     </Card>
   );
 }

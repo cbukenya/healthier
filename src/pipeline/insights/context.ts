@@ -4,7 +4,7 @@ import type { HistoryAnswers } from '../history';
 import type { IntradayDays } from '../labs';
 import type { ProfileFacts } from '../registry';
 import {
-  isRecent, loadRatio, readiness, series, sleepDebt, sleepNeedFor, stats, values,
+  BASELINE_DAYS, isRecent, loadRatio, readiness, series, sleepDebt, sleepNeedFor, stats, values,
   type Point, type Readiness,
 } from '../derive';
 import { DEFAULT_GOALS, type Goals } from '../goals';
@@ -110,7 +110,7 @@ export function buildContext(ds: InsightDataset, now: Date, extras?: InsightOpti
     needH: hm(need),
     stepsSeries,
     doneSteps,
-    stepMedian: stats(values(doneSteps.slice(-28)))?.median ?? null,
+    stepMedian: stats(values(doneSteps.slice(-BASELINE_DAYS)))?.median ?? null,
     lastNightDay,
     lastNight: lastNightDay?.sleep ?? null,
     lastNightIsRecent: isRecent(lastNightDay?.date, today),

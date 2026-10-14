@@ -1,11 +1,11 @@
 import type { DailyRecord, IntradaySample, SleepSession } from '../types/health';
-import { series, compareToBaseline, stats, values } from './derive';
+import { BASELINE_DAYS, BASELINE_MIN_READINGS, series, compareToBaseline, stats, values } from './derive';
 import { formatCivil, formatClock, addDays } from '../lib/date';
 import type { SyncResult } from './sync';
 
 export function calculateOffSignals(days: DailyRecord[], index: number): number {
   const slice = days.slice(0, index + 1);
-  const rhr = compareToBaseline(series(slice, d => d.restingHr), 28, 8);
+  const rhr = compareToBaseline(series(slice, d => d.restingHr), BASELINE_DAYS, BASELINE_MIN_READINGS);
   const resp = compareToBaseline(series(slice, d => d.respiratoryRate));
   const tempDev = slice[slice.length - 1].skinTempDeviationC;
   const hrvSeries = series(slice, (d) => {
@@ -18,7 +18,7 @@ export function calculateOffSignals(days: DailyRecord[], index: number): number 
   if (resp.z !== null && resp.n >= 8 && resp.z >= 1.5) offSignals++;
   if (tempDev !== null && tempDev >= 0.5) offSignals++;
   
-  const hrvZ = compareToBaseline(hrvSeries, 28, 8);
+  const hrvZ = compareToBaseline(hrvSeries, BASELINE_DAYS, BASELINE_MIN_READINGS);
   if (hrvZ.z !== null && hrvZ.n >= 8 && hrvZ.z <= -1.5) offSignals++;
   
   return offSignals;
@@ -68,7 +68,7 @@ export function strainToday(days: DailyRecord[]): StrainToday {
   const judge = (key: StrainKey): StrainSignal['status'] => {
     switch (key) {
       case 'restingHr': {
-        const c = compareToBaseline(series(days, (d) => d.restingHr), 28, 8);
+        const c = compareToBaseline(series(days, (d) => d.restingHr), BASELINE_DAYS, BASELINE_MIN_READINGS);
         return c.z === null || c.n < 8 ? 'none' : c.z >= 1.5 ? 'off' : 'in';
       }
       case 'breathing': {
@@ -77,7 +77,7 @@ export function strainToday(days: DailyRecord[]): StrainToday {
       }
       case 'hrv': {
         if (logHrv(latest) === null) return 'none';
-        const c = compareToBaseline(series(days, logHrv), 28, 8);
+        const c = compareToBaseline(series(days, logHrv), BASELINE_DAYS, BASELINE_MIN_READINGS);
         return c.z === null || c.n < 8 ? 'none' : c.z <= -1.5 ? 'off' : 'in';
       }
       case 'skinTemp':

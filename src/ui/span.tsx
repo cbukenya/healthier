@@ -15,7 +15,7 @@ import type { DailyRecord } from '../types/health';
 
 export type SpanId = '14' | '30' | '90' | '365' | 'all';
 
-const OPTIONS: { id: SpanId; label: string; days: number }[] = [
+export const SPANS: { id: SpanId; label: string; days: number }[] = [
   { id: '14', label: '14d', days: 14 },
   { id: '30', label: '30d', days: 30 },
   { id: '90', label: '90d', days: 90 },
@@ -82,9 +82,9 @@ export function SpanSelector({ state }: { state: SpanState }) {
     <div className="flex items-center gap-2">
       {note && <span className="text-note text-zinc-500 animate-pulse">{note}</span>}
       <div className="inline-flex bg-zinc-950/80 border border-zinc-800 rounded-lg p-0.5" role="tablist">
-        {OPTIONS.map((o, i) => {
+        {SPANS.map((o, i) => {
           // Enabled once history reaches past the previous option, so it shows something new.
-          const enabled = i === 0 || state.available > OPTIONS[i - 1].days;
+          const enabled = i === 0 || state.available > SPANS[i - 1].days;
           const active = state.span === o.id;
           return (
             <button
@@ -92,7 +92,7 @@ export function SpanSelector({ state }: { state: SpanState }) {
               role="tab"
               aria-selected={active}
               disabled={!enabled}
-              title={enabled ? undefined : `Needs more than ${OPTIONS[i - 1].label} of history`}
+              title={enabled ? undefined : `Needs more than ${SPANS[i - 1].label} of history`}
               onClick={() => state.setSpan(o.id)}
               className={`px-2 py-[3px] text-note rounded-[6px] font-medium transition-colors ${
                 active

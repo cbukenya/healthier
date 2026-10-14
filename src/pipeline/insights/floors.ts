@@ -1,4 +1,6 @@
-import { NOISE_FLOOR, compareToBaseline, isRecent, latestPoint, periodShift, series, weightTrend } from '../derive';
+import {
+  BASELINE_DAYS, BASELINE_MIN_READINGS, NOISE_FLOOR, compareToBaseline, isRecent, latestPoint, periodShift, series, weightTrend,
+} from '../derive';
 import type { InsightContext } from './context';
 import { dayMonth, fmtInt, hm, plural, sentence, sleepMins } from './helpers';
 import { TREND_KG_PER_WEEK } from './rules/body';
@@ -92,8 +94,8 @@ const floors: Record<InsightPage, (ctx: InsightContext) => FloorCopy> = {
   },
 
   vitals(ctx) {
-    const rhr = compareToBaseline(series(ctx.days, (d) => d.restingHr), 28, 8, NOISE_FLOOR.restingHr);
-    const hrv = compareToBaseline(series(ctx.days, (d) => d.hrv), 28, 8, NOISE_FLOOR.hrv);
+    const rhr = compareToBaseline(series(ctx.days, (d) => d.restingHr), BASELINE_DAYS, BASELINE_MIN_READINGS, NOISE_FLOOR.restingHr);
+    const hrv = compareToBaseline(series(ctx.days, (d) => d.hrv), BASELINE_DAYS, BASELINE_MIN_READINGS, NOISE_FLOOR.hrv);
     const rhrNow = isRecent(rhr.date, ctx.today) ? rhr : null;
     const hrvNow = isRecent(hrv.date, ctx.today) ? hrv : null;
     if (!rhrNow && !hrvNow) {

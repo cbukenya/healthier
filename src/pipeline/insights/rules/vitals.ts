@@ -1,7 +1,7 @@
 import { daysBetween } from '../../../lib/date';
 import type { DailyRecord } from '../../../types/health';
 import {
-  NOISE_FLOOR, compareToBaseline, completedDays, isRecent, periodShift, quantile, series, stats, values, type Point,
+  BASELINE_DAYS, BASELINE_MIN_READINGS, NOISE_FLOOR, compareToBaseline, completedDays, isRecent, periodShift, quantile, series, stats, values, type Point,
 } from '../../derive';
 import type { HistoryQueries } from '../../history';
 import type { InsightContext } from '../context';
@@ -90,7 +90,7 @@ function hrvTrends(ctx: InsightContext, add: Add): 'up' | 'down' | null {
 /** Last night's HRV against your own 28 days, when no trend already tells the story. */
 function hrvNight(ctx: InsightContext, add: Add, trend: 'up' | 'down' | null): void {
   const { days, today } = ctx;
-  const hrv = compareToBaseline(series(days, (d) => d.hrv), 28, 8, NOISE_FLOOR.hrv);
+  const hrv = compareToBaseline(series(days, (d) => d.hrv), BASELINE_DAYS, BASELINE_MIN_READINGS, NOISE_FLOOR.hrv);
   if (ctx.illness || !isRecent(hrv.date, today)) return;
   const value = Math.round(hrv.value!);
   const usual = Math.round(hrv.baseline!);
@@ -129,7 +129,7 @@ function hrvNight(ctx: InsightContext, add: Add, trend: 'up' | 'down' | null): v
 function restingHeartRate(ctx: InsightContext, add: Add): void {
   const { days, today } = ctx;
   const rhrSeries = series(days, (d) => d.restingHr);
-  const rhr = compareToBaseline(rhrSeries, 28, 8, NOISE_FLOOR.restingHr);
+  const rhr = compareToBaseline(rhrSeries, BASELINE_DAYS, BASELINE_MIN_READINGS, NOISE_FLOOR.restingHr);
   const recent = isRecent(rhr.date, today);
   const highStreak = trailingDays(days, (d) =>
     d.restingHr === null ? null : rhr.baseline !== null && rhr.spread !== null ? d.restingHr > rhr.baseline + 2 * rhr.spread : null,
@@ -399,7 +399,7 @@ function bounceBack(ctx: InsightContext, add: Add): void {
   const hrv = series(days, (d) => d.hrv);
   const inRange = (j: number) => {
     if (hrv[j].value === null) return null;
-    const c = compareToBaseline(hrv.slice(0, j + 1), 28, 8, NOISE_FLOOR.hrv);
+    const c = compareToBaseline(hrv.slice(0, j + 1), BASELINE_DAYS, BASELINE_MIN_READINGS, NOISE_FLOOR.hrv);
     return c.z === null ? null : c.z > -1;
   };
   const nights: number[] = [];

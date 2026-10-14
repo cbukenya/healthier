@@ -1,6 +1,8 @@
 import { addDays, daysBetween, isoWeekdayIndex, type CivilDate } from '../../lib/date';
 import type { DailyRecord, SleepSession } from '../../types/health';
-import { circularMeanMinutes, compareToBaseline, series, stats, theilSen, type Point } from '../derive';
+import {
+  BASELINE_DAYS, BASELINE_MIN_READINGS, circularMeanMinutes, compareToBaseline, series, stats, theilSen, type Point,
+} from '../derive';
 import { MEASURES, type Answer, type Measure, type Reading } from '../history';
 import { illnessDates, type IntradayDays } from '../labs';
 import { scoreSleep } from '../sleep';
@@ -67,7 +69,7 @@ export function nightsAgainstUsual(
   for (let i = Math.max(0, s.length - n); i < s.length; i++) {
     const pt = s[i];
     if (pt.value === null) { out.push(null); continue; }
-    const c = compareToBaseline(s.slice(0, i + 1), 28, 8, floor);
+    const c = compareToBaseline(s.slice(0, i + 1), BASELINE_DAYS, BASELINE_MIN_READINGS, floor);
     out.push({ date: pt.date, value: pt.value, baseline: c.baseline, z: c.z });
   }
   return out;

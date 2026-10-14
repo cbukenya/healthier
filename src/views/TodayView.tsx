@@ -2,7 +2,7 @@ import React from 'react';
 import { Footprints, Heart, Moon, Wind } from 'lucide-react';
 import { formatCivilLong, formatClock, type CivilDate } from '../lib/date';
 import {
-  compareToBaseline, goal, isRecent, latestPoint, series, NOISE_FLOOR,
+  BASELINE_DAYS, BASELINE_MIN_READINGS, compareToBaseline, goal, isRecent, latestPoint, series, NOISE_FLOOR,
   type Comparison, type Point,
 } from '../pipeline/derive';
 import { todaySummary } from '../pipeline/insights';
@@ -61,7 +61,7 @@ export function TodayView({
   // Each overnight vital from last night or the one before, never further back.
   const rhrNow = isRecent(s.rhr.date, today) ? s.rhr : null;
   const hrvNow = isRecent(s.hrv.date, today) ? s.hrv : null;
-  const resp = compareToBaseline(respSeries, 28, 8, NOISE_FLOOR.respiratoryRate);
+  const resp = compareToBaseline(respSeries, BASELINE_DAYS, BASELINE_MIN_READINGS, NOISE_FLOOR.respiratoryRate);
   const respNow = isRecent(resp.date, today) ? resp : null;
   const spo2Now = recentPoint(series(days, (d) => d.spo2?.avg ?? null), today);
   const vitalsDate = [rhrNow?.date, hrvNow?.date, respNow?.date, spo2Now?.date]
