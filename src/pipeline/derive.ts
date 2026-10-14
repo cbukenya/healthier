@@ -111,12 +111,16 @@ const NEUTRAL: Comparison = {
   deltaPct: null, z: null, band: null, n: 0,
 };
 
+/** "Usual" is the days before a reading: this many of them, and at least this many with readings. */
+export const BASELINE_DAYS = 28;
+export const BASELINE_MIN_READINGS = 8;
+
 /**
  * Compare the latest observation against its own recent history.
  * Uses median + MAD rather than mean + SD: health series are spiky, and one
  * 12,000-step Saturday shouldn't move the definition of "normal".
  */
-export function compareToBaseline(s: Point[], window = 28, minPoints = 8, floor = 0): Comparison {
+export function compareToBaseline(s: Point[], window = BASELINE_DAYS, minPoints = BASELINE_MIN_READINGS, floor = 0): Comparison {
   if (!s.length) return NEUTRAL;
   const lastIdx = lastIndexWithValue(s);
   if (lastIdx < 0) return NEUTRAL;
@@ -516,7 +520,7 @@ export function readiness(days: DailyRecord[], needSet?: number | null): Readine
   // ── 2. Resting heart rate, asymmetric ──────────────────────────────────────
   const RHR = 'daily-resting-heart-rate';
   const rhrAll = series(days, (d) => d.restingHr);
-  const rhr = compareToBaseline(sameDevice(days, RHR, (d) => d.restingHr), 28, 8, NOISE_FLOOR.restingHr);
+  const rhr = compareToBaseline(sameDevice(days, RHR, (d) => d.restingHr), BASELINE_DAYS, BASELINE_MIN_READINGS, NOISE_FLOOR.restingHr);
   const rhrOk = rhr.z !== null && rhr.n >= 8 && recent(rhr.date);
   if (rhrOk) {
     const z = rhr.z!;
@@ -588,7 +592,7 @@ export function readiness(days: DailyRecord[], needSet?: number | null): Readine
   }
 
   // ── 5. Breathing rate: penalty-only illness signal ─────────────────────────
-  const resp = compareToBaseline(series(days, (d) => d.respiratoryRate), 28, 8, NOISE_FLOOR.respiratoryRate);
+  const resp = compareToBaseline(series(days, (d) => d.respiratoryRate), BASELINE_DAYS, BASELINE_MIN_READINGS, NOISE_FLOOR.respiratoryRate);
   const respOk = resp.z !== null && resp.n >= 8 && recent(resp.date);
   if (respOk && resp.z! > 1.25) {
     const c = -Math.min((resp.z! - 1.25) * 4, 8);

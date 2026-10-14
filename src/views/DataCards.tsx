@@ -1,7 +1,8 @@
 import React, { useEffect, useId, useMemo, useState } from 'react';
 import { ChevronDown, Lock, Minus, Plus, RefreshCw } from 'lucide-react';
 import { daysBetween, formatCivil, type CivilDate } from '../lib/date';
-import { NEED_ESTIMATE } from '../pipeline/derive';
+import { BASELINE_DAYS, NEED_ESTIMATE } from '../pipeline/derive';
+import { REFETCH_DAYS } from '../pipeline/incremental';
 import { DEFAULT_GOALS, GOAL_LIMITS, WHO_WEEK, fitGoal, sameGoals, type GoalLimit, type Goals } from '../pipeline/goals';
 import { DOMAIN_LABELS, INTRADAY_HEART_RATE, STREAMS, STREAMS_BY_TYPE } from '../pipeline/registry';
 import type { SyncResult } from '../pipeline/sync';
@@ -114,6 +115,62 @@ export function SyncStatus({
           </button>
         )}
       </div>
+    </Card>
+  );
+}
+
+// ─────────────────────────────────────────────────────────── data facts
+
+/** "August 2024". */
+const monthYear = (date: CivilDate) =>
+  new Date(`${date}T12:00:00Z`).toLocaleDateString('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+
+/**
+ * What anyone needs to know to trust the numbers, in everyday words: no AI,
+ * what "usual" means, the span things cover, how missing days are treated and
+ * where the data is smoothed. Each figure comes from the constant it describes.
+ */
+export function DataFacts({ windowDays, windowFrom, historyFrom, className = '' }: {
+  windowDays: number;
+  /** The window's first day: history older than this reaches the longer views. */
+  windowFrom: CivilDate;
+  historyFrom: CivilDate | null;
+  className?: string;
+}) {
+  const reach = historyFrom && historyFrom < windowFrom ? `, and the longer views go back to ${monthYear(historyFrom)}` : '';
+  const facts: [lead: string, text: string][] = [
+    [
+      'No AI guesswork',
+      "Every score and insight is calculated from your own data, with nothing written or guessed by AI. Sleep stages and cardio fitness are your watch's own estimates.",
+    ],
+    [
+      'Usual means usual for you',
+      `Anything called usual or unusual is compared with your own last ${BASELINE_DAYS} days, not with other people. One odd day won't change what's normal for you.`,
+    ],
+    [
+      `The last ${windowDays} days`,
+      `Most of what you see covers the last ${windowDays} days${reach}. Every sync re-checks the last ${REFETCH_DAYS} days, because watches often send data late.`,
+    ],
+    [
+      'Missing days stay blank',
+      "A day with no data shows a dash, not a zero, and isn't counted in your averages. Today's steps only count once the day is over.",
+    ],
+    [
+      'Heart rate, minute by minute',
+      'Your watch measures your heart rate every few seconds. Healthier keeps one average per minute, so very short spikes are smoothed out.',
+    ],
+  ];
+  return (
+    <Card className={className}>
+      <CardHead title="Data facts" domain="data" />
+      <ul className="px-5 pb-2">
+        {facts.map(([lead, text], i) => (
+          <li key={lead} className={i ? 'py-3 border-t border-zinc-800/60' : 'pt-1 pb-3'}>
+            <div className="text-body-sm font-medium text-zinc-200">{lead}</div>
+            <p className="mt-0.5 text-caption leading-relaxed text-zinc-400">{text}</p>
+          </li>
+        ))}
+      </ul>
     </Card>
   );
 }
