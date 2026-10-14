@@ -281,13 +281,14 @@ export function TodayView({
         </div>
       </div>
 
+      {/* Stacked, the carousel comes last, as on every other page; side by side it leads the row. */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-stretch">
-        <div className="lg:col-span-8 flex flex-col h-full">
+        <div className="order-2 lg:order-1 lg:col-span-8 flex flex-col h-full">
           <InsightsCarousel observations={s.observations} />
         </div>
 
         {s.week && (
-          <div className="lg:col-span-4 flex flex-col h-full">
+          <div className="order-1 lg:order-2 lg:col-span-4 flex flex-col h-full">
             <ThisWeek week={s.week} needMin={s.sleepTargetMin} className="flex-1" />
           </div>
         )}
