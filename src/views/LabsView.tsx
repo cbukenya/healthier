@@ -155,7 +155,7 @@ function Chip({ lab }: { lab: Lab }) {
 function Answer({ text, sub }: { text: string; sub?: string }) {
   return (
     <div>
-      <p className="font-display text-headline leading-snug font-semibold text-zinc-50">{text}</p>
+      <p className="font-display text-headline leading-snug text-zinc-50">{text}</p>
       {sub && <p className="mt-1 text-caption leading-normal text-zinc-400">{sub}</p>}
     </div>
   );
@@ -178,7 +178,7 @@ function Progress({ done, total, unit }: { done: number; total: number; unit: st
 function Collecting({ text, done, total, unit, note }: { text: string; done: number; total: number; unit: string; note: string }) {
   return (
     <div>
-      <p className="font-display text-headline leading-snug font-semibold text-zinc-50">{text}</p>
+      <p className="font-display text-headline leading-snug text-zinc-50">{text}</p>
       <div className="mt-2"><Progress done={done} total={total} unit={unit} /></div>
       <p className="mt-1.5 text-caption leading-normal text-zinc-500">{note}</p>
     </div>
