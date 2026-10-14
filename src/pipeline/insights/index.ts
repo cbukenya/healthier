@@ -4,7 +4,7 @@ import type { Observation } from './types';
 
 export { HISTORY_QUERIES, evaluate, insightFeeds } from './engine';
 export { settle } from './conflicts';
-export { todaySummary, weekSummary, type WeekSummary } from './summary';
+export { monthSummary, todaySummary, weekSummary, type PeriodSummary, type WeekSummary } from './summary';
 export { needLabel, STEP_GOAL } from './helpers';
 export { movementHrvAssociation, recoveryTax, type MovementHrvAssociation } from './association';
 export type { InsightDataset, InsightOptions } from './context';

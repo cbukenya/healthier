@@ -7,7 +7,8 @@ import { splitWindow, MAX_ROLLUP_WINDOW_DAYS } from '../transport';
 import { syncHealthData } from '../sync';
 import { FIXTURE_CLOCK, buildFixturePayloads, createFixtureFetch } from '../fixtures';
 import {
-  HISTORY_QUERIES, evaluate, insightFeeds, needLabel, observations, recoveryTax, settle, todaySummary, weekSummary, type Finding,
+  HISTORY_QUERIES, evaluate, insightFeeds, monthSummary, needLabel, observations, recoveryTax, settle, todaySummary, weekSummary,
+  type Finding,
 } from '../insights';
 import { scoreSleep } from '../sleep';
 import {
@@ -2413,6 +2414,20 @@ describe('this week', () => {
   it('labels a sleep need in whole minutes', () => {
     assert.equal(needLabel(420), '7h');
     assert.equal(needLabel(437.5), '7h 18m');
+  });
+
+  it('reads the month the same way: the 30 days ending today', () => {
+    const days = syntheticDays(40, { steps: 15000 });
+    for (const d of days) d.activeMinutes = { light: 100, moderate: 10, vigorous: 5 };
+    days[20].sleep = null;
+    const m = monthSummary(days)!;
+    assert.equal(m.length, 30);
+    assert.deepEqual(m.battery.map((b) => b.date), dateRange('2026-07-11', '2026-08-09'));
+    assert.equal(m.battery[29].score, readiness(days).score);
+    assert.equal(m.sleep!.nights, 29, 'the missing night is left out, not counted as zero');
+    assert.deepEqual(m.activeMinutes, { total: 30 * 20, unit: 'brisk' });
+    assert.equal(m.steps!.days, 29, 'finished days only');
+    assert.equal(weekSummary(days)!.length, 7);
   });
 });
 

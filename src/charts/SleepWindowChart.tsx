@@ -120,6 +120,8 @@ export function SleepWindowChart({
   const ROW = dense ? 7 : mid ? 15 : 27;
   const BAR = dense ? 4 : mid ? 8 : 11;
   const labelEvery = dense ? 7 : mid ? 3 : 1;
+  // Up to a month of nights dated every third row, a ruler marks every night beside the labels.
+  const ruler = bucket === 'day' && mid && n <= 31;
   // The right-hand column (time asleep, bedtime against your average) only fits a wide card.
   const showRight = !dense && !mid && !narrow;
 
@@ -264,6 +266,12 @@ export function SleepWindowChart({
                   fontSize={dense ? 8.5 : 10.5} fill="#9ca0a8">
                   {rowLabel(d.date)}
                 </text>,
+              );
+            }
+            if (ruler) {
+              rowEls.push(
+                <line key="tick" x1={PL - (label ? 7 : 4)} x2={PL - 1} y1={cy} y2={cy} strokeWidth={1}
+                  stroke={i === 0 ? '#a1a1aa' : label ? '#52525b' : '#3f3f46'} />,
               );
             }
             if (!dense) {

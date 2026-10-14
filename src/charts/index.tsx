@@ -10,6 +10,7 @@ import { lastIndexWithValue, rollingMean, values, type Point } from '../pipeline
 import { niceScale } from '../lib/scale';
 import { bucketLabel, bucketStart, meanLabel, meanWindowFor, type Bucket } from '../pipeline/aggregate';
 import { AXIS, GRID, fmtDuration, fmtNum } from '../ui/primitives';
+import { rulerStep } from '../ui/DayRuler';
 import type { DailyRecord, SleepSession } from '../types/health';
 
 /**
@@ -77,6 +78,39 @@ export const axisTick = (v: number) => (Math.abs(v) >= 1000 ? `${Number((v / 100
 function tickInterval(n: number): number {
   if (n <= 10) return 0;
   return Math.max(1, Math.floor(n / 8));
+}
+
+/** Daily bars up to a month get a ruler on their day axis; past that the bars are too narrow to tick. */
+const RULER_MAX = 31;
+
+/** Whether a bar chart's day axis is a ruler: daily bars, too many to date one by one, at most a month. */
+const isRuler = (n: number, bucket: Bucket) => bucket === 'day' && n > 10 && n <= RULER_MAX;
+
+/**
+ * One tick of the day ruler, as a ruler marks millimetres: a short line under every day's bar and a
+ * longer one with the date under every few, counted back from the latest, so each date sits under
+ * its own bar and the newest is always dated.
+ */
+function RulerTick({ x, y, index, payload, n }: { x: number; y: number; index: number; payload: { value: string }; n: number }) {
+  const dated = (n - 1 - index) % rulerStep(n) === 0;
+  const latest = index === n - 1;
+  return (
+    <g transform={`translate(${x},${y})`}>
+      <line y1={1} y2={dated ? 7 : 4} stroke={latest ? '#a1a1aa' : dated ? AXIS : '#3f3f46'} strokeWidth={1} />
+      {dated && (
+        <text y={19} textAnchor="middle" fill={latest ? '#a1a1aa' : AXIS} fontSize={TICK.fontSize} fontWeight={latest ? 600 : 400}>
+          {payload.value}
+        </text>
+      )}
+    </g>
+  );
+}
+
+/** A bar chart's day axis: the ruler while it applies, else sparse labels. */
+function dayAxis(n: number, bucket: Bucket) {
+  return isRuler(n, bucket)
+    ? { interval: 0, tick: (p: any) => <RulerTick {...p} n={n} />, height: 30 }
+    : { interval: tickInterval(n), tick: TICK, dy: 6 };
 }
 
 // ─────────────────────────────────────────────────────────── trend (line)
@@ -265,7 +299,7 @@ export function BarSeries({
   if (!values(series).length) return <NoSeries height={height} />;
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <BarChart data={rows} margin={{ top: 8, right: goal !== undefined ? 28 : 8, left: -16, bottom: 0 }}>
+      <BarChart data={rows} margin={{ top: 8, right: goal !== undefined ? 28 : isRuler(rows.length, bucket) ? 16 : 8, left: -16, bottom: 0 }}>
         <CartesianGrid stroke={GRID} strokeDasharray="2 4" vertical={false} />
         {goal !== undefined && (
           <ReferenceLine
@@ -273,7 +307,7 @@ export function BarSeries({
             label={{ value: axisTick(goal), position: 'right', fill: AXIS, fontSize: 9 }}
           />
         )}
-        <XAxis dataKey="label" axisLine={false} tickLine={false} interval={tickInterval(rows.length)} tick={TICK} dy={6} />
+        <XAxis dataKey="label" axisLine={false} tickLine={false} {...dayAxis(rows.length, bucket)} />
         <YAxis axisLine={false} tickLine={false} tick={TICK} tickFormatter={axisTick} width={52} />
         <Tooltip
           contentStyle={tooltipStyle} itemStyle={{ color: '#a1a1aa' }}
@@ -331,9 +365,9 @@ export function StackedBars({
   if (!rows.some((r) => r.__any)) return <NoSeries height={height} />;
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <BarChart data={rows} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
+      <BarChart data={rows} margin={{ top: 8, right: isRuler(rows.length, bucket) ? 16 : 8, left: -16, bottom: 0 }}>
         <CartesianGrid stroke={GRID} strokeDasharray="2 4" vertical={false} />
-        <XAxis dataKey="label" axisLine={false} tickLine={false} interval={tickInterval(rows.length)} tick={TICK} dy={6} />
+        <XAxis dataKey="label" axisLine={false} tickLine={false} {...dayAxis(rows.length, bucket)} />
         <YAxis axisLine={false} tickLine={false} tick={TICK} tickFormatter={axisTick} width={52} />
         <Tooltip
           contentStyle={tooltipStyle} itemStyle={{ color: '#a1a1aa' }}
