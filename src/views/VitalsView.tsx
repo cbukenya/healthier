@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Activity, Droplet, Heart, Wind } from 'lucide-react';
 import { formatCivil, formatCivilLong, formatClock } from '../lib/date';
 import {
-  compareToBaseline, series, stats, values, windowShift, NOISE_FLOOR,
+  BASELINE_DAYS, BASELINE_MIN_READINGS, compareToBaseline, series, stats, values, windowShift, NOISE_FLOOR,
   type Comparison, type Point,
 } from '../pipeline/derive';
 import { DivergingBars, IntradayTrace, RangeBandChart, Spark, TrendChart } from '../charts';
@@ -70,10 +70,10 @@ export function VitalsView({ data, clock, intraday }: { data: SyncResult; clock?
   const rhrAll = series(days, (d) => d.restingHr);
   const respAll = series(days, (d) => d.respiratoryRate);
   const spo2All = series(days, (d) => d.spo2?.avg ?? null);
-  const hrvCmp = compareToBaseline(hrvAll, 28, 8, NOISE_FLOOR.hrv);
-  const rhrCmp = compareToBaseline(rhrAll, 28, 8, NOISE_FLOOR.restingHr);
-  const respCmp = compareToBaseline(respAll, 28, 8, NOISE_FLOOR.respiratoryRate);
-  const spo2Cmp = compareToBaseline(spo2All, 28, 8, NOISE_FLOOR.spo2);
+  const hrvCmp = compareToBaseline(hrvAll, BASELINE_DAYS, BASELINE_MIN_READINGS, NOISE_FLOOR.hrv);
+  const rhrCmp = compareToBaseline(rhrAll, BASELINE_DAYS, BASELINE_MIN_READINGS, NOISE_FLOOR.restingHr);
+  const respCmp = compareToBaseline(respAll, BASELINE_DAYS, BASELINE_MIN_READINGS, NOISE_FLOOR.respiratoryRate);
+  const spo2Cmp = compareToBaseline(spo2All, BASELINE_DAYS, BASELINE_MIN_READINGS, NOISE_FLOOR.spo2);
 
   if (!values(rhrAll).length) {
     return (

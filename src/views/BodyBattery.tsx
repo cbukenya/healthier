@@ -1,5 +1,5 @@
 import React, { useId, useState } from 'react';
-import { BATTERY_TIERS, batteryTier, type Readiness, type ReadinessPart } from '../pipeline/derive';
+import { BASELINE_DAYS, BATTERY_TIERS, batteryTier, type Readiness, type ReadinessPart } from '../pipeline/derive';
 
 interface BodyBatteryProps {
   /** Null when readiness can't be computed yet (too little history). */
@@ -209,7 +209,7 @@ export function BodyBattery({ score, parts, confidence, label, missing, calibrat
             Body battery <span className={`font-sans text-tag-lg ${z.color}`}>{z.tag}</span>
           </h1>
           <p className="mt-[18px] text-lead text-[#9ca0a8] max-w-[30ch]">
-            Composed from HRV, resting heart rate, holistic sleep score & architecture against your personal 28-day baselines, and multi-day ACWR training load.
+            Composed from HRV, resting heart rate, holistic sleep score & architecture against your personal {BASELINE_DAYS}-day baselines, and multi-day ACWR training load.
           </p>
           <div className="mt-[30px] inline-block bg-[#17171a] rounded-[20px] px-[30px] pt-[10px] pb-[14px]">
             <div className="flex items-baseline gap-1">

@@ -5,7 +5,7 @@ import { STREAMS } from '../pipeline/registry';
 import { Card, CardHead, Segmented } from '../ui/primitives';
 import { bucketLabel, groupDays, mean } from '../pipeline/aggregate';
 import { CoverageGrid } from '../charts';
-import { DataStreams, GoalsCard, SyncStatus } from './DataCards';
+import { DataFacts, DataStreams, GoalsCard, SyncStatus } from './DataCards';
 import type { SyncResult } from '../pipeline/sync';
 import { useHistory } from '../hooks/useHistory';
 import { SpanSelector, useSpan } from '../ui/span';
@@ -81,7 +81,8 @@ export function DataView({ data, onFullSync, onDisconnect }: { data: SyncResult;
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
         <div className="lg:col-span-8">
-          <Card>
+          {/* Full height, so it ends level with the facts beside it. */}
+          <Card className="h-full">
             <CardHead
               title="Intraday coverage (Heart rate)"
               hint={
@@ -137,20 +138,12 @@ export function DataView({ data, onFullSync, onDisconnect }: { data: SyncResult;
             </div>
           </Card>
         </div>
-        <Card className="lg:col-span-4">
-          <CardHead title="Intraday Data Sync and smoothing" domain="cardio" />
-          <div className="px-5 pb-5 text-caption text-zinc-400 space-y-4">
-            <p>
-              Google's raw heart rate feed provides a sample every few seconds. Rather than downloading those, this app
-              asks Google to roll them up into 1-minute averages, which covers the whole {data.days.length}-day window in
-              a handful of requests.
-            </p>
-            <p>
-              Each sync refetches only the last few days; older days are kept from earlier syncs. A full resync runs
-              weekly, or on demand from the button above.
-            </p>
-          </div>
-        </Card>
+        <DataFacts
+          className="lg:col-span-4"
+          windowDays={data.days.length}
+          windowFrom={data.meta.from}
+          historyFrom={history?.from ?? null}
+        />
       </div>
 
       <DataStreams data={data} />
