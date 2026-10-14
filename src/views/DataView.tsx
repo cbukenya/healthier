@@ -4,8 +4,8 @@ import { coverage } from '../pipeline/derive';
 import { STREAMS } from '../pipeline/registry';
 import { Card, CardHead, Segmented } from '../ui/primitives';
 import { bucketLabel, groupDays, mean } from '../pipeline/aggregate';
-import { RefreshCw } from 'lucide-react';
 import { CoverageGrid } from '../charts';
+import { DataStreams, SyncStatus } from './DataCards';
 import type { SyncResult } from '../pipeline/sync';
 import { useHistory } from '../hooks/useHistory';
 import { SpanSelector, useSpan } from '../ui/span';
@@ -19,8 +19,6 @@ const COVERAGE_HINT = {
 } as const;
 
 export function DataView({ data, onFullSync, onDisconnect }: { data: SyncResult; onFullSync: () => void; onDisconnect?: () => void }) {
-  const [selectedStream, setSelectedStream] = useState<string | null>(null);
-
   const spanState = useSpan(data, '90');
   const history = useHistory().info;
   const cov = coverage(spanState.days, STREAMS.map((s) => ({ dataType: s.dataType, label: s.label })));
@@ -63,7 +61,8 @@ export function DataView({ data, onFullSync, onDisconnect }: { data: SyncResult;
 
   return (
     <div className="space-y-3">
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
+      {/* The sync card is small, so the column beside the matrix has room under it. */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-start">
         <Card className="lg:col-span-8">
           <CardHead
             title="Coverage matrix"
@@ -74,69 +73,11 @@ export function DataView({ data, onFullSync, onDisconnect }: { data: SyncResult;
           <CoverageGrid rows={cov} dates={spanState.days.map((d) => d.date)} bucket={spanState.bucket} />
         </Card>
 
-        <Card className="lg:col-span-4">
-          <CardHead title="Sync status" />
-          <div className="px-5 pb-5">
-            <div className="space-y-3">
-              <div className="flex justify-between text-caption">
-                <span className="text-zinc-500">Window</span>
-                <span className="text-zinc-200">{formatCivil(data.meta.from)} → {formatCivil(data.meta.to)}</span>
-              </div>
-              <div className="flex justify-between text-caption">
-                <span className="text-zinc-500">Total days</span>
-                <span className="text-zinc-200 tabular-nums">{data.days.length}</span>
-              </div>
-              {history?.from && (
-                <div className="flex justify-between text-caption">
-                  <span className="text-zinc-500">History</span>
-                  <span className="text-zinc-200 text-right">
-                    from {formatCivil(history.from)} {history.from.slice(0, 4)} ·{' '}
-                    {history.backfilling ? (
-                      <span className="text-amber-400">importing…</span>
-                    ) : history.complete ? (
-                      <span className="text-emerald-400">complete</span>
-                    ) : (
-                      <span className="text-amber-400" title="Some streams failed to import; they retry after the next sync.">incomplete, retrying</span>
-                    )}
-                  </span>
-                </div>
-              )}
-              <div className="flex justify-between text-caption">
-                <span className="text-zinc-500">Total requests</span>
-                <span className="text-zinc-200 tabular-nums">{data.meta.totalRequests}</span>
-              </div>
-              <div className="flex justify-between text-caption">
-                <span className="text-zinc-500">Sync duration</span>
-                <span className="text-zinc-200 tabular-nums">{data.meta.ms} ms</span>
-              </div>
-              <div className="flex justify-between text-caption">
-                <span className="text-zinc-500">Served from</span>
-                <span className={data.meta.fromCache ? 'text-emerald-400' : 'text-zinc-200'}>
-                  {data.meta.fromCache ? `Server (${Math.round(data.meta.cacheAgeMs! / 60000)}m old)` : 'Network'}
-                </span>
-              </div>
-            </div>
-            
-            <button
-              onClick={onFullSync}
-              className="mt-6 w-full flex items-center justify-center gap-2 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 transition-colors text-caption font-medium text-zinc-200"
-            >
-              <RefreshCw size={12} /> Force full sync
-            </button>
-            {onDisconnect && (
-              <button
-                onClick={onDisconnect}
-                className="mt-2 w-full py-2 rounded-lg text-caption font-medium text-rose-400 hover:bg-rose-500/10 transition-colors"
-              >
-                Disconnect Google &amp; delete my data
-              </button>
-            )}
-          </div>
-        </Card>
+        <div className="lg:col-span-4 space-y-3">
+          <SyncStatus data={data} history={history} onFullSync={onFullSync} onDisconnect={onDisconnect} />
+        </div>
       </div>
 
-
-      
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
         <div className="lg:col-span-8">
           <Card>
@@ -210,73 +151,8 @@ export function DataView({ data, onFullSync, onDisconnect }: { data: SyncResult;
           </div>
         </Card>
       </div>
-  
-      <Card>
-        <CardHead
-          title="Stream diagnostics"
-          hint="HTTP outcomes per dataType. Click a failed row to see the error Google returned."
-          domain="data"
-        />
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-caption">
-            <thead>
-              <tr className="border-b border-zinc-800 text-zinc-500">
-                <th className="font-normal px-5 py-2">dataType</th>
-                <th className="font-normal px-2 py-2">Status</th>
-                <th className="font-normal px-2 py-2 text-right">In Window</th>
-                <th className="font-normal px-2 py-2 text-right">Out of Window</th>
-                <th className="font-normal px-2 py-2 text-right">Requests</th>
-                <th className="font-normal px-2 py-2 text-right">Pages</th>
-                <th className="font-normal px-5 py-2 text-right">Time</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.meta.streams.map((s) => {
-                const isErr = s.status === 'error' || s.status === 'unauthorized';
-                const isSkipped = s.status === 'skipped';
-                const isEmpty = s.status === 'empty';
-                return (
-                  <React.Fragment key={s.dataType}>
-                    <tr 
-                      className={`border-b border-zinc-900/50 transition-colors ${s.error ? 'hover:bg-zinc-800/30 cursor-pointer' : ''} ${selectedStream === s.dataType ? 'bg-zinc-800/50' : ''}`}
-                      onClick={() => s.error && setSelectedStream(selectedStream === s.dataType ? null : s.dataType)}
-                    >
-                      <td className="px-5 py-2.5 font-mono text-zinc-400">
-                        {s.dataType}
-                        {s.truncated && <span className="ml-2 text-micro px-1 py-0.5 rounded bg-amber-500/20 text-amber-300">TRUNCATED</span>}
-                      </td>
-                      <td className="px-2 py-2.5">
-                        <span className={`px-1.5 py-0.5 rounded text-note uppercase tracking-wider font-medium ${
-                          isErr ? 'bg-rose-500/10 text-rose-400' : 
-                          isSkipped ? 'bg-zinc-800 text-zinc-500' :
-                          isEmpty ? 'bg-amber-500/10 text-amber-400/80' : 
-                          'bg-emerald-500/10 text-emerald-400'
-                        }`}>
-                          {s.status}
-                        </span>
-                      </td>
-                      <td className="px-2 py-2.5 text-right text-zinc-300 tabular-nums">{s.observations}</td>
-                      <td className="px-2 py-2.5 text-right text-zinc-500 tabular-nums">{s.parsedOutsideWindow ?? 0}</td>
-                      <td className="px-2 py-2.5 text-right text-zinc-300 tabular-nums">{s.requests}</td>
-                      <td className="px-2 py-2.5 text-right text-zinc-300 tabular-nums">{s.pagesFetched}</td>
-                      <td className="px-5 py-2.5 text-right text-zinc-500 tabular-nums">{s.ms} ms</td>
-                    </tr>
-                    {selectedStream === s.dataType && s.error && (
-                      <tr className="bg-zinc-950/80">
-                        <td colSpan={7} className="px-5 py-4 border-b border-zinc-900">
-                          <div className="p-2 rounded bg-rose-500/10 border border-rose-500/20 text-rose-400 text-caption font-mono whitespace-pre-wrap">
-                            {s.error}
-                          </div>
-                        </td>
-                      </tr>
-                    )}
-                  </React.Fragment>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </Card>
+
+      <DataStreams data={data} />
     </div>
   );
 }

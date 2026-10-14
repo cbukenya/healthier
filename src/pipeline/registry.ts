@@ -54,6 +54,11 @@ export interface StreamDescriptor {
   pageSize?: number;
   /** Documented quirks, surfaced in the Data tab. */
   note?: string;
+  /**
+   * Readings that come now and then rather than every day (a weigh-in, an ECG, a logged meal),
+   * so a long gap since the last one is normal and the Data tab doesn't call it behind.
+   */
+  occasional?: boolean;
 }
 
 export type ScopeKey = 'activity' | 'sleep' | 'metrics' | 'nutrition' | 'ecg' | 'irn' | 'profile';
@@ -286,6 +291,7 @@ export const STREAMS: StreamDescriptor[] = [
   // ─────────────────────────────────────────────────────── cardio & vitals
   {
     dataType: 'electrocardiogram',
+    occasional: true,
     label: 'ECG',
     domain: 'cardio',
     mode: 'list',
@@ -304,6 +310,7 @@ export const STREAMS: StreamDescriptor[] = [
   },
   {
     dataType: 'irregular-rhythm-notification',
+    occasional: true,
     label: 'Irregular Rhythm Notification',
     domain: 'cardio',
     mode: 'list',
@@ -459,6 +466,7 @@ export const STREAMS: StreamDescriptor[] = [
   // ─────────────────────────────────────────────────────────────────── body
   {
     dataType: 'weight',
+    occasional: true,
     label: 'Weight',
     domain: 'body',
     mode: 'list',
@@ -479,6 +487,7 @@ export const STREAMS: StreamDescriptor[] = [
   },
   {
     dataType: 'body-fat',
+    occasional: true,
     label: 'Body fat',
     domain: 'body',
     mode: 'list',
@@ -496,6 +505,7 @@ export const STREAMS: StreamDescriptor[] = [
   },
   {
     dataType: 'height',
+    occasional: true,
     label: 'Height',
     domain: 'body',
     mode: 'list',
@@ -515,6 +525,7 @@ export const STREAMS: StreamDescriptor[] = [
   
   {
     dataType: 'nutrition-log',
+    occasional: true,
     label: 'Nutrition (Macros)',
     domain: 'wellbeing',
     mode: 'rollup',
@@ -540,6 +551,7 @@ export const STREAMS: StreamDescriptor[] = [
   },
   {
     dataType: 'hydration-log',
+    occasional: true,
     label: 'Hydration',
     domain: 'wellbeing',
     mode: 'rollup',
@@ -556,6 +568,7 @@ export const STREAMS: StreamDescriptor[] = [
   },
   {
     dataType: 'blood-glucose',
+    occasional: true,
     label: 'Blood glucose',
     domain: 'wellbeing',
     mode: 'rollup',
