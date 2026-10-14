@@ -13,6 +13,7 @@ import {
   fmtDuration, fmtNum,
 } from '../ui/primitives';
 import type { SyncResult } from '../pipeline/sync';
+import { useGoals } from '../hooks/useGoals';
 import { BodyBattery, BodyBatteryCompact } from './BodyBattery';
 import { ThisWeek } from './ThisWeek';
 import { InsightsCarousel } from '../components/InsightsCarousel';
@@ -35,7 +36,8 @@ export function TodayView({
   /** Demo mode runs on the fixture's clock and zone; live data on this device's. */
   clock?: { now: Date; timeZone: string };
 }) {
-  const s = todaySummary(data, clock?.now, { intraday, timeZone: clock?.timeZone });
+  const goals = useGoals();
+  const s = todaySummary(data, clock?.now, { intraday, timeZone: clock?.timeZone, goals });
   const days = data.days;
   const last = days[days.length - 1];
   const today = last.date;
@@ -52,7 +54,8 @@ export function TodayView({
   const mv = s.movementDay;
   const slDay = s.sleepDay;
   const sl = slDay?.sleep ?? null;
-  const stepGoal = goal(mv?.steps ?? null, 10000);
+  const stepGoal = goal(mv?.steps ?? null, goals.steps);
+  const ofGoal = `of ${fmtNum(goals.steps, 0)}`;
   const movementIsToday = mv?.date === today;
 
   // Each overnight vital from last night or the one before, never further back.
@@ -108,7 +111,7 @@ export function TodayView({
               <div className="mt-2.5 mb-1">
                 <Meter pct={stepGoal.pct} color={DOMAIN.movement.hex} />
                 {stepGoal.pct !== null && (
-                  <p className="text-note text-zinc-500 mt-1.5 tabular-nums">{Math.round(stepGoal.pct)}% of 10,000</p>
+                  <p className="text-note text-zinc-500 mt-1.5 tabular-nums">{Math.round(stepGoal.pct)}% {ofGoal}</p>
                 )}
               </div>
             )}
@@ -206,7 +209,7 @@ export function TodayView({
                   <div className="mt-3">
                     <Meter pct={stepGoal.pct} color={DOMAIN.movement.hex} />
                     <p className="text-note text-zinc-500 mt-1.5 tabular-nums">
-                      {stepGoal.pct === null ? '' : `${Math.round(stepGoal.pct)}% of 10,000`}
+                      {stepGoal.pct === null ? '' : `${Math.round(stepGoal.pct)}% ${ofGoal}`}
                     </p>
                   </div>
                   <div className="mt-1.5 space-y-0">

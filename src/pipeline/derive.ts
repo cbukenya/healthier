@@ -355,6 +355,9 @@ export function bedtimeConsistency(days: DailyRecord[]): { meanMin: number; sdMi
 }
 
 
+/** Where the sleep-need estimate stops: never below 7 h, nor above 8.5 h, and 7.5 h before any nights. */
+export const NEED_ESTIMATE = { floor: 420, ceiling: 510, fallback: 450 } as const;
+
 /**
  * Personal sleep-need estimate: the median of your own recorded nights, clamped
  * to never fall below 7 h — chronic restriction must not be allowed to redefine
@@ -367,8 +370,14 @@ export function estimatedSleepTarget(days: DailyRecord[]): number {
     .map((d) => d.sleep?.minutesAsleep ?? null)
     .filter((m): m is number => m !== null);
   const st = stats(nights);
-  return st ? Math.min(510, Math.max(420, st.median)) : 450;
+  return st ? Math.min(NEED_ESTIMATE.ceiling, Math.max(NEED_ESTIMATE.floor, st.median)) : NEED_ESTIMATE.fallback;
 }
+
+/**
+ * The sleep need every night is judged against: the person's own figure when
+ * they've set one (a goal, on the Data tab), else the estimate from these nights.
+ */
+export const sleepNeedFor = (days: DailyRecord[], set?: number | null): number => set ?? estimatedSleepTarget(days);
 
 // ─────────────────────────────────────────────────────────────── readiness
 
@@ -434,7 +443,8 @@ export const batteryTier = (score: number) => BATTERY_TIERS.find((t) => score >=
  *      estimate, and the debt accumulated across the prior week — restriction
  *      compounds (Van Dongen et al. 2003, Sleep). The need estimate is the
  *      median of recent nights clamped to ≥7 h, so chronic short sleep cannot
- *      quietly redefine "enough".
+ *      quietly redefine "enough". A need the person sets themselves (7–9 h, the
+ *      same floor) replaces the estimate.
  *   6. Elevated breathing rate and skin temperature are penalty-only illness
  *      signals (the same multi-signal deviation logic behind the wearable
  *      illness-detection studies). Being below baseline earns nothing.
@@ -453,7 +463,7 @@ export const batteryTier = (score: number) => BATTERY_TIERS.find((t) => score >=
  * This sits between them, with every weight visible below and every component
  * returned as a signed, explained contribution.
  */
-export function readiness(days: DailyRecord[]): Readiness {
+export function readiness(days: DailyRecord[], needSet?: number | null): Readiness {
   const parts: ReadinessPart[] = [];
   const flags: string[] = [];
   let score = 70;
@@ -520,7 +530,8 @@ export function readiness(days: DailyRecord[]): Readiness {
   }
 
   // ── 3. Sleep: Holistic Quality & Need from scoreSleep() ──────────────────
-  const need = estimatedSleepTarget(days);
+  // The person's own need when they've set one; the estimate from their nights otherwise.
+  const need = sleepNeedFor(days, needSet);
   const latestNight = [...days].reverse().find((d) => d.sleep)?.sleep ?? null;
   const lastNight = latestNight && recent(latestNight.date) ? latestNight : null;
   const sleepOk = lastNight !== null;
@@ -554,7 +565,7 @@ export function readiness(days: DailyRecord[]): Readiness {
     parts.push({
       label: 'Last night’s sleep',
       contribution: c,
-      detail: `${hm(lastNight.minutesAsleep)} vs ~${hm(need)} need${qualityDetail}`,
+      detail: `${hm(lastNight.minutesAsleep)} vs ${needSet == null ? '~' : ''}${hm(need)} need${qualityDetail}`,
     });
   }
 
@@ -1306,5 +1317,3 @@ export function bodyComposition(days: DailyRecord[]): BodyComposition | null {
 }
 
 export type { Observation } from './insights';
-
-export function personalSleepNeed(days: DailyRecord[]) { return 420; }

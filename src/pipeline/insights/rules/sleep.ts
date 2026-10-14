@@ -1,14 +1,14 @@
 import { addDays, daysBetween } from '../../../lib/date';
 import type { DailyRecord } from '../../../types/health';
 import {
-  circularMeanMinutes, compareToBaseline, estimatedSleepTarget, findGaps, firstObserved, series, sleepDebt, sleepRegularity,
+  NEED_ESTIMATE, circularMeanMinutes, compareToBaseline, findGaps, firstObserved, series, sleepDebt, sleepNeedFor, sleepRegularity,
   stats, values,
 } from '../../derive';
 import { scoreSleep } from '../../sleep';
 import type { InsightContext } from '../context';
 import {
-  ENTRY_WINDOW, beforeLatestMorning, circDelta, clk, cut, dayMonth, heldFor, hm, hoursText, isWorkday, monthName, pastYear,
-  freshEntry, plural, sinceNote, sleepMins, trailingDays,
+  ENTRY_WINDOW, beforeLatestMorning, circDelta, clk, cut, dayMonth, heldFor, hm, hoursText, isWorkday, monthName, needLabel,
+  pastYear, freshEntry, plural, sinceNote, sleepMins, trailingDays,
 } from '../helpers';
 import {
   WEEKDAYS, bestBedtime, dayRecord, lastMonthBest, monthsOf, sleepHrvAssociation, weekdayExtremes, workFreeNights,
@@ -133,7 +133,7 @@ function debt(ctx: InsightContext, add: Add, goodNightMin: number | null, tonigh
   const nights = ctx.debt!.nightsKnown;
   // The debt as the card showed it on an earlier day, against the need as it stood then.
   const owed = (w: DailyRecord[]) => {
-    const d = sleepDebt(w, estimatedSleepTarget(w));
+    const d = sleepDebt(w, sleepNeedFor(w, ctx.goals.sleepNeed));
     return d && d.coverage === 'full' ? d.netMin : 0;
   };
   const news = freshEntry((n) => owed(cut(days, n)) > SHORT_DEBT)
@@ -358,11 +358,13 @@ function sleepNeed(ctx: InsightContext, add: Add): void {
   const nights = sleepMins(ctx.days, (x) => x.minutesAsleep);
   if (nights.length < 14) return;
   const median = stats(nights)!.median;
-  const text = median < 420
-    ? `Your sleep cards measure each night against 7 hours. Your nights are usually shorter, about ${hm(median)}, but most adults need at least 7 hours.`
-    : median > 510
-      ? `Your sleep cards measure each night against ${ctx.needH}. You usually sleep longer, about ${hm(median)}, but the cards don't aim higher than ${ctx.needH}.`
-      : `Your sleep cards measure each night against about ${ctx.needH}. That's the middle of your last ${nights.length} recorded nights.`;
+  const text = ctx.goals.sleepNeed !== null
+    ? `Your sleep cards measure each night against the ${needLabel(ctx.need)} you set on the Data tab. Your nights are usually about ${hm(median)}.`
+    : median < NEED_ESTIMATE.floor
+      ? `Your sleep cards measure each night against ${NEED_ESTIMATE.floor / 60} hours. Your nights are usually shorter, about ${hm(median)}, but most adults need at least ${NEED_ESTIMATE.floor / 60} hours.`
+      : median > NEED_ESTIMATE.ceiling
+        ? `Your sleep cards measure each night against ${ctx.needH}. You usually sleep longer, about ${hm(median)}, but the cards don't aim higher than ${ctx.needH}.`
+        : `Your sleep cards measure each night against about ${ctx.needH}. That's the middle of your last ${nights.length} recorded nights.`;
   add({
     ...base, id: 'sleep-need', kind: 'pattern', tone: 'neutral',
     importance: 36, topic: 'sleep-need', family: 'sleep-need', today: 'never', news: false,

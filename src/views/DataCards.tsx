@@ -1,12 +1,15 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { ChevronDown, Lock, RefreshCw } from 'lucide-react';
+import React, { useEffect, useId, useMemo, useState } from 'react';
+import { ChevronDown, Lock, Minus, Plus, RefreshCw } from 'lucide-react';
 import { daysBetween, formatCivil, type CivilDate } from '../lib/date';
+import { NEED_ESTIMATE } from '../pipeline/derive';
+import { DEFAULT_GOALS, GOAL_LIMITS, WHO_WEEK, fitGoal, sameGoals, type GoalLimit, type Goals } from '../pipeline/goals';
 import { DOMAIN_LABELS, INTRADAY_HEART_RATE, STREAMS, STREAMS_BY_TYPE } from '../pipeline/registry';
 import type { SyncResult } from '../pipeline/sync';
 import type { HistoryInfo } from '../types/api';
 import type { MetricDomain, StreamReport } from '../types/health';
+import { useGoalsControl } from '../hooks/useGoals';
 import { useMediaQuery } from '../hooks/useMediaQuery';
-import { Card, CardHead } from '../ui/primitives';
+import { Card, CardHead, DURATION_UNIT, fmtDuration, withUnits } from '../ui/primitives';
 
 const plural = (n: number, word: string) => `${n} ${n === 1 ? word : `${word}s`}`;
 
@@ -60,7 +63,7 @@ export function SyncStatus({
           <button
             onClick={onFullSync}
             title="Fetch the whole window from Google again, not just the last few days"
-            className="-my-1 min-h-11 md:min-h-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 transition-colors text-caption font-medium text-zinc-200"
+            className="-my-2.5 md:-my-1 min-h-11 md:min-h-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 transition-colors text-caption font-medium text-zinc-200"
           >
             <RefreshCw size={12} aria-hidden="true" /> Full sync
           </button>
@@ -112,6 +115,156 @@ export function SyncStatus({
         )}
       </div>
     </Card>
+  );
+}
+
+// ───────────────────────────────────────────────────────────────── goals
+
+/** "7", "8½": hours from minutes on the hour or half hour. */
+const hours = (min: number) => `${Math.floor(min / 60)}${min % 60 ? '½' : ''}`;
+
+const DAYS = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven'];
+
+/** How many days at a daily brisk goal it takes to reach the WHO's week, if a week is enough. */
+function briskNote(perDay: number): string {
+  const days = Math.ceil(WHO_WEEK / perDay);
+  return days <= 7
+    ? `Your inner ring. ${DAYS[days]} days like that reach the WHO's ${WHO_WEEK} a week.`
+    : `Your inner ring. Even every day, that stays under the WHO's ${WHO_WEEK} a week.`;
+}
+
+/**
+ * The goals the rings, charts and insights measure against, each on a stepper
+ * that stays inside its bounds (GOAL_LIMITS, and why). Sleep need is worked out
+ * from your nights until you set it; a step either way takes it over from there.
+ */
+export function GoalsCard({ autoNeed }: {
+  /** The need the app works out from your nights, shown while yours is automatic. */
+  autoNeed: number;
+}) {
+  const { goals, change, failed } = useGoalsControl();
+  if (!change) return null;
+  const set = (patch: Partial<Goals>) => change({ ...goals, ...patch });
+  /** A step down and a step up from a goal's value, each absent at its bound. */
+  const stepper = (value: number, limit: GoalLimit, patch: (v: number) => Partial<Goals>) => ({
+    less: value > limit.min ? () => set(patch(fitGoal(value - limit.step, limit))) : undefined,
+    more: value < limit.max ? () => set(patch(fitGoal(value + limit.step, limit))) : undefined,
+  });
+  const need = goals.sleepNeed ?? autoNeed;
+  const L = GOAL_LIMITS;
+
+  return (
+    <Card>
+      <CardHead
+        title="Goals"
+        hint="Google Health doesn't share the goals you set in Fitbit, so set them here."
+        right={
+          !sameGoals(goals, DEFAULT_GOALS) && (
+            <button
+              type="button"
+              onClick={() => change(DEFAULT_GOALS)}
+              className="-my-2.5 md:-my-1.5 -mr-2 min-h-11 md:min-h-0 px-2 md:py-1.5 rounded-lg text-caption font-medium text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60 transition-colors"
+            >
+              Reset to defaults
+            </button>
+          )
+        }
+      />
+      <div className="px-5 pb-1.5">
+        <GoalRow
+          label="Steps"
+          per="a day"
+          shown={goals.steps.toLocaleString('en-GB')}
+          {...stepper(goals.steps, L.steps, (v) => ({ steps: v }))}
+          lessLabel="Fewer steps"
+          moreLabel="More steps"
+          note="Your outer ring, the steps chart's line and your streaks."
+        />
+        <GoalRow
+          label="Brisk minutes"
+          per="a day"
+          shown={String(goals.briskMinutes)}
+          {...stepper(goals.briskMinutes, L.briskMinutes, (v) => ({ briskMinutes: v }))}
+          lessLabel="Fewer brisk minutes"
+          moreLabel="More brisk minutes"
+          note={briskNote(goals.briskMinutes)}
+        />
+        <GoalRow
+          label="Sleep need"
+          per="a night"
+          badge={goals.sleepNeed === null ? 'Auto' : undefined}
+          shown={withUnits(fmtDuration(need), DURATION_UNIT)}
+          {...stepper(need, L.sleepNeed, (v) => ({ sleepNeed: v }))}
+          lessLabel="Less sleep"
+          moreLabel="More sleep"
+          note={
+            goals.sleepNeed === null ? (
+              `Worked out from your recent nights, between ${hours(NEED_ESTIMATE.floor)} and ${hours(NEED_ESTIMATE.ceiling)} hours. Your body battery and sleep debt use it.`
+            ) : (
+              <>
+                Your own figure, between {hours(L.sleepNeed.min)} and {hours(L.sleepNeed.max)} hours. Your body battery and sleep debt use it.{' '}
+                <button
+                  type="button"
+                  onClick={() => set({ sleepNeed: null })}
+                  className="text-zinc-300 underline underline-offset-2 hover:text-zinc-100"
+                >
+                  Back to auto
+                </button>
+              </>
+            )
+          }
+        />
+      </div>
+      {failed && (
+        <p role="alert" className="px-5 pb-4 text-caption text-rose-400">
+          Couldn't save that change, so your goals are as they were. Try again.
+        </p>
+      )}
+    </Card>
+  );
+}
+
+/** One goal: its name, a stepper either side of the figure, and a line on what it moves. */
+function GoalRow({ label, per, badge, shown, less, more, lessLabel, moreLabel, note }: {
+  label: string;
+  per: string;
+  badge?: string;
+  shown: React.ReactNode;
+  /** Absent at the bound, where the button is disabled. */
+  less?: () => void;
+  more?: () => void;
+  lessLabel: string;
+  moreLabel: string;
+  note: React.ReactNode;
+}) {
+  const id = useId();
+  const button = 'size-10 shrink-0 flex items-center justify-center rounded-full border border-zinc-700 text-zinc-300 transition-colors hover:bg-zinc-800 hover:text-zinc-100 disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-default';
+  return (
+    <div role="group" aria-labelledby={id} className="py-3 border-t border-zinc-800/60">
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <div id={id} className="text-body text-zinc-200">{label}</div>
+          <div className="text-caption text-zinc-500">
+            {per}
+            {badge && (
+              <span className="ml-1.5 px-1.5 py-px rounded bg-zinc-800 text-eyebrow-sm uppercase text-zinc-400">{badge}</span>
+            )}
+          </div>
+        </div>
+        <div className="flex items-center shrink-0">
+          <button type="button" aria-label={lessLabel} onClick={less} disabled={!less} className={button}>
+            <Minus size={14} aria-hidden="true" />
+          </button>
+          <output aria-live="polite" className="min-w-[84px] text-center font-display text-number-xs text-zinc-50 tabular-nums">
+            {shown}
+          </output>
+          <button type="button" aria-label={moreLabel} onClick={more} disabled={!more} className={button}>
+            <Plus size={14} aria-hidden="true" />
+          </button>
+        </div>
+      </div>
+      <p className="mt-1.5 text-caption leading-relaxed text-zinc-500">{note}</p>
+    </div>
   );
 }
 

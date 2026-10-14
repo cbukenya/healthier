@@ -1,11 +1,11 @@
 import React, { useMemo, useState } from 'react';
 import { formatCivil } from '../lib/date';
-import { coverage } from '../pipeline/derive';
+import { coverage, estimatedSleepTarget } from '../pipeline/derive';
 import { STREAMS } from '../pipeline/registry';
 import { Card, CardHead, Segmented } from '../ui/primitives';
 import { bucketLabel, groupDays, mean } from '../pipeline/aggregate';
 import { CoverageGrid } from '../charts';
-import { DataStreams, SyncStatus } from './DataCards';
+import { DataStreams, GoalsCard, SyncStatus } from './DataCards';
 import type { SyncResult } from '../pipeline/sync';
 import { useHistory } from '../hooks/useHistory';
 import { SpanSelector, useSpan } from '../ui/span';
@@ -61,7 +61,7 @@ export function DataView({ data, onFullSync, onDisconnect }: { data: SyncResult;
 
   return (
     <div className="space-y-3">
-      {/* The sync card is small, so the column beside the matrix has room under it. */}
+      {/* The sync card is small, so the goals fit under it beside the matrix; stacked, they follow it. */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-start">
         <Card className="lg:col-span-8">
           <CardHead
@@ -75,6 +75,7 @@ export function DataView({ data, onFullSync, onDisconnect }: { data: SyncResult;
 
         <div className="lg:col-span-4 space-y-3">
           <SyncStatus data={data} history={history} onFullSync={onFullSync} onDisconnect={onDisconnect} />
+          <GoalsCard autoNeed={estimatedSleepTarget(data.days)} />
         </div>
       </div>
 

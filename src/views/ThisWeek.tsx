@@ -1,14 +1,14 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { formatCivil, formatCivilRange, weekdayLetter, weekdayShort } from '../lib/date';
 import { batteryTier } from '../pipeline/derive';
-import { STEP_GOAL, monthSummary, needLabel, type PeriodSummary } from '../pipeline/insights';
+import { WHO_WEEK } from '../pipeline/goals';
+import { monthSummary, needLabel, type PeriodSummary } from '../pipeline/insights';
 import type { DailyRecord } from '../types/health';
+import { useGoals } from '../hooks/useGoals';
 import { DayRuler } from '../ui/DayRuler';
 import { DOMAIN, Meter, fmtDuration, withUnits } from '../ui/primitives';
 import { TIER_STYLE } from './BodyBattery';
 
-/** The WHO's weekly bar: 150 moderate minutes, vigorous ones counting double. */
-const WHO_WEEK = 150;
 /** Tallest bar in the week, at a battery of 100. */
 const BAR_MAX_PX = 76;
 /** The month's bars stand a pixel per point, under a line marking 100. */
@@ -42,8 +42,9 @@ export function ThisWeek({ week, days, needMin, className = '' }: {
   needMin: number;
   className?: string;
 }) {
+  const goals = useGoals();
   const [view, setView] = useState<View>('week');
-  const month = useMemo(() => (view === 'month' ? monthSummary(days) : null), [view, days]);
+  const month = useMemo(() => (view === 'month' ? monthSummary(days, goals) : null), [view, days, goals]);
   // The month's chart scrubs: the bar under the pointer is the one in focus, today's otherwise.
   const [picked, setPicked] = useState<number | null>(null);
   const plotRef = useRef<HTMLDivElement>(null);
@@ -51,7 +52,8 @@ export function ThisWeek({ week, days, needMin, className = '' }: {
   const isMonth = view === 'month' && month !== null;
   const first = p.battery[0].date;
   const today = p.battery[p.battery.length - 1].date;
-  const need = `~${needLabel(needMin)}`;
+  // An estimate from your nights reads "about"; a need you set is exact.
+  const need = `${goals.sleepNeed === null ? '~' : ''}${needLabel(needMin)}`;
   const span = isMonth ? 'in the last 30 days' : 'this week';
 
   const sleep = p.sleep;
@@ -79,7 +81,7 @@ export function ThisWeek({ week, days, needMin, className = '' }: {
   const steps = p.steps;
   const stepsNote = !steps
     ? `No finished days with steps ${span}`
-    : `10,000 or more on ${steps.atGoal} of ${steps.days} full day${steps.days === 1 ? '' : 's'}`;
+    : `${goals.steps.toLocaleString('en-GB')} or more on ${steps.atGoal} of ${steps.days} full day${steps.days === 1 ? '' : 's'}`;
 
   const n = p.battery.length;
   const focus = picked === null ? n - 1 : Math.min(picked, n - 1);
@@ -200,7 +202,7 @@ export function ThisWeek({ week, days, needMin, className = '' }: {
           label="Steps"
           value={steps ? Math.round(steps.avg).toLocaleString('en-GB') : '—'}
           unit={steps ? 'a day' : undefined}
-          pct={steps ? (steps.avg / STEP_GOAL) * 100 : null}
+          pct={steps ? (steps.avg / goals.steps) * 100 : null}
           color={DOMAIN.movement.hex}
           note={stepsNote}
         />

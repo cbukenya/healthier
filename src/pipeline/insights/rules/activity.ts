@@ -1,9 +1,10 @@
 import { addDays, daysBetween, isoWeekdayIndex } from '../../../lib/date';
 import type { DailyRecord } from '../../../types/health';
 import { completedDays, goalStreak, loadRatio, periodShift, series, stats, values, type Point } from '../../derive';
+import { WHO_DAY, WHO_WEEK } from '../../goals';
 import type { InsightContext } from '../context';
 import {
-  ENTRY_WINDOW, STEP_GOAL, briskMins, clk, dayMonth, fmtInt, heldFor, listOf, monthName, pastYear, plural, freshEntry,
+  ENTRY_WINDOW, briskMins, clk, dayMonth, fmtInt, heldFor, listOf, monthName, pastYear, plural, freshEntry,
   sinceNote, zoneMins,
 } from '../helpers';
 import { movementHrvAssociation } from '../association';
@@ -99,27 +100,29 @@ function volume(ctx: InsightContext, add: Add): void {
 /** Streaks, records and the weekly target. Broken streaks get silence, always. */
 function milestones(ctx: InsightContext, add: Add): void {
   const { stepsSeries, doneSteps, today, days } = ctx;
+  const goal = ctx.goals.steps;
 
   const STREAK_SET = new Set([3, 5, 7, 10, 14, 21, 30]);
-  const streak = goalStreak(stepsSeries, (v) => v >= STEP_GOAL);
+  const streak = goalStreak(stepsSeries, (v) => v >= goal);
   if (streak >= 3) {
     add({
       ...base, id: 'streak', kind: 'milestone', tone: 'good',
       importance: 63, topic: 'step-streak', family: 'movement-milestone',
       // Short streaks stay on the page; from a week they're worth Today on the day they land.
       today: streak >= 7 ? 'as-news' : 'never',
-      news: STREAK_SET.has(streak) && goalStreak(doneSteps, (v) => v >= STEP_GOAL) !== streak,
+      news: STREAK_SET.has(streak) && goalStreak(doneSteps, (v) => v >= goal) !== streak,
       title: "You're on a streak",
-      text: `You've walked more than ${fmtInt(STEP_GOAL)} steps every day for ${streak} days in a row.`,
+      text: `You've walked more than ${fmtInt(goal)} steps every day for ${streak} days in a row.`,
     });
   }
 
   // Record day: the window's biggest finished day, with two weeks before it to beat and a floor so
-  // tiny records stay quiet. News the mornings after it lands, then on the page for the rest of the week.
+  // tiny records stay quiet: most of a goal day. News the mornings after it lands, then on the page
+  // for the rest of the week.
   const finished = doneSteps.filter((pt) => pt.value !== null);
   const at = finished.reduce((best, pt, i) => (pt.value! > finished[best].value! ? i : best), 0);
   const record = finished[at];
-  if (record && at >= 14 && record.value! >= 8000) {
+  if (record && at >= 14 && record.value! >= goal * 0.8) {
     const age = daysBetween(record.date, today);
     const answered = ctx.answers.biggestStepDay?.rows[0];
     const before = answered?.max ?? null;
@@ -137,22 +140,22 @@ function milestones(ctx: InsightContext, add: Add): void {
     }
   }
 
-  // The WHO's weekly bar, on the day it's crossed: 150 minutes, harder minutes counting double.
+  // The WHO's weekly bar, on the day it's crossed: harder minutes count double.
   const weekStart = days.findIndex((d) => daysBetween(d.date, today) <= isoWeekdayIndex(today));
   if (weekStart >= 0) {
     const hasAzm = days.slice(weekStart).some((d) => d.zoneMinutes !== null);
     const minutes = (upto: number) => days.slice(weekStart, upto).reduce((a, d) => a + (hasAzm ? zoneMins(d) : briskMins(d)), 0);
     const total = minutes(days.length);
-    if (total >= 150) {
+    if (total >= WHO_WEEK) {
       const spare = 6 - isoWeekdayIndex(today);
       add({
         ...base, id: 'who-week', kind: 'milestone', tone: 'good',
         importance: 58, topic: 'weekly-target', family: 'movement-milestone', today: 'as-news',
-        news: minutes(days.length - 1) < 150,
+        news: minutes(days.length - 1) < WHO_WEEK,
         title: 'You hit the weekly activity target',
         text: `${hasAzm
           ? `You've earned ${Math.round(total)} active zone minutes this week.`
-          : `You've done ${Math.round(total)} minutes of brisk activity this week, with harder minutes counting double.`} That passes the WHO's recommended 150${spare > 0 ? `, with ${plural(spare, 'day')} to spare` : ''}.`,
+          : `You've done ${Math.round(total)} minutes of brisk activity this week, with harder minutes counting double.`} That passes the WHO's recommended ${WHO_WEEK}${spare > 0 ? `, with ${plural(spare, 'day')} to spare` : ''}.`,
       });
     }
   }
@@ -207,12 +210,12 @@ function nudges(ctx: InsightContext, add: Add): void {
     });
   }
   if (part === 'evening') {
-    const gap = STEP_GOAL - steps;
+    const gap = ctx.goals.steps - steps;
     if (gap >= 800 && gap <= 2500) {
       add({
         ...nudge, id: 'within-reach', tone: 'good', importance: 61, daypart: ['evening'],
         title: 'Your step goal is within reach',
-        text: `You're ${fmtInt(gap)} steps short of ${fmtInt(STEP_GOAL)}.`,
+        text: `You're ${fmtInt(gap)} steps short of ${fmtInt(ctx.goals.steps)}.`,
         action: 'A 15-minute walk would close the gap.',
       });
     }
@@ -257,13 +260,12 @@ function quietDays(ctx: InsightContext, add: Add): void {
   });
 }
 
-/** Active minutes every day, a day's share of the WHO's weekly 150. Short runs stay on the page. */
+/** Active minutes every day, a day's share of the WHO's weekly bar. Short runs stay on the page. */
 function activeStreak(ctx: InsightContext, add: Add): void {
   const { days } = ctx;
   const azm = days.slice(-14).some((d) => d.zoneMinutes !== null);
   const daily = series(days, (d) => (azm ? (d.zoneMinutes ? zoneMins(d) : null) : d.activeMinutes ? briskMins(d) : null));
-  const DAILY = 22; // 150 / 7, rounded up
-  const meets = (v: number) => v >= DAILY;
+  const meets = (v: number) => v >= WHO_DAY;
   const n = goalStreak(daily, meets);
   if (n < 3) return;
   add({
@@ -273,15 +275,16 @@ function activeStreak(ctx: InsightContext, add: Add): void {
     news: [3, 5, 7, 14, 30].includes(n) && goalStreak(daily.slice(0, -1), meets) !== n,
     title: 'Active days in a row',
     text: azm
-      ? `You've earned at least ${DAILY} active zone minutes every day for ${n} days. That's a day's share of the WHO's recommended 150 a week.`
-      : `You've done at least ${DAILY} minutes of brisk activity every day for ${n} days, with harder minutes counting double. That's a day's share of the WHO's recommended 150 a week.`,
+      ? `You've earned at least ${WHO_DAY} active zone minutes every day for ${n} days. That's a day's share of the WHO's recommended ${WHO_WEEK} a week.`
+      : `You've done at least ${WHO_DAY} minutes of brisk activity every day for ${n} days, with harder minutes counting double. That's a day's share of the WHO's recommended ${WHO_WEEK} a week.`,
   });
 }
 
 /** The first goal day after a week or more without one. No homework attached. */
 function backOnTrack(ctx: InsightContext, add: Add): void {
   const { stepsSeries, today } = ctx;
-  const goalDays = stepsSeries.filter((pt) => pt.value !== null && pt.value >= STEP_GOAL);
+  const goal = ctx.goals.steps;
+  const goalDays = stepsSeries.filter((pt) => pt.value !== null && pt.value >= goal);
   const latest = goalDays[goalDays.length - 1];
   const before = goalDays[goalDays.length - 2];
   if (!latest || !before) return;
@@ -294,7 +297,7 @@ function backOnTrack(ctx: InsightContext, add: Add): void {
     ...base, id: 'activity-back-at-it', kind: 'milestone', tone: 'good',
     importance: 57, topic: 'back-on-track', family: 'movement-milestone', today: 'as-news', news: age <= 1,
     title: 'Back on track',
-    text: `You passed ${fmtInt(STEP_GOAL)} steps ${age === 0 ? 'today' : `on ${dayMonth(latest.date)}`} for the first time in ${gap} days.`,
+    text: `You passed ${fmtInt(goal)} steps ${age === 0 ? 'today' : `on ${dayMonth(latest.date)}`} for the first time in ${gap} days.`,
   });
 }
 
@@ -405,9 +408,10 @@ function weekendLoad(ctx: InsightContext, add: Add): void {
  * sits far above or below the goal.
  */
 function goalDays(ctx: InsightContext, add: Add): void {
+  const goal = ctx.goals.steps;
   const tally = (s: Point[]) => {
     const v = values(s);
-    return { n: v.length, hits: v.filter((x) => x >= STEP_GOAL).length };
+    return { n: v.length, hits: v.filter((x) => x >= goal).length };
   };
   const phrase = (t: { n: number; hits: number }, span: string) => {
     const days = t.n === 28 ? `the ${span} 28 days` : `${t.n} recorded days in the ${span} four weeks`;
@@ -429,7 +433,7 @@ function goalDays(ctx: InsightContext, add: Add): void {
       news: !then || Math.abs(then.perWeek) < 1 || Math.sign(then.perWeek) !== Math.sign(now.perWeek),
       claims: { metric: 'goal-days', direction: up ? 'up' : 'down' }, evidence: now.a.n + now.b.n,
       title: up ? "You're hitting your goal more often" : "You're reaching your goal less often",
-      text: `You reached ${fmtInt(STEP_GOAL)} steps on ${phrase(now.a, 'last')}. In the four weeks before, it was ${now.b.hits} of ${now.b.n} days.`,
+      text: `You reached ${fmtInt(goal)} steps on ${phrase(now.a, 'last')}. In the four weeks before, it was ${now.b.hits} of ${now.b.n} days.`,
     });
     return;
   }
@@ -437,13 +441,13 @@ function goalDays(ctx: InsightContext, add: Add): void {
   const recent = tally(ctx.doneSteps.slice(-28));
   const median = stats(values(ctx.doneSteps.slice(-28)))?.median ?? null;
   if (recent.n < 21 || median === null) return;
-  const above = median >= STEP_GOAL * 1.3;
-  if (!above && median > STEP_GOAL * 0.7) return;
+  const above = median >= goal * 1.3;
+  if (!above && median > goal * 0.7) return;
   add({
     ...base, id: 'activity-goal-fit', kind: 'pattern', tone: 'neutral',
     importance: 37, topic: 'goal-days', family: 'activity-patterns', today: 'never', news: false,
     title: above ? 'You usually beat your goal' : 'Your goal is a stretch most days',
-    text: `On a typical day you take about ${about(median)} steps${above ? `, well past the ${fmtInt(STEP_GOAL)} goal` : ''}. You reached ${fmtInt(STEP_GOAL)} on ${phrase(recent, 'last')}.`,
+    text: `On a typical day you take about ${about(median)} steps${above ? `, well past the ${fmtInt(goal)} goal` : ''}. You reached ${fmtInt(goal)} on ${phrase(recent, 'last')}.`,
   });
 }
 

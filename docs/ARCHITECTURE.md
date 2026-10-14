@@ -59,7 +59,7 @@ browser (React)  ──/api──▶  Express server  ──▶  Postgres
 
 | Table | Holds |
 | --- | --- |
-| `users` | Google subject, profile, IANA time zone (decides what "today" means on the server), gender (set on the Body page) |
+| `users` | Google subject, profile, IANA time zone (decides what "today" means on the server), gender (set on the Body page), goals (set on the Data tab) |
 | `google_tokens` | encrypted tokens and granted scopes |
 | `sessions` | hashed session ids |
 | `stream_days (user_id, data_type, date)` | what one stream (steps, sleep, HRV…) contributed to one civil day: only the `DailyRecord` fields it set, plus provenance. Kept for `HISTORY_DAYS` |
@@ -126,6 +126,18 @@ long spans are grouped (`src/pipeline/aggregate.ts`): daily up to 120 days, week
 years, monthly beyond, as averages per recorded day. Sparse series such as weigh-ins stay raw
 unless they would exceed 120 points. Baseline bands are hidden on grouped charts, because they
 describe the last 28 days.
+
+## Goals
+
+The step goal, the daily brisk minutes and the sleep need are the person's own, set on the Data
+tab (`PUT /api/goals`) because Google Health doesn't share the goals set in Fitbit. They live in
+`src/pipeline/goals.ts`, with the bounds each one is held to and the evidence for them; the server
+stores them on `users`, sends them with the dataset, and rejects anything off its steps or out of
+bounds. Every ring, goal line, label and insight reads them from there (the screens through
+`useGoals`, the engine through `InsightOptions.goals`), so no screen repeats a goal as a literal.
+Sleep need stays automatic, the median of your nights held between 7 and 8.5 hours, until it's
+set; set, it replaces the estimate everywhere, the body battery included. The WHO's 150 minutes a
+week is a guideline rather than a goal, so it's a constant beside them, not a setting.
 
 ## Type roles
 

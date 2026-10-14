@@ -4,9 +4,10 @@ import type { HistoryAnswers } from '../history';
 import type { IntradayDays } from '../labs';
 import type { ProfileFacts } from '../registry';
 import {
-  estimatedSleepTarget, isRecent, loadRatio, readiness, series, sleepDebt, stats, values,
+  isRecent, loadRatio, readiness, series, sleepDebt, sleepNeedFor, stats, values,
   type Point, type Readiness,
 } from '../derive';
+import { DEFAULT_GOALS, type Goals } from '../goals';
 import { beforeLatestMorning, daypartOf, hm, wallClock } from './helpers';
 import type { Daypart } from './types';
 
@@ -14,6 +15,8 @@ export interface InsightOptions {
   intraday?: IntradayDays;
   /** The zone `now` is read in. Defaults to this runtime's, which in the browser is the user's. */
   timeZone?: string;
+  /** The person's goals; the defaults when they haven't set any. */
+  goals?: Goals;
 }
 
 type ReadinessPart = Readiness['parts'][number];
@@ -44,7 +47,12 @@ export interface InsightContext {
   heightCm: number | null;
   /** What the history queries found before the window: empty without older history, or before it has loaded. */
   answers: HistoryAnswers;
-  /** Personal sleep need in minutes, and as "7h 20m" (or "7h 00m", to read alongside a night's "5h 40m"). */
+  /** The person's goals, the defaults where they haven't set one. */
+  goals: Goals;
+  /**
+   * Personal sleep need in minutes, and as "7h 20m" (or "7h 00m", to read alongside a night's "5h 40m"):
+   * the person's own figure when they've set one, else the estimate from their nights.
+   */
   need: number;
   needH: string;
   stepsSeries: Point[];
@@ -75,12 +83,13 @@ export function buildContext(ds: InsightDataset, now: Date, extras?: InsightOpti
   const today = todayRow.date;
   const minutesNow = wallClock(now, extras?.timeZone);
 
-  const need = estimatedSleepTarget(days);
+  const goals = extras?.goals ?? DEFAULT_GOALS;
+  const need = sleepNeedFor(days, goals.sleepNeed);
   const stepsSeries = series(days, (d) => d.steps);
   const doneSteps = stepsSeries.slice(0, -1);
   const lastNightDay = [...days].reverse().find((d) => d.sleep) ?? null;
 
-  const rNow = readiness(days);
+  const rNow = readiness(days, goals.sleepNeed);
   const prevDays = beforeLatestMorning(days);
   const byContribution = [...rNow.parts].sort((a, b) => b.contribution - a.contribution);
   const debt = sleepDebt(days, need);
@@ -96,6 +105,7 @@ export function buildContext(ds: InsightDataset, now: Date, extras?: InsightOpti
     age: ds.profile?.age ?? null,
     heightCm: ds.profile?.heightCm ?? null,
     answers: ds.answers ?? {},
+    goals,
     need,
     needH: hm(need),
     stepsSeries,
@@ -105,7 +115,7 @@ export function buildContext(ds: InsightDataset, now: Date, extras?: InsightOpti
     lastNight: lastNightDay?.sleep ?? null,
     lastNightIsRecent: isRecent(lastNightDay?.date, today),
     rNow,
-    rPrev: readiness(prevDays),
+    rPrev: readiness(prevDays, goals.sleepNeed),
     prevDays,
     topPos: byContribution[0] ?? null,
     topNeg: byContribution[byContribution.length - 1] ?? null,
