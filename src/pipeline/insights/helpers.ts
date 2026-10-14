@@ -5,8 +5,6 @@ import type { Daypart } from './types';
 
 /** Show news for up to this many days after it starts. */
 export const ENTRY_WINDOW = 2;
-/** Google's Health API offers no step goal to read, so everyone starts at 10,000 until the app has a setting. */
-export const STEP_GOAL = 10000;
 /** "Fully charged" on the battery's own scale: the green-light card fires from here. */
 export const CHARGED = BATTERY_TIERS[0].min;
 /** The low-battery card fires below this: the lower half of "Low", and "Drained". */

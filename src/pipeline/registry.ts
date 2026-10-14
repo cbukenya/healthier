@@ -1,6 +1,7 @@
 import { civilFromGH, civilFromInstant, type CivilDate } from '../lib/date';
 import { int, num, nullIf, round, sumOf } from './coerce';
 import type { DailyRecord, MetricDomain, SourceRef } from '../types/health';
+import type { Goals } from './goals';
 import { combineSleepPoints, parseSleepSession } from './sleep';
 
 /**
@@ -620,6 +621,8 @@ export interface ProfileFacts {
   age?: number | null;
   /** Set by the person in the app: Google Health doesn't provide it. */
   gender?: Gender | null;
+  /** The person's goals, set on the Data tab: Google Health doesn't share the ones set in Fitbit. */
+  goals?: Goals;
 }
 
 export function extractProfile(heightPoints: any[]): ProfileFacts {

@@ -4,12 +4,9 @@ import { formatCivilLong, formatCivilRange, weekdayLetter, weekdayShort, type Ci
 import type { PeriodShift } from '../pipeline/derive';
 import { Card, CardHead, CardSummary, DOMAIN, Delta, Meter, Row, fmtNum } from '../ui/primitives';
 import type { DailyRecord } from '../types/health';
-import { STEP_GOAL } from '../pipeline/insights';
+import { WHO_WEEK, stepsShort } from '../pipeline/goals';
+import { useGoals } from '../hooks/useGoals';
 
-export { STEP_GOAL };
-/** A brisk day: the WHO's 150 weekly minutes spread over five days. */
-const BRISK_GOAL = 30;
-const WHO_WEEK = 150;
 const BRISK_HEX = '#fb923c';
 
 /** Moderate plus vigorous minutes, the ones activity guidelines count. */
@@ -20,11 +17,12 @@ export const briskOf = (d: DailyRecord) => (d.activeMinutes ? d.activeMinutes.mo
  * energy. It shows today while today has steps, else the latest day that does.
  */
 export function TodaySoFar({ day, isToday, wide }: { day: DailyRecord; isToday: boolean; wide: boolean }) {
+  const goals = useGoals();
   const steps = day.steps ?? 0;
   const brisk = briskOf(day);
-  const goals = [steps >= STEP_GOAL, ...(brisk === null ? [] : [brisk >= BRISK_GOAL])];
-  const met = goals.filter(Boolean).length;
-  const goalNote = goals.length === 2 ? `${met} of 2 goals met` : met ? 'Step goal met' : null;
+  const reached = [steps >= goals.steps, ...(brisk === null ? [] : [brisk >= goals.briskMinutes])];
+  const met = reached.filter(Boolean).length;
+  const goalNote = reached.length === 2 ? `${met} of 2 goals met` : met ? 'Step goal met' : null;
 
   return (
     <Card className="px-[18px] pt-4 pb-[18px] md:px-5 flex flex-col gap-3.5">
@@ -37,14 +35,14 @@ export function TodaySoFar({ day, isToday, wide }: { day: DailyRecord; isToday: 
         <GoalRings
           size={wide ? 140 : 128}
           rings={[
-            { value: steps, goal: STEP_GOAL, color: DOMAIN.movement.hex },
-            { value: brisk, goal: BRISK_GOAL, color: BRISK_HEX },
+            { value: steps, goal: goals.steps, color: DOMAIN.movement.hex },
+            { value: brisk, goal: goals.briskMinutes, color: BRISK_HEX },
           ]}
-          label={`Steps: ${fmtNum(steps, 0)} of ${fmtNum(STEP_GOAL, 0)}. Brisk minutes: ${brisk === null ? 'not recorded' : `${brisk} of ${BRISK_GOAL}`}.`}
+          label={`Steps: ${fmtNum(steps, 0)} of ${fmtNum(goals.steps, 0)}. Brisk minutes: ${brisk === null ? 'not recorded' : `${brisk} of ${goals.briskMinutes}`}.`}
         />
         <div className="flex flex-col gap-3.5 md:gap-4 min-w-0">
-          <GoalValue color={DOMAIN.movement.hex} label="Steps" value={fmtNum(steps, 0)} goal={`/ ${fmtNum(STEP_GOAL, 0)}`} />
-          <GoalValue color={BRISK_HEX} label="Brisk minutes" value={brisk === null ? '—' : fmtNum(brisk, 0)} goal={`/ ${BRISK_GOAL} min`} />
+          <GoalValue color={DOMAIN.movement.hex} label="Steps" value={fmtNum(steps, 0)} goal={`/ ${fmtNum(goals.steps, 0)}`} />
+          <GoalValue color={BRISK_HEX} label="Brisk minutes" value={brisk === null ? '—' : fmtNum(brisk, 0)} goal={`/ ${goals.briskMinutes} min`} />
         </div>
         <Stat label="Distance" value={fmtNum(day.distanceKm, 2)} unit={day.distanceKm === null ? undefined : 'km'} />
         <Stat label="Active energy" value={fmtNum(day.activeKcal, 0)} unit={day.activeKcal === null ? undefined : 'kcal'} />
@@ -55,7 +53,7 @@ export function TodaySoFar({ day, isToday, wide }: { day: DailyRecord; isToday: 
 
 /**
  * The last seven finished days: their average against the week before, each day against the
- * 10,000 line, and the week against the three before it.
+ * step goal's line, and the week against the three before it.
  */
 export function LastSevenDays({ days, shift, ratio, wide }: {
   /** The seven finished days, oldest first. */
@@ -66,8 +64,10 @@ export function LastSevenDays({ days, shift, ratio, wide }: {
   ratio: number | null;
   wide: boolean;
 }) {
+  const goal = useGoals().steps;
   const steps = days.map((d) => d.steps).filter((s): s is number => s !== null);
-  const over = steps.filter((s) => s >= STEP_GOAL).length;
+  const over = steps.filter((s) => s >= goal).length;
+  const overLabel = `Days over ${stepsShort(goal)}`;
   const briskDays = days.map(briskOf).filter((m): m is number => m !== null);
   const brisk = briskDays.length ? briskDays.reduce((a, b) => a + b, 0) : null;
   const ramp = rampOf(ratio);
@@ -83,7 +83,7 @@ export function LastSevenDays({ days, shift, ratio, wide }: {
       </div>
     </div>
   );
-  const bars = <WeekBars days={days} long={wide} />;
+  const bars = <WeekBars days={days} goal={goal} long={wide} />;
 
   return (
     <Card className="px-[18px] pt-4 pb-3.5 md:px-5 md:pb-[18px] flex flex-col gap-3 md:gap-3.5">
@@ -104,13 +104,13 @@ export function LastSevenDays({ days, shift, ratio, wide }: {
       )}
       {wide ? (
         <div className="grid grid-cols-3 gap-3">
-          <Stat label="Days over 10k" value={`${over}`} unit={`of ${steps.length}`} />
+          <Stat label={overLabel} value={`${over}`} unit={`of ${steps.length}`} />
           {brisk !== null && <Stat label="Brisk minutes" value={fmtNum(brisk, 0)} unit={`of ${WHO_WEEK}`} />}
           {ramp && <Stat label="vs 3 weeks before" value={ramp.change} unit={`· ${ramp.verdict}`} />}
         </div>
       ) : (
         <div>
-          <Row dense label="Days over 10k">{over} of {steps.length}</Row>
+          <Row dense label={overLabel}>{over} of {steps.length}</Row>
           {brisk !== null && (
             <Row dense label="Brisk minutes">
               {fmtNum(brisk, 0)} <span className="text-zinc-500">of {WHO_WEEK}</span>
@@ -140,8 +140,9 @@ export interface WeekTotal {
 /** Weeks listed before "Show all". */
 const WEEKS_SHOWN = 8;
 
-/** Steps per finished Monday-to-Sunday week, newest first, each against 70,000 (10,000 a day). */
+/** Steps per finished Monday-to-Sunday week, newest first, each against seven days of the step goal. */
 export function WeeklyTotals({ weeks }: { weeks: WeekTotal[] }) {
+  const goal = useGoals().steps;
   const [showAll, setShowAll] = useState(false);
   const shown = showAll ? weeks : weeks.slice(0, WEEKS_SHOWN);
   return (
@@ -157,7 +158,7 @@ export function WeeklyTotals({ weeks }: { weeks: WeekTotal[] }) {
           <div key={w.start} className="flex items-center gap-3">
             <span className="w-[96px] shrink-0 whitespace-nowrap text-caption text-zinc-500">{formatCivilRange(w.start, w.end)}</span>
             <div className="flex-1">
-              <Meter pct={(w.total / (STEP_GOAL * 7)) * 100} color={DOMAIN.movement.hex} />
+              <Meter pct={(w.total / (goal * 7)) * 100} color={DOMAIN.movement.hex} />
             </div>
             <span className="w-[64px] shrink-0 text-right text-detail text-zinc-200 tabular-nums">{fmtNum(w.total, 0)}</span>
             <span className="w-[54px] shrink-0 text-right text-note text-zinc-600">{w.days}/7 days</span>
@@ -254,12 +255,12 @@ export function Stat({ label, value, unit, tone }: { label: string; value: strin
   );
 }
 
-/** One bar per day against the 10,000 line; the days that cleared it are solid. */
-function WeekBars({ days, long }: { days: DailyRecord[]; long: boolean }) {
+/** One bar per day against the step goal's line; the days that cleared it are solid. */
+function WeekBars({ days, goal, long }: { days: DailyRecord[]; goal: number; long: boolean }) {
   const plot = long ? 128 : 110;
   const busiest = Math.max(0, ...days.map((d) => d.steps ?? 0));
   // Headroom above the line, and above the busiest day.
-  const top = Math.max(STEP_GOAL * 1.2, busiest * 1.05);
+  const top = Math.max(goal * 1.2, busiest * 1.05);
   const px = (v: number) => (v / top) * plot;
   const columns = 'grid grid-cols-7 gap-x-2 md:gap-x-3';
   return (
@@ -274,15 +275,15 @@ function WeekBars({ days, long }: { days: DailyRecord[]; long: boolean }) {
               {d.steps !== null && (
                 <div
                   className="w-full max-w-[26px] rounded-t-[4px]"
-                  style={{ height: Math.max(2, px(d.steps)), background: DOMAIN.movement.hex, opacity: d.steps >= STEP_GOAL ? 1 : 0.42 }}
+                  style={{ height: Math.max(2, px(d.steps)), background: DOMAIN.movement.hex, opacity: d.steps >= goal ? 1 : 0.42 }}
                 />
               )}
             </div>
           ))}
         </div>
-        {/* The 10,000 line, over the bars, labelled in the gutter on the right. */}
-        <div className="absolute left-0 right-7 border-t border-dashed border-zinc-400/70" style={{ bottom: px(STEP_GOAL) + 1 }} />
-        <span className="absolute right-0 translate-y-1/2 text-note leading-none text-zinc-500" style={{ bottom: px(STEP_GOAL) + 1 }}>10k</span>
+        {/* The goal's line, over the bars, labelled in the gutter on the right. */}
+        <div className="absolute left-0 right-7 border-t border-dashed border-zinc-400/70" style={{ bottom: px(goal) + 1 }} />
+        <span className="absolute right-0 translate-y-1/2 text-note leading-none text-zinc-500" style={{ bottom: px(goal) + 1 }}>{stepsShort(goal)}</span>
       </div>
       <div className={`${columns} pr-7 mt-1.5`}>
         {days.map((d) => (

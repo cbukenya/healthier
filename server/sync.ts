@@ -12,6 +12,7 @@ import {
   type PackedDataset,
 } from '../src/pipeline/incremental';
 import type { DailyRecord } from '../src/types/health';
+import { readGoals } from '../src/pipeline/goals';
 import { answerQueries, queriesSpan, type HistoryAnswers, type HistoryQueries } from '../src/pipeline/history';
 import { SCOPES, type ScopeKey } from '../src/pipeline/registry';
 import { HealthTransport } from '../src/pipeline/transport';
@@ -238,8 +239,8 @@ export async function loadDataset(
     getStreamStates(deps.db, userId),
   ]);
   const dataset = assembleDataset(
-    // Gender is the person's own setting, kept on their account rather than read from Google.
-    { rows, intraday, states: states.values(), profile: { ...state.profile, gender: user.gender }, run: state.run },
+    // Gender and goals are the person's own settings, kept on their account rather than read from Google.
+    { rows, intraday, states: states.values(), profile: { ...state.profile, gender: user.gender, goals: readGoals(user.goals) }, run: state.run },
     from,
     to,
   );

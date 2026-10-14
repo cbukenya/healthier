@@ -98,6 +98,14 @@ const MIGRATIONS: { id: number; name: string; sql: string }[] = [
       ALTER TABLE users ADD COLUMN gender text CHECK (gender IN ('female', 'male', 'other'));
     `,
   },
+  {
+    id: 3,
+    name: 'user goals',
+    sql: `
+      -- Set by the person on the Data tab (Goals in src/pipeline/goals.ts); NULL until they change one.
+      ALTER TABLE users ADD COLUMN goals jsonb;
+    `,
+  },
 ];
 
 export function createDb(connectionString: string): Db {

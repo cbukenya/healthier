@@ -1,11 +1,12 @@
 import { Router } from 'express';
-import type { DatasetResponse, HistoryResponse, MeResponse, ProfileResponse, SyncResponse } from '../src/types/api';
+import type { DatasetResponse, GoalsResponse, HistoryResponse, MeResponse, ProfileResponse, SyncResponse } from '../src/types/api';
+import { parseGoals } from '../src/pipeline/goals';
 import type { Gender } from '../src/pipeline/registry';
 import { parseQueries } from '../src/pipeline/history';
 import { requireUser, SESSION_COOKIE, sessionCookieOptions } from './auth';
 import { revokeToken } from './google';
 import { asyncHandler, type Deps } from './http';
-import { deleteUser, getTokens, getUser, hasTokens, setGender, setTimeZone } from './repo';
+import { deleteUser, getTokens, getUser, hasTokens, setGender, setGoals, setTimeZone } from './repo';
 import { historyInfo, loadDataset, loadHistory, startSync, syncStatus } from './sync';
 
 /** The browser's API. Every route acts on the signed-in user only. */
@@ -54,6 +55,21 @@ export function apiRoutes(deps: Deps): Router {
       }
       await setGender(deps.db, res.locals.userId, gender);
       const body: ProfileResponse = { gender };
+      res.json(body);
+    }),
+  );
+
+  /** The person's goals, set on the Data tab. Each must sit inside its bounds (GOAL_LIMITS). */
+  router.put(
+    '/goals',
+    asyncHandler(async (req, res) => {
+      const goals = parseGoals(req.body?.goals);
+      if (!goals) {
+        res.status(400).json({ error: 'invalid_goals' });
+        return;
+      }
+      await setGoals(deps.db, res.locals.userId, goals);
+      const body: GoalsResponse = { goals };
       res.json(body);
     }),
   );

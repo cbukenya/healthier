@@ -12,16 +12,19 @@ import { emptyRecord } from '../pipeline/normalize';
 import { SpanSelector, spanName, useSpan } from '../ui/span';
 import { ChartChips } from '../ui/ChartChips';
 import { useMediaQuery } from '../hooks/useMediaQuery';
+import { useGoals } from '../hooks/useGoals';
+import { WHO_WEEK, stepsShort } from '../pipeline/goals';
 import { InsightsCarousel } from '../components/InsightsCarousel';
 import { usePageInsights, type Clock } from '../hooks/usePageInsights';
 import type { IntradayDays } from '../pipeline/labs';
-import { LastSevenDays, STEP_GOAL, TodaySoFar, WeeklyTotals, briskOf, type WeekTotal } from './ActivityCards';
+import { LastSevenDays, TodaySoFar, WeeklyTotals, briskOf, type WeekTotal } from './ActivityCards';
 
 type ActivityChart = 'steps' | 'energy' | 'intensity' | 'distance' | 'weekdays' | 'weekly';
 
 export function ActivityView({ data, clock, intraday }: { data: SyncResult; clock?: Clock; intraday?: IntradayDays }) {
   const days = data.days;
   const insights = usePageInsights(data, 'activity', clock, intraday);
+  const goal = useGoals().steps;
   const spanState = useSpan(data, '30');
   const { days: window, bucket } = spanState;
   // A phone shows one chart at a time behind chips; wider screens show them all.
@@ -82,11 +85,11 @@ export function ActivityView({ data, clock, intraday }: { data: SyncResult; cloc
       <CardHead
         domain="movement"
         title="Daily steps"
-        hint="Solid bars cleared 10,000. Missing bars are days the tracker recorded nothing — they're excluded from every average on this page."
+        hint={`Solid bars cleared your goal of ${fmtNum(goal, 0)}. Missing bars are days the tracker recorded nothing — they're excluded from every average on this page.`}
         right={<CardSummary data={stepsWin} color={DOMAIN.movement.hex} format={(v) => fmtNum(v, 0)} />}
       />
       <div className="px-2 pb-3">
-        <BarSeries series={groupSeries(stepsWin, bucket)} bucket={bucket} color={DOMAIN.movement.hex} goal={10000} unit="steps" height={210} />
+        <BarSeries series={groupSeries(stepsWin, bucket)} bucket={bucket} color={DOMAIN.movement.hex} goal={goal} unit="steps" height={210} />
       </div>
     </Card>
   );
@@ -105,7 +108,7 @@ export function ActivityView({ data, clock, intraday }: { data: SyncResult; cloc
         title="Intensity mix"
         hint={
           <span>
-            <span className="text-emerald-400 font-medium">Light</span> minutes accumulate from daily life; <span className="text-amber-400 font-medium">Moderate</span> and <span className="text-rose-400 font-medium">Vigorous</span> are the ones guidelines count. 150 brisk minutes a week is the usual target.
+            <span className="text-emerald-400 font-medium">Light</span> minutes accumulate from daily life; <span className="text-amber-400 font-medium">Moderate</span> and <span className="text-rose-400 font-medium">Vigorous</span> are the ones guidelines count. {WHO_WEEK} brisk minutes a week is the usual target.
           </span>
         }
         right={
@@ -162,13 +165,13 @@ export function ActivityView({ data, clock, intraday }: { data: SyncResult; cloc
             <span className="text-zinc-500"> · {formatCivilLong(best.date)}</span>
           </Row>
         )}
-        <Row dense={!wide} label="Days over 10k">{values(stepsWin).filter((v) => v >= STEP_GOAL).length}</Row>
+        <Row dense={!wide} label={`Days over ${stepsShort(goal)}`}>{values(stepsWin).filter((v) => v >= goal).length}</Row>
         <Row dense={!wide} label="Distance">{fmtNum(total(distWin), 1)} km</Row>
         <Row dense={!wide} label="Active energy">{fmtNum(total(kcalWin), 0)} kcal</Row>
         {briskPerDay && (
           <Row dense={!wide} label="Brisk minutes">
             {fmtNum(briskPerDay.mean * 7, 0)} a week
-            <span className="text-zinc-500"> · target 150</span>
+            <span className="text-zinc-500"> · target {WHO_WEEK}</span>
           </Row>
         )}
         {spanSteps.length >= 14 && (

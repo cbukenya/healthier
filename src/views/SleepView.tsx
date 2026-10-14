@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { formatCivilLong, formatClock } from '../lib/date';
 import {
-  compareToBaseline, estimatedSleepTarget, isRecent, periodShift, series, sleepArchitecture, sleepDebt, stats, values, windowShift,
+  compareToBaseline, isRecent, periodShift, series, sleepArchitecture, sleepDebt, sleepNeedFor, stats, values, windowShift,
 } from '../pipeline/derive';
 import { scoreSleep } from '../pipeline/sleep';
 import { BarSeries, Hypnogram, StageBar, StageLegend, TrendChart, SleepWindowChart } from '../charts';
@@ -10,6 +10,7 @@ import { BandPill, Card, CardHead, DOMAIN, Delta, EmptyState, Row, Segmented, Va
 import { SpanSelector, spanName, useSpan } from '../ui/span';
 import { ChartChips } from '../ui/ChartChips';
 import { useMediaQuery } from '../hooks/useMediaQuery';
+import { useGoals } from '../hooks/useGoals';
 import { InsightsCarousel } from '../components/InsightsCarousel';
 import { usePageInsights, type Clock } from '../hooks/usePageInsights';
 import type { IntradayDays } from '../pipeline/labs';
@@ -23,6 +24,7 @@ type SleepChart = 'window' | 'duration' | 'rem' | 'deep' | 'naps';
 export function SleepView({ data, clock, intraday }: { data: SyncResult; clock?: Clock; intraday?: IntradayDays }) {
   const days = data.days;
   const insights = usePageInsights(data, 'sleep', clock, intraday);
+  const needSet = useGoals().sleepNeed;
   const spanState = useSpan(data, '30');
   const { days: window, bucket } = spanState;
   // A phone shows one chart at a time behind chips; wider screens show them all.
@@ -36,7 +38,7 @@ export function SleepView({ data, clock, intraday }: { data: SyncResult; clock?:
 
   const sleepCmp = compareToBaseline(sleepAll);
   const shift = periodShift(sleepAll, 7);
-  const targetMin = estimatedSleepTarget(days);
+  const targetMin = sleepNeedFor(days, needSet);
   const debt = sleepDebt(days, targetMin);
   const recorded = values(sleepAll).length;
 
