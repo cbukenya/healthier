@@ -94,7 +94,8 @@ export interface SleepSession {
  */
 /**
  * Where each heart rate zone starts that day, in bpm, as Google Health sets them from resting
- * heart rate (the Karvonen method). Below Light is rest.
+ * heart rate (the Karvonen method). Light starts at a floor of 30 bpm, so in practice it's
+ * everything below Moderate.
  */
 export interface HeartRateZones {
   light: number;

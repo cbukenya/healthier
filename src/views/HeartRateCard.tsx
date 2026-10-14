@@ -1,13 +1,13 @@
 import React, { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { formatCivil, formatCivilRange, type CivilDate } from '../lib/date';
 import {
-  DAY, HOUR, MINUTE, ZONE_NAMES, byDay, hourly, lowerBound, tickStep, visibleRuns, wallClock, wallDate, wallTime,
+  DAY, HOUR, MINUTE, ZONE_NAMES, byDay, hourly, lowerBound, tickStep, visibleRuns, wallClock, wallDate, wallTimes,
   zoneOf, zoneStarts, zoneStops, type Pt,
 } from '../charts/heartRate';
 import type { DailyRecord, HeartRateZones, IntradaySample } from '../types/health';
 import { Card, DOMAIN, EFFORT } from '../ui/primitives';
 
-const ZONE_COLORS = [EFFORT.rest, EFFORT.light, EFFORT.moderate, EFFORT.vigorous, EFFORT.peak] as const;
+const ZONE_COLORS = [EFFORT.light, EFFORT.moderate, EFFORT.vigorous, EFFORT.peak] as const;
 
 /** The zoom buttons; pinching, ctrl and the wheel, and the strip's edges zoom in between. */
 const SPANS = [
@@ -44,8 +44,11 @@ interface View {
 
 /**
  * Minute heart rate across the window, coloured by the day's zones as it moves through them:
- * rest, light, moderate, vigorous and peak, each day by the zones Google set for it. The
- * figures above it describe exactly what's in view.
+ * light, moderate, vigorous and peak, each day by the zones Google set for it, never an average
+ * of several days'. The figures above it describe exactly what's in view.
+ *
+ * Only the minutes in view are drawn, at most two to a pixel, so drawing costs the same at any
+ * zoom; the readings themselves are held once, as two compact arrays.
  *
  * It opens on the last 24 hours. Drag it, or the strip of every day under it, to move through
  * the window; zoom with the buttons, a pinch, ctrl and the wheel, or the strip's edges. On the
@@ -60,8 +63,8 @@ export function HeartRateCard({ samples, days, wide, className = '' }: {
   className?: string;
 }) {
   const uid = useId().replace(/[^a-zA-Z0-9]/g, '');
-  const ts = useMemo(() => samples.map(wallTime), [samples]);
-  const vs = useMemo(() => samples.map((s) => s.value), [samples]);
+  const ts = useMemo(() => wallTimes(samples), [samples]);
+  const vs = useMemo(() => Uint8Array.from(samples, (s) => Math.min(255, Math.max(0, s.value))), [samples]);
   const first = ts[0];
   const end = ts[ts.length - 1] + MINUTE;
   const range = Math.max(end - first, MIN_SPAN);

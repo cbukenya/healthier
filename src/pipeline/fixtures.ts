@@ -144,21 +144,22 @@ export function buildFixturePayloads(days: FixtureDay[] = parseFixtureSeries()):
     ),
   };
   // Each day's heart rate zones, set from that day's resting heart rate the Karvonen way: a share of
-  // the reserve between it and a maximum of 220 − 41 (the demo person's age).
+  // the reserve between it and a maximum of 220 − 41 (the demo person's age). Like Google's, Light
+  // starts at a floor of 30 bpm.
   out['daily-heart-rate-zones'] = {
     dataPoints: newestFirst(
       have('restingHr').map((d) => {
         const rest = d.restingHr!;
         const max = 220 - 41;
         const at = (share: number) => Math.round(rest + share * (max - rest));
-        const zone = (heartRateZoneType: string, from: number, to: number | null) => ({
+        const zone = (heartRateZoneType: string, min: number, to: number | null) => ({
           heartRateZoneType,
-          minBeatsPerMinute: String(at(from)),
+          minBeatsPerMinute: String(min),
           maxBeatsPerMinute: String(to === null ? max : at(to) - 1),
         });
         return listPoint(FITBIT, 'dailyHeartRateZones', {
           date: ghDateFromCivil(d.date),
-          heartRateZones: [zone('LIGHT', 0.3, 0.4), zone('MODERATE', 0.4, 0.6), zone('VIGOROUS', 0.6, 0.85), zone('PEAK', 0.85, null)],
+          heartRateZones: [zone('LIGHT', 30, 0.4), zone('MODERATE', at(0.4), 0.6), zone('VIGOROUS', at(0.6), 0.85), zone('PEAK', at(0.85), null)],
         });
       }),
     ),

@@ -360,7 +360,7 @@ export const STREAMS: StreamDescriptor[] = [
     mode: 'list',
     container: 'dailyHeartRateZones',
     scope: 'metrics',
-    note: 'Where Light, Moderate, Vigorous and Peak start each day, in bpm, set from resting heart rate. Below Light is rest.',
+    note: 'Where Light, Moderate, Vigorous and Peak start each day, in bpm, set from resting heart rate. Light starts at a floor of 30 bpm: in practice, everything below Moderate.',
     dateOf: containerDate,
     apply(ctx, c) {
       const zones = heartRateZones(c?.heartRateZones);

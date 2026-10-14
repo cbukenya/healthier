@@ -18,13 +18,16 @@ export const wallTime = (s: Pick<IntradaySample, 'date' | 'minutesOfDay'>) =>
 export const wallDate = (t: number): CivilDate => new Date(t).toISOString().slice(0, 10);
 export const wallClock = (t: number) => new Date(t).toISOString().slice(11, 16);
 
-/** The zones, rest first, by what they're called. */
-export const ZONE_NAMES = ['Rest', 'Light', 'Moderate', 'Vigorous', 'Peak'] as const;
+/**
+ * The zones, by what they're called. Google's Light zone starts at a floor of 30 bpm, so in
+ * practice Light is everything below Moderate, rest and sleep included.
+ */
+export const ZONE_NAMES = ['Light', 'Moderate', 'Vigorous', 'Peak'] as const;
 
-/** Where each zone above rest starts, in bpm, lowest first. */
-export const zoneStarts = (z: HeartRateZones) => [z.light, z.moderate, z.vigorous, z.peak];
+/** Where each zone above Light starts, in bpm, lowest first. */
+export const zoneStarts = (z: HeartRateZones) => [z.moderate, z.vigorous, z.peak];
 
-/** The zone a reading falls in: 0 for rest up to 4 for peak. */
+/** The zone a reading falls in: 0 for light up to 3 for peak. */
 export function zoneOf(bpm: number, z: HeartRateZones): number {
   const starts = zoneStarts(z);
   let k = 0;
@@ -60,8 +63,27 @@ export function zoneStops(
   return stops;
 }
 
+/**
+ * Every reading's wall-clock time, as a compact array: each date is parsed once, not once a
+ * minute, since 62 days of minutes is some 85,000 readings.
+ */
+export function wallTimes(samples: readonly Pick<IntradaySample, 'date' | 'minutesOfDay'>[]): Float64Array {
+  const out = new Float64Array(samples.length);
+  let date = '';
+  let base = 0;
+  for (let i = 0; i < samples.length; i++) {
+    const s = samples[i];
+    if (s.date !== date) {
+      date = s.date;
+      base = Date.parse(`${date}T00:00:00Z`);
+    }
+    out[i] = base + s.minutesOfDay * MINUTE;
+  }
+  return out;
+}
+
 /** The first index whose time is at or after `t`, in times sorted ascending. */
-export function lowerBound(ts: readonly number[], t: number): number {
+export function lowerBound(ts: ArrayLike<number>, t: number): number {
   let a = 0;
   let b = ts.length;
   while (a < b) {
@@ -86,8 +108,8 @@ export type Pt = { t: number; v: number };
  * order, so peaks survive at every zoom.
  */
 export function visibleRuns(
-  ts: readonly number[],
-  vs: readonly number[],
+  ts: ArrayLike<number>,
+  vs: ArrayLike<number>,
   from: number,
   to: number,
   widthPx: number,
@@ -158,7 +180,7 @@ export function byDay(runs: Pt[][]): { date: CivilDate; points: Pt[] }[] {
 }
 
 /** Each wall-clock hour's average, for the strip that shows every day at once. */
-export function hourly(ts: readonly number[], vs: readonly number[]): Pt[] {
+export function hourly(ts: ArrayLike<number>, vs: ArrayLike<number>): Pt[] {
   const out: Pt[] = [];
   let hour = Number.NaN;
   let sum = 0;

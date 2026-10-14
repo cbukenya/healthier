@@ -1,11 +1,13 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  DAY, HOUR, MINUTE, byDay, hourly, lowerBound, tickStep, visibleRuns, wallClock, wallDate, wallTime, zoneOf, zoneStops,
+  DAY, HOUR, MINUTE, byDay, hourly, lowerBound, tickStep, visibleRuns, wallClock, wallDate, wallTime, wallTimes, zoneOf,
+  zoneStops,
 } from '../../charts/heartRate';
 
-const zones = { light: 94, moderate: 106, vigorous: 131, peak: 161 };
-const COLORS = ['rest', 'light', 'moderate', 'vigorous', 'peak'];
+// As Google sends them: Light from a floor of 30 bpm, so it's everything below Moderate.
+const zones = { light: 30, moderate: 106, vigorous: 131, peak: 161 };
+const COLORS = ['light', 'moderate', 'vigorous', 'peak'];
 
 describe('heart rate chart', () => {
   it('reads time off the wall clock, with midnight on whole days', () => {
@@ -13,20 +15,27 @@ describe('heart rate chart', () => {
     assert.equal(wallDate(t), '2026-10-14');
     assert.equal(wallClock(t), '23:46');
     assert.equal(wallTime({ date: '2026-10-15', minutesOfDay: 0 }) % DAY, 0);
+    const samples = [
+      { date: '2026-10-14', minutesOfDay: 1439 },
+      { date: '2026-10-15', minutesOfDay: 0 },
+      { date: '2026-10-15', minutesOfDay: 1 },
+    ];
+    assert.deepEqual([...wallTimes(samples)], samples.map(wallTime), 'each date parsed once gives the same times');
   });
 
-  it('puts a reading in its zone, from where each zone starts', () => {
-    assert.equal(zoneOf(60, zones), 0);
-    assert.equal(zoneOf(94, zones), 1, 'a zone starts at its own minimum');
-    assert.equal(zoneOf(130, zones), 2);
-    assert.equal(zoneOf(131, zones), 3);
-    assert.equal(zoneOf(175, zones), 4);
+  it('puts a reading in its zone: light below moderate, sleep included', () => {
+    assert.equal(zoneOf(48, zones), 0, 'a sleeping heart is in Light');
+    assert.equal(zoneOf(105, zones), 0);
+    assert.equal(zoneOf(106, zones), 1, 'a zone starts at its own minimum');
+    assert.equal(zoneOf(130, zones), 1);
+    assert.equal(zoneOf(131, zones), 2);
+    assert.equal(zoneOf(175, zones), 3);
   });
 
   it('colours the line by zone from the top of the scale down, easing over each boundary', () => {
     const stops = zoneStops(zones, 40, 180, COLORS, 'plain');
     assert.equal(stops[0].color, 'peak', '180 bpm is peak');
-    assert.equal(stops.at(-1)!.color, 'rest', '40 bpm is rest');
+    assert.equal(stops.at(-1)!.color, 'light', '40 bpm is light');
     assert.ok(stops.every((s, i) => i === 0 || s.offset >= stops[i - 1].offset), 'offsets climb');
     // Vigorous starts at 131 bpm, (180 − 131) / 140 of the way down: vigorous above, moderate below.
     const below = stops.findIndex((s) => s.color === 'moderate');
