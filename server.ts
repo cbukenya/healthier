@@ -1,5 +1,6 @@
 import express, { type ErrorRequestHandler } from 'express';
 import path from 'path';
+import compression from 'compression';
 import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
 import { ConfigError, loadConfig, type Config } from './server/config';
@@ -19,6 +20,9 @@ async function startServer(config: Config) {
 
   const app = express();
   app.disable('x-powered-by');
+  // gzip for the API and the app's files, for browsers that ask for it: the dataset is mostly
+  // minute-level heart rate and shrinks about fivefold. Small responses are sent as they are.
+  app.use(compression());
   app.use(cookieParser());
   app.use(express.json());
 
