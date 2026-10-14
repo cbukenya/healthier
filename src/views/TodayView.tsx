@@ -289,7 +289,7 @@ export function TodayView({
 
         {s.week && (
           <div className="order-1 lg:order-2 lg:col-span-4 flex flex-col h-full">
-            <ThisWeek week={s.week} needMin={s.sleepTargetMin} className="flex-1" />
+            <ThisWeek week={s.week} days={days} needMin={s.sleepTargetMin} className="flex-1" />
           </div>
         )}
       </div>
