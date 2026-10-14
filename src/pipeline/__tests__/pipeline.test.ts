@@ -270,14 +270,32 @@ describe('regressions from the previous implementation', () => {
 
   it('rolls intraday heart rate up into one-minute averages and reports the true span', async () => {
     const ds = await dataset();
-    // 900 raw samples at 3 s are 45 minutes: one averaged sample per minute.
-    assert.equal(ds.heartRateSamples.length, 45);
-    const spanMin =
-      (Date.parse(ds.heartRateSamples.at(-1)!.iso) - Date.parse(ds.heartRateSamples[0].iso)) / 60000;
-    // The point of the test: this is emphatically not "today".
+    // 900 raw samples at 3 s are 45 minutes, from 21:00 UTC: one averaged sample per minute.
+    const t0 = Date.parse('2026-08-18T21:00:00Z');
+    const run = ds.heartRateSamples.filter((s) => Date.parse(s.iso) >= t0 && Date.parse(s.iso) < t0 + 45 * 60000);
+    assert.equal(run.length, 45);
+    const spanMin = (Date.parse(run.at(-1)!.iso) - Date.parse(run[0].iso)) / 60000;
     assert.equal(spanMin, 44);
-    assert.ok(Date.parse(ds.heartRateSamples[0].iso) < Date.parse(ds.heartRateSamples.at(-1)!.iso), 'must be ascending');
-    assert.ok(ds.heartRateSamples.every((s) => Number.isInteger(s.value) && s.value > 40 && s.value < 130));
+    const times = ds.heartRateSamples.map((s) => Date.parse(s.iso));
+    assert.ok(times.every((t, i) => i === 0 || t > times[i - 1]), 'must be ascending, one sample a minute');
+    assert.ok(ds.heartRateSamples.every((s) => Number.isInteger(s.value) && s.value > 40 && s.value < 200));
+  });
+
+  it('reads each day’s heart rate zones, and leaves a day without all four empty', async () => {
+    const ds = await dataset();
+    const d = day(ds, '2026-08-18');
+    assert.ok(d.hrZones, 'the fixture sends zones for every day with a resting heart rate');
+    assert.ok(d.hrZones!.light < d.hrZones!.moderate && d.hrZones!.moderate < d.hrZones!.vigorous && d.hrZones!.vigorous < d.hrZones!.peak);
+    const zones = STREAMS.find((s) => s.dataType === 'daily-heart-rate-zones')!;
+    const row = emptyRecord('2026-08-18');
+    const point = (types: string[]) => ({
+      date: { year: 2026, month: 8, day: 18 },
+      heartRateZones: types.map((heartRateZoneType, i) => ({ heartRateZoneType, minBeatsPerMinute: String(90 + i * 20), maxBeatsPerMinute: String(109 + i * 20) })),
+    });
+    assert.equal(zones.apply({ row }, point(['LIGHT', 'MODERATE', 'VIGOROUS']), {}), false, 'three of four zones is no answer');
+    assert.equal(row.hrZones, null);
+    assert.equal(zones.apply({ row }, point(['LIGHT', 'MODERATE', 'VIGOROUS', 'PEAK']), {}), true);
+    assert.deepEqual(row.hrZones, { light: 90, moderate: 110, vigorous: 130, peak: 150 });
   });
 
   it('never fabricates heart-rate zones from active minutes', async () => {

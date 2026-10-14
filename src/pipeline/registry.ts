@@ -1,6 +1,6 @@
 import { civilFromGH, civilFromInstant, type CivilDate } from '../lib/date';
 import { int, num, nullIf, round, sumOf } from './coerce';
-import type { DailyRecord, MetricDomain, SourceRef } from '../types/health';
+import type { DailyRecord, HeartRateZones, MetricDomain, SourceRef } from '../types/health';
 import type { Goals } from './goals';
 import { combineSleepPoints, parseSleepSession } from './sleep';
 
@@ -101,6 +101,16 @@ function fill<K extends keyof DailyRecord>(row: DailyRecord, key: K, value: Dail
   if (value === null || value === undefined || (row[key] !== null && row[key] !== undefined)) return false;
   row[key] = value;
   return true;
+}
+
+/** A day's four zones by where each starts, or null unless all four are there and climb in order. */
+function heartRateZones(list: any): HeartRateZones | null {
+  if (!Array.isArray(list)) return null;
+  const start = (type: string) => int(list.find((z: any) => z?.heartRateZoneType === type)?.minBeatsPerMinute);
+  const z = { light: start('LIGHT'), moderate: start('MODERATE'), vigorous: start('VIGOROUS'), peak: start('PEAK') };
+  if (z.light === null || z.moderate === null || z.vigorous === null || z.peak === null) return null;
+  if (!(z.light < z.moderate && z.moderate < z.vigorous && z.vigorous < z.peak)) return null;
+  return z as HeartRateZones;
 }
 
 /** Earliest in the day first: the morning weigh-in is the comparable one. */
@@ -340,6 +350,23 @@ export const STREAMS: StreamDescriptor[] = [
     apply(ctx, c) {
       if (!fill(ctx.row, 'restingHr', int(c?.beatsPerMinute))) return false;
       mark(ctx, 'daily-resting-heart-rate');
+      return true;
+    },
+  },
+  {
+    dataType: 'daily-heart-rate-zones',
+    label: 'Heart rate zones',
+    domain: 'cardio',
+    mode: 'list',
+    container: 'dailyHeartRateZones',
+    scope: 'metrics',
+    note: 'Where Light, Moderate, Vigorous and Peak start each day, in bpm, set from resting heart rate. Below Light is rest.',
+    dateOf: containerDate,
+    apply(ctx, c) {
+      const zones = heartRateZones(c?.heartRateZones);
+      if (!zones || ctx.row.hrZones) return false;
+      ctx.row.hrZones = zones;
+      mark(ctx, 'daily-heart-rate-zones');
       return true;
     },
   },

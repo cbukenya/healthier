@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { Activity, Droplet, Heart, Wind } from 'lucide-react';
-import { formatCivil, formatCivilLong, formatClock } from '../lib/date';
+import { formatCivilLong } from '../lib/date';
 import {
   compareToBaseline, series, stats, values, windowShift, NOISE_FLOOR,
   type Comparison, type Point,
 } from '../pipeline/derive';
-import { DivergingBars, IntradayTrace, RangeBandChart, Spark, TrendChart } from '../charts';
+import { DivergingBars, RangeBandChart, Spark, TrendChart } from '../charts';
 import { BandPill, Card, CardHead, DOMAIN, Delta, EmptyState, Value, fmtNum } from '../ui/primitives';
 import { Tile } from '../ui/Tile';
 import { ChartChips } from '../ui/ChartChips';
@@ -17,7 +17,8 @@ import { useMediaQuery } from '../hooks/useMediaQuery';
 import { InsightsCarousel } from '../components/InsightsCarousel';
 import { usePageInsights, type Clock } from '../hooks/usePageInsights';
 import type { IntradayDays } from '../pipeline/labs';
-import type { DailyRecord, IntradaySample } from '../types/health';
+import type { DailyRecord } from '../types/health';
+import { HeartRateCard } from './HeartRateCard';
 
 const spo2Of = (d: DailyRecord) => (d.spo2 ? { avg: d.spo2.avg, low: d.spo2.ciLower, high: d.spo2.ciUpper } : null);
 
@@ -81,14 +82,6 @@ export function VitalsView({ data, clock, intraday }: { data: SyncResult; clock?
         <EmptyState title="No vitals data in this window" detail="Metrics come from the health_metrics_and_measurements scope." />
       </Card>
     );
-  }
-
-  let last24hSamples = data.heartRateSamples;
-  if (data.heartRateSamples && data.heartRateSamples.length > 0) {
-    const latestMs = Date.parse(data.heartRateSamples.at(-1)!.iso);
-    if (!isNaN(latestMs)) {
-      last24hSamples = data.heartRateSamples.filter((s) => Date.parse(s.iso) >= latestMs - 24 * 60 * 60 * 1000);
-    }
   }
 
   // A tile's date note, when its reading isn't today's.
@@ -218,7 +211,9 @@ export function VitalsView({ data, clock, intraday }: { data: SyncResult; clock?
           </div>
         </div>
 
-        {last24hSamples.length > 0 && <HeartRateCard samples={last24hSamples} tall={wide} className="order-1 md:order-2" />}
+        {data.heartRateSamples.length > 0 && (
+          <HeartRateCard samples={data.heartRateSamples} days={days} wide={wide} className="order-1 md:order-2" />
+        )}
       </div>
 
       <div className="flex items-center justify-between px-1">
@@ -259,42 +254,5 @@ export function VitalsView({ data, clock, intraday }: { data: SyncResult; clock?
 
       <InsightsCarousel observations={insights} page="vitals" />
     </div>
-  );
-}
-
-/** The last 24 hours of heart rate: its lowest, average and highest, then the trace. */
-function HeartRateCard({ samples, tall, className = '' }: { samples: IntradaySample[]; tall: boolean; className?: string }) {
-  const bpm = samples.map((s) => s.value);
-  const last = samples[samples.length - 1];
-  const stat = (label: string, v: number) => (
-    <div>
-      <dt className="text-eyebrow-sm uppercase text-zinc-500">{label}</dt>
-      <dd className="mt-0.5 font-display text-number-xs text-zinc-50 tabular-nums">
-        {v} <span className="font-sans text-caption font-medium text-zinc-500">bpm</span>
-      </dd>
-    </div>
-  );
-  return (
-    <Card className={className}>
-      <div className="px-5 pt-4 flex flex-wrap items-end justify-between gap-x-8 gap-y-3">
-        <div className="min-w-0">
-          <h3 className="font-display text-title-sm text-zinc-100 flex items-center gap-2">
-            <span className={`shrink-0 w-1.5 h-1.5 rounded-full ${DOMAIN.cardio.bg} ring-2 ${DOMAIN.cardio.ring}`} />
-            Heart rate
-          </h3>
-          <p className="text-caption text-zinc-500 mt-1.5">
-            {formatCivil(last.date)} · last 24 hours · {samples.length.toLocaleString('en-GB')} readings, the latest at {formatClock(last.minutesOfDay)}
-          </p>
-        </div>
-        <dl className="grid grid-cols-3 gap-6">
-          {stat('Lowest', Math.min(...bpm))}
-          {stat('Average', Math.round(bpm.reduce((a, b) => a + b, 0) / bpm.length))}
-          {stat('Highest', Math.max(...bpm))}
-        </dl>
-      </div>
-      <div className="px-2 pt-2 pb-3">
-        <IntradayTrace samples={samples} color={DOMAIN.cardio.hex} height={tall ? 190 : 150} />
-      </div>
-    </Card>
   );
 }

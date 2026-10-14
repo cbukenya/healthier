@@ -143,6 +143,26 @@ export function buildFixturePayloads(days: FixtureDay[] = parseFixtureSeries()):
       ),
     ),
   };
+  // Each day's heart rate zones, set from that day's resting heart rate the Karvonen way: a share of
+  // the reserve between it and a maximum of 220 − 41 (the demo person's age).
+  out['daily-heart-rate-zones'] = {
+    dataPoints: newestFirst(
+      have('restingHr').map((d) => {
+        const rest = d.restingHr!;
+        const max = 220 - 41;
+        const at = (share: number) => Math.round(rest + share * (max - rest));
+        const zone = (heartRateZoneType: string, from: number, to: number | null) => ({
+          heartRateZoneType,
+          minBeatsPerMinute: String(at(from)),
+          maxBeatsPerMinute: String(to === null ? max : at(to) - 1),
+        });
+        return listPoint(FITBIT, 'dailyHeartRateZones', {
+          date: ghDateFromCivil(d.date),
+          heartRateZones: [zone('LIGHT', 0.3, 0.4), zone('MODERATE', 0.4, 0.6), zone('VIGOROUS', 0.6, 0.85), zone('PEAK', 0.85, null)],
+        });
+      }),
+    ),
+  };
   out['daily-heart-rate-variability'] = {
     dataPoints: newestFirst(
       have('hrv').map((d) =>
@@ -348,10 +368,53 @@ export function buildFixturePayloads(days: FixtureDay[] = parseFixtureSeries()):
       }),
     );
   }
-  const desc = newestFirst(hr);
-  out['heart-rate'] = { dataPoints: desc.slice(0, 300), nextPageToken: 'PAGE_2' };
-  out['heart-rate:PAGE_2'] = { dataPoints: desc.slice(300, 600), nextPageToken: 'PAGE_3' };
-  out['heart-rate:PAGE_3'] = { dataPoints: desc.slice(600, 900) };
+  // ── and three days of it a minute at a time, ending at the demo clock, so the heart rate chart
+  // has days to move through: nights asleep, walks to work, a hike, a gym session, a lunchtime run
+  // and a ride home, with the watch off for a shower each morning. Made up, deterministically.
+  const minuteHr: any[] = [];
+  const dayEnd = FIXTURE_CLOCK.now.getTime();
+  const minuteStart = dayEnd - 3 * 24 * 60 * 60_000;
+  const rawSpan = [hrBase, hrBase + 900 * 3000];
+  for (let t = Math.ceil(minuteStart / 60_000) * 60_000 + 30_000; t < dayEnd; t += 60_000) {
+    if (t >= rawSpan[0] && t < rawSpan[1]) continue;
+    const local = new Date(t + 2 * 3_600_000);
+    const date = local.toISOString().slice(0, 10);
+    const h = local.getUTCHours() + local.getUTCMinutes() / 60;
+    const i = Math.round(t / 60_000);
+    const wobble = Math.sin(i * 12.9898) * 43758.5453;
+    const noise = (wobble - Math.floor(wobble) - 0.5) * 7;
+    let base: number | null;
+    if (h >= 23.75 || h < 6.9) base = 57 + 3 * Math.sin(i / 37);
+    else if (h < 7.5) base = 64 + (h - 6.9) * 18;
+    else if (h < 7.75) base = null;
+    else if (h < 8.4) base = 76 + 4 * Math.sin(i / 7);
+    else if (h < 9.1) base = date === '2026-08-16' ? 82 + 5 * Math.sin(i / 9) : 103 + 5 * Math.sin(i / 5);
+    else if (date === '2026-08-18' && h >= 12.2 && h < 12.85) base = 120 + 46 * Math.sin(Math.PI * Math.min(1, ((h - 12.2) / 0.65) * 1.1));
+    else if (date === '2026-08-18' && h >= 12.85 && h < 13.4) base = 96 - (h - 12.85) * 30;
+    else if (date === '2026-08-16' && h >= 13 && h < 15.2) base = 108 + 9 * Math.sin(i / 13);
+    else if (date === '2026-08-18' && h >= 17.6 && h < 18.3) base = 116 + 15 * Math.sin(i / 8);
+    else if (date === '2026-08-17' && h >= 18.5 && h < 19.25) base = 112 + 38 * Math.max(0, Math.sin(i / 3));
+    else if (h < 17.6) base = 77 + 8 * Math.sin(i / 41);
+    else if (h < 22.9) base = 71 + 5 * Math.sin(i / 29);
+    else base = 64 - (h - 22.9) * 6;
+    if (base === null) continue;
+    minuteHr.push(
+      listPoint(FITBIT_PASSIVE, 'heartRate', {
+        sampleTime: { physicalTime: iso(t), utcOffset: OFF },
+        beatsPerMinute: String(Math.round(base + noise)),
+      }),
+    );
+  }
+
+  const desc = [...hr, ...minuteHr].sort((a, b) =>
+    Date.parse(b.heartRate.sampleTime.physicalTime) - Date.parse(a.heartRate.sampleTime.physicalTime));
+  const pages = Math.ceil(desc.length / 300);
+  for (let p = 0; p < pages; p++) {
+    out[p === 0 ? 'heart-rate' : `heart-rate:PAGE_${p + 1}`] = {
+      dataPoints: desc.slice(p * 300, (p + 1) * 300),
+      ...(p + 1 < pages ? { nextPageToken: `PAGE_${p + 2}` } : {}),
+    };
+  }
 
   
   // ── IRN: Irregular rhythm notifications

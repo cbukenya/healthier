@@ -4,7 +4,7 @@ import {
   byWeekday, completedDays, loadRatio, periodShift, series, stats, values, windowShift, type Point,
 } from '../pipeline/derive';
 import { BarSeries, StackedBars, TrendChart, WeekdayProfile } from '../charts';
-import { Card, CardHead, DOMAIN, Delta, EmptyState, Row, fmtNum, CardSummary } from '../ui/primitives';
+import { Card, CardHead, DOMAIN, Delta, EFFORT, EmptyState, Row, fmtNum, CardSummary } from '../ui/primitives';
 import type { SyncResult } from '../pipeline/sync';
 import type { DailyRecord } from '../types/health';
 import { groupMean, groupSeries, wholeWeeks } from '../pipeline/aggregate';
@@ -108,7 +108,7 @@ export function ActivityView({ data, clock, intraday }: { data: SyncResult; cloc
         title="Intensity mix"
         hint={
           <span>
-            <span className="text-emerald-400 font-medium">Light</span> minutes accumulate from daily life; <span className="text-amber-400 font-medium">Moderate</span> and <span className="text-rose-400 font-medium">Vigorous</span> are the ones guidelines count. {WHO_WEEK} brisk minutes a week is the usual target.
+            <span className="font-medium" style={{ color: EFFORT.light }}>Light</span> minutes accumulate from daily life; <span className="font-medium" style={{ color: EFFORT.moderate }}>Moderate</span> and <span className="font-medium" style={{ color: EFFORT.vigorous }}>Vigorous</span> are the ones guidelines count. {WHO_WEEK} brisk minutes a week is the usual target.
           </span>
         }
         right={
@@ -119,9 +119,9 @@ export function ActivityView({ data, clock, intraday }: { data: SyncResult; cloc
             return (
               <div className="flex items-center gap-2.5 text-caption font-medium text-zinc-300">
                 <span className="text-zinc-500">{latestMixRow.date === today ? 'avg vs today so far (min):' : 'avg vs latest (min):'}</span>
-                <span className="flex items-center gap-1.5" title="Light minutes"><i className="w-2 h-2 rounded-full bg-[#22c55e]" /> {fmtNum(lightMean, 0)}/{fmtNum(latestMixRow.activeMinutes.light, 0)}</span>
-                <span className="flex items-center gap-1.5" title="Moderate minutes"><i className="w-2 h-2 rounded-full bg-[#eab308]" /> {fmtNum(modMean, 0)}/{fmtNum(latestMixRow.activeMinutes.moderate, 0)}</span>
-                <span className="flex items-center gap-1.5" title="Vigorous minutes"><i className="w-2 h-2 rounded-full bg-[#f43f5e]" /> {fmtNum(vigMean, 0)}/{fmtNum(latestMixRow.activeMinutes.vigorous, 0)}</span>
+                <span className="flex items-center gap-1.5" title="Light minutes"><i className="w-2 h-2 rounded-full" style={{ background: EFFORT.light }} /> {fmtNum(lightMean, 0)}/{fmtNum(latestMixRow.activeMinutes.light, 0)}</span>
+                <span className="flex items-center gap-1.5" title="Moderate minutes"><i className="w-2 h-2 rounded-full" style={{ background: EFFORT.moderate }} /> {fmtNum(modMean, 0)}/{fmtNum(latestMixRow.activeMinutes.moderate, 0)}</span>
+                <span className="flex items-center gap-1.5" title="Vigorous minutes"><i className="w-2 h-2 rounded-full" style={{ background: EFFORT.vigorous }} /> {fmtNum(vigMean, 0)}/{fmtNum(latestMixRow.activeMinutes.vigorous, 0)}</span>
               </div>
             );
           })() : null
@@ -132,9 +132,9 @@ export function ActivityView({ data, clock, intraday }: { data: SyncResult; cloc
         bucket={bucket}
         unit="min"
         keys={[
-          { key: 'light', label: 'Light', color: '#22c55e', get: (d) => d.activeMinutes?.light ?? null },
-          { key: 'moderate', label: 'Moderate', color: '#eab308', get: (d) => d.activeMinutes?.moderate ?? null },
-          { key: 'vigorous', label: 'Vigorous', color: '#f43f5e', get: (d) => d.activeMinutes?.vigorous ?? null },
+          { key: 'light', label: 'Light', color: EFFORT.light, get: (d) => d.activeMinutes?.light ?? null },
+          { key: 'moderate', label: 'Moderate', color: EFFORT.moderate, get: (d) => d.activeMinutes?.moderate ?? null },
+          { key: 'vigorous', label: 'Vigorous', color: EFFORT.vigorous, get: (d) => d.activeMinutes?.vigorous ?? null },
         ]}
         height={200}
       />
