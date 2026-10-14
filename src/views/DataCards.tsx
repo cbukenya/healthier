@@ -63,7 +63,7 @@ export function SyncStatus({
           <button
             onClick={onFullSync}
             title="Fetch the whole window from Google again, not just the last few days"
-            className="-my-1 min-h-11 md:min-h-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 transition-colors text-caption font-medium text-zinc-200"
+            className="-my-2.5 md:-my-1 min-h-11 md:min-h-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 transition-colors text-caption font-medium text-zinc-200"
           >
             <RefreshCw size={12} aria-hidden="true" /> Full sync
           </button>
@@ -155,7 +155,21 @@ export function GoalsCard({ autoNeed }: {
 
   return (
     <Card>
-      <CardHead title="Goals" hint="Google Health doesn't share the goals you set in Fitbit, so set them here." />
+      <CardHead
+        title="Goals"
+        hint="Google Health doesn't share the goals you set in Fitbit, so set them here."
+        right={
+          !sameGoals(goals, DEFAULT_GOALS) && (
+            <button
+              type="button"
+              onClick={() => change(DEFAULT_GOALS)}
+              className="-my-2.5 md:-my-1.5 -mr-2 min-h-11 md:min-h-0 px-2 md:py-1.5 rounded-lg text-caption font-medium text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60 transition-colors"
+            >
+              Reset to defaults
+            </button>
+          )
+        }
+      />
       <div className="px-5 pb-1.5">
         <GoalRow
           label="Steps"
@@ -201,21 +215,10 @@ export function GoalsCard({ autoNeed }: {
           }
         />
       </div>
-      {(failed || !sameGoals(goals, DEFAULT_GOALS)) && (
-        <div className="pl-5 pr-2 pb-2 flex items-center justify-between gap-3">
-          <p role="status" className="text-caption text-rose-400">
-            {failed ? "Couldn't save that change, so your goals are as they were. Try again." : ''}
-          </p>
-          {!sameGoals(goals, DEFAULT_GOALS) && (
-            <button
-              type="button"
-              onClick={() => change(DEFAULT_GOALS)}
-              className="shrink-0 min-h-11 md:min-h-9 px-3 rounded-lg text-caption font-medium text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60 transition-colors"
-            >
-              Back to the defaults
-            </button>
-          )}
-        </div>
+      {failed && (
+        <p role="alert" className="px-5 pb-4 text-caption text-rose-400">
+          Couldn't save that change, so your goals are as they were. Try again.
+        </p>
       )}
     </Card>
   );
