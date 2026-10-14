@@ -9,6 +9,7 @@ import type { SyncResult } from '../pipeline/sync';
 import type { HistoryInfo } from '../types/api';
 import type { MetricDomain, StreamReport } from '../types/health';
 import { useGoalsControl } from '../hooks/useGoals';
+import { SPANS } from '../ui/span';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 import { Card, CardHead, DURATION_UNIT, fmtDuration, withUnits } from '../ui/primitives';
 
@@ -137,27 +138,33 @@ export function DataFacts({ windowDays, windowFrom, historyFrom, className = '' 
   historyFrom: CivilDate | null;
   className?: string;
 }) {
-  const reach = historyFrom && historyFrom < windowFrom ? `, and the longer views go back to ${monthYear(historyFrom)}` : '';
+  // The words are the app's own: body battery, sleep score, insights, usual, window, history, sync, Today so far, Labs.
+  // The span buttons past the window, by their own labels: "90d, 1y and All".
+  const longer = SPANS.filter((s) => s.days > windowDays).map((s) => s.label);
+  const views = longer.length < 2 ? longer.join('') : `${longer.slice(0, -1).join(', ')} and ${longer[longer.length - 1]}`;
+  const history = historyFrom && historyFrom < windowFrom && longer.length
+    ? ` The ${views} views add your history, back to ${monthYear(historyFrom)}.`
+    : '';
   const facts: [lead: string, text: string][] = [
     [
-      'No AI guesswork',
-      "Every score and insight is calculated from your own data, with nothing written or guessed by AI. Sleep stages and cardio fitness are your watch's own estimates.",
+      'Arithmetic, not AI',
+      "Your body battery, sleep score and insights are worked out with plain arithmetic from your own data. Nothing is written or guessed by AI. Sleep stages and cardio fitness are your watch's own estimates.",
     ],
     [
       'Usual means usual for you',
       `Anything called usual or unusual is compared with your own last ${BASELINE_DAYS} days, not with other people. One odd day won't change what's normal for you.`,
     ],
     [
-      `The last ${windowDays} days`,
-      `Most of what you see covers the last ${windowDays} days${reach}. Every sync re-checks the last ${REFETCH_DAYS} days, because watches often send data late.`,
+      `Your ${windowDays}-day window`,
+      `Your insights and most charts use your window, the last ${windowDays} days.${history} Every sync re-checks the last ${REFETCH_DAYS} days, because watches often send data late.`,
     ],
     [
       'Missing days stay blank',
-      "A day with no data shows a dash, not a zero, and isn't counted in your averages. Today's steps only count once the day is over.",
+      'A day with nothing recorded shows a dash, not a zero, and is left out of every average. Today so far joins your averages once the day is over.',
     ],
     [
       'Heart rate, minute by minute',
-      'Your watch measures your heart rate every few seconds. Healthier keeps one average per minute, so very short spikes are smoothed out.',
+      'Your watch measures your heart rate every few seconds. Healthier keeps one average per minute for the heart rate charts and Labs, so very short spikes are smoothed out.',
     ],
   ];
   return (

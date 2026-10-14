@@ -727,8 +727,8 @@ function lnComparison(lnSeries: Point[]): {
   // compares observations against themselves. "Last week" stays a week; a
   // coverage minimum protects the mean instead.
   const end = Math.max(0, lastIdx - 7);
-  const priors = values(lnSeries.slice(Math.max(0, end - 28), end));
-  if (priors.length < 8) return null;
+  const priors = values(lnSeries.slice(Math.max(0, end - BASELINE_DAYS), end));
+  if (priors.length < BASELINE_MIN_READINGS) return null;
   const st = stats(priors)!;
   const spread = spreadOf(priors, st, NOISE_FLOOR.lnHrv);
   if (spread <= 0) return null;
