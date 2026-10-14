@@ -24,6 +24,18 @@ export const DOMAIN = {
 
 export type DomainKey = keyof typeof DOMAIN;
 
+/**
+ * Effort, from light to peak: the body battery's colours the other way up (charged green for an
+ * easy minute, drained rose for a peak one). The heart rate zones and the intensity mix share
+ * them, so Light, Moderate and Vigorous look the same on both.
+ */
+export const EFFORT = {
+  light: '#10b981',
+  moderate: '#bef264',
+  vigorous: '#f59e0b',
+  peak: '#f43f5e',
+} as const;
+
 export const AXIS = '#52525b';
 export const GRID = '#27272a';
 
