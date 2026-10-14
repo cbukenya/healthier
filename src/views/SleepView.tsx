@@ -176,15 +176,15 @@ export function SleepView({ data, clock, intraday }: { data: SyncResult; clock?:
                 <div className="mt-1 pt-4 border-t border-zinc-800/60 space-y-4">
                   {/* 1. Score and Tier pill with glossy dot */}
                   <div>
-                    <div className="text-[10px] font-semibold tracking-[0.14em] uppercase text-zinc-500 mb-1">
+                    <div className="text-eyebrow uppercase text-zinc-500 mb-1">
                       Sleep score
                     </div>
                     <div className="flex items-baseline justify-between">
                       <div className="flex items-baseline gap-1.5">
-                        <span className="text-3xl font-bold tracking-tight text-white tabular-nums">
+                        <span className="font-display text-number-lg font-bold text-white tabular-nums">
                           {score.total}
                         </span>
-                        <span className="text-xs text-zinc-500 font-medium">/ 100</span>
+                        <span className="text-detail text-zinc-500 font-medium">/ 100</span>
                       </div>
                       <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#18181b] border border-zinc-800 shadow-sm">
                         <span
@@ -194,7 +194,7 @@ export function SleepView({ data, clock, intraday }: { data: SyncResult; clock?:
                             boxShadow: currentTier.glow,
                           }}
                         />
-                        <span className="text-xs font-semibold text-zinc-200 tracking-tight">
+                        <span className="text-detail font-semibold text-zinc-200 tracking-tight">
                           {currentTier.name}
                         </span>
                       </div>
@@ -203,14 +203,14 @@ export function SleepView({ data, clock, intraday }: { data: SyncResult; clock?:
 
                   {/* 2. Contributors */}
                   <div>
-                    <div className="text-[10px] font-semibold tracking-[0.14em] uppercase text-zinc-500 mb-2.5">
+                    <div className="text-eyebrow uppercase text-zinc-500 mb-2.5">
                       Contributors
                     </div>
                     <div className="space-y-2.5">
                       {contributors.map((c, i) => (
                         <div key={i}>
-                        <div className="flex items-center text-xs">
-                          <span className="w-28 text-zinc-300 truncate pr-2 text-[11.5px] font-medium">
+                        <div className="flex items-center text-detail">
+                          <span className="w-28 text-zinc-300 truncate pr-2 text-caption font-medium">
                             {c.label}
                           </span>
                           <div className="flex-1 flex items-center h-3 relative mx-2">
@@ -221,12 +221,12 @@ export function SleepView({ data, clock, intraday }: { data: SyncResult; clock?:
                               />
                             </div>
                           </div>
-                          <div className="w-14 text-right font-mono text-[11px] tabular-nums">
+                          <div className="w-14 text-right font-mono text-caption tabular-nums">
                             <span className="text-zinc-100 font-semibold">{c.points}</span>
                             <span className="text-zinc-500 font-normal">/{c.max}</span>
                           </div>
                         </div>
-                        {c.detail && <p className="mt-0.5 text-[10.5px] text-zinc-500">{c.detail}</p>}
+                        {c.detail && <p className="mt-0.5 text-note text-zinc-500">{c.detail}</p>}
                         </div>
                       ))}
                     </div>
@@ -250,14 +250,14 @@ export function SleepView({ data, clock, intraday }: { data: SyncResult; clock?:
               </div>
               <StageLegend />
               
-              <p className="px-5 pb-5 mt-3 text-[11.5px] leading-relaxed text-zinc-500">
+              <p className="px-5 pb-5 mt-3 text-caption leading-relaxed text-zinc-500">
                 Wrist staging is an estimate and can merge bouts, so the trend against your own history says more than any one night.
               </p>
             </div>
           </Card>
         ) : (
           <Card className="lg:col-span-8 flex flex-col justify-center items-center h-full">
-            <span className="text-[11px] text-zinc-500">No sleep session available to draw.</span>
+            <span className="text-caption text-zinc-500">No sleep session available to draw.</span>
           </Card>
         )}
       </div>
@@ -267,7 +267,7 @@ export function SleepView({ data, clock, intraday }: { data: SyncResult; clock?:
 
       {/* ── 3. Over time, following the span ─────────────────────────── */}
       <div className="flex items-center justify-between px-1">
-        <h2 className="text-[11px] font-bold text-zinc-500 uppercase tracking-widest">
+        <h2 className="text-section uppercase text-zinc-500">
           Your sleep over time
         </h2>
         <SpanSelector state={spanState} />
@@ -402,12 +402,12 @@ function ArchitectureMeasures({ session }: { session: SleepSession }) {
       <div className="hidden md:grid grid-cols-3 gap-x-5 gap-y-3.5 px-4 py-3.5 rounded-xl bg-[#111114] border border-zinc-800/60">
         {measures.map((m) => (
           <div key={m.label} className="flex flex-col gap-0.5 min-w-0">
-            <span className="text-[9.5px] font-semibold tracking-[0.12em] uppercase text-zinc-500">{m.label}</span>
-            <span className="text-[13px] font-semibold text-zinc-200 tabular-nums">
+            <span className="text-eyebrow-sm uppercase text-zinc-500">{m.label}</span>
+            <span className="text-body-sm font-semibold text-zinc-200 tabular-nums">
               {m.value}
               {m.sub && <span className="ml-1 font-medium text-zinc-400">· {m.sub}</span>}
             </span>
-            <span className="text-[10.5px] leading-snug text-zinc-500">{m.hint}</span>
+            <span className="text-note leading-snug text-zinc-500">{m.hint}</span>
           </div>
         ))}
       </div>
@@ -425,19 +425,19 @@ function ArchitectureMeasures({ session }: { session: SleepSession }) {
                 picked === i ? 'border-indigo-400 bg-[#1a1a22]' : 'border-zinc-800/80 bg-[#0c0c0e]'
               }`}
             >
-              <span className="text-[9px] font-semibold tracking-[0.1em] uppercase text-zinc-500">{m.short}</span>
-              <span className="text-[13px] font-semibold text-zinc-200 tabular-nums">{m.shortValue ?? m.value}</span>
+              <span className="text-eyebrow-sm uppercase text-zinc-500">{m.short}</span>
+              <span className="text-body-sm font-semibold text-zinc-200 tabular-nums">{m.shortValue ?? m.value}</span>
             </button>
           ))}
         </div>
         <div aria-live="polite" className="mt-2.5 px-3.5 py-3 rounded-xl bg-[#17171c] border border-zinc-800">
           {shown ? (
             <>
-              <div className="text-[12.5px] font-semibold text-zinc-100">{shown.label}</div>
-              <p className="mt-1 text-[12px] leading-relaxed text-zinc-400">{shown.more}</p>
+              <div className="text-detail font-semibold text-zinc-100">{shown.label}</div>
+              <p className="mt-1 text-detail leading-relaxed text-zinc-400">{shown.more}</p>
             </>
           ) : (
-            <p className="text-[12px] text-zinc-500">Tap a measure to see what it means.</p>
+            <p className="text-detail text-zinc-500">Tap a measure to see what it means.</p>
           )}
         </div>
       </div>

@@ -146,7 +146,7 @@ function StatusIcon({ mark, size = 18 }: { mark: Mark; size?: number }) {
 
 function Chip({ lab }: { lab: Lab }) {
   return (
-    <span className={`shrink-0 whitespace-nowrap text-[9px] leading-3 font-bold tracking-[0.14em] uppercase px-2.5 py-1 rounded-full border ${CHIP[lab.tone]}`}>
+    <span className={`shrink-0 whitespace-nowrap text-eyebrow-sm leading-3 font-bold uppercase px-2.5 py-1 rounded-full border ${CHIP[lab.tone]}`}>
       {lab.chip}
     </span>
   );
@@ -155,8 +155,8 @@ function Chip({ lab }: { lab: Lab }) {
 function Answer({ text, sub }: { text: string; sub?: string }) {
   return (
     <div>
-      <p className="text-[17px] leading-snug font-semibold tracking-tight text-zinc-50">{text}</p>
-      {sub && <p className="mt-1 text-[11.5px] leading-normal text-zinc-400">{sub}</p>}
+      <p className="font-display text-headline leading-snug font-semibold text-zinc-50">{text}</p>
+      {sub && <p className="mt-1 text-caption leading-normal text-zinc-400">{sub}</p>}
     </div>
   );
 }
@@ -170,7 +170,7 @@ function Progress({ done, total, unit }: { done: number; total: number; unit: st
       >
         {Array.from({ length: total }, (_, i) => <span key={i} className={`h-1.5 rounded-full ${i < done ? 'bg-amber-400' : 'bg-zinc-800'}`} />)}
       </div>
-      <span className="text-[11px] text-amber-300 whitespace-nowrap tabular-nums">{done} of {total} {unit}</span>
+      <span className="text-caption text-amber-300 whitespace-nowrap tabular-nums">{done} of {total} {unit}</span>
     </div>
   );
 }
@@ -178,9 +178,9 @@ function Progress({ done, total, unit }: { done: number; total: number; unit: st
 function Collecting({ text, done, total, unit, note }: { text: string; done: number; total: number; unit: string; note: string }) {
   return (
     <div>
-      <p className="text-[17px] leading-snug font-semibold tracking-tight text-zinc-50">{text}</p>
+      <p className="font-display text-headline leading-snug font-semibold text-zinc-50">{text}</p>
       <div className="mt-2"><Progress done={done} total={total} unit={unit} /></div>
-      <p className="mt-1.5 text-[11px] leading-normal text-zinc-500">{note}</p>
+      <p className="mt-1.5 text-caption leading-normal text-zinc-500">{note}</p>
     </div>
   );
 }
@@ -192,10 +192,10 @@ function Stats({ items }: { items: Stat[] }) {
     <div className="flex flex-wrap gap-x-[22px] gap-y-2">
       {items.map(([k, v, sub]) => (
         <div key={k}>
-          <div className="text-[9px] leading-3 font-semibold tracking-[0.12em] uppercase text-zinc-500">{k}</div>
-          <div className="mt-0.5 text-[13px] leading-[17px] font-semibold text-zinc-200 tabular-nums">
+          <div className="text-eyebrow-sm leading-3 uppercase text-zinc-500">{k}</div>
+          <div className="mt-0.5 text-body-sm leading-tight font-semibold text-zinc-200 tabular-nums">
             {v}
-            {sub && <span className="ml-1 text-[10.5px] font-medium text-zinc-500">{sub}</span>}
+            {sub && <span className="ml-1 text-note font-medium text-zinc-500">{sub}</span>}
           </div>
         </div>
       ))}
@@ -205,7 +205,7 @@ function Stats({ items }: { items: Stat[] }) {
 
 function Keys({ items }: { items: [React.ReactNode, string][] }) {
   return (
-    <div className="flex flex-wrap gap-x-3.5 gap-y-1 text-[10.5px] text-zinc-500">
+    <div className="flex flex-wrap gap-x-3.5 gap-y-1 text-note text-zinc-500">
       {items.map(([swatch, label]) => <span key={label} className="flex items-center gap-1.5">{swatch}{label}</span>)}
     </div>
   );
@@ -217,7 +217,7 @@ const Dot = ({ className }: { className: string }) => <span className={`w-[7px] 
 /** The two ends of a graph's period, with an optional label between them. */
 function Ends({ left, right, mid, compact = false }: { left: string; right: string; mid?: string; compact?: boolean }) {
   return (
-    <div className={`${compact ? 'mt-[5px]' : 'mt-1.5'} flex justify-between gap-2 text-[10px] leading-[13px] text-zinc-600`}>
+    <div className={`${compact ? 'mt-[5px]' : 'mt-1.5'} flex justify-between gap-2 text-note leading-tight text-zinc-600`}>
       <span>{left}</span>
       {mid && <span className="text-zinc-500">{mid}</span>}
       <span>{right}</span>
@@ -229,7 +229,7 @@ function DayList({ rows, dot }: { rows: [string, string][]; dot: string }) {
   return (
     <div>
       {rows.map(([day, what]) => (
-        <div key={day} className="flex items-center justify-between gap-3 py-[7px] border-t border-zinc-800/60 text-[12px]">
+        <div key={day} className="flex items-center justify-between gap-3 py-[7px] border-t border-zinc-800/60 text-detail">
           <span className="flex items-center gap-2 font-semibold text-zinc-200"><span className={`w-1.5 h-1.5 rounded-full ${dot}`} />{day}</span>
           <span className="text-zinc-400">{what}</span>
         </div>
@@ -242,7 +242,7 @@ function DayList({ rows, dot }: { rows: [string, string][]; dot: string }) {
 function Callout({ lead, children }: { lead: string; children: React.ReactNode }) {
   return (
     <div
-      className="rounded-[10px] border px-3.5 py-3 text-[11.5px] leading-normal text-zinc-300"
+      className="rounded-[10px] border px-3.5 py-3 text-caption leading-normal text-zinc-300"
       style={{
         borderColor: 'rgba(244,63,94,.22)',
         backgroundColor: '#141114',
@@ -256,7 +256,7 @@ function Callout({ lead, children }: { lead: string; children: React.ReactNode }
 
 function DeviceNote() {
   return (
-    <p className="rounded-[10px] border border-zinc-800/80 bg-[#111114] px-3 py-2.5 text-[11.5px] leading-normal text-zinc-300">
+    <p className="rounded-[10px] border border-zinc-800/80 bg-[#111114] px-3 py-2.5 text-caption leading-normal text-zinc-300">
       <b className="font-semibold text-zinc-50">As your device reported them.</b> Healthier doesn't analyse heart rhythm: for anything your device flags, follow its maker's guidance and talk to a clinician.
     </p>
   );
@@ -266,11 +266,11 @@ function Spec({ k }: { k: LabKey }) {
   const { watch, light } = SPEC[k];
   return (
     <div className="flex flex-col gap-2 px-3 py-[11px] rounded-xl border border-[#1c1c20] bg-[#111114]">
-      <p className="flex gap-2 text-[11.5px] leading-normal text-zinc-400">
+      <p className="flex gap-2 text-caption leading-normal text-zinc-400">
         <Eye size={13} aria-hidden className="shrink-0 mt-[3px]" />
         <span><b className="font-semibold text-zinc-100">{watch[0]}</b> {watch[1]}</span>
       </p>
-      <p className="flex gap-2 text-[11.5px] leading-normal text-zinc-400">
+      <p className="flex gap-2 text-caption leading-normal text-zinc-400">
         <span className="shrink-0 w-[13px] h-[13px] mt-[3px] grid place-items-center">
           <span className={`w-[7px] h-[7px] rounded-full ${k === 'irn' ? 'bg-zinc-600' : 'bg-rose-400'}`} />
         </span>
@@ -284,13 +284,13 @@ function HowItWorks({ k }: { k: LabKey }) {
   const { explainer, extra, footer } = HOW[k];
   return (
     <details className="group/how mt-auto border-t border-zinc-800/80">
-      <summary className="list-none [&::-webkit-details-marker]:hidden cursor-pointer flex items-center justify-between min-h-11 text-[12px] font-medium text-zinc-400 hover:text-zinc-200 transition-colors">
+      <summary className="list-none [&::-webkit-details-marker]:hidden cursor-pointer flex items-center justify-between min-h-11 text-detail font-medium text-zinc-400 hover:text-zinc-200 transition-colors">
         How it works
         <ChevronDown size={14} aria-hidden className="transition-transform group-open/how:rotate-180" />
       </summary>
-      <p className="text-[11.5px] leading-relaxed text-zinc-400">{explainer}</p>
-      {extra && <p className="mt-2 text-[11.5px] leading-relaxed text-zinc-400">{extra}</p>}
-      <p className="mt-2 pb-1 text-[10.5px] leading-relaxed text-zinc-500">{footer}</p>
+      <p className="text-caption leading-relaxed text-zinc-400">{explainer}</p>
+      {extra && <p className="mt-2 text-caption leading-relaxed text-zinc-400">{extra}</p>}
+      <p className="mt-2 pb-1 text-note leading-relaxed text-zinc-500">{footer}</p>
     </details>
   );
 }
@@ -327,7 +327,7 @@ function SdbGrid({ nights, judged }: { nights: SdbNight[]; judged: boolean }) {
       <div className="grid items-center gap-y-[7px]" style={{ gridTemplateColumns: `74px repeat(${nights.length}, minmax(0, 1fr))` }}>
         {SDB_SIGNALS.map(([k, label]) => (
           <React.Fragment key={k}>
-            <span className="text-[11px] leading-[13px] text-zinc-400">{label}</span>
+            <span className="text-caption leading-tight text-zinc-400">{label}</span>
             {nights.map((n) => (
               <span
                 key={n.date}
@@ -455,12 +455,12 @@ function StrainTiles({ signals, rose }: { signals: StrainSignal[]; rose: boolean
         return (
           <div key={s.key} className={`rounded-xl border px-[11px] py-[9px] ${off ? (rose ? 'border-rose-500/40' : 'border-amber-400/35') : 'border-zinc-800/80'}`}>
             <div className="flex items-center justify-between gap-1.5">
-              <span className="text-[12px] font-semibold text-zinc-200">{STRAIN_NAME[s.key]}</span>
+              <span className="text-detail font-semibold text-zinc-200">{STRAIN_NAME[s.key]}</span>
               <span className={`shrink-0 w-2 h-2 rounded-full ${
                 s.status === 'none' ? 'border-[1.5px] border-zinc-600' : off ? (rose ? 'bg-rose-400' : 'bg-amber-400') : 'bg-emerald-400/70'}`}
               />
             </div>
-            <div className={`mt-0.5 text-[10.5px] ${off ? (rose ? 'text-rose-300' : 'text-amber-300') : 'text-zinc-500'}`}>
+            <div className={`mt-0.5 text-note ${off ? (rose ? 'text-rose-300' : 'text-amber-300') : 'text-zinc-500'}`}>
               {off ? `${sentence(STRAIN_DIR[s.key])} usual today` : s.status === 'in' ? 'Normal' : 'No data'}
             </div>
           </div>
@@ -487,14 +487,14 @@ function StrainScale({ level, compact = false }: { level: StrainToday['level']; 
         : "Baseline is 0 or 1 signals off, Elevated 2, High 3 or 4; no position until today's readings arrive"}
     >
       {level && !compact && (
-        <div className="grid grid-cols-3 mb-1 text-[9px] font-bold tracking-[0.12em]">
+        <div className="grid grid-cols-3 mb-1 text-eyebrow-sm font-bold">
           {LEVELS.map((l) => <span key={l.key} className={l.today}>{l.key === level ? 'TODAY' : ''}</span>)}
         </div>
       )}
       <div className={`grid grid-cols-3 ${compact ? 'gap-[3px]' : 'gap-1'}`}>
         {LEVELS.map((l) => <span key={l.key} className={`${compact ? 'h-1.5' : 'h-2'} ${l.bar} ${l.key === level ? 'opacity-65' : 'opacity-20'}`} />)}
       </div>
-      <div className={`${compact ? 'mt-[5px] text-[10px] leading-[13px] text-zinc-600' : 'mt-1.5 text-[10.5px] text-zinc-500'} grid grid-cols-3`}>
+      <div className={`${compact ? 'mt-[5px] text-note leading-tight text-zinc-600' : 'mt-1.5 text-note text-zinc-500'} grid grid-cols-3`}>
         {LEVELS.map((l) => (
           <span key={l.key} className={`${l.align} ${l.key === level ? 'font-semibold text-zinc-200' : ''}`}>{compact ? l.name : l.label}</span>
         ))}
@@ -591,7 +591,7 @@ function IrnStrip({ days, ghost = false, compact = false }: { days: Days; ghost?
             ? <rect key={d.date} x={i * 10} y={0} width={6.5} height={h} rx={1} fill={HEX.amber} />
             : <rect key={d.date} x={i * 10} y={h * 0.3} width={6.5} height={h * 0.4} rx={1} fill={HEX.zinc800} />))}
         </svg>
-        {ghost && <span className="absolute inset-0 flex items-center justify-center text-[10px] text-zinc-400">not synced</span>}
+        {ghost && <span className="absolute inset-0 flex items-center justify-center text-note text-zinc-400">not synced</span>}
       </div>
       <Ends compact={compact} left={fmtDay(days[0].date)} right="today" />
     </div>
@@ -660,11 +660,11 @@ function Corridor({ median, rose = false, compact = false }: { median: number | 
         ? 'The bands your median drop will be placed on: rise below 0%, small 0 to 10%, typical 10 to 20%, large over 20%'
         : `Your median drop, ${median}%, on the bands: rise below 0%, small 0 to 10%, typical 10 to 20%, large over 20%`}
     >
-      {left === null && !compact && <p className="mb-1.5 text-[10.5px] text-zinc-500">Your median drop will be marked on these bands</p>}
+      {left === null && !compact && <p className="mb-1.5 text-note text-zinc-500">Your median drop will be marked on these bands</p>}
       <div className={`relative ${left === null ? '' : compact ? 'pt-[15px]' : 'pt-[17px]'}`}>
         {left !== null && (
           <span
-            className={`absolute top-0 -translate-x-1/2 text-[9px] ${compact ? 'leading-[11px]' : 'leading-3'} font-bold tracking-[0.1em] whitespace-nowrap ${rose ? 'text-rose-300' : 'text-zinc-50'}`}
+            className={`absolute top-0 -translate-x-1/2 text-micro ${compact ? '' : 'leading-3'} font-bold tracking-widest whitespace-nowrap ${rose ? 'text-rose-300' : 'text-zinc-50'}`}
             style={{ left: `${Math.min(Math.max(left, 9), 91)}%` }}
           >
             YOU · {median}%
@@ -682,7 +682,7 @@ function Corridor({ median, rose = false, compact = false }: { median: number | 
             style={{ left: `${left}%` }}
           />
         )}
-        <div className={`${compact ? 'mt-[5px] text-[8.5px] tracking-[0.05em]' : 'mt-1.5 text-[9px] tracking-[0.06em]'} flex justify-between uppercase text-zinc-600`}>
+        <div className={`${compact ? 'mt-[5px] tracking-normal' : 'mt-1.5 tracking-wider'} text-micro flex justify-between uppercase text-zinc-600`}>
           <span>Rise &lt; 0%</span><span>Small 0–10%</span><span>Typical 10–20%</span><span>Large &gt; 20%</span>
         </div>
       </div>
@@ -789,7 +789,7 @@ function EntropyPlot({ r, compact = false }: { r: EntropyShift; compact?: boolea
   if (!pts.length) {
     return compact
       ? <div aria-hidden className="h-[28px] border-t border-dashed border-zinc-700 mt-3.5" />
-      : <p className="text-[11.5px] text-zinc-500">No nights with HRV entropy synced yet.</p>;
+      : <p className="text-caption text-zinc-500">No nights with HRV entropy synced yet.</p>;
   }
   const H = compact ? 28 : 66;
   const band = r.usualLow !== null && r.usualHigh !== null && r.baselineMedian !== null;
@@ -962,8 +962,8 @@ function EmptyNight({ compact = false }: { compact?: boolean }) {
         <span className={`absolute inset-x-0 ${compact ? 'top-1.5' : 'top-[10px]'} border-t border-dashed border-rose-400/45`} />
         {!compact && (
           <>
-            <span className="absolute right-1.5 top-0 text-[9px] leading-[9px] text-zinc-400">100 bpm</span>
-            <span className="absolute inset-x-0 top-[17px] text-center text-[10px] text-zinc-600">10+ minutes above the line would show here</span>
+            <span className="absolute right-1.5 top-0 text-micro leading-none text-zinc-400">100 bpm</span>
+            <span className="absolute inset-x-0 top-[17px] text-center text-note text-zinc-600">10+ minutes above the line would show here</span>
           </>
         )}
       </div>
@@ -976,14 +976,14 @@ function EventRows({ events }: { events: TachycardiaEvent[] }) {
   return (
     <div>
       {events.map((e) => (
-        <div key={`${e.date}-${e.startMin}-${e.peakBpm}`} className="flex flex-wrap items-center justify-between gap-y-1.5 gap-x-3 py-2 border-t border-zinc-800/60 text-[11.5px]">
+        <div key={`${e.date}-${e.startMin}-${e.peakBpm}`} className="flex flex-wrap items-center justify-between gap-y-1.5 gap-x-3 py-2 border-t border-zinc-800/60 text-caption">
           <div className="flex items-center gap-2 flex-wrap min-w-0">
             <span className="text-zinc-200 font-semibold min-w-[76px]">{fmtDate(e.date)}</span>
             <span className="text-zinc-400 tabular-nums">{fmtClock(e.startMin)} → {fmtClock(e.endMin)} · {e.durationMin} min</span>
             {e.sleepWindow && (
-              <span className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-800/90 text-zinc-300 border border-zinc-700/60 font-medium">{e.sleepWindow}</span>
+              <span className="text-note px-1.5 py-0.5 rounded bg-zinc-800/90 text-zinc-300 border border-zinc-700/60 font-medium">{e.sleepWindow}</span>
             )}
-            {e.stage && !['Night sleep', 'Sleep', 'Nap'].includes(e.stage) && <span className="text-[10px] text-zinc-400">{e.stage}</span>}
+            {e.stage && !['Night sleep', 'Sleep', 'Nap'].includes(e.stage) && <span className="text-note text-zinc-400">{e.stage}</span>}
           </div>
           <span className="text-rose-300 font-semibold tabular-nums whitespace-nowrap ml-auto">peak {e.peakBpm} bpm</span>
         </div>
@@ -1056,11 +1056,11 @@ function tachyLab(days: Days, intraday: IntradayDays): Lab {
 function Intro({ wide = false }: { wide?: boolean }) {
   return (
     <header className={`px-1 ${wide ? 'max-w-3xl' : ''}`}>
-      <p className={`${wide ? 'text-[15px]' : 'text-[14px]'} leading-normal text-zinc-400`}>
+      <p className="text-body leading-normal text-zinc-400">
         Experimental views of <b className="font-semibold text-zinc-50">multi-week patterns in your wearable data</b>, each
         against your own usual range.
       </p>
-      <p className="mt-2 flex gap-2 text-[11px] leading-relaxed text-zinc-500">
+      <p className="mt-2 flex gap-2 text-caption leading-relaxed text-zinc-500">
         <Info size={14} aria-hidden className="shrink-0 mt-px text-zinc-400" />
         <span>
           Healthier is not a medical device: these cards don't detect, screen for or rule out any condition, and a
@@ -1074,7 +1074,7 @@ function Intro({ wide = false }: { wide?: boolean }) {
 function Legend() {
   const items: [Mark, string][] = [['quiet', 'nothing found'], ['collecting', 'collecting or waiting'], ['reported', 'from your device'], ['found', 'pattern found']];
   return (
-    <div className="flex flex-wrap gap-x-3.5 gap-y-1.5 py-2.5 text-[10.5px] text-zinc-500">
+    <div className="flex flex-wrap gap-x-3.5 gap-y-1.5 py-2.5 text-note text-zinc-500">
       {items.map(([mark, label]) => <span key={mark} className="flex items-center gap-1.5"><StatusIcon mark={mark} size={12} />{label}</span>)}
     </div>
   );
@@ -1086,8 +1086,8 @@ function TileHead({ lab, chevron, center = false }: { lab: Lab; chevron: React.R
     <span className={`flex gap-3 ${center ? 'items-center' : ''}`}>
       <span className={`flex ${center ? '' : 'self-start'}`}><StatusIcon mark={lab.mark} /></span>
       <span className="flex-1 min-w-0">
-        <span className="block text-[13px] leading-snug font-semibold text-zinc-100">{lab.title}</span>
-        <span className={`block mt-0.5 text-[11.5px] leading-snug ${GLANCE[lab.tone]}`}>{lab.glance}</span>
+        <span className="block font-display text-title-sm leading-snug text-zinc-100">{lab.title}</span>
+        <span className={`block mt-0.5 text-caption leading-snug ${GLANCE[lab.tone]}`}>{lab.glance}</span>
       </span>
       {chevron}
     </span>
@@ -1099,8 +1099,8 @@ function LabCard({ lab }: { lab: Lab }) {
     <section id={`lab-${lab.key}`} aria-label={lab.title} className="scroll-mt-20 min-w-0 bg-[#0c0c0e] border border-zinc-800/80 rounded-2xl p-5 flex flex-col gap-3">
       <div className="flex items-start justify-between gap-2.5">
         <div className="min-w-0">
-          <h3 className="text-[14.5px] leading-tight font-semibold tracking-tight text-zinc-100">{lab.title}</h3>
-          <p className="mt-[3px] text-[11px] text-zinc-500">{lab.gloss}</p>
+          <h3 className="font-display text-title leading-tight text-zinc-100">{lab.title}</h3>
+          <p className="mt-[3px] text-caption text-zinc-500">{lab.gloss}</p>
         </div>
         <Chip lab={lab} />
       </div>
@@ -1124,7 +1124,7 @@ function LabRow({ lab }: { lab: Lab }) {
         <span className="block mt-2.5 group-open:hidden">{lab.graph}</span>
       </summary>
       <div className="border-t border-zinc-800/80 pt-3 flex flex-col gap-3">
-        <p className="text-[11px] text-zinc-500">{lab.gloss}</p>
+        <p className="text-caption text-zinc-500">{lab.gloss}</p>
         {lab.parts}
         {!lab.found && <Spec k={lab.key} />}
         <HowItWorks k={lab.key} />
@@ -1166,8 +1166,8 @@ export function LabsView({ data, intraday = {} }: { data: SyncResult; intraday?:
         <Intro />
         <section aria-label="Labs" className="mt-4 flex flex-col gap-2">
           <div className="flex items-baseline justify-between px-1">
-            <span className="text-[9px] font-bold tracking-[0.16em] uppercase text-zinc-500">{labs.length} labs</span>
-            <span className="text-[10.5px] text-zinc-600">tap one to open it</span>
+            <span className="text-eyebrow-sm font-bold uppercase text-zinc-500">{labs.length} labs</span>
+            <span className="text-note text-zinc-600">tap one to open it</span>
           </div>
           {labs.map((lab) => <LabRow key={lab.key} lab={lab} />)}
           <div className="px-1"><Legend /></div>

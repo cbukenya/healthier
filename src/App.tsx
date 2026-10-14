@@ -83,14 +83,14 @@ export default function App() {
       <div className="min-h-screen bg-black flex items-center justify-center p-6">
         <div className="max-w-md w-full p-8 rounded-2xl bg-zinc-900 border border-zinc-800 shadow-2xl">
           <img src="/logo.svg" alt="" width={48} height={48} className="mb-6" />
-          <h1 className="text-2xl font-bold text-white mb-2">Healthier</h1>
-          <p className="text-sm text-zinc-400 mb-8 leading-relaxed">
+          <h1 className="font-display text-display text-white mb-2">Healthier</h1>
+          <p className="text-body text-zinc-400 mb-8 leading-relaxed">
             {needsReconnect
               ? 'Your Google connection has expired or was revoked. Reconnect to resume syncing; your stored data is still here.'
               : 'A personalized health and fitness tracker that connects with your Google Health data. It establishes rolling baselines and presents actionable trend analysis to help you understand your body better.'}
           </p>
           {authError && (
-            <p className="mb-6 p-3 rounded-lg bg-rose-500/10 border border-rose-500/20 text-[12px] text-rose-400">
+            <p className="mb-6 p-3 rounded-lg bg-rose-500/10 border border-rose-500/20 text-detail text-rose-400">
               {authError === 'access_denied'
                 ? 'Google sign-in was cancelled.'
                 : authError === 'not_invited'
@@ -113,13 +113,13 @@ export default function App() {
             </button>
           </div>
           {/* Google requires this disclosure in the app itself for the Health API's restricted scopes. */}
-          <p className="mt-6 text-[11px] leading-relaxed text-zinc-500">
+          <p className="mt-6 text-caption leading-relaxed text-zinc-500">
             Healthier reads your health and fitness data from Google Health (activity, sleep, heart
             rate, vitals and body measurements) to show your trends, work out your personal baselines
             and generate insights. It is stored only on the server running this app, used for nothing
             else, and never shared. You can disconnect and delete it at any time from the Data tab.
           </p>
-          <p className="mt-2 text-[11px] leading-relaxed text-zinc-600">
+          <p className="mt-2 text-caption leading-relaxed text-zinc-600">
             For general wellness only. Healthier is not a medical device and doesn't diagnose,
             detect or monitor any condition.
           </p>
@@ -135,12 +135,12 @@ export default function App() {
         <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <img src="/logo.svg" alt="" width={28} height={28} />
-            <span className="text-sm font-semibold text-white tracking-wide">Healthier</span>
+            <span className="text-body font-semibold text-white tracking-wide">Healthier</span>
           </div>
           
           <div className="flex items-center gap-3">
             {health.phase === 'revalidating' && (
-              <span className="flex items-center gap-1.5 text-[11px] text-zinc-500 mr-2">
+              <span className="flex items-center gap-1.5 text-caption text-zinc-500 mr-2">
                 <RefreshCw size={10} className="animate-spin" />
                 syncing
               </span>
@@ -155,7 +155,7 @@ export default function App() {
                     <User size={10} className="text-zinc-400" />
                   </div>
                 )}
-                <span className="text-[11px] font-medium text-zinc-300 pr-1">
+                <span className="text-caption font-medium text-zinc-300 pr-1">
                   {user.name?.split(' ')[0] || 'User'}
                 </span>
               </div>
@@ -166,7 +166,7 @@ export default function App() {
                 if (demo) setDemo(false);
                 else signOut();
               }}
-              className="min-h-11 md:min-h-0 px-3 py-1.5 rounded-lg text-[12.5px] md:text-[11px] font-medium text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
+              className="min-h-11 md:min-h-0 px-3 py-1.5 rounded-lg text-detail md:text-caption font-medium text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
             >
               {demo ? 'Exit Demo' : 'Sign Out'}
             </button>
@@ -208,7 +208,7 @@ export default function App() {
           />
         </nav>
         {today && (
-          <time dateTime={today} className="block mt-1 px-3 text-right text-[12px] text-zinc-500">
+          <time dateTime={today} className="block mt-1 px-3 text-right text-detail text-zinc-500">
             {formatCivilDay(today)}
           </time>
         )}
@@ -217,12 +217,12 @@ export default function App() {
           <div className="mt-4 p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-start gap-3">
             <ShieldAlert size={16} className="text-rose-400 mt-0.5 shrink-0" />
             <div className="flex-1">
-              <h3 className="text-[12px] font-semibold text-rose-400">Sync Failed</h3>
-              <p className="text-[11px] text-rose-400/80 mt-1">{health.error}</p>
+              <h3 className="text-detail font-semibold text-rose-400">Sync Failed</h3>
+              <p className="text-caption text-rose-400/80 mt-1">{health.error}</p>
             </div>
             <button 
               onClick={health.refresh}
-              className="px-3 py-1.5 rounded-lg bg-rose-500/20 text-rose-300 text-[11px] font-medium hover:bg-rose-500/30 transition-colors"
+              className="px-3 py-1.5 rounded-lg bg-rose-500/20 text-rose-300 text-caption font-medium hover:bg-rose-500/30 transition-colors"
             >
               Retry
             </button>
@@ -232,15 +232,15 @@ export default function App() {
         {health.phase === 'loading' && demo && (
           <div className="mt-12 flex flex-col items-center justify-center text-zinc-500">
             <div className="w-6 h-6 rounded-full border-2 border-zinc-800 border-t-zinc-400 animate-spin mb-4" />
-            <p className="text-[11px] uppercase tracking-wider">Loading sample data...</p>
+            <p className="text-caption uppercase tracking-wider">Loading sample data...</p>
           </div>
         )}
 
         {/* First sync (or a rebuild after an upgrade): the insights need the whole window, so wait for it. */}
         {health.phase === 'loading' && !demo && (
           <div className="mt-12 max-w-md mx-auto p-6 rounded-2xl bg-zinc-900 border border-zinc-800">
-            <h2 className="text-sm font-semibold text-white">Building your health baseline</h2>
-            <p className="mt-2 text-[12px] text-zinc-400 leading-relaxed">
+            <h2 className="font-display text-title-sm text-white">Building your health baseline</h2>
+            <p className="mt-2 text-detail text-zinc-400 leading-relaxed">
               Importing your last {DASHBOARD_WINDOW_DAYS} days from Google Health, including minute-by-minute heart
               rate. Baselines and insights are computed over the full window, so the dashboard opens once it is all
               in. This usually takes under a minute, and only happens once.
@@ -251,7 +251,7 @@ export default function App() {
                 style={{ width: `${health.progress ? Math.round((health.progress.done / health.progress.total) * 100) : 2}%` }}
               />
             </div>
-            <p className="mt-2 text-[11px] text-zinc-500 tabular-nums">
+            <p className="mt-2 text-caption text-zinc-500 tabular-nums">
               {health.progress
                 ? `${health.progress.label} imported · ${health.progress.done} of ${health.progress.total}`
                 : 'Connecting to Google Health...'}

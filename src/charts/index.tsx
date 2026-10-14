@@ -21,11 +21,14 @@ import type { DailyRecord, SleepSession } from '../types/health';
  * mid-July should look like missing nights, not like four nights of no sleep.
  */
 
+/** Axis ticks, in the note size. SVG text can't read the CSS type tokens, so the size is written out. */
+const TICK = { fill: AXIS, fontSize: 10 } as const;
+
 const tooltipStyle = {
   backgroundColor: '#09090b',
   border: '1px solid #27272a',
   borderRadius: 10,
-  fontSize: 11,
+  fontSize: 'var(--text-caption)',
   padding: '8px 10px',
 } as const;
 
@@ -161,13 +164,13 @@ export function TrendChart({
           axisLine={false}
           tickLine={false}
           interval={tickInterval(n)}
-          tick={{ fill: AXIS, fontSize: 10 }}
+          tick={TICK}
           dy={6}
         />
         <YAxis
           axisLine={false}
           tickLine={false}
-          tick={{ fill: AXIS, fontSize: 10 }}
+          tick={TICK}
           tickFormatter={axisTick}
           domain={domain ?? (ticks ? [ticks[0], ticks[ticks.length - 1]] : ['auto', 'auto'])}
           ticks={ticks ?? undefined}
@@ -213,7 +216,7 @@ export function TrendChart({
     </ResponsiveContainer>
     {/* A key, so the thin line, the thick one and the band each say what they are. */}
     {(showMean || baseline) && (
-      <div className="flex flex-wrap gap-x-4 gap-y-1 px-3 pt-1 text-[10.5px] text-zinc-500">
+      <div className="flex flex-wrap gap-x-4 gap-y-1 px-3 pt-1 text-note text-zinc-500">
         {showMean && (
           <>
             <span className="flex items-center gap-1.5">
@@ -270,8 +273,8 @@ export function BarSeries({
             label={{ value: axisTick(goal), position: 'right', fill: AXIS, fontSize: 9 }}
           />
         )}
-        <XAxis dataKey="label" axisLine={false} tickLine={false} interval={tickInterval(rows.length)} tick={{ fill: AXIS, fontSize: 10 }} dy={6} />
-        <YAxis axisLine={false} tickLine={false} tick={{ fill: AXIS, fontSize: 10 }} tickFormatter={axisTick} width={52} />
+        <XAxis dataKey="label" axisLine={false} tickLine={false} interval={tickInterval(rows.length)} tick={TICK} dy={6} />
+        <YAxis axisLine={false} tickLine={false} tick={TICK} tickFormatter={axisTick} width={52} />
         <Tooltip
           contentStyle={tooltipStyle} itemStyle={{ color: '#a1a1aa' }}
           labelStyle={{ color: '#e4e4e7', fontWeight: 600 }}
@@ -330,8 +333,8 @@ export function StackedBars({
     <ResponsiveContainer width="100%" height={height}>
       <BarChart data={rows} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
         <CartesianGrid stroke={GRID} strokeDasharray="2 4" vertical={false} />
-        <XAxis dataKey="label" axisLine={false} tickLine={false} interval={tickInterval(rows.length)} tick={{ fill: AXIS, fontSize: 10 }} dy={6} />
-        <YAxis axisLine={false} tickLine={false} tick={{ fill: AXIS, fontSize: 10 }} tickFormatter={axisTick} width={52} />
+        <XAxis dataKey="label" axisLine={false} tickLine={false} interval={tickInterval(rows.length)} tick={TICK} dy={6} />
+        <YAxis axisLine={false} tickLine={false} tick={TICK} tickFormatter={axisTick} width={52} />
         <Tooltip
           contentStyle={tooltipStyle} itemStyle={{ color: '#a1a1aa' }}
           labelStyle={{ color: '#e4e4e7', fontWeight: 600, marginBottom: 2 }}
@@ -397,8 +400,8 @@ export function RangeBandChart({
     <ResponsiveContainer width="100%" height={height}>
       <ComposedChart data={rows} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
         <CartesianGrid stroke={GRID} strokeDasharray="2 4" vertical={false} />
-        <XAxis dataKey="label" axisLine={false} tickLine={false} interval={tickInterval(rows.length)} tick={{ fill: AXIS, fontSize: 10 }} dy={6} />
-        <YAxis axisLine={false} tickLine={false} tick={{ fill: AXIS, fontSize: 10 }} tickFormatter={axisTick} domain={domain ?? ['auto', 'auto']} width={52} />
+        <XAxis dataKey="label" axisLine={false} tickLine={false} interval={tickInterval(rows.length)} tick={TICK} dy={6} />
+        <YAxis axisLine={false} tickLine={false} tick={TICK} tickFormatter={axisTick} domain={domain ?? ['auto', 'auto']} width={52} />
         <Tooltip
           contentStyle={tooltipStyle} itemStyle={{ color: '#a1a1aa' }}
           labelStyle={{ color: '#e4e4e7', fontWeight: 600, marginBottom: 2 }}
@@ -445,8 +448,8 @@ export function DivergingBars({
       <BarChart data={rows} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
         <CartesianGrid stroke={GRID} strokeDasharray="2 4" vertical={false} />
         <ReferenceLine y={0} stroke="#52525b" strokeWidth={1} />
-        <XAxis dataKey="label" axisLine={false} tickLine={false} interval={tickInterval(rows.length)} tick={{ fill: AXIS, fontSize: 10 }} dy={6} />
-        <YAxis axisLine={false} tickLine={false} tick={{ fill: AXIS, fontSize: 10 }} tickFormatter={axisTick} width={52} />
+        <XAxis dataKey="label" axisLine={false} tickLine={false} interval={tickInterval(rows.length)} tick={TICK} dy={6} />
+        <YAxis axisLine={false} tickLine={false} tick={TICK} tickFormatter={axisTick} width={52} />
         <Tooltip
           contentStyle={tooltipStyle} itemStyle={{ color: '#a1a1aa' }}
           labelStyle={{ color: '#e4e4e7', fontWeight: 600 }}
@@ -501,7 +504,7 @@ export function Hypnogram({ session, height = 200 }: { session: SleepSession; he
   if (!segs.length) {
     return (
       <div className="px-5 pb-5">
-        <p className="text-[11.5px] text-zinc-500">
+        <p className="text-caption text-zinc-500">
           This night has stage totals but no segment timeline, so there's no hypnogram to draw.
         </p>
       </div>
@@ -635,12 +638,12 @@ export function StageLegend() {
   return (
     <div className="flex flex-wrap gap-x-4 gap-y-1.5 px-5 pb-4">
       {Object.values(STAGE_STYLE).map((s) => (
-        <span key={s.label} className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-zinc-500">
+        <span key={s.label} className="flex items-center gap-1.5 text-note uppercase tracking-wider text-zinc-500">
           <i className="w-2.5 h-2.5 rounded-sm" style={{ background: s.color }} />
           {s.label}
         </span>
       ))}
-      <span className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-zinc-500">
+      <span className="flex items-center gap-1.5 text-note uppercase tracking-wider text-zinc-500">
         <i className="w-[2px] h-3 bg-zinc-200" /> brief awakening
       </span>
     </div>
@@ -721,7 +724,7 @@ export function CoverageGrid({
             {cells.map((c, i) => (
               <span key={c.date} className="flex-1 min-w-0 flex items-end justify-center">
                 {labels[i] && (
-                  <span className="text-[9.5px] leading-none text-zinc-500 whitespace-nowrap [writing-mode:vertical-rl] rotate-180">
+                  <span className="text-micro leading-none text-zinc-500 whitespace-nowrap [writing-mode:vertical-rl] rotate-180">
                     {labels[i]}
                   </span>
                 )}
@@ -732,7 +735,7 @@ export function CoverageGrid({
         </div>
         {rows.map((r) => (
           <div key={r.dataType} className="flex items-center gap-2 mb-[3px]">
-            <span className="w-[144px] shrink-0 text-[11px] text-zinc-400 truncate" title={r.dataType}>
+            <span className="w-[144px] shrink-0 text-caption text-zinc-400 truncate" title={r.dataType}>
               {r.label}
             </span>
             <div className={`flex flex-1 ${gap}`}>
@@ -753,7 +756,7 @@ export function CoverageGrid({
                 );
               })}
             </div>
-            <span className="w-[52px] shrink-0 text-right text-[10.5px] text-zinc-500 tabular-nums">
+            <span className="w-[52px] shrink-0 text-right text-note text-zinc-500 tabular-nums">
               {r.observed}/{r.total}
             </span>
           </div>
@@ -807,7 +810,7 @@ export function WeekdayProfile({
         return (
           <div key={wd} className="flex-1 flex flex-col items-center h-full"
             title={`${full[wd]} · ${d.mean === null ? 'no data' : format(d.mean)} · ${d.n} days`}>
-            <span className="text-[9.5px] text-zinc-500 tabular-nums mb-1">
+            <span className="text-micro text-zinc-500 tabular-nums mb-1">
               {d.mean === null ? '' : format(d.mean)}
             </span>
             {/* The bar needs its own flex-1 track: a percentage height on a flex
@@ -819,7 +822,7 @@ export function WeekdayProfile({
                 style={{ height: `${h}%`, minHeight: h > 0 ? 3 : 0, background: color, opacity: 0.8 }}
               />
             </div>
-            <span className="text-[10px] text-zinc-500 mt-1.5">{names[wd]}</span>
+            <span className="text-note text-zinc-500 mt-1.5">{names[wd]}</span>
           </div>
         );
       })}
@@ -912,8 +915,8 @@ export function IntradayTrace({
           </linearGradient>
         </defs>
         <CartesianGrid stroke={GRID} strokeDasharray="2 4" vertical={false} />
-        <XAxis dataKey="label" axisLine={false} tickLine={false} interval={Math.floor(rows.length / 6)} tick={{ fill: AXIS, fontSize: 10 }} dy={6} />
-        <YAxis axisLine={false} tickLine={false} tick={{ fill: AXIS, fontSize: 10 }} tickFormatter={axisTick} domain={['auto', 'auto']} width={52} />
+        <XAxis dataKey="label" axisLine={false} tickLine={false} interval={Math.floor(rows.length / 6)} tick={TICK} dy={6} />
+        <YAxis axisLine={false} tickLine={false} tick={TICK} tickFormatter={axisTick} domain={['auto', 'auto']} width={52} />
         <Tooltip contentStyle={tooltipStyle} itemStyle={{ color: '#a1a1aa' }} labelStyle={{ color: '#e4e4e7', fontWeight: 600 }} formatter={(v: any) => [`${v} bpm`, '']} cursor={{ stroke: '#52525b', strokeWidth: 1, strokeDasharray: '4 4', fill: 'transparent' }} />
         <Area type="monotone" dataKey="value" stroke={color} strokeWidth={1.5} fill={`url(#${gradientId})`} isAnimationActive={false} dot={false} />
       </AreaChart>
@@ -923,7 +926,7 @@ export function IntradayTrace({
 
 function NoSeries({ height }: { height: number }) {
   return (
-    <div className="flex items-center justify-center text-[11px] text-zinc-600" style={{ height }}>
+    <div className="flex items-center justify-center text-caption text-zinc-600" style={{ height }}>
       Nothing recorded in this window
     </div>
   );

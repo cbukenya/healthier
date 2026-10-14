@@ -80,7 +80,7 @@ export function SpanSelector({ state }: { state: SpanState }) {
 
   return (
     <div className="flex items-center gap-2">
-      {note && <span className="text-[10px] text-zinc-500 animate-pulse">{note}</span>}
+      {note && <span className="text-note text-zinc-500 animate-pulse">{note}</span>}
       <div className="inline-flex bg-zinc-950/80 border border-zinc-800 rounded-lg p-0.5" role="tablist">
         {OPTIONS.map((o, i) => {
           // Enabled once history reaches past the previous option, so it shows something new.
@@ -94,7 +94,7 @@ export function SpanSelector({ state }: { state: SpanState }) {
               disabled={!enabled}
               title={enabled ? undefined : `Needs more than ${OPTIONS[i - 1].label} of history`}
               onClick={() => state.setSpan(o.id)}
-              className={`px-2 py-[3px] text-[10px] rounded-[6px] font-medium transition-colors ${
+              className={`px-2 py-[3px] text-note rounded-[6px] font-medium transition-colors ${
                 active
                   ? 'bg-zinc-800 text-zinc-100'
                   : enabled

@@ -108,7 +108,7 @@ export function TodayView({
               <div className="mt-2.5 mb-1">
                 <Meter pct={stepGoal.pct} color={DOMAIN.movement.hex} />
                 {stepGoal.pct !== null && (
-                  <p className="text-[10px] text-zinc-500 mt-1.5 tabular-nums">{Math.round(stepGoal.pct)}% of 10,000</p>
+                  <p className="text-note text-zinc-500 mt-1.5 tabular-nums">{Math.round(stepGoal.pct)}% of 10,000</p>
                 )}
               </div>
             )}
@@ -178,7 +178,7 @@ export function TodayView({
                     </Row>
                   </div>
                   {slDay!.date !== today && (
-                    <p className="text-[10px] text-amber-400/80 mt-2">
+                    <p className="text-note text-amber-400/80 mt-2">
                       Most recent night on record: {formatCivilLong(slDay!.date)}
                     </p>
                   )}
@@ -205,7 +205,7 @@ export function TodayView({
                   </div>
                   <div className="mt-3">
                     <Meter pct={stepGoal.pct} color={DOMAIN.movement.hex} />
-                    <p className="text-[10px] text-zinc-500 mt-1.5 tabular-nums">
+                    <p className="text-note text-zinc-500 mt-1.5 tabular-nums">
                       {stepGoal.pct === null ? '' : `${Math.round(stepGoal.pct)}% of 10,000`}
                     </p>
                   </div>
@@ -221,7 +221,7 @@ export function TodayView({
                     </Row>
                   </div>
                   {!movementIsToday && (
-                    <p className="text-[10px] text-amber-400/80 mt-2">
+                    <p className="text-note text-amber-400/80 mt-2">
                       {formatCivilLong(mv.date)} · today hasn't synced yet
                     </p>
                   )}
@@ -266,7 +266,7 @@ export function TodayView({
                     <Row label="Blood oxygen">{spo2Now ? `${fmtNum(spo2Now.value)}%` : '—'}</Row>
                   </div>
                   {vitalsDate !== today && (
-                    <p className="text-[10px] text-amber-400/80 mt-2">
+                    <p className="text-note text-amber-400/80 mt-2">
                       Most recent vitals on record: {formatCivilLong(vitalsDate)}
                     </p>
                   )}

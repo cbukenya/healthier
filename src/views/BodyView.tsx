@@ -176,8 +176,8 @@ export function BodyView({ data, onGender, clock, intraday }: {
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-2.5 md:gap-3">
         {profile}
         <div className="col-span-2 lg:col-span-3 lg:order-1 flex items-baseline justify-between gap-2 px-1">
-          <h2 className="text-[11px] font-bold text-zinc-500 uppercase tracking-widest">Latest readings</h2>
-          <span className="text-[11px] text-zinc-500">
+          <h2 className="text-section uppercase text-zinc-500">Latest readings</h2>
+          <span className="text-caption text-zinc-500">
             from {formatCivilLong(latest.date)} · <span className={daysOld > 14 ? 'text-amber-400' : undefined}>{ago(daysOld)}</span>
           </span>
         </div>
@@ -205,7 +205,7 @@ export function BodyView({ data, onGender, clock, intraday }: {
       {body.composition && <CompositionNow now={body.composition} before={body.previousComposition} />}
 
       <div className="flex items-center justify-between px-1">
-        <h2 className="text-[11px] font-bold text-zinc-500 uppercase tracking-widest">Your body over time</h2>
+        <h2 className="text-section uppercase text-zinc-500">Your body over time</h2>
         <SpanSelector state={spanState} />
       </div>
 
@@ -245,8 +245,8 @@ function ProfileTile({ age, heightCm, gender, onGender, className = '' }: {
 }) {
   // A phone lines the three up side by side; a wide screen stacks them, label by value.
   const fact = 'flex flex-col gap-0.5 lg:flex-row lg:items-baseline lg:justify-between lg:gap-2';
-  const label = 'text-[9.5px] font-semibold uppercase tracking-[0.14em] text-zinc-500 lg:text-[12px] lg:font-normal lg:normal-case lg:tracking-normal';
-  const value = 'text-[17px] lg:text-[18px] font-semibold text-zinc-50 tabular-nums';
+  const label = 'text-eyebrow-sm uppercase text-zinc-500 lg:text-detail lg:font-normal lg:normal-case lg:tracking-normal';
+  const value = 'font-display text-number-xs text-zinc-50 tabular-nums';
   return (
     <section aria-label="Profile" className={`min-w-0 bg-[#0c0c0e] border border-[#1e1e22] rounded-[18px] p-3.5 lg:p-4 flex flex-col gap-2.5 ${className}`}>
       <div className="flex items-center justify-between gap-2">
@@ -278,7 +278,7 @@ function ProfileTile({ age, heightCm, gender, onGender, className = '' }: {
         <div className={fact}>
           <dt className={label}>Height</dt>
           <dd className={value}>
-            {heightCm ? <>{fmtNum(heightCm, 1)} <span className="text-[11px] font-medium text-zinc-500">cm</span></> : '—'}
+            {heightCm ? <>{fmtNum(heightCm, 1)} <span className="font-sans text-caption font-medium text-zinc-500">cm</span></> : '—'}
           </dd>
         </div>
       </dl>
@@ -292,8 +292,8 @@ function CompositionNow({ now, before }: { now: CompositionPair; before: Composi
   return (
     <Card className="px-[18px] pt-4 pb-[18px] md:px-6 flex flex-col gap-3.5">
       <div className="flex items-baseline justify-between gap-2">
-        <h2 className="text-[15px] font-semibold text-zinc-50">Body composition</h2>
-        <span className="text-[12px] text-zinc-500">{formatCivilLong(now.date)}</span>
+        <h2 className="font-display text-title text-zinc-50">Body composition</h2>
+        <span className="text-detail text-zinc-500">{formatCivilLong(now.date)}</span>
       </div>
       <div className="flex items-end justify-between gap-4">
         <Part label="Lean mass" color={LEAN_HEX} kg={now.leanKg} pct={leanPct} />
@@ -308,7 +308,7 @@ function CompositionNow({ now, before }: { now: CompositionPair; before: Composi
         <div className="flex-1" style={{ background: FAT_HEX }} />
       </div>
       {before && (
-        <div className="-mt-1 flex justify-between gap-4 text-[11.5px] text-zinc-500">
+        <div className="-mt-1 flex justify-between gap-4 text-caption text-zinc-500">
           <span>{changeText(now.leanKg - before.leanKg, 'kg')} from previous</span>
           <span>{changeText(now.fatKg - before.fatKg, 'kg')} from previous</span>
         </div>
@@ -325,11 +325,11 @@ function Part({ label, color, kg, pct, end = false }: { label: string; color: st
         <Label>{label}</Label>
       </div>
       <div className="mt-1.5 whitespace-nowrap">
-        <span className="text-[24px] md:text-[30px] leading-tight font-semibold text-zinc-50 tabular-nums">{fixed(kg)}</span>
-        <span className="text-[12px] md:text-[13px] text-zinc-500"> kg</span>
-        <span className="hidden md:inline text-[13px] text-zinc-400"> · {fixed(pct)}%</span>
+        <span className="font-display text-number md:text-number-lg leading-tight text-zinc-50 tabular-nums">{fixed(kg)}</span>
+        <span className="text-detail md:text-body-sm text-zinc-500"> kg</span>
+        <span className="hidden md:inline text-body-sm text-zinc-400"> · {fixed(pct)}%</span>
       </div>
-      <div className="md:hidden text-[12px] text-zinc-400">{fixed(pct)}%</div>
+      <div className="md:hidden text-detail text-zinc-400">{fixed(pct)}%</div>
     </div>
   );
 }
@@ -340,7 +340,7 @@ function CompositionTrend({ comp }: { comp: BodyComposition | null }) {
     return (
       <Card className="flex flex-col">
         <CardHead domain="body" title="Composition trend" hint="From weigh-ins where the scale also measured body fat." />
-        <p className="px-5 pb-5 flex-1 flex items-center justify-center text-center text-[11px] text-zinc-600 min-h-[120px]">
+        <p className="px-5 pb-5 flex-1 flex items-center justify-center text-center text-caption text-zinc-600 min-h-[120px]">
           Needs four of them across at least four weeks of this span.
         </p>
       </Card>
@@ -361,8 +361,8 @@ function CompositionTrend({ comp }: { comp: BodyComposition | null }) {
       <div className="px-5 pb-5 flex-1 flex flex-col gap-3">
         <div>
           <Label>Weight trend</Label>
-          <div className="mt-1 text-[22px] font-semibold text-zinc-50 tabular-nums">
-            {changeText(weight, '', 2)} <span className="text-[12px] font-normal text-zinc-500">kg a week</span>
+          <div className="mt-1 font-display text-number-sm text-zinc-50 tabular-nums">
+            {changeText(weight, '', 2)} <span className="font-sans text-detail font-normal text-zinc-500">kg a week</span>
           </div>
         </div>
         {leanShare !== null && (
@@ -371,7 +371,7 @@ function CompositionTrend({ comp }: { comp: BodyComposition | null }) {
             <div className="flex-1" style={{ background: FAT_HEX }} />
           </div>
         )}
-        <div className="flex flex-wrap justify-between gap-x-4 gap-y-1 text-[12px] text-zinc-400">
+        <div className="flex flex-wrap justify-between gap-x-4 gap-y-1 text-detail text-zinc-400">
           <span className="flex items-center gap-1.5">
             <span className="size-2 rounded-[2px]" style={{ background: LEAN_HEX }} />
             Lean <span className="font-semibold text-zinc-100">{changeText(lean, '', 2)}</span> kg a week
@@ -381,7 +381,7 @@ function CompositionTrend({ comp }: { comp: BodyComposition | null }) {
             Fat <span className="font-semibold text-zinc-100">{changeText(fat, '', 2)}</span> kg a week
           </span>
         </div>
-        <p className="mt-auto text-[10.5px] leading-relaxed text-zinc-500">
+        <p className="mt-auto text-note leading-relaxed text-zinc-500">
           Scale body fat is approximate, so its trend on the same scale says more than any one reading.
         </p>
       </div>

@@ -58,19 +58,19 @@ export function CardHead({
     <div className="px-5 pt-4 pb-3">
       {/* A summary that doesn't fit beside the title moves under it, rather than cutting the title short. */}
       <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-1">
-        <h3 className="text-[13px] font-semibold text-zinc-100 tracking-tight flex items-center gap-2 min-w-0">
+        <h3 className="font-display text-title-sm text-zinc-100 flex items-center gap-2 min-w-0">
           {domain && <span className={`shrink-0 w-1.5 h-1.5 rounded-full ${DOMAIN[domain].bg} ring-2 ${DOMAIN[domain].ring}`} />}
           <span className="truncate">{title}</span>
         </h3>
-        {right && <div className="shrink-0 text-[11px] text-zinc-500">{right}</div>}
+        {right && <div className="shrink-0 text-caption text-zinc-500">{right}</div>}
       </div>
-      {hint && <div className="text-[11px] text-zinc-500 mt-1.5 leading-relaxed">{hint}</div>}
+      {hint && <div className="text-caption text-zinc-500 mt-1.5 leading-relaxed">{hint}</div>}
     </div>
   );
 }
 
 export const Label = ({ children, className = '' }: { children: React.ReactNode; className?: string }) => (
-  <span className={`text-[10px] font-medium uppercase tracking-[0.14em] text-zinc-500 ${className}`}>
+  <span className={`text-eyebrow uppercase text-zinc-500 ${className}`}>
     {children}
   </span>
 );
@@ -95,10 +95,10 @@ export function Value({
   digits?: number;
 }) {
   const cls = {
-    sm: 'text-base',
-    md: 'text-2xl',
-    lg: 'text-[32px]',
-    xl: 'text-[44px]',
+    sm: 'text-number-xs',
+    md: 'text-number',
+    lg: 'text-number-lg leading-normal',
+    xl: 'text-number-xl leading-normal',
   }[size];
   const shown =
     value === null || value === undefined || value === ''
@@ -109,10 +109,10 @@ export function Value({
   const missing = shown === '—';
   return (
     <span className="inline-flex items-baseline gap-1.5 tabular-nums">
-      <span className={`${cls} font-semibold tracking-tight ${missing ? 'text-zinc-600' : tone}`}>
+      <span className={`font-display ${cls} ${missing ? 'text-zinc-600' : tone}`}>
         {shown}
       </span>
-      {unit && !missing && <span className="text-[11px] font-medium text-zinc-500">{unit}</span>}
+      {unit && !missing && <span className="text-caption font-medium text-zinc-500">{unit}</span>}
     </span>
   );
 }
@@ -136,12 +136,12 @@ const BAND_COPY: Record<Band, { label: string; cls: string }> = {
 export function BandPill({ c, invert = false, partial = false }: { c: Comparison; invert?: boolean; partial?: boolean }) {
   if (partial) {
     return (
-      <span className="text-[10px] px-2 py-0.5 rounded-full border border-zinc-800 text-zinc-500">so far today</span>
+      <span className="text-note px-2 py-0.5 rounded-full border border-zinc-800 text-zinc-500">so far today</span>
     );
   }
   if (!c.band || c.n < 8) {
     return (
-      <span className="text-[10px] px-2 py-0.5 rounded-full border border-zinc-800 text-zinc-500">
+      <span className="text-note px-2 py-0.5 rounded-full border border-zinc-800 text-zinc-500">
         {c.n === 0 ? 'no history' : `baseline needs ${8 - c.n} more days`}
       </span>
     );
@@ -149,7 +149,7 @@ export function BandPill({ c, invert = false, partial = false }: { c: Comparison
   const copy = BAND_COPY[c.band];
   return (
     <span
-      className={`text-[10px] px-2 py-0.5 rounded-full border font-medium ${copy.cls}`}
+      className={`text-note px-2 py-0.5 rounded-full border font-medium ${copy.cls}`}
       title={
         `latest ${fmtNum(c.value)} · 28-day typical ${fmtNum(c.baseline)} ± ${fmtNum(c.spread)}` +
         ` · z=${c.z?.toFixed(2)} · from ${c.n} days`
@@ -175,7 +175,7 @@ export function Delta({
   suffix?: string;
 }) {
   if (value === null || !Number.isFinite(value)) {
-    return <span className="text-[11px] text-zinc-600">no comparison</span>;
+    return <span className="text-caption text-zinc-600">no comparison</span>;
   }
   const up = value > 0;
   const good = goodWhen === 'neither' ? null : goodWhen === 'up' ? up : !up;
@@ -188,7 +188,7 @@ export function Delta({
           ? 'text-emerald-400'
           : 'text-rose-400';
   return (
-    <span className={`text-[11px] font-medium tabular-nums ${tone}`}>
+    <span className={`text-caption font-medium tabular-nums ${tone}`}>
       {up ? '↑' : value < 0 ? '↓' : ''} {Math.abs(value).toLocaleString('en-GB', { minimumFractionDigits: digits, maximumFractionDigits: digits })}
       {unit}
       {suffix ? <span className="text-zinc-500 font-normal"> {suffix}</span> : null}
@@ -219,8 +219,8 @@ export function EmptyState({
 }) {
   return (
     <div className="px-5 py-10 text-center">
-      <p className="text-[13px] text-zinc-300 font-medium">{title}</p>
-      {detail && <p className="text-[11.5px] text-zinc-500 mt-1.5 max-w-sm mx-auto leading-relaxed">{detail}</p>}
+      <p className="text-body-sm text-zinc-300 font-medium">{title}</p>
+      {detail && <p className="text-caption text-zinc-500 mt-1.5 max-w-sm mx-auto leading-relaxed">{detail}</p>}
       {action && <div className="mt-4">{action}</div>}
     </div>
   );
@@ -245,7 +245,7 @@ export function Segmented<T extends string>({
           role="tab"
           aria-selected={value === o.id}
           onClick={() => onChange(o.id)}
-          className={`${size === 'sm' ? 'px-2 py-[3px] text-[10px]' : 'px-2.5 py-1 text-[11px]'} rounded-[6px] font-medium transition-colors ${
+          className={`${size === 'sm' ? 'px-2 py-[3px] text-note' : 'px-2.5 py-1 text-caption'} rounded-[6px] font-medium transition-colors ${
             value === o.id ? 'bg-zinc-800 text-zinc-100' : 'text-zinc-500 hover:text-zinc-300'
           }`}
         >
@@ -270,8 +270,8 @@ export function Meter({ pct, color, className = '' }: { pct: number | null; colo
 export function Row({ label, children, dense = false }: { label: string; children: React.ReactNode; dense?: boolean; key?: React.Key }) {
   return (
     <div className={`flex items-baseline justify-between ${dense ? 'gap-3 py-0.5' : 'gap-4 py-2 border-b border-zinc-800/60 last:border-0'}`}>
-      <span className="text-[11.5px] text-zinc-500">{label}</span>
-      <span className="text-[12px] text-zinc-200 tabular-nums text-right">{children}</span>
+      <span className="text-caption text-zinc-500">{label}</span>
+      <span className="text-detail text-zinc-200 tabular-nums text-right">{children}</span>
     </div>
   );
 }
@@ -295,7 +295,7 @@ export function NavButton({
       aria-label={label}
       aria-current={active ? 'page' : undefined}
       // Phones fit every section in one row of finger-sized icons and name only the open one.
-      className={`shrink-0 flex items-center justify-center gap-1.5 md:gap-2 h-10 md:h-auto ${active ? 'px-3' : 'w-[38px] md:w-auto'} md:px-3 md:py-1.5 rounded-xl text-[13px] md:text-[11px] font-medium transition-all ${
+      className={`shrink-0 flex items-center justify-center gap-1.5 md:gap-2 h-10 md:h-auto ${active ? 'px-3' : 'w-[38px] md:w-auto'} md:px-3 md:py-1.5 rounded-xl text-body-sm md:text-caption font-medium transition-all ${
         active 
           ? 'bg-zinc-800 text-white' 
           : `hover:bg-zinc-800/50 ${color || 'text-zinc-400 hover:text-zinc-200'}`
@@ -355,7 +355,7 @@ export function CardSummary({
   const latestLabel = isToday ? (isSleep ? 'last night: ' : 'today: ') : 'latest: ';
   
   return (
-    <div className="flex items-center gap-3 text-[11px] font-medium leading-tight justify-end">
+    <div className="flex items-center gap-3 text-caption font-medium leading-tight justify-end">
       {showMean && (
         <div>
           <span className="text-zinc-500">avg: </span>

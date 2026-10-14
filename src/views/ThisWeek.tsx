@@ -46,11 +46,11 @@ export function ThisWeek({ week, needMin, className = '' }: { week: WeekSummary;
   return (
     <section aria-label="This week" className={`bg-[#0c0c0e] border border-[#1e1e22] rounded-[20px] px-4 pt-[18px] pb-4 md:px-5 md:pt-5 ${className}`}>
       <div className="flex items-baseline justify-between gap-2">
-        <h2 className="text-[16px] font-semibold text-zinc-50">This week</h2>
-        <span className="text-[12px] text-zinc-500">{formatCivilRange(first, today)}</span>
+        <h2 className="font-display text-title text-zinc-50">This week</h2>
+        <span className="text-detail text-zinc-500">{formatCivilRange(first, today)}</span>
       </div>
 
-      <div className="mt-3.5 text-[10.5px] font-semibold tracking-[0.2em] uppercase text-[#6b6f78]">Body battery</div>
+      <div className="mt-3.5 text-eyebrow uppercase text-[#6b6f78]">Body battery</div>
       <div
         role="img"
         aria-label={`Body battery each morning: ${week.battery.map((b) => `${weekdayShort(b.date)} ${b.score ?? 'no score'}`).join(', ')}`}
@@ -61,7 +61,7 @@ export function ThisWeek({ week, needMin, className = '' }: { week: WeekSummary;
           const hex = b.score === null ? null : TIER_STYLE[batteryTier(b.score).tag].hex;
           return (
             <div key={b.date} className="h-full flex flex-col items-center justify-end gap-1">
-              <span className={`text-[11px] tabular-nums ${isToday ? 'font-bold text-zinc-50' : 'text-zinc-400'}`}>{b.score ?? '—'}</span>
+              <span className={`text-caption tabular-nums ${isToday ? 'font-bold text-zinc-50' : 'text-zinc-400'}`}>{b.score ?? '—'}</span>
               <div
                 className="w-full rounded-[6px]"
                 style={{
@@ -70,7 +70,7 @@ export function ThisWeek({ week, needMin, className = '' }: { week: WeekSummary;
                   opacity: hex && !isToday ? 0.55 : 1,
                 }}
               />
-              <span className={`text-[10.5px] ${isToday ? 'font-bold text-zinc-200' : 'text-zinc-500'}`}>{weekdayLetter(b.date)}</span>
+              <span className={`text-note ${isToday ? 'font-bold text-zinc-200' : 'text-zinc-500'}`}>{weekdayLetter(b.date)}</span>
             </div>
           );
         })}
@@ -117,14 +117,14 @@ function WeekRow({ label, value, unit, pct, color, note }: {
   return (
     <div className="py-[11px] border-t border-[#18181b] last:pb-0">
       <div className="flex items-baseline justify-between gap-3">
-        <span className="text-[13.5px] text-zinc-200">{label}</span>
-        <span className="text-[13.5px] font-semibold text-zinc-50 tabular-nums">
+        <span className="text-body text-zinc-200">{label}</span>
+        <span className="text-body font-semibold text-zinc-50 tabular-nums">
           {value}
           {unit && <span className="font-normal text-zinc-500"> {unit}</span>}
         </span>
       </div>
       <Meter pct={pct} color={color} className="mt-2" />
-      <p className="mt-1.5 text-[11.5px] leading-[1.45] text-zinc-500">{note}</p>
+      <p className="mt-1.5 text-caption text-zinc-500">{note}</p>
     </div>
   );
 }

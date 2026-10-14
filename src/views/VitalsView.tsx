@@ -172,8 +172,8 @@ export function VitalsView({ data, clock, intraday }: { data: SyncResult; clock?
         {/* Desktop leads with the tiles; a phone leads with today's heart rate. */}
         <div className="order-2 md:order-1 space-y-2.5">
           <div className="flex items-baseline justify-between gap-2 px-1">
-            <h2 className="text-[11px] font-bold text-zinc-500 uppercase tracking-widest">Latest readings</h2>
-            <span className="text-[11px] text-zinc-500">against your last 4 weeks</span>
+            <h2 className="text-section uppercase text-zinc-500">Latest readings</h2>
+            <span className="text-caption text-zinc-500">against your last 4 weeks</span>
           </div>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 md:gap-3">
             <Tile
@@ -222,7 +222,7 @@ export function VitalsView({ data, clock, intraday }: { data: SyncResult; clock?
       </div>
 
       <div className="flex items-center justify-between px-1">
-        <h2 className="text-[11px] font-bold text-zinc-500 uppercase tracking-widest">
+        <h2 className="text-section uppercase text-zinc-500">
           Your vitals over time
         </h2>
         <SpanSelector state={spanState} />
@@ -268,9 +268,9 @@ function HeartRateCard({ samples, tall, className = '' }: { samples: IntradaySam
   const last = samples[samples.length - 1];
   const stat = (label: string, v: number) => (
     <div>
-      <dt className="text-[9.5px] font-semibold uppercase tracking-[0.14em] text-zinc-500">{label}</dt>
-      <dd className="mt-0.5 text-[18px] font-semibold text-zinc-50 tabular-nums">
-        {v} <span className="text-[11px] font-medium text-zinc-500">bpm</span>
+      <dt className="text-eyebrow-sm uppercase text-zinc-500">{label}</dt>
+      <dd className="mt-0.5 font-display text-number-xs text-zinc-50 tabular-nums">
+        {v} <span className="font-sans text-caption font-medium text-zinc-500">bpm</span>
       </dd>
     </div>
   );
@@ -278,11 +278,11 @@ function HeartRateCard({ samples, tall, className = '' }: { samples: IntradaySam
     <Card className={className}>
       <div className="px-5 pt-4 flex flex-wrap items-end justify-between gap-x-8 gap-y-3">
         <div className="min-w-0">
-          <h3 className="text-[13px] font-semibold text-zinc-100 tracking-tight flex items-center gap-2">
+          <h3 className="font-display text-title-sm text-zinc-100 flex items-center gap-2">
             <span className={`shrink-0 w-1.5 h-1.5 rounded-full ${DOMAIN.cardio.bg} ring-2 ${DOMAIN.cardio.ring}`} />
             Heart rate
           </h3>
-          <p className="text-[11px] text-zinc-500 mt-1.5">
+          <p className="text-caption text-zinc-500 mt-1.5">
             {formatCivil(last.date)} · last 24 hours · {samples.length.toLocaleString('en-GB')} readings, the latest at {formatClock(last.minutesOfDay)}
           </p>
         </div>
