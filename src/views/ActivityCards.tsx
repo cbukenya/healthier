@@ -32,7 +32,8 @@ export function TodaySoFar({ day, isToday, wide }: { day: DailyRecord; isToday: 
         <h2 className="font-display text-title text-zinc-50">{isToday ? 'Today so far' : `Latest day, ${formatCivilLong(day.date)}`}</h2>
         {goalNote && <span className="text-detail text-zinc-400 whitespace-nowrap">{goalNote}</span>}
       </div>
-      <div className="flex-1 flex items-center gap-[22px] md:gap-7">
+      {/* Distance sits under the rings and energy under the two goals, so the four figures wrap the rings at every width. */}
+      <div className="flex-1 grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-[22px] gap-y-3.5 md:gap-x-7">
         <GoalRings
           size={wide ? 140 : 128}
           rings={[
@@ -45,8 +46,6 @@ export function TodaySoFar({ day, isToday, wide }: { day: DailyRecord; isToday: 
           <GoalValue color={DOMAIN.movement.hex} label="Steps" value={fmtNum(steps, 0)} goal={`/ ${fmtNum(STEP_GOAL, 0)}`} />
           <GoalValue color={BRISK_HEX} label="Brisk minutes" value={brisk === null ? '—' : fmtNum(brisk, 0)} goal={`/ ${BRISK_GOAL} min`} />
         </div>
-      </div>
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-3">
         <Stat label="Distance" value={fmtNum(day.distanceKm, 2)} unit={day.distanceKm === null ? undefined : 'km'} />
         <Stat label="Active energy" value={fmtNum(day.activeKcal, 0)} unit={day.activeKcal === null ? undefined : 'kcal'} />
       </div>
