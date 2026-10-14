@@ -2,15 +2,18 @@ import { addDays, dateRange, type CivilDate } from '../../lib/date';
 import type { DailyRecord } from '../../types/health';
 import { scoreSleep } from '../sleep';
 import {
-  NOISE_FLOOR, compareToBaseline, estimatedSleepTarget, isRecent, readiness, series, sleepDebt,
+  NOISE_FLOOR, compareToBaseline, isRecent, readiness, series, sleepDebt, sleepNeedFor,
 } from '../derive';
+import { DEFAULT_GOALS, type Goals } from '../goals';
 import type { InsightDataset, InsightOptions } from './context';
-import { STEP_GOAL, briskMins, sleepMins, zoneMins } from './helpers';
+import { briskMins, sleepMins, zoneMins } from './helpers';
 import { insightFeeds } from './engine';
 
 /** Convenience: everything the Today view needs, computed once. */
 export function todaySummary(ds: InsightDataset, now: Date = new Date(), extras?: InsightOptions) {
   const days = ds.days;
+  const goals = extras?.goals ?? DEFAULT_GOALS;
+  const need = sleepNeedFor(days, goals.sleepNeed);
   const last = days[days.length - 1] ?? null;
   // Cards about now show readings from today or yesterday; anything older is history, not last night.
   const recent = (d: DailyRecord | undefined) => (d && isRecent(d.date, last?.date) ? d : null);
@@ -27,10 +30,10 @@ export function todaySummary(ds: InsightDataset, now: Date = new Date(), extras?
     sleepScore: sleepDay?.sleep ? scoreSleep(sleepDay.sleep) : null,
     hrv,
     rhr,
-    readiness: readiness(days),
-    sleepTargetMin: estimatedSleepTarget(days),
-    debt: sleepDebt(days, estimatedSleepTarget(days)),
-    week: weekSummary(days),
+    readiness: readiness(days, goals.sleepNeed),
+    sleepTargetMin: need,
+    debt: sleepDebt(days, need),
+    week: weekSummary(days, goals),
     observations: insightFeeds(ds, now, extras).today,
   };
 }
@@ -47,19 +50,21 @@ export interface PeriodSummary {
   sleep: { avgMin: number; nights: number } | null;
   /** Minutes in the WHO's currency, today's so far included: Active Zone Minutes when the period has them. */
   activeMinutes: { total: number; unit: 'azm' | 'brisk' } | null;
-  /** Finished days only: today's count is still climbing. */
+  /** Finished days only: today's count is still climbing. `atGoal` counts the days that reached the step goal. */
   steps: { avg: number; days: number; atGoal: number } | null;
 }
 
 /** The seven days ending today. */
 export type WeekSummary = PeriodSummary;
 
-export const weekSummary = (days: DailyRecord[]): PeriodSummary | null => periodSummary(days, 7);
+export const weekSummary = (days: DailyRecord[], goals: Goals = DEFAULT_GOALS): PeriodSummary | null =>
+  periodSummary(days, 7, goals);
 
 /** The 30 days ending today, for the card's month view. */
-export const monthSummary = (days: DailyRecord[]): PeriodSummary | null => periodSummary(days, 30);
+export const monthSummary = (days: DailyRecord[], goals: Goals = DEFAULT_GOALS): PeriodSummary | null =>
+  periodSummary(days, 30, goals);
 
-function periodSummary(days: DailyRecord[], length: number): PeriodSummary | null {
+function periodSummary(days: DailyRecord[], length: number, goals: Goals): PeriodSummary | null {
   const today = days.at(-1)?.date;
   if (!today) return null;
   const from = addDays(today, -(length - 1));
@@ -68,7 +73,7 @@ function periodSummary(days: DailyRecord[], length: number): PeriodSummary | nul
 
   const battery = dateRange(from, today).map((date) => {
     const i = days.findIndex((d) => d.date === date);
-    return { date, score: i < 0 ? null : readiness(days.slice(0, i + 1)).score };
+    return { date, score: i < 0 ? null : readiness(days.slice(0, i + 1), goals.sleepNeed).score };
   });
   const nights = sleepMins(period, (s) => s.minutesAsleep);
   const azm = period.some((d) => d.zoneMinutes !== null);
@@ -86,7 +91,7 @@ function periodSummary(days: DailyRecord[], length: number): PeriodSummary | nul
       ? { total: period.reduce((a, d) => a + (azm ? zoneMins(d) : briskMins(d)), 0), unit: azm ? 'azm' : 'brisk' }
       : null,
     steps: steps.length
-      ? { avg: mean(steps), days: steps.length, atGoal: steps.filter((s) => s >= STEP_GOAL).length }
+      ? { avg: mean(steps), days: steps.length, atGoal: steps.filter((s) => s >= goals.steps).length }
       : null,
   };
 }

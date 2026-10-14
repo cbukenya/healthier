@@ -1,4 +1,5 @@
 import type { PackedDataset } from '../pipeline/incremental';
+import type { Goals } from '../pipeline/goals';
 import type { Gender } from '../pipeline/registry';
 import type { DailyRecord } from './health';
 
@@ -58,6 +59,11 @@ export interface DatasetResponse {
 /** PUT /api/profile, both ways. */
 export interface ProfileResponse {
   gender: Gender | null;
+}
+
+/** PUT /api/goals, both ways. */
+export interface GoalsResponse {
+  goals: Goals;
 }
 
 export interface ApiErrorBody {

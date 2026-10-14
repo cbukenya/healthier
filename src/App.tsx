@@ -4,12 +4,14 @@ import { FileCode2, FlaskConical, Footprints, Heart, Moon, RefreshCw, User, Shie
 import { useAuth } from './hooks/useAuth';
 import { useHealth } from './hooks/useHealth';
 import { HistoryProvider } from './hooks/useHistory';
+import { GoalsProvider } from './hooks/useGoals';
 import { DASHBOARD_WINDOW_DAYS } from './pipeline/sync';
 import { FIXTURE_CLOCK } from './pipeline/fixtures';
 import { formatCivilDay } from './lib/date';
 import { api } from './lib/api';
 import type { Gender } from './pipeline/registry';
-import type { ProfileResponse } from './types/api';
+import { readGoals, type Goals } from './pipeline/goals';
+import type { GoalsResponse, ProfileResponse } from './types/api';
 
 import { DOMAIN, NavButton } from './ui/primitives';
 import { TodayView } from './views/TodayView';
@@ -39,6 +41,15 @@ export default function App() {
   const saveGender = async (gender: Gender | null) => {
     await api<ProfileResponse>('/api/profile', { method: 'PUT', body: { gender } });
   };
+
+  // Goals come with the dataset; read once per dataset so every screen sees the same object.
+  const savedGoals = useMemo(() => readGoals(health.data?.profile?.goals), [health.data]);
+  const saveGoals = useMemo(
+    () => async (goals: Goals) => {
+      await api<GoalsResponse>('/api/goals', { method: 'PUT', body: { goals } });
+    },
+    [],
+  );
 
   const disconnect = async () => {
     if (!window.confirm('Disconnect Google and permanently delete all of your data stored by Healthier?')) return;
@@ -260,6 +271,7 @@ export default function App() {
         )}
 
         {health.data && (
+          <GoalsProvider saved={savedGoals} save={demo ? undefined : saveGoals}>
           <HistoryProvider data={health.data} info={health.history} live={!demo}>
           <main className="mt-3 md:mt-6 animate-in fade-in duration-500">
             {view === 'today' && <TodayView data={health.data} intraday={intradayDays} clock={demo ? FIXTURE_CLOCK : undefined} />}
@@ -271,6 +283,7 @@ export default function App() {
             {view === 'data' && <DataView data={health.data} onFullSync={health.fullSync} onDisconnect={demo ? undefined : disconnect} />}
           </main>
           </HistoryProvider>
+          </GoalsProvider>
         )}
       </div>
     </div>

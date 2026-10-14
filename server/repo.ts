@@ -2,6 +2,7 @@ import type pg from 'pg';
 import type { CivilDate } from '../src/lib/date';
 import type { StreamDay, StreamState, StreamWrite, SyncOutput, SyncRun } from '../src/pipeline/incremental';
 import type { IntradayDay } from '../src/pipeline/intraday';
+import type { Goals } from '../src/pipeline/goals';
 import type { Gender, ProfileFacts } from '../src/pipeline/registry';
 import type { ApiUser } from '../src/types/api';
 import { decrypt, encrypt, randomToken, sha256 } from './crypto';
@@ -15,6 +16,8 @@ import type { GoogleIdentity } from './google';
 export interface UserRow extends ApiUser {
   timeZone: string;
   gender: Gender | null;
+  /** As stored: read it through readGoals, which fills in and bounds what's there. */
+  goals: unknown;
 }
 
 export async function upsertUser(db: Db, identity: GoogleIdentity): Promise<string> {
@@ -31,7 +34,7 @@ export async function upsertUser(db: Db, identity: GoogleIdentity): Promise<stri
 
 export async function getUser(db: Db, userId: string): Promise<UserRow | null> {
   const { rows } = await db.query<UserRow>(
-    `SELECT id, email, name, picture_url AS "pictureUrl", time_zone AS "timeZone", gender
+    `SELECT id, email, name, picture_url AS "pictureUrl", time_zone AS "timeZone", gender, goals
      FROM users WHERE id = $1`,
     [userId],
   );
@@ -44,6 +47,10 @@ export async function setTimeZone(db: Db, userId: string, timeZone: string): Pro
 
 export async function setGender(db: Db, userId: string, gender: Gender | null): Promise<void> {
   await db.query('UPDATE users SET gender = $2, updated_at = now() WHERE id = $1', [userId, gender]);
+}
+
+export async function setGoals(db: Db, userId: string, goals: Goals): Promise<void> {
+  await db.query('UPDATE users SET goals = $2::jsonb, updated_at = now() WHERE id = $1', [userId, JSON.stringify(goals)]);
 }
 
 /** Cascades to tokens, sessions and data. */

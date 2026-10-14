@@ -15,8 +15,9 @@ import { scoreSleep } from '../sleep';
 import {
   compareToBaseline, coverage, findGaps, periodShift, rollingMean, series, stats, values,
   bedtimeConsistency, currentStreak, readiness, windowShift, firstObserved, sleepRegularity, circularMeanMinutes, typicalSleepWindow,
-  personalSleepNeed, goalStreak, weightTrend, batteryTier, latestBody,
+  sleepNeedFor, goalStreak, weightTrend, batteryTier, latestBody,
 } from '../derive';
+import { DEFAULT_GOALS, GOAL_LIMITS, parseGoals, readGoals, type Goals } from '../goals';
 import { STREAMS } from '../registry';
 import { answerQueries, parseQueries, queryRange, type HistoryQueries } from '../history';
 import { answerFromRows } from '../incremental';
@@ -1224,7 +1225,7 @@ describe('insight engine — stateless guards', () => {
 
   it('measures sleep debt against the personal need, not a hardcoded 8 hours', () => {
     const natural = syntheticDays(28, {}, { sleepMin: 405 });
-    assert.equal(personalSleepNeed(natural), 420);
+    assert.equal(sleepNeedFor(natural), 420, 'short nights never lower the need below 7 hours');
     assert.equal(cardOf(natural, 'sleep-debt'), undefined, listing(natural));
     const short = syntheticDays(28, {}, { sleepMin: 330 });
     assert.equal(cardOf(short, 'sleep-debt')?.title, "You're very short on sleep this week", listing(short));
@@ -2511,6 +2512,74 @@ describe('this week', () => {
     assert.deepEqual(m.activeMinutes, { total: 30 * 20, unit: 'brisk' });
     assert.equal(m.steps!.days, 29, 'finished days only');
     assert.equal(weekSummary(days)!.length, 7);
+  });
+});
+
+describe('goals', () => {
+  const withGoals = (patch: Partial<Goals>): Goals => ({ ...DEFAULT_GOALS, ...patch });
+  const cardWith = (days: Days, id: string, goals: Goals, now: Date = MORNING) => {
+    const f = insightFeeds(dsOf(days), now, { goals });
+    return [...f.today, ...Object.values(f.pages).flat()].find((o) => o.id === id);
+  };
+
+  it('reads stored goals inside their bounds, with defaults where one is missing', () => {
+    assert.deepEqual(readGoals(null), DEFAULT_GOALS);
+    assert.deepEqual(readGoals({ steps: 'lots', sleepNeed: 'auto' }), DEFAULT_GOALS);
+    assert.deepEqual(readGoals({ steps: 10, briskMinutes: 1000, sleepNeed: 60 }), { steps: 2000, briskMinutes: 120, sleepNeed: 420 },
+      'ten steps and an hour of sleep are pulled up to the floors');
+    assert.deepEqual(readGoals({ steps: 7720, briskMinutes: 33, sleepNeed: 488 }), { steps: 7500, briskMinutes: 35, sleepNeed: 495 },
+      'and onto their steps');
+  });
+
+  it('saves only goals on their steps and inside their bounds', () => {
+    assert.deepEqual(parseGoals({ steps: 8000, briskMinutes: 25, sleepNeed: null }), { steps: 8000, briskMinutes: 25, sleepNeed: null });
+    assert.deepEqual(parseGoals({ steps: 25000, briskMinutes: 120, sleepNeed: 540 }), { steps: 25000, briskMinutes: 120, sleepNeed: 540 });
+    assert.equal(parseGoals({ steps: 10, briskMinutes: 30, sleepNeed: null }), null, 'ten steps is no goal');
+    assert.equal(parseGoals({ steps: 10000, briskMinutes: 30, sleepNeed: 60 }), null, 'an hour is no sleep need');
+    assert.equal(parseGoals({ steps: 10000, briskMinutes: 5, sleepNeed: null }), null);
+    assert.equal(parseGoals({ steps: 30000, briskMinutes: 30, sleepNeed: null }), null);
+    assert.equal(parseGoals({ steps: 10250, briskMinutes: 30, sleepNeed: null }), null, 'off its steps');
+    assert.equal(parseGoals({ steps: 10000, briskMinutes: 30 }), null, 'sleep need is sent, as null for automatic');
+    assert.equal(parseGoals('10000'), null);
+    for (const limit of Object.values(GOAL_LIMITS)) {
+      assert.equal((limit.max - limit.min) % limit.step, 0, 'every bound sits on its steps');
+    }
+  });
+
+  it('measures streaks, nudges and records against the step goal that is set', () => {
+    const days = syntheticDays(28);
+    for (let i = 21; i < 28; i++) days[i].steps = 9000;
+    assert.equal(cardOf(days, 'streak'), undefined, 'under the default 10,000');
+    assert.match(cardWith(days, 'streak', withGoals({ steps: 8500 }))!.text, /more than 8,500 steps every day for 7 days in a row/);
+
+    const close = syntheticDays(28, { steps: 8700 });
+    assert.equal(cardWith(close, 'within-reach', withGoals({ steps: 9500 }), EVENING)?.text, "You're 800 steps short of 9,500.");
+    assert.equal(cardWith(close, 'within-reach', withGoals({ steps: 12000 }), EVENING), undefined, 'too far for an evening walk');
+
+    // A record needs most of a goal day: 7,000 is tiny against 10,000, a record against 5,000.
+    const quiet = syntheticDays(28, {}, { steps: 3000 });
+    quiet[26].steps = 7000;
+    assert.equal(cardOf(quiet, 'step-record'), undefined);
+    assert.match(cardWith(quiet, 'step-record', withGoals({ steps: 5000 }))!.text, /You walked 7,000 steps on 27 July\./);
+  });
+
+  it('counts goal days in the week against the step goal', () => {
+    const days = syntheticDays(28);
+    assert.equal(weekSummary(days)!.steps!.atGoal, 0);
+    assert.equal(weekSummary(days, withGoals({ steps: 7000 }))!.steps!.atGoal, weekSummary(days)!.steps!.days - 1,
+      'every finished day but the one at 6,800');
+  });
+
+  it('judges nights against a sleep need that is set, and leaves the estimate alone otherwise', () => {
+    const days = syntheticDays(28);
+    assert.deepEqual(readiness(days, null), readiness(days), 'automatic is the estimate');
+    const nine = readiness(days, 540);
+    assert.ok(nine.score! < readiness(days).score!, 'a 9-hour need makes a 7.5-hour night short');
+    assert.match(part(nine, 'Last night’s sleep')!.detail, /vs 9h 00m need/, 'a need that is set is exact, not "~"');
+    assert.match(part(readiness(days), 'Last night’s sleep')!.detail, /vs ~7h 30m need/);
+    assert.equal(cardWith(days, 'sleep-need', withGoals({ sleepNeed: 480 }))?.text,
+      'Your sleep cards measure each night against the 8h you set on the Data tab. Your nights are usually about 7h 30m.');
+    assert.equal(todaySummary(dsOf(days), MORNING, { goals: withGoals({ sleepNeed: 480 }) }).sleepTargetMin, 480);
   });
 });
 
