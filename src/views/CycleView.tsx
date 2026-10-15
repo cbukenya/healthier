@@ -86,12 +86,12 @@ export function CycleView({ data, clock, intraday }: { data: SyncResult; clock?:
         </p>
       )}
 
-      <BodyThroughCycle summary={summary} nights={nights} log={log} />
-
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
         <CycleHistory className="lg:col-span-7" summary={summary} log={log} today={today} />
         <CycleCalendar className="lg:col-span-5" summary={summary} log={log} today={today} onPick={(date) => setSheet({ kind: 'day', date })} />
       </div>
+
+      <BodyThroughCycle summary={summary} nights={nights} log={log} />
 
       {/* Its footer is the Cycle page's disclaimer: not a way to tell fertile days, nor contraception. */}
       <InsightsCarousel observations={insights} page="cycle" />
