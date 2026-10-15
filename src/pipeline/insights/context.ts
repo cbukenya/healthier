@@ -30,7 +30,7 @@ export type InsightDataset = HealthDataset & {
 };
 
 /**
- * Everything the rules share, worked out once. "Today" is always the grid's
+ * Everything the cards share, worked out once. "Today" is always the grid's
  * last day (the server ends the window on the user's today); the clock only
  * says whether it's morning, midday or evening.
  */

@@ -2,11 +2,11 @@ import { buildContext, type InsightDataset, type InsightOptions } from './contex
 import { settle } from './conflicts';
 import { PAGES, carouselOf, place, placeable } from './place';
 import type { HistoryQueries } from '../history';
-import { activityQueries, activityRules } from './rules/activity';
-import { bodyQueries, bodyRules } from './rules/body';
-import { sleepQueries, sleepRules } from './rules/sleep';
-import { todayRules } from './rules/today';
-import { vitalsQueries, vitalsRules } from './rules/vitals';
+import { activityCards, activityQueries } from './cards/activity';
+import { bodyCards, bodyQueries } from './cards/body';
+import { sleepCards, sleepQueries } from './cards/sleep';
+import { todayCards } from './cards/today';
+import { vitalsCards, vitalsQueries } from './cards/vitals';
 import type { Finding, InsightFeeds } from './types';
 
 /**
@@ -40,20 +40,20 @@ import type { Finding, InsightFeeds } from './types';
  *                wait on their page in between, saying how long they've held
  *   calendar     fires on a clock condition (1st of the month)
  *
- * One pass, five feeds: every rule file adds findings for its page, the
+ * One pass, five feeds: every card file adds findings for its page, the
  * conflict rules settle them all together, and each one goes to exactly one
  * place. Today while it's key (an alert or nudge while true, anything else
  * while it's news), otherwise its own page for as long as it holds. A Today
  * with fewer than two cards brings forward what matters most from the pages,
  * cautious first: still true, though no longer news.
  *
- * Copy laws, enforced in the rules: plain sentences with the figures inside
+ * Copy laws, enforced in the cards: plain sentences with the figures inside
  * them; evidence first, the action on its own line after it; wins carry no
  * homework; neutral metrics carry no moral tone; escalation, never repetition.
  */
 /**
- * Every question the rules ask of your older days, sent with each dataset
- * request. Each page's rules declare their own beside the code that reads the
+ * Every question the cards ask of your older days, sent with each dataset
+ * request. Each page's cards declare their own beside the code that reads the
  * answers.
  */
 export const HISTORY_QUERIES: HistoryQueries = { ...activityQueries, ...sleepQueries, ...vitalsQueries, ...bodyQueries };
@@ -63,11 +63,11 @@ export function evaluate(ds: InsightDataset, now: Date = new Date(), extras?: In
   if (!ctx) return null;
   const found: Finding[] = [];
   const add = (f: Finding) => found.push(f);
-  todayRules(ctx, add);
-  activityRules(ctx, add);
-  sleepRules(ctx, add);
-  vitalsRules(ctx, add);
-  bodyRules(ctx, add);
+  todayCards(ctx, add);
+  activityCards(ctx, add);
+  sleepCards(ctx, add);
+  vitalsCards(ctx, add);
+  bodyCards(ctx, add);
   const settled = settle(found.filter((f) => placeable(f, ctx.part)), (f) => carouselOf(f, ctx.part));
   return { ctx, found, settled, feeds: place(settled, ctx) };
 }

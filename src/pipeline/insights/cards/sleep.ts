@@ -33,7 +33,7 @@ export const sleepQueries = {
 } satisfies HistoryQueries;
 
 /** Last night, the week's debt, timing and regularity, how you sleep, and the gaps in the record. */
-export function sleepRules(ctx: InsightContext, add: Add): void {
+export function sleepCards(ctx: InsightContext, add: Add): void {
   const shift = bedtimeShift(ctx.days);
   const tonight = windDownDue(ctx, shift);
   lastNight(ctx, add, tonight);
