@@ -1,14 +1,18 @@
 import { Router } from 'express';
 import type {
-  DatasetResponse, GoalsResponse, HistoryResponse, InstanceResponse, MeResponse, ProfileResponse, SyncResponse,
+  CycleDayResponse, CycleRejectedResponse, CycleSettingsResponse, DatasetResponse, GoalsResponse, HistoryResponse,
+  InstanceResponse, MeResponse, ProfileResponse, SyncResponse,
 } from '../src/types/api';
 import { parseGoals } from '../src/pipeline/goals';
+import { hasEntry, parseCycleDay, parseCycleSettings, withDay, withRejected } from '../src/pipeline/cycle';
 import type { Gender } from '../src/pipeline/registry';
 import { parseQueries } from '../src/pipeline/history';
 import { requireUser, SESSION_COOKIE, sessionCookieOptions } from './auth';
 import { revokeToken } from './google';
 import { asyncHandler, type Deps } from './http';
-import { deleteUser, getTokens, getUser, hasTokens, setGender, setGoals, setTimeZone } from './repo';
+import {
+  deleteCycleLog, deleteUser, getTokens, getUser, hasTokens, setGender, setGoals, setTimeZone, updateCycleLog,
+} from './repo';
 import { historyInfo, loadDataset, loadHistory, startSync, syncStatus } from './sync';
 
 /** The browser's API. Every route after /instance acts on the signed-in user only. */
@@ -80,6 +84,61 @@ export function apiRoutes(deps: Deps): Router {
       await setGoals(deps.db, res.locals.userId, goals);
       const body: GoalsResponse = { goals };
       res.json(body);
+    }),
+  );
+
+  /** Cycle tracking on or off, and whether cycle cards may show on Today. */
+  router.put(
+    '/cycle/settings',
+    asyncHandler(async (req, res) => {
+      const settings = parseCycleSettings(req.body?.settings);
+      if (!settings) {
+        res.status(400).json({ error: 'invalid_cycle_settings' });
+        return;
+      }
+      await updateCycleLog(deps.db, deps.config.encryptionKey, res.locals.userId, (log) => ({ ...log, settings }));
+      const body: CycleSettingsResponse = { settings };
+      res.json(body);
+    }),
+  );
+
+  /** One logged day: its flow, symptoms and note. A day sent with nothing on it is removed. */
+  router.put(
+    '/cycle/days/:date',
+    asyncHandler(async (req, res) => {
+      const day = parseCycleDay(req.params.date, req.body?.day ?? {});
+      if (!day) {
+        res.status(400).json({ error: 'invalid_cycle_day' });
+        return;
+      }
+      await updateCycleLog(deps.db, deps.config.encryptionKey, res.locals.userId, (log) => withDay(log, day));
+      const body: CycleDayResponse = { day: hasEntry(day) ? day : null };
+      res.json(body);
+    }),
+  );
+
+  /** A start found in the data that the person says wasn't a period, or that mark taken back. */
+  router.put(
+    '/cycle/rejected/:date',
+    asyncHandler(async (req, res) => {
+      const date = req.params.date;
+      const rejected = req.body?.rejected;
+      if (typeof date !== 'string' || !parseCycleDay(date, {}) || typeof rejected !== 'boolean') {
+        res.status(400).json({ error: 'invalid_cycle_rejected' });
+        return;
+      }
+      await updateCycleLog(deps.db, deps.config.encryptionKey, res.locals.userId, (log) => withRejected(log, date, rejected));
+      const body: CycleRejectedResponse = { rejected };
+      res.json(body);
+    }),
+  );
+
+  /** Forget cycle tracking: the settings and every logged day. */
+  router.delete(
+    '/cycle',
+    asyncHandler(async (req, res) => {
+      await deleteCycleLog(deps.db, res.locals.userId);
+      res.json({ ok: true });
     }),
   );
 

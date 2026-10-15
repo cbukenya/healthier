@@ -2,6 +2,7 @@ import { civilFromGH, civilFromInstant, type CivilDate } from '../lib/date';
 import { int, num, nullIf, round, sumOf } from './coerce';
 import type { DailyRecord, HeartRateZones, MetricDomain, SourceRef } from '../types/health';
 import type { Goals } from './goals';
+import type { CycleLog } from './cycle';
 import { combineSleepPoints, parseSleepSession } from './sleep';
 
 /**
@@ -646,6 +647,8 @@ export interface ProfileFacts {
   gender?: Gender | null;
   /** The person's goals, set on the Data tab: Google Health doesn't share the ones set in Fitbit. */
   goals?: Goals;
+  /** Cycle tracking and the person's cycle log: Google Health doesn't let other apps read periods. */
+  cycle?: CycleLog;
 }
 
 export function extractProfile(heightPoints: any[]): ProfileFacts {

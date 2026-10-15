@@ -1,5 +1,6 @@
 import type { PackedDataset } from '../pipeline/incremental';
 import type { Goals } from '../pipeline/goals';
+import type { CycleDay, CycleSettings } from '../pipeline/cycle';
 import type { Gender } from '../pipeline/registry';
 import type { DailyRecord, StreamErrorCode } from './health';
 
@@ -88,6 +89,21 @@ export interface ProfileResponse {
 /** PUT /api/goals, both ways. */
 export interface GoalsResponse {
   goals: Goals;
+}
+
+/** PUT /api/cycle/settings, both ways. */
+export interface CycleSettingsResponse {
+  settings: CycleSettings;
+}
+
+/** PUT /api/cycle/days/:date: the day as kept, or null when nothing is left on it. */
+export interface CycleDayResponse {
+  day: CycleDay | null;
+}
+
+/** PUT /api/cycle/rejected/:date, both ways: whether a found start was not a period. */
+export interface CycleRejectedResponse {
+  rejected: boolean;
 }
 
 export interface ApiErrorBody {
