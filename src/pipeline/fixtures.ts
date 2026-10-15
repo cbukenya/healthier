@@ -37,25 +37,25 @@ const SAMSUNG = { recordingMethod: 'UNKNOWN', device: {}, application: { package
 const OURA = { recordingMethod: 'MANUAL', device: { formFactor: 'RING' }, application: { packageName: 'com.ouraring.oura' }, platform: 'HEALTH_CONNECT' };
 
 /** The API returns points newest-first. Reversing here keeps that honest. */
-const newestFirst = <T>(a: T[]): T[] => a.slice().reverse();
+export const newestFirst = <T>(a: T[]): T[] => a.slice().reverse();
 
-const iso = (t: number) => new Date(t).toISOString().replace('.000Z', 'Z');
+export const iso = (t: number) => new Date(t).toISOString().replace('.000Z', 'Z');
 /** Local wall-clock on a civil date → UTC instant, given a +2h offset. */
 const utcFromLocal = (date: CivilDate, hhmm: string): number => {
   const [h, m] = hhmm.split(':').map(Number);
   return Date.parse(`${date}T00:00:00Z`) + (h * 60 + m - 120) * 60_000;
 };
 
-const rollupPoint = (date: CivilDate, container: string, payload: unknown) => ({
+export const rollupPoint = (date: CivilDate, container: string, payload: unknown) => ({
   civilStartTime: { date: ghDateFromCivil(date), time: {} },
   civilEndTime: { date: ghDateFromCivil(addDays(date, 1)), time: {} },
   [container]: payload,
 });
-const listPoint = (dataSource: unknown, container: string, payload: unknown) => ({
+export const listPoint = (dataSource: unknown, container: string, payload: unknown) => ({
   dataSource,
   [container]: payload,
 });
-const sampleTime = (isoStr: string, date: CivilDate, offset = OFF) => ({
+export const sampleTime = (isoStr: string, date: CivilDate, offset = OFF) => ({
   physicalTime: isoStr,
   utcOffset: offset,
   civilTime: { date: ghDateFromCivil(date), time: { hours: 12 } },
@@ -479,13 +479,23 @@ export function createFixtureFetch(
 
     if (u.pathname.endsWith(':rollUp')) {
       const body = init?.body ? JSON.parse(String(init.body)) : {};
+      if (entry.minutes) return json(rollUpMinutes(entry.minutes, body));
       return json(rollUpWindows(allListPoints(payloads, dataType), body));
     }
 
     const token = u.searchParams.get('pageToken');
+    const pageSize = Number(u.searchParams.get('pageSize') ?? 1000);
+    // A fixture without a page chain of its own is paged by offset, like a long list from the API.
+    if (!entry.nextPageToken && (!token || /^\d+$/.test(token))) {
+      const offset = Number(token ?? 0);
+      const points = entry.dataPoints ?? [];
+      return json({
+        dataPoints: points.slice(offset, offset + pageSize),
+        ...(offset + pageSize < points.length ? { nextPageToken: String(offset + pageSize) } : {}),
+      });
+    }
     const page = token ? payloads[`${dataType}:${token}`] : entry;
     if (!page) return json({ dataPoints: [] });
-    const pageSize = Number(u.searchParams.get('pageSize') ?? 1000);
     return json({
       dataPoints: (page.dataPoints ?? []).slice(0, pageSize),
       ...(page.nextPageToken ? { nextPageToken: page.nextPageToken } : {}),
@@ -538,6 +548,58 @@ function rollUpWindows(points: any[], body: any) {
   return {
     rollupDataPoints: all.slice(offset, offset + size),
     ...(offset + size < all.length ? { nextPageToken: String(offset + size) } : {}),
+  };
+}
+
+/** Minute heart rate held compactly: each minute's start and its bpm, oldest first. */
+export interface MinuteSeries {
+  t: Float64Array;
+  bpm: Uint8Array;
+}
+
+/** The same `rollUp` contract as rollUpWindows, over a compact minute series instead of raw samples. */
+function rollUpMinutes(series: MinuteSeries, body: any) {
+  const start = Date.parse(body?.range?.startTime);
+  const end = Date.parse(body?.range?.endTime);
+  const windowMs = parseFloat(body?.windowSize) * 1000;
+  const first = (time: number) => {
+    let a = 0;
+    let b = series.t.length;
+    while (a < b) {
+      const m = (a + b) >> 1;
+      if (series.t[m] < time) a = m + 1;
+      else b = m;
+    }
+    return a;
+  };
+  const windows: { startTime: string; endTime: string; heartRate: { beatsPerMinuteAvg: number; beatsPerMinuteMin: number; beatsPerMinuteMax: number } }[] = [];
+  let i = first(start);
+  const stop = first(end);
+  while (i < stop) {
+    const key = start + Math.floor((series.t[i] - start) / windowMs) * windowMs;
+    let sum = 0;
+    let n = 0;
+    let lo = Infinity;
+    let hi = -Infinity;
+    for (; i < stop && series.t[i] < key + windowMs; i++) {
+      const v = series.bpm[i];
+      sum += v;
+      n++;
+      lo = Math.min(lo, v);
+      hi = Math.max(hi, v);
+    }
+    windows.push({
+      startTime: new Date(key).toISOString(),
+      endTime: new Date(Math.min(key + windowMs, end)).toISOString(),
+      heartRate: { beatsPerMinuteAvg: sum / n, beatsPerMinuteMin: lo, beatsPerMinuteMax: hi },
+    });
+  }
+  windows.reverse();
+  const offset = Number(body?.pageToken ?? 0);
+  const size = Number(body?.pageSize ?? 1440);
+  return {
+    rollupDataPoints: windows.slice(offset, offset + size),
+    ...(offset + size < windows.length ? { nextPageToken: String(offset + size) } : {}),
   };
 }
 

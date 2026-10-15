@@ -68,7 +68,8 @@ const english = leaves(enUS);
 const NOT_SHOWN: Record<string, string> = {
   'src/pipeline/registry.ts':
     "English stream labels and notes for developers and server logs; the app names streams from the language file's streams section",
-  'src/pipeline/fixtures.ts': "demo data, shown the way a person's own data is: device names, as their data would carry them",
+  'src/pipeline/fixtures.ts': "test data, shown the way a person's own data is: device names, as their data would carry them",
+  'src/pipeline/demo.ts': "demo data, shown the way a person's own data is: device names, as their data would carry them",
 };
 
 describe('language files', () => {

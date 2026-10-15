@@ -27,12 +27,15 @@ export function HistoryProvider({
   data,
   info,
   live,
+  local,
   children,
 }: {
   data: SyncResult | null;
   info: HistoryInfo | null;
-  /** False in demo mode, where the fixture window is all there is. */
+  /** False in demo mode, where history is held in the browser. */
   live: boolean;
+  /** Demo mode's days, oldest first: the window and the history before it. */
+  local?: DailyRecord[] | null;
   children: React.ReactNode;
 }) {
   const version = `${data?.meta.finishedAt ?? ''}|${info?.from ?? ''}|${info?.complete ?? ''}`;
@@ -55,11 +58,11 @@ export function HistoryProvider({
 
   const value = useMemo<HistoryContextValue>(() => {
     if (!live) {
-      const days = data?.days ?? null;
+      const days = local ?? data?.days ?? null;
       return { info: days?.length ? { from: days[0].date, complete: true, backfilling: false } : null, days, loading: false, request: () => {} };
     }
     return { info, days: loaded?.version === version ? loaded.days : null, loading, request };
-  }, [live, data, info, loaded, version, loading, request]);
+  }, [live, local, data, info, loaded, version, loading, request]);
 
   return <HistoryContext.Provider value={value}>{children}</HistoryContext.Provider>;
 }

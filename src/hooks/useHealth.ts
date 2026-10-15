@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { DASHBOARD_WINDOW_DAYS, syncHealthData, type SyncResult } from '../pipeline/sync';
+import { DASHBOARD_WINDOW_DAYS, syncWithHistory, type SyncResult } from '../pipeline/sync';
 import { unpackDataset } from '../pipeline/incremental';
-import { FIXTURE_CLOCK, buildFixturePayloads, createFixtureFetch } from '../pipeline/fixtures';
+import { createFixtureFetch } from '../pipeline/fixtures';
+import { DEMO_CLOCK, DEMO_DAYS, buildDemoPayloads } from '../pipeline/demo';
 import { HISTORY_QUERIES } from '../pipeline/insights';
 import { api, ApiError } from '../lib/api';
 import type { DatasetResponse, HistoryInfo, SyncResponse, SyncStatus } from '../types/api';
-import type { StreamReport } from '../types/health';
+import type { DailyRecord, StreamReport } from '../types/health';
 
 /**
  * The one place the UI talks to the pipeline.
@@ -47,8 +48,10 @@ export interface HealthState {
   error: SyncFailure | null;
   progress: { done: number; total: number; dataType: string; label: string } | null;
   isDemo: boolean;
-  /** How far back stored history reaches (live mode). */
+  /** How far back stored history reaches. */
   history: HistoryInfo | null;
+  /** Demo mode's history, held in the browser: every day before the window as well as in it. */
+  localHistory: DailyRecord[] | null;
 }
 
 export interface UseHealthOptions {
@@ -130,20 +133,30 @@ async function serverSync(
   return { data: unpackDataset(dataset), history };
 }
 
-/** Demo: the real pipeline against fixture payloads, so it exercises the same code as live data. */
-function demoSync(signal: AbortSignal, onProgress: Progress): Promise<SyncResult> {
-  return syncHealthData({
+/**
+ * Demo: the real pipeline against the demo person's payloads, so it exercises the same code as live
+ * data. It keeps the whole demo year, for the long views.
+ */
+async function demoSync(signal: AbortSignal, onProgress: Progress): Promise<{ data: SyncResult; history: DailyRecord[] }> {
+  return syncWithHistory({
     token: 'demo-token',
-    fetchImpl: createFixtureFetch(buildFixturePayloads(), { latencyMs: 60 }),
+    fetchImpl: createFixtureFetch(buildDemoPayloads(), { latencyMs: 15 }),
     windowDays: DASHBOARD_WINDOW_DAYS,
-    // The fixture covers a fixed window, so demo mode pins the clock and the zone (and so "today") to match it.
-    now: FIXTURE_CLOCK.now,
-    timeZone: FIXTURE_CLOCK.timeZone,
+    historyDays: DEMO_DAYS,
+    // The demo covers a fixed year, so demo mode pins the clock and the zone (and so "today") to match it.
+    now: DEMO_CLOCK.now,
+    timeZone: DEMO_CLOCK.timeZone,
     includeIntraday: true,
     queries: HISTORY_QUERIES,
     signal,
     onProgress: (done, total, label, dataType) => onProgress({ done, total, dataType, label }),
   });
+}
+
+/** The demo, with its history as the Data tab and the long views read it. */
+async function demoResult(signal: AbortSignal, onProgress: Progress) {
+  const { data, history } = await demoSync(signal, onProgress);
+  return { data, history: { from: history[0]?.date ?? null, complete: true, backfilling: false }, localHistory: history };
 }
 
 export function useHealth({ live, demo = false, onSignInRequired }: UseHealthOptions) {
@@ -154,6 +167,7 @@ export function useHealth({ live, demo = false, onSignInRequired }: UseHealthOpt
     progress: null,
     isDemo: demo,
     history: null,
+    localHistory: null,
   });
   const abortRef = useRef<AbortController | null>(null);
   const lastSyncRef = useRef(0);
@@ -181,12 +195,12 @@ export function useHealth({ live, demo = false, onSignInRequired }: UseHealthOpt
 
       try {
         const onProgress: Progress = (progress) => setState((s) => ({ ...s, progress }));
-        const result = demo
-          ? { data: await demoSync(ctl.signal, onProgress), history: null }
-          : await serverSync(ctl.signal, onProgress, full);
+        const result = demo ? await demoResult(ctl.signal, onProgress) : { ...(await serverSync(ctl.signal, onProgress, full)), localHistory: null };
         if (ctl.signal.aborted) return;
         lastSyncRef.current = Date.now();
-        setState((s) => ({ ...s, phase: 'ready', data: result.data, history: result.history, progress: null, error: null }));
+        setState((s) => ({
+          ...s, phase: 'ready', data: result.data, history: result.history, localHistory: result.localHistory, progress: null, error: null,
+        }));
       } catch (err) {
         if (!ctl.signal.aborted) fail(err);
       }
@@ -197,7 +211,7 @@ export function useHealth({ live, demo = false, onSignInRequired }: UseHealthOpt
   // Open: paint what the server has, then sync if it is stale. No dataset yet
   // means a first sync (or a rebuild after an upgrade): show onboarding until done.
   useEffect(() => {
-    setState({ phase: 'idle', data: null, error: null, progress: null, isDemo: demo, history: null });
+    setState({ phase: 'idle', data: null, error: null, progress: null, isDemo: demo, history: null, localHistory: null });
     if (demo) {
       void run('cold');
       return () => abortRef.current?.abort();
