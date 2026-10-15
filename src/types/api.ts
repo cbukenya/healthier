@@ -12,6 +12,12 @@ export interface ApiUser {
   pictureUrl: string | null;
 }
 
+/** What this install offers, before anyone signs in. */
+export interface InstanceResponse {
+  /** Whether the sign-in screen offers demo mode (DEMO_MODE). */
+  demo: boolean;
+}
+
 export interface MeResponse {
   user: ApiUser;
   /** Google access was revoked or expired; the user must sign in again to resume syncing. */

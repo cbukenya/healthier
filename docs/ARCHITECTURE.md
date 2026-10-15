@@ -257,6 +257,10 @@ of made-up data from a watch and a scale.
 
 `demo.test.ts` checks the demo stays useful: cards on every page, and something on every lab.
 
+An install can hide demo mode with `DEMO_MODE=false`. The sign-in screen asks `GET /api/instance`,
+the one API route that needs no session, whether to offer it. With no server behind it, as with
+`npm run demo`, it offers it.
+
 ## Guarantees the tests hold
 
 `src/pipeline/__tests__/incremental.test.ts`:
