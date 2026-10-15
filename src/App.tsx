@@ -6,7 +6,7 @@ import { useHealth, type SyncFailure } from './hooks/useHealth';
 import { HistoryProvider } from './hooks/useHistory';
 import { GoalsProvider } from './hooks/useGoals';
 import { DASHBOARD_WINDOW_DAYS } from './pipeline/sync';
-import { FIXTURE_CLOCK } from './pipeline/fixtures';
+import { DEMO_CLOCK } from './pipeline/demo';
 import { formatCivilDay } from './i18n/format';
 import { t } from './i18n';
 import { streamError, streamName } from './i18n/streams';
@@ -284,13 +284,13 @@ export default function App() {
 
         {health.data && (
           <GoalsProvider saved={savedGoals} save={demo ? undefined : saveGoals}>
-          <HistoryProvider data={health.data} info={health.history} live={!demo}>
+          <HistoryProvider data={health.data} info={health.history} live={!demo} local={health.localHistory}>
           <main className="mt-3 md:mt-6 animate-in fade-in duration-500">
-            {view === 'today' && <TodayView data={health.data} intraday={intradayDays} clock={demo ? FIXTURE_CLOCK : undefined} />}
-            {view === 'activity' && <ActivityView data={health.data} intraday={intradayDays} clock={demo ? FIXTURE_CLOCK : undefined} />}
-            {view === 'sleep' && <SleepView data={health.data} intraday={intradayDays} clock={demo ? FIXTURE_CLOCK : undefined} />}
-            {view === 'vitals' && <VitalsView data={health.data} intraday={intradayDays} clock={demo ? FIXTURE_CLOCK : undefined} />}
-            {view === 'body' && <BodyView data={health.data} onGender={demo ? undefined : saveGender} intraday={intradayDays} clock={demo ? FIXTURE_CLOCK : undefined} />}
+            {view === 'today' && <TodayView data={health.data} intraday={intradayDays} clock={demo ? DEMO_CLOCK : undefined} />}
+            {view === 'activity' && <ActivityView data={health.data} intraday={intradayDays} clock={demo ? DEMO_CLOCK : undefined} />}
+            {view === 'sleep' && <SleepView data={health.data} intraday={intradayDays} clock={demo ? DEMO_CLOCK : undefined} />}
+            {view === 'vitals' && <VitalsView data={health.data} intraday={intradayDays} clock={demo ? DEMO_CLOCK : undefined} />}
+            {view === 'body' && <BodyView data={health.data} onGender={demo ? undefined : saveGender} intraday={intradayDays} clock={demo ? DEMO_CLOCK : undefined} />}
             {view === 'labs' && <LabsView data={health.data} intraday={intradayDays} />}
             {view === 'data' && <DataView data={health.data} onFullSync={health.fullSync} onDisconnect={demo ? undefined : disconnect} />}
           </main>

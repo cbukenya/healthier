@@ -1,8 +1,11 @@
 import { addDays, todayCivil, todayCivilIn, type CivilDate } from '../lib/date';
 import type { HistoryQueries } from './history';
-import { MemoryStore, syncIncremental, unpackDataset, type SyncResult } from './incremental';
+import {
+  MemoryStore, assembleHistory, backfillStream, historyDue, historyStart, syncIncremental, unpackDataset, type SyncResult,
+} from './incremental';
 import type { ScopeKey } from './registry';
-import { HealthTransport, type FetchLike } from './transport';
+import type { DailyRecord } from '../types/health';
+import { HealthTransport, pool, type FetchLike } from './transport';
 
 /**
  * One complete sync, start to finish, held in memory.
@@ -47,23 +50,26 @@ export interface SyncOptions {
   onProgress?: (done: number, total: number, label: string, dataType: string) => void;
 }
 
-export async function syncHealthData(opts: SyncOptions): Promise<SyncResult> {
+/** A first sync with nothing stored, into memory: the same engine and options the server's first sync uses. */
+async function firstSync(opts: SyncOptions, historyDays?: number) {
   const now = opts.now ?? new Date();
   const today = opts.today ?? (opts.timeZone ? todayCivilIn(opts.timeZone, now) : todayCivil(now));
   const windowDays = opts.windowDays ?? 90;
+  const transport = new HealthTransport({
+    token: opts.token,
+    fetchImpl: opts.fetchImpl,
+    baseUrl: opts.baseUrl,
+    concurrency: opts.concurrency ?? 4,
+    signal: opts.signal,
+  });
 
   const store = new MemoryStore();
   store.apply(
     await syncIncremental({
-      transport: new HealthTransport({
-        token: opts.token,
-        fetchImpl: opts.fetchImpl,
-        baseUrl: opts.baseUrl,
-        concurrency: opts.concurrency ?? 4,
-        signal: opts.signal,
-      }),
+      transport,
       today,
       windowDays,
+      historyDays,
       timeZone: opts.timeZone ?? Intl.DateTimeFormat().resolvedOptions().timeZone,
       now,
       states: new Map(),
@@ -73,5 +79,28 @@ export async function syncHealthData(opts: SyncOptions): Promise<SyncResult> {
       onProgress: opts.onProgress,
     }),
   );
+  return { store, today, windowDays, transport };
+}
+
+export async function syncHealthData(opts: SyncOptions): Promise<SyncResult> {
+  const { store, today, windowDays } = await firstSync(opts);
   return unpackDataset(store.assemble(addDays(today, -(windowDays - 1)), today, opts.queries));
+}
+
+/**
+ * What the server does for a new account, held in memory, for demo mode: a first sync of the
+ * window, then the history backfill. Returns the window as the dashboard reads it, and every day
+ * back to `historyDays` as the 90-day, 1-year and All views read it.
+ */
+export async function syncWithHistory(opts: SyncOptions & { historyDays: number }): Promise<{ data: SyncResult; history: DailyRecord[] }> {
+  const { store, today, windowDays, transport } = await firstSync(opts, opts.historyDays);
+  const start = historyStart(today, opts.historyDays, windowDays);
+  await pool(historyDue(store.stateMap, start), transport.concurrency, async (stream) => {
+    const write = await backfillStream(transport, stream, store.stateMap.get(stream.dataType)!, start);
+    if (write) store.applyWrites([write]);
+  });
+  return {
+    data: unpackDataset(store.assemble(addDays(today, -(windowDays - 1)), today, opts.queries)),
+    history: assembleHistory(store.rows, start, today),
+  };
 }
