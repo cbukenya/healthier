@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { daysBetween } from '../lib/date';
+import { t, type MessageKey } from '../i18n';
 import { bucketFor, type Bucket } from '../pipeline/aggregate';
 import type { SyncResult } from '../pipeline/sync';
 import { useHistory } from '../hooks/useHistory';
@@ -15,13 +16,24 @@ import type { DailyRecord } from '../types/health';
 
 export type SpanId = '14' | '30' | '90' | '365' | 'all';
 
-export const SPANS: { id: SpanId; label: string; days: number }[] = [
-  { id: '14', label: '14d', days: 14 },
-  { id: '30', label: '30d', days: 30 },
-  { id: '90', label: '90d', days: 90 },
-  { id: '365', label: '1y', days: 365 },
-  { id: 'all', label: 'All', days: Infinity },
+export const SPANS: { id: SpanId; days: number }[] = [
+  { id: '14', days: 14 },
+  { id: '30', days: 30 },
+  { id: '90', days: 90 },
+  { id: '365', days: 365 },
+  { id: 'all', days: Infinity },
 ];
+
+const SPAN_LABELS = {
+  '14': 'ui.span.chips.twoWeeks',
+  '30': 'ui.span.chips.month',
+  '90': 'ui.span.chips.quarter',
+  '365': 'ui.span.chips.year',
+  all: 'ui.span.chips.all',
+} as const satisfies Record<SpanId, MessageKey>;
+
+/** A span's button: "14d", "1y", "All". */
+export const spanLabel = (id: SpanId) => t(SPAN_LABELS[id]);
 
 export interface SpanState {
   span: SpanId;
@@ -63,20 +75,20 @@ export function useSpan(data: SyncResult, initial: SpanId = '30'): SpanState {
 }
 
 /**
- * The selected span as a card names it: "30-day", "1-year" or "All-time". While stored history
- * is shorter than the span, it names the days actually shown.
+ * The summary card's title for the selected span: "30-day summary", "1-year summary" or "All-time
+ * summary". While stored history is shorter than the span, it names the days actually shown.
  */
-export function spanName({ span, days }: SpanState): string {
-  if (span === 'all') return 'All-time';
-  if (days.length < Number(span)) return `${days.length}-day`;
-  return span === '365' ? '1-year' : `${span}-day`;
+export function spanSummaryTitle({ span, days }: SpanState): string {
+  if (span === 'all') return t('ui.span.summary', { span: 'all' });
+  if (days.length < Number(span)) return t('ui.span.summary', { span: 'days', days: days.length });
+  return t('ui.span.summary', span === '365' ? { span: 'year' } : { span: 'days', days: Number(span) });
 }
 
 /** 14d · 30d · 90d · 1y · All. Spans longer than the stored history are greyed out. */
 export function SpanSelector({ state }: { state: SpanState }) {
   const history = useHistory();
   const importing = history.info && !history.info.complete;
-  const note = state.loading ? 'Loading history…' : importing ? 'Importing older history…' : null;
+  const note = state.loading ? t('ui.span.loading') : importing ? t('ui.span.importing') : null;
 
   return (
     <div className="flex items-center gap-2">
@@ -92,7 +104,7 @@ export function SpanSelector({ state }: { state: SpanState }) {
               role="tab"
               aria-selected={active}
               disabled={!enabled}
-              title={enabled ? undefined : `Needs more than ${SPANS[i - 1].label} of history`}
+              title={enabled ? undefined : t('ui.span.needsMore', { span: spanLabel(SPANS[i - 1].id) })}
               onClick={() => state.setSpan(o.id)}
               className={`px-2 py-[3px] text-note rounded-[6px] font-medium transition-colors ${
                 active
@@ -102,7 +114,7 @@ export function SpanSelector({ state }: { state: SpanState }) {
                     : 'text-zinc-700 cursor-not-allowed'
               }`}
             >
-              {o.label}
+              {spanLabel(o.id)}
             </button>
           );
         })}

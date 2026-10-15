@@ -1,7 +1,7 @@
 import React, { useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { formatCivil, formatClock } from '../lib/date';
+import { bucketLabel, formatCivil, formatClock } from '../i18n/format';
 import { sleepRegularity, typicalSleepWindow } from '../pipeline/derive';
-import { bucketLabel, groupNights, type Bucket } from '../pipeline/aggregate';
+import { groupNights, type Bucket } from '../pipeline/aggregate';
 import { emptyRecord } from '../pipeline/normalize';
 import { Card, CardHead, fmtDuration } from '../ui/primitives';
 import type { DailyRecord, SleepSession } from '../types/health';

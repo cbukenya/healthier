@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { Footprints } from 'lucide-react';
-import { formatCivilLong, formatCivilRange, weekdayLetter, weekdayShort, type CivilDate } from '../lib/date';
+import type { CivilDate } from '../lib/date';
+import { formatCivilLong, formatCivilRange, formatThousands, weekdayLetter, weekdayShort } from '../i18n/format';
 import type { PeriodShift } from '../pipeline/derive';
 import { Card, CardHead, CardSummary, DOMAIN, Delta, Meter, Row, fmtNum } from '../ui/primitives';
 import type { DailyRecord } from '../types/health';
-import { WHO_WEEK, stepsShort } from '../pipeline/goals';
+import { WHO_WEEK } from '../pipeline/goals';
 import { useGoals } from '../hooks/useGoals';
 
 const BRISK_HEX = '#fb923c';
@@ -67,7 +68,7 @@ export function LastSevenDays({ days, shift, ratio, wide }: {
   const goal = useGoals().steps;
   const steps = days.map((d) => d.steps).filter((s): s is number => s !== null);
   const over = steps.filter((s) => s >= goal).length;
-  const overLabel = `Days over ${stepsShort(goal)}`;
+  const overLabel = `Days over ${formatThousands(goal)}`;
   const briskDays = days.map(briskOf).filter((m): m is number => m !== null);
   const brisk = briskDays.length ? briskDays.reduce((a, b) => a + b, 0) : null;
   const ramp = rampOf(ratio);
@@ -283,7 +284,7 @@ function WeekBars({ days, goal, long }: { days: DailyRecord[]; goal: number; lon
         </div>
         {/* The goal's line, over the bars, labelled in the gutter on the right. */}
         <div className="absolute left-0 right-7 border-t border-dashed border-zinc-400/70" style={{ bottom: px(goal) + 1 }} />
-        <span className="absolute right-0 translate-y-1/2 text-note leading-none text-zinc-500" style={{ bottom: px(goal) + 1 }}>{stepsShort(goal)}</span>
+        <span className="absolute right-0 translate-y-1/2 text-note leading-none text-zinc-500" style={{ bottom: px(goal) + 1 }}>{formatThousands(goal)}</span>
       </div>
       <div className={`${columns} pr-7 mt-1.5`}>
         {days.map((d) => (

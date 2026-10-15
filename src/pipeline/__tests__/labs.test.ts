@@ -1,12 +1,13 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { addDays, formatCivil } from '../../lib/date';
+import { addDays } from '../../lib/date';
 import { readiness, sleepDebt, estimatedSleepTarget } from '../derive';
 import { insightFeeds, observations } from '../insights';
 import { calculateOffSignals, dipping, entropyShift, illnessDates, nocturnalTachycardia, sdbScreen, strainToday, type IntradayDays } from '../labs';
 import { emptyRecord } from '../normalize';
 import type { DailyRecord, IntradaySample, SleepSession } from '../../types/health';
+import { formatCivil } from '../../i18n/format';
 
 /**
  * Labs calculations and sleep debt: each card computes what it says it does,

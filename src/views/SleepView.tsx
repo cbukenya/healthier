@@ -1,13 +1,13 @@
 
 import React, { useState } from 'react';
-import { formatCivilLong, formatClock } from '../lib/date';
+import { formatCivilLong, formatClock } from '../i18n/format';
 import {
   compareToBaseline, isRecent, periodShift, series, sleepArchitecture, sleepDebt, sleepNeedFor, stats, values, windowShift,
 } from '../pipeline/derive';
 import { scoreSleep } from '../pipeline/sleep';
 import { BarSeries, Hypnogram, StageBar, StageLegend, TrendChart, SleepWindowChart } from '../charts';
 import { BandPill, Card, CardHead, DOMAIN, Delta, EmptyState, Row, Segmented, Value, fmtDuration, CardSummary } from '../ui/primitives';
-import { SpanSelector, spanName, useSpan } from '../ui/span';
+import { SpanSelector, spanSummaryTitle, useSpan } from '../ui/span';
 import { ChartChips } from '../ui/ChartChips';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 import { useGoals } from '../hooks/useGoals';
@@ -97,7 +97,7 @@ export function SleepView({ data, clock, intraday }: { data: SyncResult; clock?:
   const restingHr = typical((d) => d.restingHr);
   const summaryCard = (
     <Card>
-      <CardHead domain="sleep" title={`${spanName(spanState)} summary`} />
+      <CardHead domain="sleep" title={spanSummaryTitle(spanState)} />
       <div className="px-5 pb-4 md:pb-5">
         <Row dense={!wide} label="Typical night">{fmtDuration(typical((d) => d.sleep?.minutesAsleep ?? null))}</Row>
         <Row dense={!wide} label="Typical efficiency">{efficiency === undefined ? '—' : `${Math.round(efficiency)}%`}</Row>

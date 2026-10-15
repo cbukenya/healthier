@@ -7,7 +7,8 @@ import { HistoryProvider } from './hooks/useHistory';
 import { GoalsProvider } from './hooks/useGoals';
 import { DASHBOARD_WINDOW_DAYS } from './pipeline/sync';
 import { FIXTURE_CLOCK } from './pipeline/fixtures';
-import { formatCivilDay } from './lib/date';
+import { formatCivilDay } from './i18n/format';
+import { t } from './i18n';
 import { api } from './lib/api';
 import type { Gender } from './pipeline/registry';
 import { readGoals, type Goals } from './pipeline/goals';
@@ -21,6 +22,7 @@ import { VitalsView } from './views/VitalsView';
 import { BodyView } from './views/BodyView';
 import { DataView } from './views/DataView';
 import { LabsView } from './views/LabsView';
+
 
 export default function App() {
   const { user, needsReconnect, ready, signIn, signOut, deleteAccount, reload } = useAuth();
@@ -52,12 +54,12 @@ export default function App() {
   );
 
   const disconnect = async () => {
-    if (!window.confirm('Disconnect Google and permanently delete all of your data stored by Healthier?')) return;
+    if (!window.confirm(t('app.disconnect.confirm'))) return;
     try {
       await deleteAccount();
     } catch (err) {
       console.error(err);
-      window.alert('Could not delete your data. Please try again.');
+      window.alert(t('app.disconnect.failed'));
     }
   };
 
@@ -94,19 +96,17 @@ export default function App() {
       <div className="min-h-screen bg-black flex items-center justify-center p-6">
         <div className="max-w-md w-full p-8 rounded-2xl bg-zinc-900 border border-zinc-800 shadow-2xl">
           <img src="/logo.svg" alt="" width={48} height={48} className="mb-6" />
-          <h1 className="font-display text-display text-white mb-2">Healthier</h1>
+          <h1 className="font-display text-display text-white mb-2">{t('app.name')}</h1>
           <p className="text-body text-zinc-400 mb-8 leading-relaxed">
-            {needsReconnect
-              ? 'Your Google connection has expired or was revoked. Reconnect to resume syncing; your stored data is still here.'
-              : 'A personalized health and fitness tracker that connects with your Google Health data. It establishes rolling baselines and presents actionable trend analysis to help you understand your body better.'}
+            {needsReconnect ? t('app.signIn.expired') : t('app.signIn.intro')}
           </p>
           {authError && (
             <p className="mb-6 p-3 rounded-lg bg-rose-500/10 border border-rose-500/20 text-detail text-rose-400">
               {authError === 'access_denied'
-                ? 'Google sign-in was cancelled.'
+                ? t('app.signIn.cancelled')
                 : authError === 'not_invited'
-                  ? 'This Healthier instance is invite-only, and that Google account is not on its list. Ask whoever runs it to add you.'
-                  : `Google sign-in failed (${authError}). Check the server logs for details.`}
+                  ? t('app.signIn.notInvited')
+                  : t('app.signIn.failed', { code: authError })}
             </p>
           )}
           <div className="space-y-3">
@@ -114,26 +114,18 @@ export default function App() {
               onClick={signIn}
               className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-white text-black font-semibold hover:bg-zinc-200 transition-colors"
             >
-              {needsReconnect ? 'Reconnect Google Account' : 'Connect Google Account'}
+              {needsReconnect ? t('app.signIn.reconnect') : t('app.signIn.connect')}
             </button>
             <button
               onClick={() => setDemo(true)}
               className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-zinc-800 text-white font-medium hover:bg-zinc-700 transition-colors"
             >
-              Demo mode
+              {t('app.signIn.demo')}
             </button>
           </div>
           {/* Google requires this disclosure in the app itself for the Health API's restricted scopes. */}
-          <p className="mt-6 text-caption leading-relaxed text-zinc-500">
-            Healthier reads your health and fitness data from Google Health (activity, sleep, heart
-            rate, vitals and body measurements) to show your trends, work out your personal baselines
-            and generate insights. It is stored only on the server running this app, used for nothing
-            else, and never shared. You can disconnect and delete it at any time from the Data tab.
-          </p>
-          <p className="mt-2 text-caption leading-relaxed text-zinc-600">
-            For general wellness only. Healthier is not a medical device and doesn't diagnose,
-            detect or monitor any condition.
-          </p>
+          <p className="mt-6 text-caption leading-relaxed text-zinc-500">{t('app.signIn.disclosure')}</p>
+          <p className="mt-2 text-caption leading-relaxed text-zinc-600">{t('app.signIn.wellness')}</p>
         </div>
       </div>
     );
@@ -146,28 +138,28 @@ export default function App() {
         <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <img src="/logo.svg" alt="" width={28} height={28} />
-            <span className="text-body font-semibold text-white tracking-wide">Healthier</span>
+            <span className="text-body font-semibold text-white tracking-wide">{t('app.name')}</span>
           </div>
           
           <div className="flex items-center gap-3">
             {health.phase === 'revalidating' && (
               <span className="flex items-center gap-1.5 text-caption text-zinc-500 mr-2">
                 <RefreshCw size={10} className="animate-spin" />
-                syncing
+                {t('app.header.syncing')}
               </span>
             )}
             
             {user && !demo && (
               <div className="flex items-center gap-2 px-2 py-1 rounded-full bg-zinc-900 border border-zinc-800/80">
                 {user.pictureUrl ? (
-                  <img src={user.pictureUrl} alt="Profile" className="w-5 h-5 rounded-full object-cover" referrerPolicy="no-referrer" />
+                  <img src={user.pictureUrl} alt={t('app.header.picture')} className="w-5 h-5 rounded-full object-cover" referrerPolicy="no-referrer" />
                 ) : (
                   <div className="w-5 h-5 rounded-full bg-zinc-800 flex items-center justify-center">
                     <User size={10} className="text-zinc-400" />
                   </div>
                 )}
                 <span className="text-caption font-medium text-zinc-300 pr-1">
-                  {user.name?.split(' ')[0] || 'User'}
+                  {user.name?.split(' ')[0] || t('app.header.someone')}
                 </span>
               </div>
             )}
@@ -179,7 +171,7 @@ export default function App() {
               }}
               className="min-h-11 md:min-h-0 px-3 py-1.5 rounded-lg text-detail md:text-caption font-medium text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
             >
-              {demo ? 'Exit Demo' : 'Sign Out'}
+              {demo ? t('app.header.exitDemo') : t('app.header.signOut')}
             </button>
           </div>
         </div>
@@ -190,32 +182,32 @@ export default function App() {
         <nav className="flex items-center justify-between md:justify-start gap-0.5 md:gap-1 overflow-x-auto pb-2 no-scrollbar">
           <NavButton 
             active={view === 'today'} onClick={() => setView('today')} 
-            icon={<User size={14} />} label="Today" 
+            icon={<User size={14} />} label={t('app.nav.today')} 
           />
           <NavButton 
             active={view === 'activity'} onClick={() => setView('activity')} 
-            icon={<Footprints size={14} />} label="Activity" color={DOMAIN.movement.text} 
+            icon={<Footprints size={14} />} label={t('app.nav.activity')} color={DOMAIN.movement.text} 
           />
           <NavButton 
             active={view === 'sleep'} onClick={() => setView('sleep')} 
-            icon={<Moon size={14} />} label="Sleep" color={DOMAIN.sleep.text} 
+            icon={<Moon size={14} />} label={t('app.nav.sleep')} color={DOMAIN.sleep.text} 
           />
           <NavButton 
             active={view === 'vitals'} onClick={() => setView('vitals')} 
-            icon={<Heart size={14} />} label="Vitals" color={DOMAIN.cardio.text} 
+            icon={<Heart size={14} />} label={t('app.nav.vitals')} color={DOMAIN.cardio.text} 
           />
           <NavButton 
             active={view === 'body'} onClick={() => setView('body')} 
-            icon={<PersonStanding size={14} />} label="Body" color={DOMAIN.body.text} 
+            icon={<PersonStanding size={14} />} label={t('app.nav.body')} color={DOMAIN.body.text} 
           />
           <NavButton 
             active={view === 'labs'} onClick={() => setView('labs')} 
-            icon={<FlaskConical size={14} />} label="Labs" color="text-yellow-400" 
+            icon={<FlaskConical size={14} />} label={t('app.nav.labs')} color="text-yellow-400" 
           />
           <div className="hidden md:block w-px h-4 bg-zinc-800 mx-2 shrink-0" />
           <NavButton 
             active={view === 'data'} onClick={() => setView('data')} 
-            icon={<FileCode2 size={14} />} label="Data" color="text-zinc-400" 
+            icon={<FileCode2 size={14} />} label={t('app.nav.data')} color="text-zinc-400" 
           />
         </nav>
         {today && (
@@ -228,14 +220,14 @@ export default function App() {
           <div className="mt-4 p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-start gap-3">
             <ShieldAlert size={16} className="text-rose-400 mt-0.5 shrink-0" />
             <div className="flex-1">
-              <h3 className="text-detail font-semibold text-rose-400">Sync Failed</h3>
+              <h3 className="text-detail font-semibold text-rose-400">{t('app.syncFailed.title')}</h3>
               <p className="text-caption text-rose-400/80 mt-1">{health.error}</p>
             </div>
             <button 
               onClick={health.refresh}
               className="px-3 py-1.5 rounded-lg bg-rose-500/20 text-rose-300 text-caption font-medium hover:bg-rose-500/30 transition-colors"
             >
-              Retry
+              {t('app.syncFailed.retry')}
             </button>
           </div>
         )}
@@ -243,19 +235,15 @@ export default function App() {
         {health.phase === 'loading' && demo && (
           <div className="mt-12 flex flex-col items-center justify-center text-zinc-500">
             <div className="w-6 h-6 rounded-full border-2 border-zinc-800 border-t-zinc-400 animate-spin mb-4" />
-            <p className="text-caption uppercase tracking-wider">Loading sample data...</p>
+            <p className="text-caption uppercase tracking-wider">{t('app.loadingDemo')}</p>
           </div>
         )}
 
         {/* First sync (or a rebuild after an upgrade): the insights need the whole window, so wait for it. */}
         {health.phase === 'loading' && !demo && (
           <div className="mt-12 max-w-md mx-auto p-6 rounded-2xl bg-zinc-900 border border-zinc-800">
-            <h2 className="font-display text-title-sm text-white">Building your health baseline</h2>
-            <p className="mt-2 text-detail text-zinc-400 leading-relaxed">
-              Importing your last {DASHBOARD_WINDOW_DAYS} days from Google Health, including minute-by-minute heart
-              rate. Baselines and insights are computed over the full window, so the dashboard opens once it is all
-              in. This usually takes under a minute, and only happens once.
-            </p>
+            <h2 className="font-display text-title-sm text-white">{t('app.firstSync.title')}</h2>
+            <p className="mt-2 text-detail text-zinc-400 leading-relaxed">{t('app.firstSync.body', { days: DASHBOARD_WINDOW_DAYS })}</p>
             <div className="mt-5 h-1.5 rounded-full bg-zinc-800 overflow-hidden">
               <div
                 className="h-full bg-emerald-500 transition-all duration-500"
@@ -264,8 +252,8 @@ export default function App() {
             </div>
             <p className="mt-2 text-caption text-zinc-500 tabular-nums">
               {health.progress
-                ? `${health.progress.label} imported · ${health.progress.done} of ${health.progress.total}`
-                : 'Connecting to Google Health...'}
+                ? t('app.firstSync.progress', { stream: health.progress.label, done: health.progress.done, total: health.progress.total })
+                : t('app.firstSync.connecting')}
             </p>
           </div>
         )}

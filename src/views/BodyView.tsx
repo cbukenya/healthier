@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { ChevronDown, Ruler, User, Weight } from 'lucide-react';
-import { daysBetween, formatCivilLong } from '../lib/date';
+import { daysBetween } from '../lib/date';
+import { formatCivilLong } from '../i18n/format';
 import {
   bodyComposition, latestBody, series, values, weightTrend, type BodyComposition, type CompositionPair,
 } from '../pipeline/derive';
@@ -11,7 +12,7 @@ import { ChartChips } from '../ui/ChartChips';
 import type { SyncResult } from '../pipeline/sync';
 import type { Gender } from '../pipeline/registry';
 import { bucketForSeries, groupSeries } from '../pipeline/aggregate';
-import { SpanSelector, spanName, useSpan } from '../ui/span';
+import { SpanSelector, spanSummaryTitle, useSpan } from '../ui/span';
 import { useHistory } from '../hooks/useHistory';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 import { InsightsCarousel } from '../components/InsightsCarousel';
@@ -121,7 +122,7 @@ export function BodyView({ data, onGender, clock, intraday }: {
 
   const summaryCard = (
     <Card className="lg:col-span-4">
-      <CardHead domain="body" title={`${spanName(spanState)} summary`} />
+      <CardHead domain="body" title={spanSummaryTitle(spanState)} />
       <div className="px-5 pb-4 md:pb-5">
         <Row dense={!wide} label="Weigh-ins">{weighIns.length || (spanState.loading ? 'Loading…' : `None in these ${window.length} days`)}</Row>
         {trend && <Row dense={!wide} label="Trend">{changeText(trend.kgPerWeek, 'kg a week', 2)}</Row>}

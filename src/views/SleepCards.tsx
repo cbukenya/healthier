@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { formatCivilLong, formatCivilRange, formatClock, weekdayLetter, weekdayShort } from '../lib/date';
+import { formatCivilLong, formatCivilRange, formatClock, weekdayLetter, weekdayShort } from '../i18n/format';
 import { bedtimeConsistency, type PeriodShift, type SleepDebt } from '../pipeline/derive';
 import { scoreSleep } from '../pipeline/sleep';
 import { Card, CardHead, DURATION_UNIT, Delta, Row, fmtDuration, withUnits } from '../ui/primitives';

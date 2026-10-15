@@ -1,5 +1,6 @@
 import React from 'react';
-import { formatCivil, type CivilDate } from '../lib/date';
+import type { CivilDate } from '../lib/date';
+import { formatCivil } from '../i18n/format';
 
 /**
  * How often a dated tick lands, counted back from the latest day, for a run of daily bars too

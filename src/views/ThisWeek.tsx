@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { formatCivil, formatCivilRange, weekdayLetter, weekdayShort } from '../lib/date';
+import { formatCivil, formatCivilRange, weekdayLetter, weekdayShort } from '../i18n/format';
 import { batteryTier } from '../pipeline/derive';
 import { WHO_WEEK } from '../pipeline/goals';
 import { monthSummary, needLabel, type PeriodSummary } from '../pipeline/insights';

@@ -4,13 +4,14 @@ import {
   TrendingDown, TrendingUp, TriangleAlert, createLucideIcon,
 } from 'lucide-react';
 import type { InsightPage, Kind, Observation } from '../pipeline/insights';
+import { t, type MessageKey } from '../i18n';
 
-const DOMAIN_LABELS: Record<string, string> = {
-  cardio: 'Vitals',
-  sleep: 'Sleep',
-  body: 'Body',
-  data: 'Data',
-  movement: 'Activity',
+const DOMAIN_LABELS: Record<string, MessageKey> = {
+  cardio: 'insights.carousel.domains.cardio',
+  sleep: 'insights.carousel.domains.sleep',
+  body: 'insights.carousel.domains.body',
+  data: 'insights.carousel.domains.data',
+  movement: 'insights.carousel.domains.movement',
 };
 
 const DOMAIN_ICONS: Record<string, React.ReactNode> = {
@@ -44,14 +45,14 @@ const DOMAIN_STYLES: Record<string, { color: string, border: string, bg: string 
   movement: { color: '#34d399', border: 'rgba(52,211,153,.3)', bg: 'rgba(52,211,153,.08)' },
 };
 
-const KIND_LABELS: Record<Kind, string> = {
-  alert: 'Alert',
-  nudge: 'Nudge',
-  trend: 'Trend',
-  milestone: 'Milestone',
-  pattern: 'Pattern',
-  review: 'Review',
-  data: 'Data',
+const KIND_LABELS: Record<Kind, MessageKey> = {
+  alert: 'insights.carousel.kinds.alert',
+  nudge: 'insights.carousel.kinds.nudge',
+  trend: 'insights.carousel.kinds.trend',
+  milestone: 'insights.carousel.kinds.milestone',
+  pattern: 'insights.carousel.kinds.pattern',
+  review: 'insights.carousel.kinds.review',
+  data: 'insights.carousel.kinds.data',
 };
 
 /** A trend with no single direction: the trending zigzag levelling off, drawn to match its up and down siblings. */
@@ -88,23 +89,11 @@ function KindIcon({ obs }: { obs: Observation }) {
   }
 }
 
-const PAGE_COPY: Record<InsightPage, { title: string; description: string }> = {
-  activity: {
-    title: 'Activity insights',
-    description: 'What stands out in how you move: trends, streaks and records, worked out from your own data.',
-  },
-  sleep: {
-    title: 'Sleep insights',
-    description: 'What stands out in your nights: how long, how regular and which way they are heading, worked out from your own data.',
-  },
-  vitals: {
-    title: 'Vitals insights',
-    description: 'What stands out in your heart and recovery readings, measured against your own usual range.',
-  },
-  body: {
-    title: 'Body insights',
-    description: 'What your weigh-ins add up to over time, measured against your own trend.',
-  },
+const PAGE_COPY: Record<InsightPage, { title: MessageKey; description: MessageKey }> = {
+  activity: { title: 'insights.carousel.pages.activity.title', description: 'insights.carousel.pages.activity.description' },
+  sleep: { title: 'insights.carousel.pages.sleep.title', description: 'insights.carousel.pages.sleep.description' },
+  vitals: { title: 'insights.carousel.pages.vitals.title', description: 'insights.carousel.pages.vitals.description' },
+  body: { title: 'insights.carousel.pages.body.title', description: 'insights.carousel.pages.body.description' },
 };
 
 /**
@@ -180,25 +169,20 @@ export function InsightsCarousel({ observations, page }: { observations: Observa
       <div className="bg-[#09090b] border border-zinc-800/80 rounded-[20px] pt-5 pb-4 md:pt-6 md:pb-5 overflow-hidden w-full relative flex-1 flex flex-col">
         <div className="flex justify-between items-center md:items-start gap-3 md:gap-6 px-4 md:px-6 pb-4">
           <div>
-            <h2 className="font-display text-title text-zinc-100">{copy?.title ?? 'Key insights'}</h2>
+            <h2 className="font-display text-title text-zinc-100">{t(copy?.title ?? 'insights.carousel.title')}</h2>
             {/* A phone has room for the count, not the explanation. */}
             <p className="md:hidden text-detail text-zinc-500 mt-0.5 tabular-nums">
-              {activeIndex + 1} of {observations.length}
+              {t('insights.carousel.position', { index: activeIndex + 1, count: observations.length })}
             </p>
             <p className="hidden md:block text-body-sm text-zinc-500 mt-1 max-w-[640px]">
-              {copy?.description ?? (
-                <>
-                  Derived from your data to give you a quick overview of what it means — the
-                  things that stand out, good or bad, that deserve your attention.
-                </>
-              )}
+              {t(copy?.description ?? 'insights.carousel.description')}
             </p>
           </div>
           <div className="flex gap-2 shrink-0">
-            <button onClick={prev} aria-label="Previous insights" className="w-11 h-11 md:w-8 md:h-8 rounded-xl md:rounded-[10px] border border-zinc-800 bg-zinc-950 text-zinc-400 hover:bg-zinc-900 hover:text-zinc-100 transition-all flex items-center justify-center cursor-pointer">
+            <button onClick={prev} aria-label={t('insights.carousel.previous')} className="w-11 h-11 md:w-8 md:h-8 rounded-xl md:rounded-[10px] border border-zinc-800 bg-zinc-950 text-zinc-400 hover:bg-zinc-900 hover:text-zinc-100 transition-all flex items-center justify-center cursor-pointer">
               <ChevronLeft size={18} strokeWidth={2.5} />
             </button>
-            <button onClick={next} aria-label="Next insights" className="w-11 h-11 md:w-8 md:h-8 rounded-xl md:rounded-[10px] border border-zinc-800 bg-zinc-950 text-zinc-400 hover:bg-zinc-900 hover:text-zinc-100 transition-all flex items-center justify-center cursor-pointer">
+            <button onClick={next} aria-label={t('insights.carousel.next')} className="w-11 h-11 md:w-8 md:h-8 rounded-xl md:rounded-[10px] border border-zinc-800 bg-zinc-950 text-zinc-400 hover:bg-zinc-900 hover:text-zinc-100 transition-all flex items-center justify-center cursor-pointer">
               <ChevronRight size={18} strokeWidth={2.5} />
             </button>
           </div>
@@ -232,7 +216,7 @@ export function InsightsCarousel({ observations, page }: { observations: Observa
                 }}
               >
                 {copy ? <KindIcon obs={obs} /> : DOMAIN_ICONS[obs.domain]}
-                {copy ? KIND_LABELS[obs.kind] : DOMAIN_LABELS[obs.domain] || obs.domain}
+                {copy ? t(KIND_LABELS[obs.kind]) : DOMAIN_LABELS[obs.domain] ? t(DOMAIN_LABELS[obs.domain]) : obs.domain}
               </span>
               <div className="flex-1" />
               <div>
@@ -267,7 +251,7 @@ export function InsightsCarousel({ observations, page }: { observations: Observa
         </div>
         
         <p className="text-caption text-zinc-500 mt-1 px-4 md:px-0 text-center max-w-lg mx-auto">
-          General wellness information, not medical advice. Healthier is not a medical device. If you're worried about your health, talk to a clinician.
+          {t('insights.carousel.disclaimer')}
         </p>
       </div>
     </div>
