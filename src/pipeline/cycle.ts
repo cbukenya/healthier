@@ -167,6 +167,8 @@ export interface Night {
   temp: number | null;
   restingHr: number | null;
   hrv: number | null;
+  /** Minutes asleep, for the cards that read sleep through the cycle. */
+  asleep?: number | null;
 }
 
 /** How far back the cycles reach: about eight cycles, so six full ones are there to go on. */
@@ -177,6 +179,7 @@ export const cycleQueries = {
   cycleTemp: { measure: 'skinTempDeviationC', aggregate: 'mean', group: 'day', back: CYCLE_HISTORY_DAYS },
   cycleRestingHr: { measure: 'restingHr', aggregate: 'mean', group: 'day', back: CYCLE_HISTORY_DAYS },
   cycleHrv: { measure: 'hrv', aggregate: 'mean', group: 'day', back: CYCLE_HISTORY_DAYS },
+  cycleAsleep: { measure: 'sleepMinutes', aggregate: 'mean', group: 'day', back: CYCLE_HISTORY_DAYS },
 } satisfies HistoryQueries;
 
 /** Every night from the oldest answered to the window's last day, gaps included as nulls. */
@@ -188,8 +191,8 @@ export function nightsFrom(days: DailyRecord[], answers: HistoryAnswers = {}): N
     if (!n) byDate.set(date, (n = { date, temp: null, restingHr: null, hrv: null }));
     return n;
   };
-  const older: [keyof typeof cycleQueries, 'temp' | 'restingHr' | 'hrv'][] = [
-    ['cycleTemp', 'temp'], ['cycleRestingHr', 'restingHr'], ['cycleHrv', 'hrv'],
+  const older: [keyof typeof cycleQueries, 'temp' | 'restingHr' | 'hrv' | 'asleep'][] = [
+    ['cycleTemp', 'temp'], ['cycleRestingHr', 'restingHr'], ['cycleHrv', 'hrv'], ['cycleAsleep', 'asleep'],
   ];
   const windowFrom = days[0].date;
   for (const [query, field] of older) {
@@ -202,6 +205,7 @@ export function nightsFrom(days: DailyRecord[], answers: HistoryAnswers = {}): N
     n.temp = d.skinTempDeviationC;
     n.restingHr = d.restingHr;
     n.hrv = d.hrv;
+    n.asleep = d.sleep?.minutesAsleep ?? null;
   }
   const dates = [...byDate.keys()].sort();
   const out: Night[] = [];
@@ -223,6 +227,11 @@ export function nightsFrom(days: DailyRecord[], answers: HistoryAnswers = {}): N
 export const MIN_SHIFT_SD = 0.9;
 /** The low nights compared on each side of a run of high ones: about a week either side. */
 const SIDE = 6;
+/**
+ * A fall is sure once this many nights from it are in, so a found start has settled by day
+ * FALL_NIGHTS − offset of its cycle. It can show a night or two sooner, a day or two early.
+ */
+export const FALL_NIGHTS = SIDE;
 /** Nights in a row that, low inside a run of high ones, break it: a fever between two lows, say. */
 const DIP_NIGHTS = 4;
 /** An average needs this share of its nights. */
@@ -781,3 +790,79 @@ export function byCycleDay(
   }
   return out;
 }
+
+// ─────────────────────────────────────────────────────── aware elsewhere
+
+export type Shifts = Record<'temp' | 'restingHr' | 'hrv', number | null>;
+
+/**
+ * How far this person's nights move in the second half of a cycle: for each measure, the middle
+ * of each complete cycle's nights after the rise against its nights before it, over the last six
+ * cycles that rose. Null for a measure until three cycles show it, and held to the way the second
+ * half moves each measure (temperature and resting heart rate up, HRV down), so noise can't turn
+ * a correction the wrong way.
+ */
+export function typicalShifts(nights: Night[], summary: CycleSummary): Shifts {
+  const shift = (field: 'temp' | 'restingHr' | 'hrv', lo: number, hi: number) => {
+    const each = cycleShifts(nights, summary, field);
+    return each.length >= MIN_CYCLES ? Math.min(hi, Math.max(lo, median(each))) : null;
+  };
+  return { temp: shift('temp', 0, 0.8), restingHr: shift('restingHr', 0, 6), hrv: shift('hrv', -25, 0) };
+}
+
+/** Each of the last six complete cycles that rose: its nights after the rise against its nights before, with three a side or more. */
+export function cycleShifts(nights: Night[], summary: CycleSummary, field: 'temp' | 'restingHr' | 'hrv'): number[] {
+  const index = new Map(nights.map((n) => [n.date, n]));
+  const cycles = summary.cycles.filter((c) => c.next !== null && c.rise !== null).slice(-CYCLES_FOR_RANGE);
+  return cycles.flatMap((c) => {
+    const before: number[] = [];
+    const after: number[] = [];
+    for (let d = c.start; d < c.next!; d = addDays(d, 1)) {
+      const v = index.get(d)?.[field];
+      if (isNum(v)) (d < c.rise! ? before : after).push(v);
+    }
+    return before.length >= 3 && after.length >= 3 ? [mean(after) - mean(before)] : [];
+  });
+}
+
+/** The nights in the second half of a cycle: from each rise to the night before the next start, or to today. */
+export function secondHalf(summary: CycleSummary, today: CivilDate): Set<CivilDate> {
+  const out = new Set<CivilDate>();
+  for (const c of summary.cycles) {
+    if (!c.rise) continue;
+    const end = c.next ? addDays(c.next, -1) : today;
+    for (let d = c.rise; d <= end; d = addDays(d, 1)) out.add(d);
+  }
+  return out;
+}
+
+/** The days judged against the person's own cycle (see cycleAdjusted), once three cycles show a shift; null before. */
+export function judgedDays(days: DailyRecord[], nights: Night[], summary: CycleSummary, today: CivilDate): DailyRecord[] | null {
+  const shifts = typicalShifts(nights, summary);
+  return Object.values(shifts).some((v) => v !== null) ? cycleAdjusted(days, summary, shifts, today) : null;
+}
+
+/**
+ * The days with each second-half night's readings moved back by the person's own shift. Only for
+ * judging what's unusual, never for showing: a resting heart rate that's up by just as much as
+ * the second half of a cycle moves it isn't unusual for that night.
+ */
+export function cycleAdjusted(days: DailyRecord[], summary: CycleSummary, shifts: Shifts, today: CivilDate): DailyRecord[] {
+  const half = secondHalf(summary, today);
+  // Each shift in whole steps of the readings it moves (whole bpm, whole ms, hundredths of a
+  // degree), so moved readings keep the same steps as the rest. Otherwise readings a fraction off
+  // the whole numbers around them would shrink the usual range's spread and turn small changes
+  // into large ones.
+  const less = (v: number | null, by: number | null, step: number) =>
+    v === null || by === null ? v : v - Math.round(by / step) * step;
+  return days.map((d) => (half.has(d.date)
+    ? {
+      ...d,
+      skinTempDeviationC: less(d.skinTempDeviationC, shifts.temp, 0.01),
+      restingHr: less(d.restingHr, shifts.restingHr, 1),
+      hrv: less(d.hrv, shifts.hrv, 1),
+      hrvDeepSleep: less(d.hrvDeepSleep, shifts.hrv, 1),
+    }
+    : d));
+}
+

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 
 import { addDays } from '../../lib/date';
 import { DEMO_CLOCK, DEMO_CYCLE_LOG, DEMO_DAYS, buildDemoPayloads } from '../demo';
-import { nightsFrom, summarizeCycles } from '../cycle';
+import { judgedDays, nightsFrom, summarizeCycles } from '../cycle';
 import { createFixtureFetch } from '../fixtures';
 import { HISTORY_QUERIES, insightFeeds } from '../insights';
 import { PAGES, TODAY_MIN } from '../insights/place';
@@ -60,8 +60,16 @@ describe('demo mode', () => {
     assert.ok(data.heartRateSamples.length > 60 * 24 * 50, 'minute heart rate for most of the window');
   });
 
+  /** What the app's cycle provider hands the cards: the demo person tracks their cycles. */
+  const cycle = () => {
+    const nights = nightsFrom(data.days, data.answers);
+    const today = data.days.at(-1)!.date;
+    const summary = summarizeCycles(nights, DEMO_CYCLE_LOG, today);
+    return { summary, nights, log: DEMO_CYCLE_LOG, judged: judgedDays(data.days, nights, summary, today) };
+  };
+
   it('shows cards everywhere: at least two on Today, and cards of its own on every page', () => {
-    const feeds = insightFeeds(data, DEMO_CLOCK.now, { intraday, timeZone: DEMO_CLOCK.timeZone });
+    const feeds = insightFeeds(data, DEMO_CLOCK.now, { intraday, timeZone: DEMO_CLOCK.timeZone, cycle: cycle() });
     assert.ok(feeds.today.length >= TODAY_MIN, `Today: ${feeds.today.map((o) => o.id)}`);
     assert.ok(feeds.today.every((o) => !o.id.startsWith('floor-')));
     for (const page of PAGES) {

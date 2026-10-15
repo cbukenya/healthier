@@ -202,6 +202,26 @@ Google Health lets apps add periods but not read them back, so cycles are found 
 - **The page** (`src/views/CycleView.tsx`) shows only while tracking is on, which is a switch on
   the Data page for anyone, whatever gender is set. `useCycle` holds the log for every screen: a
   change shows at once, is saved straight away, and is undone if the save fails.
+- **Cards** (`insights/cards/cycle.ts`) run only while tracking is on:
+  - a period due soon, from the person's own cycles;
+  - a new cycle found in the nights (on Today only, for its first days);
+  - shorter sleep before a period, the heart in the second half, and regular cycles, once enough
+    cycles show them.
+
+  The first two reach Today only when the person allows it on the Data page.
+- **Allowing for the cycle elsewhere**, also only while tracking is on. `typicalShifts` measures how
+  far the person's own temperature, resting heart rate and HRV move in the second half, once three
+  cycles show it. `cycleAdjusted` moves each second-half night back by that much, in whole steps,
+  into a copy of the days used only for judging. The cycle can explain a reading away, never add an
+  alarm:
+  - a Vitals card about an unusual night or week shows only if it also shows on the judged days;
+  - several signals off (the illness card, the sick nights dipping leaves out) count only when
+    they're off on both;
+  - the strain radar counts a signal the cycle explains as in, and says so;
+  - a pill that would call a reading unusual says "usual for this part of your cycle" instead, when
+    the judged reading is usual.
+
+  The body battery's score and every number shown stay the person's own readings.
 
 `cycle.test.ts` holds it to both kinds of error on noisy nights: most starts found in people who
 have cycles, and almost no cycle shown to people who don't.

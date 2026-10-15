@@ -2,7 +2,7 @@ import type { InsightContext } from './context';
 import { pageFloor, todayFloor } from './cards/floors';
 import type { Daypart, Finding, InsightFeeds, InsightPage, Observation } from './types';
 
-export const PAGES: InsightPage[] = ['activity', 'sleep', 'vitals', 'body'];
+export const PAGES: InsightPage[] = ['activity', 'sleep', 'vitals', 'body', 'cycle'];
 
 const inPart = (f: Finding, part: Daypart) => !f.daypart || f.daypart.includes(part);
 
