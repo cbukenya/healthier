@@ -132,7 +132,7 @@ export const DEMO_CYCLE_LOG: CycleLog = (() => {
   days[days.length - 4].symptoms = ['cramps'];
   days.push({ date: addDays(TODAY, -2), symptoms: ['headache'] });
   days.push({ date: TODAY, symptoms: ['bloating', 'tired'] });
-  return { settings: { tracking: true, todayCards: true }, days: days.sort((a, b) => (a.date < b.date ? -1 : 1)), rejected: [] };
+  return { settings: { tracking: true, todayCards: true, otherPages: true }, days: days.sort((a, b) => (a.date < b.date ? -1 : 1)), rejected: [] };
 })();
 
 /** Every day of the demo, oldest first, ending today with the morning so far. */

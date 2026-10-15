@@ -63,7 +63,8 @@ export function DataView({ data, onFullSync, onDisconnect }: { data: SyncResult;
 
   return (
     <div className="space-y-3">
-      {/* The sync card is small, so the goals fit under it beside the matrix; stacked, they follow it. */}
+      {/* The sync card is small, so the goals fit under it beside the matrix; stacked, they follow it.
+          Cycle tracking runs full width below them, so on a phone it comes straight after the goals. */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-start">
         <Card className="lg:col-span-8">
           <CardHead
@@ -78,9 +79,10 @@ export function DataView({ data, onFullSync, onDisconnect }: { data: SyncResult;
         <div className="lg:col-span-4 space-y-3">
           <SyncStatus data={data} history={history} onFullSync={onFullSync} onDisconnect={onDisconnect} />
           <GoalsCard autoNeed={estimatedSleepTarget(data.days)} />
-          <CycleCard kept={!!data.profile?.cycleKept} />
         </div>
       </div>
+
+      <CycleCard kept={!!data.profile?.cycleKept} />
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
         <div className="lg:col-span-8">
