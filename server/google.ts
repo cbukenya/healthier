@@ -57,9 +57,12 @@ export interface TokenResponse {
 }
 
 export class GoogleAuthError extends Error {
-  /** Google's error code, e.g. `invalid_grant` when a refresh token is revoked or expired. */
-  constructor(readonly code: string, message: string) {
-    super(message);
+  /**
+   * Google's error code, e.g. `invalid_grant` when a refresh token is revoked or expired; its HTTP
+   * status; and its own description, when it sent one.
+   */
+  constructor(readonly code: string, readonly status: number, readonly description?: string) {
+    super(description ?? `Token request failed (${status})`);
     this.name = 'GoogleAuthError';
   }
 }
@@ -72,7 +75,7 @@ async function tokenRequest(params: Record<string, string>): Promise<TokenRespon
   });
   const body = await res.json().catch(() => ({}));
   if (!res.ok) {
-    throw new GoogleAuthError(body.error ?? `http_${res.status}`, body.error_description ?? `Token request failed (${res.status})`);
+    throw new GoogleAuthError(body.error ?? `http_${res.status}`, res.status, body.error_description);
   }
   return body as TokenResponse;
 }

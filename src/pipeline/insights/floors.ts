@@ -2,9 +2,11 @@ import {
   BASELINE_DAYS, BASELINE_MIN_READINGS, NOISE_FLOOR, compareToBaseline, isRecent, latestPoint, periodShift, series, weightTrend,
 } from '../derive';
 import type { InsightContext } from './context';
-import { dayMonth, fmtInt, hm, plural, sentence, sleepMins } from './helpers';
+import { sleepMins } from './helpers';
 import { TREND_KG_PER_WEEK } from './rules/body';
 import type { Finding, InsightPage, Observation } from './types';
+import { t } from '../../i18n';
+import { formatDayMonthLong, formatDuration, formatInteger, formatList, formatRounded } from '../../i18n/format';
 
 /**
  * The cards that show when a carousel has nothing else. Each one only says
@@ -23,30 +25,38 @@ export function todayFloor(ctx: InsightContext): Finding {
     const night = ctx.lastNightIsRecent ? ctx.lastNight : null;
     return {
       ...base, id: 'floor-morning', domain: 'sleep',
-      title: 'A quiet morning',
-      text: `${night ? `You slept ${hm(night.minutesAsleep)}` : 'No sleep has synced for last night yet'}${battery !== null ? ` and your body battery is ${battery}` : ''}. Nothing new needs your attention this morning.`,
+      title: t('insights.floors.floorMorning.title'),
+      text: t('insights.floors.floorMorning.text', {
+        known: night ? (battery !== null ? 'both' : 'sleep') : battery !== null ? 'battery' : 'none',
+        slept: night ? formatDuration(night.minutesAsleep) : '', score: battery,
+      }),
     };
   }
   if (ctx.part === 'midday') {
     return {
       ...base, id: 'floor-midday', domain: 'movement',
-      title: 'A steady day so far',
-      text: `${steps !== null ? `You've taken ${fmtInt(steps)} steps so far` : 'No steps have synced yet today'}${battery !== null ? ` and your body battery is ${battery}` : ''}. Nothing new needs your attention right now.`,
+      title: t('insights.floors.floorMidday.title'),
+      text: t('insights.floors.floorMidday.text', {
+        known: steps !== null ? (battery !== null ? 'both' : 'steps') : battery !== null ? 'battery' : 'none',
+        steps: Math.round(steps ?? 0), score: battery,
+      }),
     };
   }
   const brisk = ctx.todayRow.activeMinutes;
   const ratio = ctx.load.ratio;
   // The ratio is the week's steps against the three weeks before, so it speaks for the week, not today.
-  const compared = ratio === null ? '' : ratio > 1.2 ? ' This week has been busier than usual.' : ratio < 0.8 ? ' This week has been quieter than usual.' : ' This week has been about as active as usual.';
+  const compared = ratio === null ? '' : t(ratio > 1.2 ? 'insights.floors.floorEvening.busier' : ratio < 0.8 ? 'insights.floors.floorEvening.quieter' : 'insights.floors.floorEvening.usual');
   return {
     ...base, id: 'floor-evening', domain: 'movement',
-    title: 'A calm day',
-    text: `${steps !== null ? `Today you took ${fmtInt(steps)} steps` : 'No steps have synced today'}${brisk ? ` and had ${brisk.moderate + brisk.vigorous} minutes of brisk activity` : ''}.${steps !== null ? compared : ''}`,
+    title: t('insights.floors.floorEvening.title'),
+    text: t('insights.floors.floorEvening.text', {
+      known: steps !== null ? (brisk ? 'both' : 'steps') : brisk ? 'brisk' : 'none',
+      steps: Math.round(steps ?? 0), brisk: brisk ? brisk.moderate + brisk.vigorous : 0,
+    }) + (steps !== null ? compared : ''),
   };
 }
 
-const quoteList = (titles: string[]) =>
-  titles.length === 1 ? `“${titles[0]}”` : `${titles.slice(0, -1).map((t) => `“${t}”`).join(', ')} and “${titles[titles.length - 1]}”`;
+const quoteList = (titles: string[]) => formatList(titles.map((title) => t('insights.floors.onToday.quoted', { title })));
 
 /**
  * A page with nothing of its own while Today shows its news points there
@@ -57,8 +67,8 @@ export function pageFloor(page: InsightPage, ctx: InsightContext, onToday: Obser
     const titles = onToday.map((o) => o.title);
     return {
       ...floor, id: `${page}-on-today`, page, domain: domainOf[page],
-      title: 'See Today for the latest',
-      text: `${quoteList(titles)} ${titles.length === 1 ? 'is' : 'are'} on Today right now, so ${titles.length === 1 ? "it isn't" : "they aren't"} repeated here.`,
+      title: t('insights.floors.onToday.title', { tab: t('app.nav.today') }),
+      text: t('insights.floors.onToday.text', { titles: quoteList(titles), count: titles.length, tab: t('app.nav.today') }),
     };
   }
   return { ...floor, id: `${page}-floor`, page, domain: domainOf[page], ...floors[page](ctx) };
@@ -72,24 +82,28 @@ const floors: Record<InsightPage, (ctx: InsightContext) => FloorCopy> = {
   activity(ctx) {
     const sh = periodShift(ctx.doneSteps, 7);
     if (sh.current === null) {
-      return { title: 'No steps yet', text: 'Once your steps sync, this is where insights about how you move will show.' };
+      return { title: t('insights.floors.activityFloor.titleEmpty'), text: t('insights.floors.activityFloor.textEmpty') };
     }
     const steady = sh.previous !== null && sh.deltaPct !== null && sh.nCurrent >= 5 && sh.nPrevious >= 5 && Math.abs(sh.deltaPct) < 20;
     return {
-      title: steady ? 'A steady week' : 'Your week so far',
-      text: `You've averaged ${fmtInt(sh.current)} steps a day over the last 7 days${sh.previous !== null ? `, compared with ${fmtInt(sh.previous)} the week before` : ''}.`,
+      title: t('insights.floors.activityFloor.title', { steady: steady ? 'yes' : 'no' }),
+      text: t('insights.floors.activityFloor.text', {
+        weekBefore: sh.previous !== null ? 'known' : 'none',
+        steps: Math.round(sh.current), previous: sh.previous !== null ? formatInteger(sh.previous) : '',
+      }),
     };
   },
 
   sleep(ctx) {
     const nights = sleepMins(ctx.days.slice(-7), (s) => s.minutesAsleep);
     if (!nights.length) {
-      return { title: 'No nights recorded yet', text: 'Once your sleep syncs, this is where insights about your nights will show.' };
+      return { title: t('insights.floors.sleepFloor.titleEmpty'), text: t('insights.floors.sleepFloor.textEmpty') };
     }
     const avg = nights.reduce((a, b) => a + b, 0) / nights.length;
     return {
-      title: 'Your sleep this week',
-      text: `You've slept ${hm(avg)} a night on average this week. You need about ${ctx.needH}.${nights.length < 7 ? ` That's from ${plural(nights.length, 'recorded night')}.` : ''}`,
+      title: t('insights.floors.sleepFloor.title'),
+      text: t('insights.floors.sleepFloor.text', { slept: formatDuration(avg), need: ctx.needH })
+        + (nights.length < 7 ? t('insights.floors.sleepFloor.recorded', { count: nights.length }) : ''),
     };
   },
 
@@ -99,16 +113,15 @@ const floors: Record<InsightPage, (ctx: InsightContext) => FloorCopy> = {
     const rhrNow = isRecent(rhr.date, ctx.today) ? rhr : null;
     const hrvNow = isRecent(hrv.date, ctx.today) ? hrv : null;
     if (!rhrNow && !hrvNow) {
-      return { title: 'No recent heart data', text: 'Once your watch syncs your resting heart rate and HRV, this is where insights about them will show.' };
+      return { title: t('insights.floors.vitalsFloor.titleEmpty'), text: t('insights.floors.vitalsFloor.textEmpty') };
     }
-    const readings = [
-      rhrNow && `your resting heart rate is ${Math.round(rhrNow.value!)} bpm`,
-      hrvNow && `your HRV is ${Math.round(hrvNow.value!)} ms`,
-    ].filter((s): s is string => !!s);
     const steady = !ctx.illness && rhrNow?.band === 'typical' && hrvNow?.band === 'typical';
     return {
-      title: 'Your latest readings',
-      text: `${sentence(readings.join(' and '))}.${steady ? ' Both are inside your usual range.' : ''}`,
+      title: t('insights.floors.vitalsFloor.title'),
+      text: t('insights.floors.vitalsFloor.text', {
+        known: rhrNow && hrvNow ? 'both' : rhrNow ? 'restingHr' : 'hrv',
+        restingHr: rhrNow ? Math.round(rhrNow.value!) : null, hrv: hrvNow ? Math.round(hrvNow.value!) : null,
+      }) + (steady ? t('insights.floors.vitalsFloor.steady') : ''),
     };
   },
 
@@ -118,19 +131,19 @@ const floors: Record<InsightPage, (ctx: InsightContext) => FloorCopy> = {
     if (!latest) {
       // The page can show an older weigh-in from long history; the engine sees only its window.
       return {
-        title: 'No recent weigh-ins',
-        text: `You haven't logged your weight in the last ${plural(ctx.days.length, 'day')}, so there's no trend to read yet. A few weigh-ins over the next weeks will show it.`,
+        title: t('insights.floors.bodyFloor.titleEmpty'),
+        text: t('insights.floors.bodyFloor.textEmpty', { count: ctx.days.length }),
       };
     }
     const trend = weightTrend(s);
-    const last = `Your latest weigh-in was ${latest.value} kg on ${dayMonth(latest.date)}.`;
+    const last = { weight: formatRounded(latest.value!, 3), date: formatDayMonthLong(latest.date) };
     if (!trend) {
-      return { title: 'Your latest weigh-in', text: `${last} A few more weigh-ins over the next weeks will show your trend.` };
+      return { title: t('insights.floors.bodyFloor.titleLatest'), text: t('insights.floors.bodyFloor.textLatest', last) };
     }
     // Only reached while the trend sits under the threshold and the scale isn't stale: the rules own both.
     return {
-      title: 'No clear change in your weight',
-      text: `Your weight trend is moving by less than ${TREND_KG_PER_WEEK} kg a week either way. ${last}`,
+      title: t('insights.floors.bodyFloor.title'),
+      text: t('insights.floors.bodyFloor.text', { threshold: formatRounded(TREND_KG_PER_WEEK, 3), ...last }),
     };
   },
 };

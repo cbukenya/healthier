@@ -4,7 +4,7 @@ import { daysBetween, type CivilDate } from '../lib/date';
 import { formatCivil, formatCivilYear, formatFixed, formatInteger, formatList, formatMonthYear } from '../i18n/format';
 import { hasMessage, t, type MessageKey } from '../i18n';
 import { rich } from '../i18n/react';
-import { streamName } from '../i18n/streams';
+import { streamError, streamName } from '../i18n/streams';
 import { BASELINE_DAYS, NEED_ESTIMATE } from '../pipeline/derive';
 import { REFETCH_DAYS } from '../pipeline/incremental';
 import { DEFAULT_GOALS, GOAL_LIMITS, WHO_WEEK, fitGoal, sameGoals, type GoalLimit, type Goals } from '../pipeline/goals';
@@ -546,6 +546,7 @@ function Mark({ kind }: { kind: Kind }) {
 function StreamItem({ row, open, onToggle }: { row: StreamRow; open: boolean; onToggle: () => void }) {
   const r = row.report;
   const id = `stream-${r.dataType}`;
+  const error = row.kind === 'failed' ? streamError(r) : undefined;
   return (
     <li className="border-t border-zinc-800/60">
       <button
@@ -565,9 +566,9 @@ function StreamItem({ row, open, onToggle }: { row: StreamRow; open: boolean; on
       {open && (
         <div id={id} className="pb-3.5">
           <p className="text-detail leading-relaxed text-zinc-400">{row.detail}</p>
-          {row.kind === 'failed' && r.error && (
+          {error && (
             <p className="mt-2 p-2 rounded-lg bg-rose-500/10 border border-rose-500/20 font-mono text-caption text-rose-400 whitespace-pre-wrap break-words">
-              {r.error}
+              {error}
             </p>
           )}
           <p className="mt-2 text-note text-zinc-500">

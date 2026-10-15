@@ -44,7 +44,7 @@ export interface SyncOptions {
   queries?: HistoryQueries;
   concurrency?: number;
   signal?: AbortSignal;
-  onProgress?: (done: number, total: number, label: string) => void;
+  onProgress?: (done: number, total: number, label: string, dataType: string) => void;
 }
 
 export async function syncHealthData(opts: SyncOptions): Promise<SyncResult> {

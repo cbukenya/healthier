@@ -77,12 +77,13 @@ export function parseSource(dataSource: any): SourceRef | undefined {
 }
 
 function prettifyPackage(pkg: string): string {
+  // Brand names, the same in every language, so they stay here rather than in the language file.
   const known: Record<string, string> = {
-    'com.sec.android.app.shealth': 'Samsung Health',
-    'com.ouraring.oura': 'Oura Ring',
-    'com.google.android.apps.fitness': 'Google Fit',
-    'com.google.android.apps.healthdata': 'Health Connect',
-    'com.fitbit.FitbitMobile': 'Fitbit',
+    'com.sec.android.app.shealth': 'Samsung Health', // i18n-ignore: a brand name, the same in every language
+    'com.ouraring.oura': 'Oura Ring', // i18n-ignore: a brand name, the same in every language
+    'com.google.android.apps.fitness': 'Google Fit', // i18n-ignore: a brand name, the same in every language
+    'com.google.android.apps.healthdata': 'Health Connect', // i18n-ignore: a brand name, the same in every language
+    'com.fitbit.FitbitMobile': 'Fitbit', // i18n-ignore: a brand name, the same in every language
   };
   if (known[pkg]) return known[pkg];
   const tail = pkg.split('.').pop() ?? pkg;

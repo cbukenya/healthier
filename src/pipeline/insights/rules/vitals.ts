@@ -1,4 +1,6 @@
 import { daysBetween } from '../../../lib/date';
+import { names, t, type MessageKey } from '../../../i18n';
+import { formatDayMonthLong, formatFixed, formatList, formatMonth } from '../../../i18n/format';
 import type { DailyRecord } from '../../../types/health';
 import {
   BASELINE_DAYS, BASELINE_MIN_READINGS, NOISE_FLOOR, compareToBaseline, completedDays, isRecent, periodShift, quantile, series, stats, values, type Point,
@@ -6,11 +8,10 @@ import {
 import type { HistoryQueries } from '../../history';
 import type { InsightContext } from '../context';
 import {
-  ENTRY_WINDOW, briskMins, dayMonth, entered, heldFor, listOf, monthName, pastYear, freshEntry, sinceNote, trailingDays,
-  zoneMins,
+  ENTRY_WINDOW, briskMins, entered, heldFor, pastYear, reachesYear, freshEntry, sinceNote, trailingDays, zoneMins,
 } from '../helpers';
 import {
-  WEEKDAYS, dayRecord, lastMonthBest, monthsOf, nightsAgainstUsual, trailingRun, weekdayExtremes, weekdayMedians,
+  dayRecord, lastMonthBest, monthsOf, nightsAgainstUsual, trailingRun, weekdayExtremes, weekdayMedians,
   type NightReading,
 } from '../patterns';
 import type { Finding } from '../types';
@@ -77,10 +78,9 @@ function hrvTrends(ctx: InsightContext, add: Add): 'up' | 'down' | null {
       importance: up ? 80 : 90, topic: 'hrv', family: 'recovery', today: 'as-news', news,
       claims: { metric: 'hrv', direction: up ? 'up' : 'down' }, evidence: sh.nCurrent + sh.nPrevious,
       advice: up ? undefined : 'rest',
-      title: up ? 'Your recovery is improving' : 'Your recovery has been slipping',
-      text: up
-        ? `Your average HRV this week is ${cur} ms, ${rel}% higher than last week's ${prev} ms. A rise that lasts several days usually means real recovery, not just one good night.${news ? '' : sinceNote(held)}`
-        : `Your average HRV this week is ${cur} ms, ${rel}% lower than last week's ${prev} ms. A slide like this often comes with heavy training, short sleep, stress or a cold.${news ? '' : sinceNote(held)}`,
+      title: t(up ? 'insights.vitals.hrvTrendUp.title' : 'insights.vitals.hrvTrendDown.title'),
+      text: t(up ? 'insights.vitals.hrvTrendUp.text' : 'insights.vitals.hrvTrendDown.text', { current: cur, change: rel, previous: prev })
+        + (news ? '' : sinceNote(held)),
     });
     return up ? 'up' : 'down';
   }
@@ -100,8 +100,8 @@ function hrvNight(ctx: InsightContext, add: Add, trend: 'up' | 'down' | null): v
       ...base, id: 'hrv-acute-high', kind: 'pattern', tone: 'good',
       importance: 70, topic: 'hrv', family: 'recovery', today: 'never', news: true,
       claims: { metric: 'hrv', direction: 'up' }, evidence: 1,
-      title: 'Great recovery last night',
-      text: `Your HRV was ${value} ms last night, near the top of your usual range. It's usually around ${usual} ms.`,
+      title: t('insights.vitals.hrvAcuteHigh.title'),
+      text: t('insights.vitals.hrvAcuteHigh.text', { value, usual }),
     });
   } else if ((hrv.band === 'below' || hrv.band === 'far-below') && trend !== 'down') {
     const lowNights = trailingDays(days, (d) =>
@@ -111,10 +111,10 @@ function hrvNight(ctx: InsightContext, add: Add, trend: 'up' | 'down' | null): v
       ...base, id: 'hrv-acute-low', kind: 'alert', tone: 'watch', direction: 'down',
       importance: 85, topic: 'hrv', family: 'recovery', today: 'while-true', news: true, advice: 'rest',
       claims: { metric: 'hrv', direction: 'down' }, evidence: Math.max(1, lowNights),
-      title: 'Your HRV is lower than usual',
+      title: t('insights.vitals.hrvAcuteLow.title'),
       text: lowNights >= 2
-        ? `Your HRV has been below normal for ${lowNights} nights in a row. Last night it was ${value} ms, and it's usually around ${usual} ms. This is starting to look like a trend rather than one night.`
-        : `Your HRV was ${value} ms last night, lower than your usual ${usual} ms. One low night isn't a trend. Two or three in a row usually mean your body needs more recovery.`,
+        ? t('insights.vitals.hrvAcuteLow.textRun', { count: lowNights, value, usual })
+        : t('insights.vitals.hrvAcuteLow.textSingle', { value, usual }),
     });
   }
 }
@@ -154,8 +154,11 @@ function restingHeartRate(ctx: InsightContext, add: Add): void {
       direction: up ? 'up' : 'down',
       importance: up ? 88 : 75, topic: 'rhr', family: 'recovery', today: 'as-news', news,
       claims: { metric: 'rhr', direction: up ? 'up' : 'down' }, evidence: sh.nCurrent + sh.nPrevious,
-      title: up ? 'Your resting heart rate is creeping up' : 'Your resting heart rate is coming down',
-      text: `Over the last two weeks your resting heart rate averaged ${sh.current!.toFixed(1)} bpm, ${Math.abs(sh.delta!).toFixed(1)} bpm ${up ? 'higher' : 'lower'} than in the two weeks before.${news ? '' : sinceNote(held)}`,
+      title: t(up ? 'insights.vitals.rhrShiftUp.title' : 'insights.vitals.rhrShiftDown.title'),
+      text: t(up ? 'insights.vitals.rhrShiftUp.text' : 'insights.vitals.rhrShiftDown.text', {
+        average: formatFixed(sh.current!, 1),
+        change: formatFixed(Math.abs(sh.delta!), 1),
+      }) + (news ? '' : sinceNote(held)),
     });
   }
 
@@ -167,11 +170,11 @@ function restingHeartRate(ctx: InsightContext, add: Add): void {
       ...base, id: 'rhr-acute-high', kind: 'alert', tone: 'watch', direction: 'up',
       importance: 92, topic: 'rhr', family: 'recovery', today: 'while-true', news: highStreak === 1, advice: 'rest',
       claims: { metric: 'rhr', direction: 'up' }, evidence: highStreak,
-      title: 'Your heart rate is higher than usual',
+      title: t('insights.vitals.rhrAcuteHigh.title'),
       text: highStreak >= 3
-        ? `This is the third morning your resting heart rate has been above your usual range. It's ${value} bpm today, and it's usually around ${usual}.`
-        : `Your resting heart rate is ${value} bpm this morning. It's usually around ${usual}. This often follows a late meal, alcohol or heat, and sometimes comes before a cold.`,
-      action: highStreak >= 3 ? 'If nothing obvious explains it, keep today easy.' : "If it's still high tomorrow, take an easier day.",
+        ? t('insights.vitals.rhrAcuteHigh.textThird', { value, usual })
+        : t('insights.vitals.rhrAcuteHigh.text', { value, usual }),
+      action: t(highStreak >= 3 ? 'insights.vitals.rhrAcuteHigh.actionThird' : 'insights.vitals.rhrAcuteHigh.action'),
     });
   } else if (recent && rhr.band === 'far-below' && shiftDir !== 'down') {
     add({
@@ -179,8 +182,8 @@ function restingHeartRate(ctx: InsightContext, add: Add): void {
       importance: 65, topic: 'rhr', family: 'recovery', today: 'never',
       news: entered(days, (w) => compareToBaseline(series(w, (d) => d.restingHr)).band === 'far-below'),
       claims: { metric: 'rhr', direction: 'down' }, evidence: 1,
-      title: 'Your heart is nicely relaxed',
-      text: `Your resting heart rate is ${value} bpm this morning, lower than your usual ${usual}.`,
+      title: t('insights.vitals.rhrAcuteLow.title'),
+      text: t('insights.vitals.rhrAcuteLow.text', { value, usual }),
     });
   }
 }
@@ -211,10 +214,11 @@ function vo2(ctx: InsightContext, add: Add): void {
     importance: up ? 60 : 70, topic: 'vo2', family: 'fitness', today: up ? 'as-news' : 'never',
     news: age <= ENTRY_WINDOW + 1,
     claims: { metric: 'vo2', direction: up ? 'up' : 'down' },
-    title: up ? 'Your cardio fitness went up' : 'Your cardio fitness dipped slightly',
-    text: up
-      ? `Your VO₂ max estimate rose by ${delta.toFixed(1)} to ${last.value!.toFixed(1)}. It only moves up when the trend is clear, so you earned this one.`
-      : `Your VO₂ max estimate went down by ${Math.abs(delta).toFixed(1)} to ${last.value!.toFixed(1)}. It reacts slowly, so this may reflect a quieter few weeks rather than today.`,
+    title: t(up ? 'insights.vitals.vo2Up.title' : 'insights.vitals.vo2Down.title'),
+    text: t(up ? 'insights.vitals.vo2Up.text' : 'insights.vitals.vo2Down.text', {
+      change: formatFixed(Math.abs(delta), 1),
+      value: formatFixed(last.value!, 1),
+    }),
   });
 }
 
@@ -227,13 +231,11 @@ function records(ctx: InsightContext, add: Add): void {
   const defs = [
     {
       id: 'record-rhr', get: (d: DailyRecord) => d.restingHr, better: 'min' as const, answer: ctx.answers.calmestWeek,
-      title: (yet: string) => `Your calmest week ${yet}`,
-      text: (v: number, span: string) => `Your resting heart rate averaged ${v.toFixed(1)} bpm this week. That's your lowest week ${span}.`,
+      title: 'insights.vitals.recordRhr.title' as const, text: 'insights.vitals.recordRhr.text' as const,
     },
     {
       id: 'record-hrv', get: (d: DailyRecord) => d.hrv, better: 'max' as const, answer: ctx.answers.bestHrvWeek,
-      title: (yet: string) => `Your best week of recovery ${yet}`,
-      text: (v: number, span: string) => `Your HRV averaged ${v.toFixed(1)} ms this week. That's your highest week ${span}.`,
+      title: 'insights.vitals.recordHrv.title' as const, text: 'insights.vitals.recordHrv.text' as const,
     },
   ];
   for (const def of defs) {
@@ -254,12 +256,15 @@ function records(ctx: InsightContext, add: Add): void {
     const before = (def.better === 'min' ? answered?.min : answered?.max) ?? null;
     // A year's record once it also beats every stored week in the past year before the window.
     const yearly = before !== null && beats(last, [{ mean: before.value }]);
-    const span = pastYear(answered?.first?.date ?? null, ctx.today);
+    const first = answered?.first?.date ?? null;
+    const span = pastYear(first, ctx.today);
+    // How far back the record reaches: the two-month window, a full year, or all the history there is.
+    const reach = !yearly ? 'twoMonths' : reachesYear(first, ctx.today) ? 'year' : 'yet';
     add({
       ...base, id: def.id, kind: 'milestone', tone: 'good',
       importance: 53, topic: 'records', family: 'recovery', today: 'as-news', news: !prevWasRecord,
-      title: def.title(!yearly ? 'in two months' : span === 'in the past year' ? 'in a year' : 'yet'),
-      text: def.text(last.mean, yearly ? span : 'in the last two months'),
+      title: t(def.title, { reach }),
+      text: t(def.text, { reach, value: formatFixed(last.mean, 1), span }),
     });
   }
 }
@@ -282,8 +287,12 @@ function breathing(ctx: InsightContext, add: Add): void {
     ...base, id: 'vitals-breathing-up', kind: 'alert', tone: 'watch', direction: 'up',
     importance: 83, topic: 'breathing', family: 'recovery', today: 'while-true', news: run.length === 2,
     claims: { metric: 'breathing', direction: 'up' }, evidence: run.length,
-    title: "You've been breathing faster at night",
-    text: `Your breathing rate has been about ${mean(run.map((r) => r.value)).toFixed(1)} breaths a minute for the last ${run.length} nights. It's usually around ${last.baseline!.toFixed(1)}. Hard training, alcohol, heat or a cold on the way can all raise it.`,
+    title: t('insights.vitals.vitalsBreathingUp.title'),
+    text: t('insights.vitals.vitalsBreathingUp.text', {
+      rate: formatFixed(mean(run.map((r) => r.value)), 1),
+      count: run.length,
+      usual: formatFixed(last.baseline!, 1),
+    }),
   });
 }
 
@@ -299,8 +308,8 @@ function temperature(ctx: InsightContext, add: Add): void {
     ...base, id: 'vitals-warm', kind: 'alert', tone: 'watch', direction: 'up',
     importance: 83, topic: 'temperature', family: 'recovery', today: 'while-true', news: run.length === 2,
     claims: { metric: 'temperature', direction: 'up' }, evidence: run.length,
-    title: "You've been running warm",
-    text: `Your skin temperature has been about ${mean(run.map((r) => r.value)).toFixed(1)} °C above your normal for the last ${run.length} nights. Heat, alcohol, late meals or a cold can all cause this.`,
+    title: t('insights.vitals.vitalsWarm.title'),
+    text: t('insights.vitals.vitalsWarm.text', { value: formatFixed(mean(run.map((r) => r.value)), 1), count: run.length }),
   });
 }
 
@@ -311,18 +320,28 @@ function oxygen(ctx: InsightContext, add: Add): void {
   const run = trailingRun(nights, (r) => r.baseline !== null && OFF.oxygen(r.value, r.baseline));
   const last = run[run.length - 1];
   if (!run.length || !isRecent(last.date, ctx.today)) return;
-  const usual = `It's usually around ${last.baseline!.toFixed(1)}%.`;
+  const usual = formatFixed(last.baseline!, 1);
   add({
     ...base, id: 'vitals-oxygen-lower', kind: 'trend', tone: 'watch', direction: 'down',
     importance: 79, topic: 'oxygen', family: 'recovery', today: run.length >= 3 ? 'as-news' : 'never',
     news: run.length === 3 && last.date === ctx.today,
     claims: { metric: 'oxygen', direction: 'down' }, evidence: run.length,
-    title: 'Your oxygen was lower at night',
-    text: `${run.length === 1
-      ? `Your overnight oxygen was ${last.value.toFixed(1)}% last night.`
-      : `Your overnight oxygen averaged ${mean(run.map((r) => r.value)).toFixed(1)}% over the last ${run.length} nights.`} ${usual} You can see these nights in Labs.`,
+    title: t('insights.vitals.vitalsOxygenLower.title'),
+    text: run.length === 1
+      ? t('insights.vitals.vitalsOxygenLower.textSingle', { value: formatFixed(last.value, 1), usual })
+      : t('insights.vitals.vitalsOxygenLower.textRun', { value: formatFixed(mean(run.map((r) => r.value)), 1), count: run.length, usual }),
   });
 }
+
+/** What the all-quiet card calls each overnight signal. */
+const SIGNAL_NAMES = {
+  restingHr: 'insights.vitals.vitalsAllQuiet.signals.restingHr',
+  hrv: 'insights.vitals.vitalsAllQuiet.signals.hrv',
+  breathing: 'insights.vitals.vitalsAllQuiet.signals.breathing',
+  oxygen: 'insights.vitals.vitalsAllQuiet.signals.oxygen',
+  temperature: 'insights.vitals.vitalsAllQuiet.signals.temperature',
+} as const satisfies Record<string, MessageKey>;
+type Signal = keyof typeof SIGNAL_NAMES;
 
 /**
  * A week or more of nights with no overnight signal far from its usual range:
@@ -333,12 +352,12 @@ function oxygen(ctx: InsightContext, add: Add): void {
 function allQuiet(ctx: InsightContext, add: Add): void {
   const { days } = ctx;
   const N = 28;
-  const signal = (name: string, get: (d: DailyRecord) => number | null, floor: number, ok: (r: NightReading) => boolean) =>
+  const signal = (name: Signal, get: (d: DailyRecord) => number | null, floor: number, ok: (r: NightReading) => boolean) =>
     ({ name, nights: nightsAgainstUsual(days, get, floor, N), ok });
   const near = (r: NightReading) => r.z === null || Math.abs(r.z) < 2;
   const signals = [
-    signal('resting heart rate', (d) => d.restingHr, NOISE_FLOOR.restingHr, near),
-    signal('HRV', (d) => d.hrv, NOISE_FLOOR.hrv, near),
+    signal('restingHr', (d) => d.restingHr, NOISE_FLOOR.restingHr, near),
+    signal('hrv', (d) => d.hrv, NOISE_FLOOR.hrv, near),
     signal('breathing', (d) => d.respiratoryRate, NOISE_FLOOR.respiratoryRate, near),
     signal('oxygen', (d) => d.spo2?.avg ?? null, NOISE_FLOOR.spo2, (r) => r.baseline === null || !OFF.oxygen(r.value, r.baseline)),
     signal('temperature', (d) => d.skinTempDeviationC, 0, (r) => Math.abs(r.value) < 0.5),
@@ -356,8 +375,13 @@ function allQuiet(ctx: InsightContext, add: Add): void {
   add({
     ...base, id: 'vitals-all-quiet', kind: 'pattern', tone: 'good',
     importance: 46, topic: 'vitals-steady', family: 'recovery', today: 'never', news: run.length === 7,
-    title: 'Everything looks steady',
-    text: `Your ${listOf(names)} haven't strayed far from their usual range for ${run.length >= N ? `${N} nights or more` : `${run.length} nights`}.`,
+    title: t('insights.vitals.vitalsAllQuiet.title'),
+    text: t(run.length >= N ? 'insights.vitals.vitalsAllQuiet.textOrMore' : 'insights.vitals.vitalsAllQuiet.text', {
+      signals: formatList(names.map((name) => t(SIGNAL_NAMES[name]))),
+      // Alone, a signal is named: the sentence agrees with it.
+      only: names.length === 1 ? names[0] : 'several',
+      count: Math.min(run.length, N),
+    }),
   });
 }
 
@@ -381,8 +405,8 @@ function hrvStability(ctx: InsightContext, add: Add): void {
   add({
     ...base, id: 'vitals-hrv-stability', kind: 'pattern', tone: 'good',
     importance: 47, topic: 'hrv-stability', family: 'recovery', today: 'never', news: false,
-    title: 'Your recovery is steady',
-    text: `This week your HRV varied by about ${pct(now)}% around its average. Usually it varies by about ${pct(usual)}%. Steadier HRV often goes with good recovery.`,
+    title: t('insights.vitals.vitalsHrvStability.title'),
+    text: t('insights.vitals.vitalsHrvStability.text', { now: pct(now), usual: pct(usual) }),
   });
 }
 
@@ -413,16 +437,19 @@ function bounceBack(ctx: InsightContext, add: Add): void {
   });
   if (nights.length < 6) return;
   const typical = stats(nights)!.median;
-  const unit = azm ? 'active zone minutes' : 'brisk minutes';
+  // Back by the next night, within a few nights, or longer.
+  const pace = typical <= 1 ? 'quick' : typical <= 3 ? 'few' : 'slow';
   add({
     ...base, id: 'vitals-bounce-back', kind: 'pattern', tone: typical <= 1 ? 'good' : 'neutral',
     importance: 44, topic: 'bounce-back', family: 'recovery', today: 'never', news: false,
-    title: typical <= 1 ? 'You bounce back quickly' : 'How quickly you bounce back',
-    text: `${typical <= 1
-      ? 'After your hardest days, your HRV is usually in its normal range again by the next night.'
-      : typical <= 3
-        ? `After your hardest days, your HRV usually takes about ${Math.round(typical)} nights to get back to its normal range.`
-        : 'After your hardest days, your HRV usually takes more than three nights to get back to its normal range.'} That's based on ${nights.length} days with ${Math.round(hardFrom)} ${unit} or more in the last 8 weeks.`,
+    title: t('insights.vitals.vitalsBounceBack.title', { pace }),
+    text: t('insights.vitals.vitalsBounceBack.text', {
+      pace,
+      nights: Math.round(typical),
+      unit: azm ? 'zone' : 'brisk',
+      days: nights.length,
+      minutes: Math.round(hardFrom),
+    }),
   });
 }
 
@@ -436,16 +463,27 @@ function hrvWeekShape(ctx: InsightContext, add: Add): void {
   const avg = mean(weekdayMedians(s).map((m) => m.median!));
   const below = Math.round((1 - ext.low.median! / avg) * 100);
   if (noise === null || ext.high.median! - ext.low.median! < noise || below < 5) return;
+  // The mornings by name, Sunday first, as the language says them ("Monday mornings").
+  const mornings = names('insights.vitals.vitalsWeekShape.mornings');
   add({
     ...base, id: 'vitals-week-shape', kind: 'pattern', tone: 'neutral',
     importance: 43, topic: 'hrv-week', family: 'recovery', today: 'never', news: false,
-    title: 'Your recovery has a weekly pattern',
-    text: `Your HRV is usually lowest on ${WEEKDAYS[ext.low.weekday]} mornings and highest on ${WEEKDAYS[ext.high.weekday]} mornings. On ${WEEKDAYS[ext.low.weekday]} mornings it's about ${below}% below your weekly average.`,
+    title: t('insights.vitals.vitalsWeekShape.title'),
+    text: t('insights.vitals.vitalsWeekShape.text', {
+      low: mornings[(ext.low.weekday + 1) % 7],
+      high: mornings[(ext.high.weekday + 1) % 7],
+      below,
+    }),
   });
 }
 
-const FITNESS_LEVELS: Record<string, string> = {
-  POOR: 'Poor', FAIR: 'Fair', AVERAGE: 'Average', GOOD: 'Good', VERY_GOOD: 'Very good', EXCELLENT: 'Excellent',
+const FITNESS_LEVELS: Record<string, MessageKey> = {
+  POOR: 'insights.vitals.vitalsFitnessLevel.levels.poor',
+  FAIR: 'insights.vitals.vitalsFitnessLevel.levels.fair',
+  AVERAGE: 'insights.vitals.vitalsFitnessLevel.levels.average',
+  GOOD: 'insights.vitals.vitalsFitnessLevel.levels.good',
+  VERY_GOOD: 'insights.vitals.vitalsFitnessLevel.levels.veryGood',
+  EXCELLENT: 'insights.vitals.vitalsFitnessLevel.levels.excellent',
 };
 
 /** Your VO₂ max, the device's own band for your age, and how it compares with the start of the window. */
@@ -454,17 +492,23 @@ function fitnessLevel(ctx: InsightContext, add: Add): void {
   const last = readings[readings.length - 1];
   if (!last || daysBetween(last.date, ctx.today) > 30) return;
   const raw = last.cardioFitnessLevel;
-  const level = raw ? FITNESS_LEVELS[raw] ?? raw.charAt(0) + raw.slice(1).toLowerCase().replace(/_/g, ' ') : null;
+  const known = raw ? FITNESS_LEVELS[raw] : undefined;
+  // A band the language file doesn't name yet reads as the API spells it, in sentence case.
+  const level = known ? t(known) : raw ? raw.charAt(0) + raw.slice(1).toLowerCase().replace(/_/g, ' ') : null;
   const first = readings[0];
   const delta = last.vo2Max! - first.vo2Max!;
   const change = Math.abs(delta) >= 0.5 && daysBetween(first.date, last.date) >= 28
-    ? ` It's ${Math.abs(delta).toFixed(1)} points ${delta > 0 ? 'higher' : 'lower'} than on ${dayMonth(first.date)}.`
+    ? t('insights.vitals.vitalsFitnessLevel.change', {
+      direction: delta > 0 ? 'up' : 'down',
+      change: formatFixed(Math.abs(delta), 1),
+      date: formatDayMonthLong(first.date),
+    })
     : '';
   add({
     ...base, id: 'vitals-fitness-level', kind: 'pattern', tone: 'neutral',
     importance: 34, topic: 'vo2', family: 'fitness', today: 'never', news: false,
-    title: level ? 'Your cardio fitness for your age' : 'Your cardio fitness',
-    text: `Your VO₂ max is ${last.vo2Max!.toFixed(1)}${level ? `, which Google rates as ${level} for your age` : ''}.${change}`,
+    title: t('insights.vitals.vitalsFitnessLevel.title', { rated: !!level }),
+    text: t('insights.vitals.vitalsFitnessLevel.text', { rated: !!level, value: formatFixed(last.vo2Max!, 1), level }) + change,
   });
 }
 
@@ -475,8 +519,12 @@ function calmestMonth(ctx: InsightContext, add: Add): void {
   add({
     ...base, id: 'vitals-calmest-month', kind: 'milestone', tone: 'good',
     importance: 62, topic: 'best-month-rhr', family: 'monthly-best', today: 'as-news', news: ctx.dom <= 2,
-    title: 'Your calmest month',
-    text: `Your resting heart rate averaged ${best.value.toFixed(1)} bpm in ${monthName(best.month, ctx.today)}. That's your lowest month ${pastYear(`${best.since}-01`, ctx.today)}.`,
+    title: t('insights.vitals.vitalsCalmestMonth.title'),
+    text: t('insights.vitals.vitalsCalmestMonth.text', {
+      value: formatFixed(best.value, 1),
+      month: formatMonth(best.month, ctx.today),
+      span: pastYear(`${best.since}-01`, ctx.today),
+    }),
   });
 }
 
@@ -495,7 +543,13 @@ function lowestRestingHr(ctx: InsightContext, add: Add): void {
   add({
     ...base, id: 'vitals-lowest-rhr', kind: 'milestone', tone: 'good',
     importance: 70, topic: 'rhr', family: 'recovery', today: 'as-news', news: r.age <= 1,
-    title: span === 'in the past year' ? 'Your lowest resting heart rate in a year' : 'Your lowest resting heart rate yet',
-    text: `${r.age === 0 ? 'Your resting heart rate was' : `On ${dayMonth(r.date)} your resting heart rate was`} ${Math.round(r.value)} bpm${r.age === 0 ? ' this morning' : ''}, your lowest ${span}. Your previous low was ${Math.round(r.previous)} bpm.`,
+    title: t('insights.vitals.vitalsLowestRhr.title', { reach: reachesYear(r.since, ctx.today) ? 'year' : 'yet' }),
+    text: t('insights.vitals.vitalsLowestRhr.text', {
+      when: r.age === 0 ? 'today' : 'earlier',
+      date: formatDayMonthLong(r.date),
+      value: Math.round(r.value),
+      span,
+      previous: Math.round(r.previous),
+    }),
   });
 }

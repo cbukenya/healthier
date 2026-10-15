@@ -1,4 +1,8 @@
 import { addDays, daysBetween } from '../../../lib/date';
+import { names, t } from '../../../i18n';
+import {
+  formatClock, formatDayMonthLong, formatDuration, formatHours, formatHoursDecimal, formatMonth,
+} from '../../../i18n/format';
 import type { DailyRecord } from '../../../types/health';
 import {
   NEED_ESTIMATE, circularMeanMinutes, compareToBaseline, findGaps, firstObserved, series, sleepDebt, sleepNeedFor, sleepRegularity,
@@ -7,11 +11,11 @@ import {
 import { scoreSleep } from '../../sleep';
 import type { InsightContext } from '../context';
 import {
-  ENTRY_WINDOW, beforeLatestMorning, circDelta, clk, cut, dayMonth, heldFor, hm, hoursText, isWorkday, monthName, needLabel,
-  pastYear, freshEntry, plural, sinceNote, sleepMins, trailingDays,
+  ENTRY_WINDOW, beforeLatestMorning, circDelta, cut, heldFor, isWorkday, pastYear, reachesYear, freshEntry, sinceNote, sleepMins,
+  trailingDays,
 } from '../helpers';
 import {
-  WEEKDAYS, bestBedtime, dayRecord, lastMonthBest, monthsOf, sleepHrvAssociation, weekdayExtremes, workFreeNights,
+  bestBedtime, dayRecord, lastMonthBest, monthsOf, sleepHrvAssociation, weekdayExtremes, workFreeNights,
   type BestBedtime,
 } from '../patterns';
 import type { HistoryQueries } from '../../history';
@@ -52,7 +56,7 @@ export function sleepRules(ctx: InsightContext, add: Add): void {
 }
 
 /** A clock time to the nearest five minutes, for "about". */
-const clk5 = (m: number) => clk(Math.round(m / 5) * 5);
+const clk5 = (m: number) => formatClock(Math.round(m / 5) * 5);
 const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
 
 /** Last night is a short night (watch) or a good one (win), never both. */
@@ -79,11 +83,10 @@ function lastNight(ctx: InsightContext, add: Add, tonight: boolean): void {
       add({
         ...base, id: 'night-short', kind: 'alert', tone: 'watch',
         importance: 86, topic: 'sleep-night', family: 'sleep-amount', today: 'while-true', news: true, daypart: ['morning'],
-        title: "Last night wasn't your best sleep",
-        text: `Your sleep score is ${sc.total} out of 100 from last night. You slept ${hm(night.minutesAsleep)} compared to your ${needH} need.${second ? ' That makes two short nights in a row.' : ''}`,
-        action: second
-          ? 'Missed sleep adds up, so tonight matters more than last night did.'
-          : 'Going to bed even 30 minutes earlier tonight will help you catch up.',
+        title: t('insights.sleep.nightShort.title'),
+        text: t('insights.sleep.nightShort.text', { score: sc.total, slept: formatDuration(night.minutesAsleep), need: needH })
+          + (second ? t('insights.sleep.nightShort.secondNight') : ''),
+        action: second ? t('insights.sleep.nightShort.actionSecond') : t('insights.sleep.nightShort.action'),
       });
     }
   } else if (n.good) {
@@ -94,8 +97,10 @@ function lastNight(ctx: InsightContext, add: Add, tonight: boolean): void {
     add({
       ...base, id: 'night-good', kind: 'milestone', tone: 'good',
       importance: 72, topic: 'sleep-night', family: 'sleep-amount', today: 'while-true', news: true, daypart: ['morning'],
-      title: 'You slept really well',
-      text: `Your sleep score is ${sc.total} out of 100 from last night. You slept ${hm(night.minutesAsleep)} and were asleep for ${Math.round(night.efficiency)}% of your time in bed.${weeksSince !== null && weeksSince >= 2 ? ` It's your best night in ${weeksSince} weeks.` : ''}`,
+      title: t('insights.sleep.nightGood.title'),
+      text: t('insights.sleep.nightGood.text', {
+        score: sc.total, slept: formatDuration(night.minutesAsleep), efficiency: Math.round(night.efficiency),
+      }) + (weeksSince !== null && weeksSince >= 2 ? t('insights.sleep.nightGood.bestInWeeks', { weeks: weeksSince }) : ''),
     });
   }
 
@@ -105,8 +110,8 @@ function lastNight(ctx: InsightContext, add: Add, tonight: boolean): void {
     add({
       ...base, id: 'deep-high', kind: 'pattern', tone: 'good',
       importance: 60, topic: 'sleep-stage', family: 'sleep-stages', today: 'never', news: true,
-      title: 'Lots of deep sleep last night',
-      text: `You got ${Math.round(night.stages.deep)} minutes of deep sleep last night. You usually get about ${Math.round(deep.baseline!)}. Deep sleep is when your body does most of its physical recovery.`,
+      title: t('insights.sleep.deepHigh.title'),
+      text: t('insights.sleep.deepHigh.text', { minutes: Math.round(night.stages.deep), usual: Math.round(deep.baseline!) }),
     });
   }
 
@@ -139,21 +144,27 @@ function debt(ctx: InsightContext, add: Add, goodNightMin: number | null, tonigh
   const news = freshEntry((n) => owed(cut(days, n)) > SHORT_DEBT)
     || (severe && freshEntry((n) => owed(cut(days, n)) > SEVERE_DEBT));
   const held = heldFor(days, (w) => owed(w) > SHORT_DEBT);
+  const shortfall = formatHoursDecimal(debtMin);
   add({
     ...base, id: 'sleep-debt', kind: 'alert', tone: 'watch',
     importance: 89, topic: 'sleep-debt', family: 'sleep-amount', today: 'as-news', news, advice: 'rest',
     ...(tonight ? { daypart: ['morning', 'midday'] as Daypart[] } : {}),
-    title: severe ? "You're very short on sleep this week" : "You're short on sleep this week",
-    text: `${goodNightMin !== null ? `Last night's ${hm(goodNightMin)} helped. Over the ${nights} nights before it` : `Over the ${nights} nights before last night`}, you slept ${hoursText(debtMin)} less than you need.${severe ? ' Short nights like these add up and wear on your focus and recovery.' : ''}${news ? '' : sinceNote(held, 'night')}`,
-    action: severe
-      ? 'Debt like this clears over several nights. Try adding 30 to 45 minutes of sleep over the next few nights.'
-      : 'A few earlier nights would help you catch up.',
+    title: severe ? t('insights.sleep.sleepDebt.titleSevere') : t('insights.sleep.sleepDebt.title'),
+    text: (goodNightMin !== null
+      ? t('insights.sleep.sleepDebt.textAfterGoodNight', { slept: formatDuration(goodNightMin), nights, shortfall })
+      : t('insights.sleep.sleepDebt.text', { nights, shortfall }))
+      + (severe ? t('insights.sleep.sleepDebt.severe') : '')
+      + (news ? '' : sinceNote(held, 'night')),
+    action: severe ? t('insights.sleep.sleepDebt.actionSevere') : t('insights.sleep.sleepDebt.action'),
   });
 }
 
-/** "within about 25 minutes of 23:10", or "at about 23:10 every night" when the spread rounds to nothing. */
-const within = (sdMin: number, mean: number, every: 'night' | 'morning') =>
-  Math.round(sdMin) < 5 ? `at about ${clk(mean)} every ${every}` : `within about ${Math.round(sdMin)} minutes of ${clk(mean)}`;
+/**
+ * The arguments for "within about 25 minutes of 23:10", or "at about 23:10 every night" when the
+ * spread rounds to nothing.
+ */
+const within = (sdMin: number, mean: number) =>
+  ({ exact: Math.round(sdMin) < 5, minutes: Math.round(sdMin), time: formatClock(mean) });
 
 type BedtimeShift = { later: boolean; news: boolean; held: number };
 
@@ -189,13 +200,14 @@ function timing(ctx: InsightContext, add: Add, shift: BedtimeShift | null): void
     const { later, news, held } = shift;
     const recent = circularMeanMinutes(sleepMins(days.slice(-7), (x) => x.bedtimeMin))!;
     const prior = circularMeanMinutes(sleepMins(days.slice(-21, -7), (x) => x.bedtimeMin))!;
+    const times = { recent: formatClock(recent.mean), prior: formatClock(prior.mean) };
     add({
       ...base, id: later ? 'bed-creep-later' : 'bed-creep-earlier', kind: 'trend', tone: later ? 'watch' : 'good',
       direction: later ? 'up' : 'down',
       importance: later ? 68 : 58, topic: 'bedtime-shift', family: 'sleep-timing', today: later ? 'as-news' : 'never', news,
       claims: { metric: 'bedtime', direction: later ? 'up' : 'down' }, evidence: recent.n + prior.n,
-      title: later ? "You're going to bed later" : "You're going to bed earlier",
-      text: `This week your average bedtime was ${clk(recent.mean)}. In the two weeks before, it was ${clk(prior.mean)}.${news ? '' : sinceNote(held)}`,
+      title: later ? t('insights.sleep.bedCreepLater.title') : t('insights.sleep.bedCreepEarlier.title'),
+      text: t('insights.sleep.common.bedtimeShift', times) + (news ? '' : sinceNote(held)),
     });
   }
 
@@ -210,8 +222,8 @@ function timing(ctx: InsightContext, add: Add, shift: BedtimeShift | null): void
         importance: 66, topic: 'bedtime-spread', family: 'sleep-timing', today: 'as-news',
         news: !(was !== null && was.n >= 7 && was.sdMin >= 45),
         claims: { metric: 'bedtime-spread', direction: 'up' }, evidence: s14.n,
-        title: 'Your bedtime has been all over the place',
-        text: `Over the last two weeks your bedtime has moved by about ${Math.round(s14.sdMin)} minutes either side of ${clk(s14.mean)}. A steady bedtime often matters more than the total hours.`,
+        title: t('insights.sleep.bedDrifting.title'),
+        text: t('insights.sleep.bedDrifting.text', { minutes: Math.round(s14.sdMin), time: formatClock(s14.mean) }),
       });
     } else if (s14.sdMin < 30) {
       const was = spread(cut(days, ENTRY_WINDOW + 1));
@@ -220,8 +232,8 @@ function timing(ctx: InsightContext, add: Add, shift: BedtimeShift | null): void
         ...base, id: 'bed-settling', kind: 'trend', tone: 'good',
         importance: 50, topic: 'bedtime-spread', family: 'sleep-timing', today: 'never', news,
         claims: { metric: 'bedtime', direction: 'steady' }, evidence: s14.n,
-        title: news ? 'Your bedtime is settling down' : 'Your bedtime has been steady',
-        text: `For two weeks you've gone to bed ${within(s14.sdMin, s14.mean, 'night')}.`,
+        title: news ? t('insights.sleep.bedSettling.titleSettling') : t('insights.sleep.bedSettling.titleSteady'),
+        text: t('insights.sleep.bedSettling.text', within(s14.sdMin, s14.mean)),
       });
     }
   }
@@ -234,8 +246,8 @@ function timing(ctx: InsightContext, add: Add, shift: BedtimeShift | null): void
       ...base, id: 'wake-rhythm', kind: 'pattern', tone: 'good',
       importance: 45, topic: 'wake-time', family: 'sleep-timing', today: 'never',
       news: !(was !== null && was.n >= 7 && was.sdMin <= 35),
-      title: "You're waking at a steady time",
-      text: `For two weeks you've woken up ${within(w14.sdMin, w14.mean, 'morning')}.`,
+      title: t('insights.sleep.wakeRhythm.title'),
+      text: t('insights.sleep.wakeRhythm.text', within(w14.sdMin, w14.mean)),
     });
   }
 
@@ -248,8 +260,8 @@ function timing(ctx: InsightContext, add: Add, shift: BedtimeShift | null): void
       add({
         ...base, id: 'sri-climbing', kind: 'trend', tone: 'good', direction: 'up',
         importance: 64, topic: 'sleep-regularity', family: 'sleep-timing', today: 'as-news', news: true,
-        title: 'Your sleep schedule is more regular',
-        text: `Your sleep regularity score rose from ${before.score} to ${now.score} this month. Keeping regular hours is linked to better long-term health.`,
+        title: t('insights.sleep.sriClimbing.title'),
+        text: t('insights.sleep.sriClimbing.text', { before: before.score, now: now.score }),
       });
     }
   }
@@ -282,17 +294,19 @@ function windDown(ctx: InsightContext, add: Add, shift: BedtimeShift | null, bes
   add({
     ...base, id: 'wind-down', kind: 'nudge', tone: 'neutral',
     importance: 52, topic: 'sleep-tonight', family: 'sleep-tonight', today: 'while-true', news: true, daypart: ['evening'], advice: 'rest',
-    title: 'Time to start winding down',
+    title: t('insights.sleep.windDown.title'),
     text: target !== null
-      ? `You tend to sleep best when you're asleep by ${clk(target)}.${owed
-        ? ` You're also ${hoursText(debtMin!)} short on sleep this week, so an early night would help.`
-        : shortNight ? ' Last night was short, so an early night would help.'
-        : pastTarget ? ` This week you've been going to bed around ${clk(week!.mean)}.` : ' Lately your bedtime has been getting later.'}`
-      : `You've been going to bed around ${clk(avg.mean)} lately${laterShiftNews ? ", and it's been getting later" : ''}.${owed
-        ? ` You're also ${hoursText(debtMin!)} short on sleep this week.` : shortNight ? ' Last night was short.' : ''}`,
+      ? t('insights.sleep.windDown.textBest', { time: formatClock(target) }) + (owed
+        ? t('insights.sleep.windDown.bestAlsoShort', { shortfall: formatHoursDecimal(debtMin!) })
+        : shortNight ? t('insights.sleep.windDown.bestLastNightShort')
+        : pastTarget ? t('insights.sleep.windDown.bestThisWeek', { time: formatClock(week!.mean) })
+        : t('insights.sleep.windDown.bestGettingLater'))
+      : t('insights.sleep.windDown.textUsual', { time: formatClock(avg.mean), later: laterShiftNews }) + (owed
+        ? t('insights.sleep.windDown.usualAlsoShort', { shortfall: formatHoursDecimal(debtMin!) })
+        : shortNight ? t('insights.sleep.windDown.usualLastNightShort') : ''),
     action: target !== null
-      ? `Being asleep by ${clk(target)} tonight would help.`
-      : 'Getting to bed around your usual time tonight will help. A steady bedtime matters as much as the extra sleep.',
+      ? t('insights.sleep.windDown.actionBest', { time: formatClock(target) })
+      : t('insights.sleep.windDown.actionUsual'),
   });
 }
 
@@ -306,8 +320,8 @@ function weekdays(ctx: InsightContext, add: Add): void {
   add({
     ...base, id: 'weekday-deficit', kind: 'pattern', tone: 'neutral',
     importance: 46, topic: 'week-sleep', family: 'sleep-week', today: 'never', news: ctx.dom <= 2,
-    title: 'You sleep less on weekdays',
-    text: `On free days you usually sleep about ${hm(free.median)}, but on workdays only ${hm(work.median)}. Catching up at the weekend helps, but it doesn't fully make up for the week.`,
+    title: t('insights.sleep.weekdayDeficit.title'),
+    text: t('insights.sleep.weekdayDeficit.text', { free: formatDuration(free.median), work: formatDuration(work.median) }),
   });
 }
 
@@ -326,14 +340,14 @@ function debtCleared(ctx: InsightContext, add: Add): void {
   }
   if (peak.min <= 180) return;
   const before = weekDebt(beforeLatestMorning(days));
-  const was = peak.daysAgo >= 5
-    ? `Last week you were ${hoursText(peak.min)} short on sleep.`
-    : `${peak.daysAgo === 1 ? 'Yesterday' : 'A few days ago'} you were ${hoursText(peak.min)} short on sleep over the past week.`;
+  const when = peak.daysAgo >= 5 ? 'lastWeek' : peak.daysAgo === 1 ? 'yesterday' : 'fewDaysAgo';
   add({
     ...base, id: 'sleep-debt-cleared', kind: 'milestone', tone: 'good',
     importance: 66, topic: 'sleep-debt', family: 'sleep-amount', today: 'as-news', news: before !== null && before >= 60,
-    title: "You're no longer short on sleep",
-    text: `${was} Over the ${ctx.debt!.nightsKnown} nights before last night, your sleep ${debtMin <= 0 ? 'added up to what you need' : 'came within an hour of what you need'}.`,
+    title: t('insights.sleep.sleepDebtCleared.title'),
+    text: t('insights.sleep.sleepDebtCleared.text', {
+      when, shortfall: formatHoursDecimal(peak.min), nights: ctx.debt!.nightsKnown, met: debtMin <= 0,
+    }),
   });
 }
 
@@ -348,8 +362,8 @@ function restedStreak(ctx: InsightContext, add: Add): void {
     importance: 62, topic: 'rested-streak', family: 'sleep-amount', today: run >= 7 ? 'as-news' : 'never',
     // A run grows by one each morning, so it's news only on the morning its night arrives.
     news: [3, 5, 7, 14].includes(run) && lastNightDay?.date === today,
-    title: 'A run of good nights',
-    text: `You've slept at least the ${needH} you need for ${run} nights in a row.`,
+    title: t('insights.sleep.sleepRestedStreak.title'),
+    text: t('insights.sleep.sleepRestedStreak.text', { need: needH, nights: run }),
   });
 }
 
@@ -359,16 +373,16 @@ function sleepNeed(ctx: InsightContext, add: Add): void {
   if (nights.length < 14) return;
   const median = stats(nights)!.median;
   const text = ctx.goals.sleepNeed !== null
-    ? `Your sleep cards measure each night against the ${needLabel(ctx.need)} you set on the Data tab. Your nights are usually about ${hm(median)}.`
+    ? t('insights.sleep.sleepNeed.textSet', { need: formatHours(ctx.need), usual: formatDuration(median) })
     : median < NEED_ESTIMATE.floor
-      ? `Your sleep cards measure each night against ${NEED_ESTIMATE.floor / 60} hours. Your nights are usually shorter, about ${hm(median)}, but most adults need at least ${NEED_ESTIMATE.floor / 60} hours.`
+      ? t('insights.sleep.sleepNeed.textFloor', { hours: NEED_ESTIMATE.floor / 60, usual: formatDuration(median) })
       : median > NEED_ESTIMATE.ceiling
-        ? `Your sleep cards measure each night against ${ctx.needH}. You usually sleep longer, about ${hm(median)}, but the cards don't aim higher than ${ctx.needH}.`
-        : `Your sleep cards measure each night against about ${ctx.needH}. That's the middle of your last ${nights.length} recorded nights.`;
+        ? t('insights.sleep.sleepNeed.textCeiling', { need: ctx.needH, usual: formatDuration(median) })
+        : t('insights.sleep.sleepNeed.textEstimate', { need: ctx.needH, nights: nights.length });
   add({
     ...base, id: 'sleep-need', kind: 'pattern', tone: 'neutral',
     importance: 36, topic: 'sleep-need', family: 'sleep-need', today: 'never', news: false,
-    title: 'How much sleep you need',
+    title: t('insights.sleep.sleepNeed.title'),
     text,
   });
 }
@@ -378,11 +392,19 @@ function bestBedtimeCard(ctx: InsightContext, add: Add): BestBedtime | null {
   const best = bestBedtime(ctx.days);
   if (!best) return null;
   const [first, second] = best.earlierBetter ? [best.early, best.late] : [best.late, best.early];
+  const scores = {
+    time: formatClock(best.cut), score: Math.round(first.mean), otherScore: Math.round(second.mean),
+    nights: first.n, otherNights: second.n,
+  };
   add({
     ...base, id: 'sleep-best-bedtime', kind: 'pattern', tone: 'neutral',
     importance: 48, topic: 'best-bedtime', family: 'sleep-timing', today: 'never', news: false,
-    title: best.earlierBetter ? `You sleep best before ${clk(best.cut)}` : 'Your later nights score better',
-    text: `On nights you went to sleep ${best.earlierBetter ? 'by' : 'after'} ${clk(best.cut)}, your sleep score averaged ${Math.round(first.mean)}. On ${best.earlierBetter ? 'later' : 'earlier'} nights it averaged ${Math.round(second.mean)}. That's based on ${first.n} ${best.earlierBetter ? 'earlier' : 'later'} nights and ${second.n} ${best.earlierBetter ? 'later' : 'earlier'} ones, so it's a pattern rather than a rule.`,
+    title: best.earlierBetter
+      ? t('insights.sleep.sleepBestBedtime.titleEarlier', scores)
+      : t('insights.sleep.sleepBestBedtime.titleLater'),
+    text: best.earlierBetter
+      ? t('insights.sleep.sleepBestBedtime.textEarlier', scores)
+      : t('insights.sleep.sleepBestBedtime.textLater', scores),
   });
   return best;
 }
@@ -396,10 +418,10 @@ function rhythm(ctx: InsightContext, add: Add): void {
   add({
     ...base, id: 'sleep-natural-rhythm', kind: 'pattern', tone: 'neutral',
     importance: 40, topic: 'natural-rhythm', family: 'sleep-timing', today: 'never', news: false,
-    title: 'Your natural sleep rhythm',
-    text: `When you don't have to be up early, you usually sleep from about ${clk5(free.bed)} to ${clk5(free.wake)}. ${catchUp
-      ? `Some of that is catching up on the week, so the middle of your natural night is around ${clk5(wf.midCorrected)}.`
-      : `The middle of your sleep falls around ${clk5(free.mid)}.`}`,
+    title: t('insights.sleep.sleepNaturalRhythm.title'),
+    text: t('insights.sleep.sleepNaturalRhythm.text', {
+      bed: clk5(free.bed), wake: clk5(free.wake), catchUp, mid: clk5(catchUp ? wf.midCorrected : free.mid),
+    }),
   });
 
   const shift = circDelta(free.mid, work.mid);
@@ -407,8 +429,8 @@ function rhythm(ctx: InsightContext, add: Add): void {
   add({
     ...base, id: 'sleep-weekend-shift', kind: 'pattern', tone: 'neutral',
     importance: 47, topic: 'weekend-shift', family: 'sleep-timing', today: 'never', news: false,
-    title: 'Your weekend sleep shift',
-    text: `At weekends you sleep about ${hm(Math.abs(shift))} ${shift > 0 ? 'later' : 'earlier'} than on weekdays. For your body, that's a bit like flying across a time zone and back every week.`,
+    title: t('insights.sleep.sleepWeekendShift.title'),
+    text: t('insights.sleep.sleepWeekendShift.text', { shift: formatDuration(Math.abs(shift)), later: shift > 0 }),
   });
 }
 
@@ -419,11 +441,16 @@ function weekShape(ctx: InsightContext, add: Add): void {
     .map((d) => ({ date: addDays(d.date, -1), value: d.sleep!.minutesAsleep }));
   const ext = weekdayExtremes(nights, 5);
   if (!ext || ext.high.median! - ext.low.median! < 45) return;
+  // Each night by the evening it starts, Sunday first, as the language names it ("Monday night").
+  const nightNames = names('insights.sleep.sleepWeekShape.nights');
   add({
     ...base, id: 'sleep-week-shape', kind: 'pattern', tone: 'neutral',
     importance: 42, topic: 'week-sleep', family: 'sleep-week', today: 'never', news: false,
-    title: 'Your shortest and longest nights',
-    text: `${WEEKDAYS[ext.low.weekday]} night is usually your shortest, at about ${hm(ext.low.median!)}. ${WEEKDAYS[ext.high.weekday]} night is usually your longest, at about ${hm(ext.high.median!)}.`,
+    title: t('insights.sleep.sleepWeekShape.title'),
+    text: t('insights.sleep.sleepWeekShape.text', {
+      shortestNight: nightNames[(ext.low.weekday + 1) % 7], shortest: formatDuration(ext.low.median!),
+      longestNight: nightNames[(ext.high.weekday + 1) % 7], longest: formatDuration(ext.high.median!),
+    }),
   });
 }
 
@@ -446,8 +473,8 @@ function quality(ctx: InsightContext, add: Add): void {
       importance: 58, topic: 'night-wakes', family: 'sleep-quality', today: 'never',
       news: !awake(cut(days, ENTRY_WINDOW + 1))?.holds,
       claims: { metric: 'awake', direction: 'up' }, evidence: 7,
-      title: 'More time awake at night',
-      text: `You spent about ${Math.round(a.now)} minutes awake each night this week, compared with your usual ${Math.round(a.typical)}. Late meals, alcohol, heat and stress can all cause more wake-ups.`,
+      title: t('insights.sleep.sleepRestless.title'),
+      text: t('insights.sleep.sleepRestless.text', { minutes: Math.round(a.now), usual: Math.round(a.typical) }),
     });
   }
 
@@ -466,8 +493,8 @@ function quality(ctx: InsightContext, add: Add): void {
       ...base, id: 'sleep-efficiency', kind: 'trend', tone: 'watch', direction: 'down',
       importance: 53, topic: 'efficiency', family: 'sleep-quality', today: 'never', news: false,
       claims: { metric: 'efficiency', direction: 'down' },
-      title: 'More of your time in bed is spent awake',
-      text: `In the last 30 days you were asleep for ${Math.round(month.pct)}% of your time in bed. In the 30 days before, it was ${Math.round(before.pct)}%.`,
+      title: t('insights.sleep.sleepEfficiency.titleFalling'),
+      text: t('insights.sleep.sleepEfficiency.textFalling', { pct: Math.round(month.pct), before: Math.round(before.pct) }),
     });
     return;
   }
@@ -475,8 +502,10 @@ function quality(ctx: InsightContext, add: Add): void {
   add({
     ...base, id: 'sleep-efficiency', kind: 'pattern', tone: good ? 'good' : 'neutral',
     importance: 35, topic: 'efficiency', family: 'sleep-quality', today: 'never', news: false,
-    title: good ? 'You use your time in bed well' : 'Time in bed and time asleep',
-    text: `In the last 30 days you were asleep for ${Math.round(month.pct)}% of your time in bed, about ${hm(month.asleep)} out of ${hm(month.inBed)} a night.`,
+    title: good ? t('insights.sleep.sleepEfficiency.titleGood') : t('insights.sleep.sleepEfficiency.titleNeutral'),
+    text: t('insights.sleep.sleepEfficiency.text', {
+      pct: Math.round(month.pct), asleep: formatDuration(month.asleep), inBed: formatDuration(month.inBed),
+    }),
   });
 }
 
@@ -500,8 +529,10 @@ function rem(ctx: InsightContext, add: Add): void {
     ...base, id: 'sleep-rem-short', kind: 'trend', tone: 'watch', direction: 'down',
     importance: 55, topic: 'rem', family: 'sleep-rem', today: 'never', news: !was || was.n < 5,
     claims: { metric: 'rem', direction: 'down' }, evidence: r.of,
-    title: 'Less REM sleep than usual',
-    text: `On ${r.n === r.of ? 'each' : r.n} of the last ${r.of} nights you got less REM sleep than usual, about ${Math.round(r.now)} minutes instead of ${Math.round(r.typical)}. Most REM comes late in the night, so short nights cut it first.`,
+    title: t('insights.sleep.sleepRemShort.title'),
+    text: t('insights.sleep.sleepRemShort.text', {
+      every: r.n === r.of, low: r.n, nights: r.of, minutes: Math.round(r.now), usual: Math.round(r.typical),
+    }),
   });
 }
 
@@ -513,8 +544,9 @@ function naps(ctx: InsightContext, add: Add): void {
   add({
     ...base, id: 'sleep-naps', kind: 'pattern', tone: 'neutral',
     importance: 38, topic: 'naps', family: 'sleep-naps', today: 'never', news: false,
-    title: 'A few naps this week',
-    text: `You took ${week.length} naps in the last week, about ${Math.round(mean(week.map((x) => x.nap.minutesAsleep)))} minutes each.${afterShort ? ` Each one came after a night shorter than your ${ctx.needH} need.` : ''}`,
+    title: t('insights.sleep.sleepNaps.title'),
+    text: t('insights.sleep.sleepNaps.text', { naps: week.length, minutes: Math.round(mean(week.map((x) => x.nap.minutesAsleep))) })
+      + (afterShort ? t('insights.sleep.sleepNaps.afterShortNights', { need: ctx.needH }) : ''),
   });
 }
 
@@ -526,8 +558,8 @@ function hrvLink(ctx: InsightContext, add: Add): void {
   add({
     ...base, id: 'sleep-hrv-link', kind: 'pattern', tone: 'neutral',
     importance: 49, topic: 'sleep-hrv', family: 'correlation', today: 'never', news: false,
-    title: higher ? 'Good sleep shows in your HRV' : 'Your HRV and how long you sleep',
-    text: `On nights of 7 hours or more, your overnight HRV is usually about ${Math.abs(a.pct)}% ${higher ? 'higher' : 'lower'} than on shorter nights. That's based on ${plural(a.nLong, 'longer night')} and ${plural(a.nShort, 'shorter one')}. It's a pattern in your data, not proof that one causes the other.`,
+    title: higher ? t('insights.sleep.sleepHrvLink.titleHigher') : t('insights.sleep.sleepHrvLink.titleLower'),
+    text: t('insights.sleep.sleepHrvLink.text', { higher, pct: Math.abs(a.pct), longer: a.nLong, shorter: a.nShort }),
   });
 }
 
@@ -539,8 +571,11 @@ function bestMonth(ctx: InsightContext, add: Add): void {
   add({
     ...base, id: 'sleep-best-month', kind: 'milestone', tone: 'good',
     importance: 63, topic: 'best-month-sleep', family: 'monthly-best', today: 'as-news', news: ctx.dom <= 2,
-    title: 'Your best month of sleep',
-    text: `In ${monthName(best.month, ctx.today)} you slept ${hm(month.sum / month.n)} a night on average, and your average sleep score was ${Math.round(best.value)}. That's your best month of sleep ${pastYear(`${best.since}-01`, ctx.today)}.`,
+    title: t('insights.sleep.sleepBestMonth.title'),
+    text: t('insights.sleep.sleepBestMonth.text', {
+      month: formatMonth(best.month, ctx.today), slept: formatDuration(month.sum / month.n), score: Math.round(best.value),
+      span: pastYear(`${best.since}-01`, ctx.today),
+    }),
   });
 }
 
@@ -556,8 +591,12 @@ function bestNight(ctx: InsightContext, add: Add): void {
   add({
     ...base, id: 'sleep-best-night', kind: 'milestone', tone: 'good',
     importance: 80, topic: 'sleep-night', family: 'sleep-amount', today: 'as-news', news: r.age <= 1,
-    title: span === 'in the past year' ? "Your best night's sleep in a year" : "Your best night's sleep yet",
-    text: `${r.age === 0 ? "Last night's sleep score was" : `Your sleep score on ${dayMonth(r.date)} was`} ${Math.round(r.value)}, your best ${span}. Your previous best was ${Math.round(r.previous)}.`,
+    title: reachesYear(r.since, ctx.today)
+      ? t('insights.sleep.sleepBestNight.titleYear')
+      : t('insights.sleep.sleepBestNight.titleYet'),
+    text: t('insights.sleep.sleepBestNight.text', {
+      lastNight: r.age === 0, date: formatDayMonthLong(r.date), score: Math.round(r.value), span, previous: Math.round(r.previous),
+    }),
   });
 }
 
@@ -575,10 +614,10 @@ function coverage(ctx: InsightContext, add: Add): void {
     const isNew = daysBetween(days[0].date, start) > 7;
     add({
       ...card, id: 'sleep-coverage', importance: 29,
-      title: isNew ? 'Still getting to know your sleep' : 'Some nights have no record',
+      title: isNew ? t('insights.sleep.sleepCoverage.titleNew') : t('insights.sleep.sleepCoverage.titleThin'),
       text: isNew
-        ? `Your sleep records start on ${dayMonth(start)}, so there ${recorded === 1 ? 'is 1 night' : `are ${recorded} nights`} so far. Comparisons will get sharper as more nights come in.`
-        : `Your watch recorded sleep on ${recorded} of the last ${days.length} nights. Nights without a record are left out of your averages rather than counted as zero.`,
+        ? t('insights.sleep.sleepCoverage.textNew', { date: formatDayMonthLong(start), nights: recorded })
+        : t('insights.sleep.sleepCoverage.textThin', { recorded, nights: days.length }),
     });
   }
   const gaps = findGaps(days, 'sleep', 3);
@@ -587,8 +626,8 @@ function coverage(ctx: InsightContext, add: Add): void {
     if (daysBetween(g.to, today) <= 7) {
       add({
         ...card, id: 'sleep-gap', importance: 28,
-        title: 'A few nights are missing',
-        text: `There's no sleep data from ${dayMonth(g.from)} to ${dayMonth(g.to)}. Those nights are left out of your averages rather than counted as zero.`,
+        title: t('insights.sleep.sleepGap.title'),
+        text: t('insights.sleep.sleepGap.text', { from: formatDayMonthLong(g.from), to: formatDayMonthLong(g.to) }),
       });
     }
   }

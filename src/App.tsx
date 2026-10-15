@@ -2,13 +2,14 @@ import React, { useState, useEffect, useMemo } from 'react';
 import type { IntradaySample } from './types/health';
 import { FileCode2, FlaskConical, Footprints, Heart, Moon, RefreshCw, User, ShieldAlert, PersonStanding } from 'lucide-react';
 import { useAuth } from './hooks/useAuth';
-import { useHealth } from './hooks/useHealth';
+import { useHealth, type SyncFailure } from './hooks/useHealth';
 import { HistoryProvider } from './hooks/useHistory';
 import { GoalsProvider } from './hooks/useGoals';
 import { DASHBOARD_WINDOW_DAYS } from './pipeline/sync';
 import { FIXTURE_CLOCK } from './pipeline/fixtures';
 import { formatCivilDay } from './i18n/format';
 import { t } from './i18n';
+import { streamError, streamName } from './i18n/streams';
 import { api } from './lib/api';
 import type { Gender } from './pipeline/registry';
 import { readGoals, type Goals } from './pipeline/goals';
@@ -23,6 +24,25 @@ import { BodyView } from './views/BodyView';
 import { DataView } from './views/DataView';
 import { LabsView } from './views/LabsView';
 
+/** Why the sync failed, in words: a reason the app can name, or the failure's own words when it can't. */
+function failureText(f: SyncFailure): string {
+  switch (f.code) {
+    case 'rejected':
+      return t('app.syncFailed.reasons.rejected', { detail: streamError(f.detail) ?? '' });
+    case 'reconnect':
+      return t('app.syncFailed.reasons.reconnect');
+    case 'tokenRefresh':
+      return t('app.syncFailed.reasons.tokenRefresh', { status: f.status });
+    case 'request':
+      return t('app.syncFailed.reasons.request', { status: f.status });
+    case 'noData':
+      return t('app.syncFailed.reasons.noData');
+    case 'unknown':
+      return t('app.syncFailed.reasons.unknown');
+    case 'other':
+      return f.detail;
+  }
+}
 
 export default function App() {
   const { user, needsReconnect, ready, signIn, signOut, deleteAccount, reload } = useAuth();
@@ -221,7 +241,7 @@ export default function App() {
             <ShieldAlert size={16} className="text-rose-400 mt-0.5 shrink-0" />
             <div className="flex-1">
               <h3 className="text-detail font-semibold text-rose-400">{t('app.syncFailed.title')}</h3>
-              <p className="text-caption text-rose-400/80 mt-1">{health.error}</p>
+              <p className="text-caption text-rose-400/80 mt-1">{failureText(health.error)}</p>
             </div>
             <button 
               onClick={health.refresh}
@@ -252,7 +272,11 @@ export default function App() {
             </div>
             <p className="mt-2 text-caption text-zinc-500 tabular-nums">
               {health.progress
-                ? t('app.firstSync.progress', { stream: health.progress.label, done: health.progress.done, total: health.progress.total })
+                ? t('app.firstSync.progress', {
+                    stream: streamName(health.progress.dataType, health.progress.label),
+                    done: health.progress.done,
+                    total: health.progress.total,
+                  })
                 : t('app.firstSync.connecting')}
             </p>
           </div>

@@ -1,14 +1,15 @@
-import { addDays, daysBetween, isoWeekdayIndex } from '../../../lib/date';
+import { addDays, daysBetween, isoWeekdayIndex, type CivilDate } from '../../../lib/date';
+import { t } from '../../../i18n';
+import {
+  formatClock, formatDayMonthLong, formatFixed, formatInteger, formatList, formatMonth, isoWeekdayName,
+} from '../../../i18n/format';
 import type { DailyRecord } from '../../../types/health';
 import { completedDays, goalStreak, loadRatio, periodShift, series, stats, values, type Point } from '../../derive';
 import { WHO_DAY, WHO_WEEK } from '../../goals';
 import type { InsightContext } from '../context';
-import {
-  ENTRY_WINDOW, briskMins, clk, dayMonth, fmtInt, heldFor, listOf, monthName, pastYear, plural, freshEntry,
-  sinceNote, zoneMins,
-} from '../helpers';
+import { ENTRY_WINDOW, briskMins, heldFor, pastYear, reachesYear, freshEntry, sinceNote, zoneMins } from '../helpers';
 import { movementHrvAssociation } from '../association';
-import { WEEKDAYS, activeHours, dayRecord, lastMonthBest, monthsOf, weekdayExtremes } from '../patterns';
+import { activeHours, dayRecord, lastMonthBest, monthsOf, weekdayExtremes } from '../patterns';
 import type { HistoryQueries } from '../../history';
 import type { Finding } from '../types';
 
@@ -53,7 +54,11 @@ export function activityRules(ctx: InsightContext, add: Add): void {
 }
 
 /** A round figure to say "about" in front of. */
-const about = (v: number, to = 100) => fmtInt(Math.round(v / to) * to);
+const about = (v: number, to = 100) => Math.round(v / to) * to;
+
+/** How far back a record reaches, for its title: 'year' ("in a year") or 'history' ("yet"). */
+type Reach = 'year' | 'history';
+const reachOf = (first: CivilDate | null, today: CivilDate): Reach => (reachesYear(first, today) ? 'year' : 'history');
 
 /** This week's step volume against the weeks before it. */
 function volume(ctx: InsightContext, add: Add): void {
@@ -68,8 +73,8 @@ function volume(ctx: InsightContext, add: Add): void {
       ...base, id: 'ramp', kind: 'alert', tone: 'watch', direction: 'up',
       importance: 84, topic: 'movement-volume', family: 'movement-volume', today: 'as-news', news,
       claims: { metric: 'steps', direction: 'up' }, evidence: 28,
-      title: "You're moving a lot more than usual",
-      text: `This week you've taken ${load.ratio.toFixed(1)} times as many steps as in an average week over the three before. Big jumps are easy to make without noticing, so let how you feel be your guide.${news ? '' : sinceNote(held)}`,
+      title: t('insights.activity.ramp.title'),
+      text: t('insights.activity.ramp.text', { ratio: formatFixed(load.ratio, 1) }) + (news ? '' : sinceNote(held)),
     });
   }
 
@@ -88,10 +93,12 @@ function volume(ctx: InsightContext, add: Add): void {
       importance: dir === 1 ? 62 : 40, topic: 'movement-volume', family: 'movement-volume',
       today: dir === 1 ? 'as-news' : 'never', news,
       claims: { metric: 'steps', direction: dir === 1 ? 'up' : 'down' }, evidence: sh.nCurrent + sh.nPrevious,
-      title: dir === 1 ? "You've been moving more this week" : 'A quieter week',
+      title: t(dir === 1 ? 'insights.activity.stepsUp.title' : 'insights.activity.stepsDown.title'),
       text: dir === 1
-        ? `You're averaging ${fmtInt(sh.current!)} steps a day this week, up from ${fmtInt(sh.previous!)} last week. That's ${Math.round(sh.deltaPct!)}% more.${news ? '' : sinceNote(held)}`
-        : `You've averaged ${fmtInt(sh.current!)} steps a day this week, compared with ${fmtInt(sh.previous!)} last week. Maybe it was a rest week, or just a busy one at the desk.`,
+        ? t('insights.activity.stepsUp.text', {
+          count: Math.round(sh.current!), previous: formatInteger(sh.previous!), pct: Math.round(sh.deltaPct!),
+        }) + (news ? '' : sinceNote(held))
+        : t('insights.activity.stepsDown.text', { count: Math.round(sh.current!), previous: formatInteger(sh.previous!) }),
     });
     break;
   }
@@ -111,8 +118,8 @@ function milestones(ctx: InsightContext, add: Add): void {
       // Short streaks stay on the page; from a week they're worth Today on the day they land.
       today: streak >= 7 ? 'as-news' : 'never',
       news: STREAK_SET.has(streak) && goalStreak(doneSteps, (v) => v >= goal) !== streak,
-      title: "You're on a streak",
-      text: `You've walked more than ${fmtInt(goal)} steps every day for ${streak} days in a row.`,
+      title: t('insights.activity.streak.title'),
+      text: t('insights.activity.streak.text', { goal, count: streak }),
     });
   }
 
@@ -129,13 +136,17 @@ function milestones(ctx: InsightContext, add: Add): void {
     // A year's record once it also beats every stored day in the past year before the window.
     const yearly = before !== null && record.value! > before.value;
     const priorMax = Math.max(...finished.slice(0, at).map((pt) => pt.value!), yearly ? before!.value : 0);
-    const span = pastYear(answered?.first?.date ?? null, today);
+    const first = answered?.first?.date ?? null;
+    const span = pastYear(first, today);
     if (age <= 7) {
+      const reach = yearly ? reachOf(first, today) : 'twoMonths';
       add({
         ...base, id: 'step-record', kind: 'milestone', tone: 'good',
         importance: 77, topic: 'step-record', family: 'movement-milestone', today: 'as-news', news: age <= ENTRY_WINDOW + 1,
-        title: !yearly ? 'Your biggest day in two months' : span === 'in the past year' ? 'Your biggest day in a year' : 'Your biggest day yet',
-        text: `You walked ${fmtInt(record.value!)} steps on ${dayMonth(record.date)}. That's your biggest day ${yearly ? span : 'in the last two months'}. Your previous best was ${fmtInt(priorMax)}.`,
+        title: t('insights.activity.stepRecord.title', { reach }),
+        text: t('insights.activity.stepRecord.text', {
+          reach, count: Math.round(record.value!), date: formatDayMonthLong(record.date), span, previous: formatInteger(priorMax),
+        }),
       });
     }
   }
@@ -148,14 +159,16 @@ function milestones(ctx: InsightContext, add: Add): void {
     const total = minutes(days.length);
     if (total >= WHO_WEEK) {
       const spare = 6 - isoWeekdayIndex(today);
+      // The week's minutes print as they always have, without digit grouping: a hard week passes 1000.
+      const earned = Math.round(total);
       add({
         ...base, id: 'who-week', kind: 'milestone', tone: 'good',
         importance: 58, topic: 'weekly-target', family: 'movement-milestone', today: 'as-news',
         news: minutes(days.length - 1) < WHO_WEEK,
-        title: 'You hit the weekly activity target',
-        text: `${hasAzm
-          ? `You've earned ${Math.round(total)} active zone minutes this week.`
-          : `You've done ${Math.round(total)} minutes of brisk activity this week, with harder minutes counting double.`} That passes the WHO's recommended ${WHO_WEEK}${spare > 0 ? `, with ${plural(spare, 'day')} to spare` : ''}.`,
+        title: t('insights.activity.whoWeek.title'),
+        text: t('insights.activity.whoWeek.text', {
+          source: hasAzm ? 'zone' : 'brisk', count: earned, minutes: earned, spare, target: WHO_WEEK,
+        }),
       });
     }
   }
@@ -171,14 +184,18 @@ function intensity(ctx: InsightContext, add: Add): void {
   for (const dir of [1, -1] as const) {
     if (!shiftP(mvpa, dir)) continue;
     const sh = periodShift(mvpa, 7);
+    // Printed without digit grouping, as it always has been.
+    const minutes = Math.round(sh.current!);
     add({
       ...base, id: dir === 1 ? 'mvpa-up' : 'mvpa-down', kind: 'trend', tone: dir === 1 ? 'good' : 'neutral',
       direction: dir === 1 ? 'up' : 'down',
       importance: dir === 1 ? 59 : 38, topic: 'movement-intensity', family: 'movement-volume', today: 'never',
       news: freshEntry((n) => shiftP(mvpa.slice(0, mvpa.length - n), dir)),
       claims: { metric: 'brisk', direction: dir === 1 ? 'up' : 'down' }, evidence: sh.nCurrent + sh.nPrevious,
-      title: dir === 1 ? 'More brisk activity this week' : 'Less brisk activity this week',
-      text: `You're averaging ${plural(Math.round(sh.current!), 'minute')} of brisk activity a day this week, ${dir === 1 ? 'up' : 'down'} from ${Math.round(sh.previous!)} last week.${dir === 1 ? " That's the kind of activity the guidelines count." : ''}`,
+      title: t(dir === 1 ? 'insights.activity.mvpaUp.title' : 'insights.activity.mvpaDown.title'),
+      text: t(dir === 1 ? 'insights.activity.mvpaUp.text' : 'insights.activity.mvpaDown.text', {
+        count: minutes, minutes, previous: Math.round(sh.previous!),
+      }),
     });
     break;
   }
@@ -197,16 +214,18 @@ function nudges(ctx: InsightContext, add: Add): void {
   if (part === 'midday' && hour >= 13 && steps < stepMedian * 0.3 && !yesterdayLow) {
     add({
       ...nudge, id: 'slow-day', tone: 'neutral', importance: 54, daypart: ['midday'],
-      title: 'A slow start today',
-      text: `It's ${clk(minutesNow)} and you've taken ${fmtInt(steps)} steps so far. On a normal day you reach about ${fmtInt(stepMedian)}.`,
-      action: 'A 10-minute walk after lunch would get things moving. Short breaks from sitting make a real difference.',
+      title: t('insights.activity.slowDay.title'),
+      text: t('insights.activity.slowDay.text', {
+        time: formatClock(minutesNow), count: Math.round(steps), usual: formatInteger(stepMedian),
+      }),
+      action: t('insights.activity.slowDay.action'),
     });
   }
   if (part === 'midday' && hour < 13 && steps > stepMedian * 0.8) {
     add({
       ...nudge, id: 'ahead-of-yourself', tone: 'good', importance: 56, daypart: ['midday'],
-      title: "You're ahead of your usual pace",
-      text: `You've already taken ${fmtInt(steps)} steps before lunch. That's most of a normal day for you.`,
+      title: t('insights.activity.aheadOfYourself.title'),
+      text: t('insights.activity.aheadOfYourself.text', { count: Math.round(steps) }),
     });
   }
   if (part === 'evening') {
@@ -214,9 +233,9 @@ function nudges(ctx: InsightContext, add: Add): void {
     if (gap >= 800 && gap <= 2500) {
       add({
         ...nudge, id: 'within-reach', tone: 'good', importance: 61, daypart: ['evening'],
-        title: 'Your step goal is within reach',
-        text: `You're ${fmtInt(gap)} steps short of ${fmtInt(ctx.goals.steps)}.`,
-        action: 'A 15-minute walk would close the gap.',
+        title: t('insights.activity.withinReach.title'),
+        text: t('insights.activity.withinReach.text', { count: Math.round(gap), goal: formatInteger(ctx.goals.steps) }),
+        action: t('insights.activity.withinReach.action'),
       });
     }
   }
@@ -233,8 +252,11 @@ function association(ctx: InsightContext, add: Add): void {
   add({
     ...base, id: 'movement-hrv-association', kind: 'pattern', tone: 'neutral',
     importance: 51, topic: 'correlation', family: 'correlation', today: 'never', news: false,
-    title: 'Big days and your recovery',
-    text: `Over the last ${a.weeks} weeks, your HRV was usually about ${a.pct}% lower on the night after a day of more than ${fmtInt(a.threshold)} steps. That's based on ${a.nHigh} big days and ${a.nLow} ordinary ones.${a.excludedIllnessNights > 0 ? ' Nights around signs of illness were left out.' : ''} It's a pattern in your data, not proof that one causes the other.`,
+    title: t('insights.activity.movementHrvAssociation.title'),
+    text: t('insights.activity.movementHrvAssociation.text', {
+      weeks: a.weeks, pct: a.pct, threshold: Math.round(a.threshold), high: a.nHigh, low: a.nLow,
+      illness: a.excludedIllnessNights > 0,
+    }),
   });
 }
 
@@ -255,8 +277,8 @@ function quietDays(ctx: InsightContext, add: Add): void {
     importance: 41, topic: 'movement-volume', family: 'movement-volume', today: 'never',
     news: count(ctx.doneSteps.slice(0, -(ENTRY_WINDOW + 1))) < 3,
     claims: { metric: 'steps', direction: 'down' }, evidence: 7,
-    title: 'A few very quiet days',
-    text: `You had ${n} days in the last week with fewer than ${fmtInt(line)} steps. That's under half of your usual day, which is about ${about(stepMedian)} steps.`,
+    title: t('insights.activity.activityQuietDays.title'),
+    text: t('insights.activity.activityQuietDays.text', { count: n, line, usual: about(stepMedian) }),
   });
 }
 
@@ -273,10 +295,10 @@ function activeStreak(ctx: InsightContext, add: Add): void {
     importance: 60, topic: 'active-streak', family: 'movement-milestone',
     today: n >= 7 ? 'as-news' : 'never',
     news: [3, 5, 7, 14, 30].includes(n) && goalStreak(daily.slice(0, -1), meets) !== n,
-    title: 'Active days in a row',
-    text: azm
-      ? `You've earned at least ${WHO_DAY} active zone minutes every day for ${n} days. That's a day's share of the WHO's recommended ${WHO_WEEK} a week.`
-      : `You've done at least ${WHO_DAY} minutes of brisk activity every day for ${n} days, with harder minutes counting double. That's a day's share of the WHO's recommended ${WHO_WEEK} a week.`,
+    title: t('insights.activity.activityAzmStreak.title'),
+    text: t('insights.activity.activityAzmStreak.text', {
+      source: azm ? 'zone' : 'brisk', daily: WHO_DAY, count: n, target: WHO_WEEK,
+    }),
   });
 }
 
@@ -296,8 +318,10 @@ function backOnTrack(ctx: InsightContext, add: Add): void {
   add({
     ...base, id: 'activity-back-at-it', kind: 'milestone', tone: 'good',
     importance: 57, topic: 'back-on-track', family: 'movement-milestone', today: 'as-news', news: age <= 1,
-    title: 'Back on track',
-    text: `You passed ${fmtInt(goal)} steps ${age === 0 ? 'today' : `on ${dayMonth(latest.date)}`} for the first time in ${gap} days.`,
+    title: t('insights.activity.activityBackAtIt.title'),
+    text: t('insights.activity.activityBackAtIt.text', {
+      when: age === 0 ? 'today' : 'earlier', goal, date: formatDayMonthLong(latest.date), gap,
+    }),
   });
 }
 
@@ -314,8 +338,8 @@ function distance(ctx: InsightContext, add: Add): void {
       ...base, id: 'activity-distance', kind: 'milestone', tone: 'good',
       importance: 55, topic: 'distance-week', family: 'movement-milestone', today: 'as-news',
       news: sum(week.slice(0, -1)) < MARATHON_KM,
-      title: "A marathon's distance this week",
-      text: `You've covered ${weekKm.toFixed(1)} km this week. That's more than the length of a marathon.`,
+      title: t('insights.activity.activityDistance.title'),
+      text: t('insights.activity.activityDistance.text', { km: formatFixed(weekKm, 1) }),
     });
   }
 
@@ -327,8 +351,8 @@ function distance(ctx: InsightContext, add: Add): void {
       ...base, id: 'activity-distance-month', kind: 'milestone', tone: 'good',
       importance: 56, topic: 'distance-month', family: 'movement-milestone', today: 'as-news',
       news: sum(month.slice(0, -1)) < mark,
-      title: `You've passed ${mark} km this month`,
-      text: `You've covered ${Math.floor(monthKm)} km so far this month.`,
+      title: t('insights.activity.activityDistanceMonth.title', { mark }),
+      text: t('insights.activity.activityDistanceMonth.text', { km: Math.floor(monthKm) }),
     });
   }
 }
@@ -346,12 +370,14 @@ function floorsRecord(ctx: InsightContext, add: Add): void {
   if (!last || last.end !== s.length || last.sum < 10 || weeks.length < 6) return;
   const beats = (i: number) => weeks[i].sum > Math.max(...weeks.slice(0, i).map((w) => w.sum));
   if (!beats(weeks.length - 1)) return;
+  // Printed without digit grouping, as it always has been: a week in the hills can pass 1000.
+  const floors = Math.round(last.sum);
   add({
     ...base, id: 'activity-floors', kind: 'milestone', tone: 'good',
     importance: 50, topic: 'floors', family: 'movement-milestone', today: 'never',
     news: !beats(weeks.length - 2),
-    title: "You've been climbing more",
-    text: `You climbed ${Math.round(last.sum)} floors in the last 7 days, the most in any week of the last two months.`,
+    title: t('insights.activity.activityFloors.title'),
+    text: t('insights.activity.activityFloors.text', { count: floors, floors }),
   });
 }
 
@@ -365,16 +391,12 @@ function intensityMix(ctx: InsightContext, add: Add): void {
   if (total < 60) return;
   const hardDays = recent.filter((d) => d.zoneMinutes!.cardio + d.zoneMinutes!.peak >= 5).length;
   const share = moderate / total;
-  const lead = share >= 0.6
-    ? 'Most of your active minutes in the last four weeks were at a moderate effort, in the fat-burn zone.'
-    : share <= 0.4
-      ? 'Most of your active minutes in the last four weeks were at a hard effort, in the cardio and peak zones.'
-      : 'Your active minutes in the last four weeks were split fairly evenly between moderate and hard effort.';
+  const mix = share >= 0.6 ? 'moderate' : share <= 0.4 ? 'hard' : 'even';
   add({
     ...base, id: 'activity-intensity-mix', kind: 'pattern', tone: 'neutral',
     importance: 43, topic: 'intensity-mix', family: 'activity-patterns', today: 'never', news: false,
-    title: "How hard you're working",
-    text: `${lead} You spent at least 5 minutes in the cardio or peak zone on ${plural(hardDays, 'day')}.`,
+    title: t('insights.activity.activityIntensityMix.title'),
+    text: t('insights.activity.activityIntensityMix.text', { mix, count: hardDays }),
   });
 }
 
@@ -392,13 +414,15 @@ function weekendLoad(ctx: InsightContext, add: Add): void {
   const top = [...mins].sort((a, b) => b.m - a.m).slice(0, 2).sort((a, b) => (a.date < b.date ? -1 : 1));
   const share = (top[0].m + top[1].m) / total;
   if (share < 0.6) return;
-  const names = top.map((x) => WEEKDAYS[isoWeekdayIndex(x.date)]);
+  const names = top.map((x) => isoWeekdayName(isoWeekdayIndex(x.date)));
   const weekend = top.every((x) => isoWeekdayIndex(x.date) >= 5);
   add({
     ...base, id: 'activity-weekend-load', kind: 'pattern', tone: 'neutral',
     importance: 42, topic: 'weekend-load', family: 'activity-patterns', today: 'never', news: isoWeekdayIndex(today) === 0,
-    title: weekend ? 'Your weekends do most of the work' : 'Two days did most of the work',
-    text: `Last week, ${Math.round(share * 100)}% of your ${azm ? 'active zone minutes' : 'brisk minutes'} came on ${listOf(names)}. Your weekly total counts the same however you spread it.`,
+    title: t('insights.activity.activityWeekendLoad.title', { split: weekend ? 'weekend' : 'twoDays' }),
+    text: t('insights.activity.activityWeekendLoad.text', {
+      source: azm ? 'zone' : 'brisk', share: Math.round(share * 100), days: formatList(names),
+    }),
   });
 }
 
@@ -413,9 +437,11 @@ function goalDays(ctx: InsightContext, add: Add): void {
     const v = values(s);
     return { n: v.length, hits: v.filter((x) => x >= goal).length };
   };
-  const phrase = (t: { n: number; hits: number }, span: string) => {
-    const days = t.n === 28 ? `the ${span} 28 days` : `${t.n} recorded days in the ${span} four weeks`;
-    return t.hits === t.n ? `every one of ${days}` : `${t.hits} of ${days}`;
+  // "every one of the last 28 days", or "12 of 25 recorded days in the last four weeks".
+  const phrase = (x: { n: number; hits: number }) => {
+    const every = x.hits === x.n;
+    const shape = x.n === 28 ? (every ? 'everyDay' : 'someDays') : every ? 'everyRecorded' : 'someRecorded';
+    return t('insights.activity.common.goalDays', { shape, hits: x.hits, count: x.n });
   };
   const shift = (done: Point[]) => {
     const a = tally(done.slice(-28));
@@ -432,8 +458,8 @@ function goalDays(ctx: InsightContext, add: Add): void {
       importance: up ? 54 : 39, topic: 'goal-days', family: 'movement-volume', today: 'never',
       news: !then || Math.abs(then.perWeek) < 1 || Math.sign(then.perWeek) !== Math.sign(now.perWeek),
       claims: { metric: 'goal-days', direction: up ? 'up' : 'down' }, evidence: now.a.n + now.b.n,
-      title: up ? "You're hitting your goal more often" : "You're reaching your goal less often",
-      text: `You reached ${fmtInt(goal)} steps on ${phrase(now.a, 'last')}. In the four weeks before, it was ${now.b.hits} of ${now.b.n} days.`,
+      title: t('insights.activity.activityConsistency.title', { trend: up ? 'up' : 'down' }),
+      text: t('insights.activity.activityConsistency.text', { goal, days: phrase(now.a), hits: now.b.hits, total: now.b.n }),
     });
     return;
   }
@@ -443,11 +469,12 @@ function goalDays(ctx: InsightContext, add: Add): void {
   if (recent.n < 21 || median === null) return;
   const above = median >= goal * 1.3;
   if (!above && median > goal * 0.7) return;
+  const fit = above ? 'above' : 'below';
   add({
     ...base, id: 'activity-goal-fit', kind: 'pattern', tone: 'neutral',
     importance: 37, topic: 'goal-days', family: 'activity-patterns', today: 'never', news: false,
-    title: above ? 'You usually beat your goal' : 'Your goal is a stretch most days',
-    text: `On a typical day you take about ${about(median)} steps${above ? `, well past the ${fmtInt(goal)} goal` : ''}. You reached ${fmtInt(goal)} on ${phrase(recent, 'last')}.`,
+    title: t('insights.activity.activityGoalFit.title', { fit }),
+    text: t('insights.activity.activityGoalFit.text', { fit, count: about(median), goal: formatInteger(goal), days: phrase(recent) }),
   });
 }
 
@@ -458,8 +485,11 @@ function weekShape(ctx: InsightContext, add: Add): void {
   add({
     ...base, id: 'activity-week-shape', kind: 'pattern', tone: 'neutral',
     importance: 44, topic: 'activity-week-shape', family: 'activity-patterns', today: 'never', news: false,
-    title: 'Your most and least active days',
-    text: `${WEEKDAYS[ext.high.weekday]} is usually your most active day, at about ${about(ext.high.median!)} steps. ${WEEKDAYS[ext.low.weekday]} is usually your quietest, at about ${about(ext.low.median!)}.`,
+    title: t('insights.activity.activityWeekShape.title'),
+    text: t('insights.activity.activityWeekShape.text', {
+      activeDay: isoWeekdayName(ext.high.weekday), count: about(ext.high.median!),
+      quietDay: isoWeekdayName(ext.low.weekday), quietSteps: formatInteger(about(ext.low.median!)),
+    }),
   });
 }
 
@@ -470,18 +500,18 @@ function peakHours(ctx: InsightContext, add: Add): void {
   if (!intraday || age === null || rest === null) return;
   const h = activeHours(days, intraday, age, rest);
   if (!h || (!h.weekdays && !h.weekends)) return;
-  const span = (w: { fromHour: number }) => `between ${clk(w.fromHour * 60)} and ${clk((w.fromHour + 2) * 60)}`;
+  // Each two-hour window's first and last hour on the clock, for "between 17:00 and 19:00".
+  const from = (w: { fromHour: number } | null) => (w ? formatClock(w.fromHour * 60) : '');
+  const to = (w: { fromHour: number } | null) => (w ? formatClock((w.fromHour + 2) * 60) : '');
   const { weekdays: wd, weekends: we } = h;
-  const lead = wd && we
-    ? wd.fromHour === we.fromHour
-      ? `You're usually most active ${span(wd)}, on weekdays and at weekends.`
-      : `On weekdays you're most active ${span(wd)}. At weekends it's ${span(we)}.`
-    : wd ? `On weekdays you're most active ${span(wd)}.` : `At weekends you're most active ${span(we!)}.`;
+  const when = wd && we ? (wd.fromHour === we.fromHour ? 'same' : 'split') : wd ? 'weekdays' : 'weekends';
   add({
     ...base, id: 'activity-peak-hours', kind: 'pattern', tone: 'neutral',
     importance: 45, topic: 'peak-hours', family: 'activity-patterns', today: 'never', news: false,
-    title: "When you're most active",
-    text: `${lead} That's when your heart rate most often reaches a brisk-walking level, ${h.threshold} bpm or more. It's based on ${h.days} days of heart-rate readings from the last four weeks.`,
+    title: t('insights.activity.activityPeakHours.title'),
+    text: t('insights.activity.activityPeakHours.text', {
+      when, from: from(wd), to: to(wd), weekendFrom: from(we), weekendTo: to(we), threshold: h.threshold, count: h.days,
+    }),
   });
 }
 
@@ -492,8 +522,10 @@ function bestMonth(ctx: InsightContext, add: Add): void {
   add({
     ...base, id: 'activity-best-month', kind: 'milestone', tone: 'good',
     importance: 64, topic: 'best-month-steps', family: 'monthly-best', today: 'as-news', news: ctx.dom <= 2,
-    title: 'Your most active month',
-    text: `You averaged ${fmtInt(best.value)} steps a day in ${monthName(best.month, ctx.today)}. That's your most active month ${pastYear(`${best.since}-01`, ctx.today)}.`,
+    title: t('insights.activity.activityBestMonth.title'),
+    text: t('insights.activity.activityBestMonth.text', {
+      count: Math.round(best.value), month: formatMonth(best.month, ctx.today), span: pastYear(`${best.since}-01`, ctx.today),
+    }),
   });
 }
 
@@ -518,13 +550,14 @@ function weekRecord(ctx: InsightContext, add: Add): void {
   const beats = (i: number) =>
     weeks[i].sum > Math.max(...weeks.slice(0, i).map((w) => w.sum), before ?? 0);
   if (!beats(weeks.length - 1)) return;
-  const span = pastYear(answered?.first?.date ?? ctx.days[0].date, today);
+  const first = answered?.first?.date ?? ctx.days[0].date;
+  const span = pastYear(first, today);
   add({
     ...base, id: 'activity-week-record', kind: 'milestone', tone: 'good',
     importance: 65, topic: 'movement-volume', family: 'movement-volume', today: 'as-news',
     news: weeks.length < 2 || !beats(weeks.length - 2),
-    title: span === 'in the past year' ? 'Your most active week in a year' : 'Your most active week yet',
-    text: `You took ${fmtInt(last.sum)} steps over the last 7 days. That's your most active week ${span}.`,
+    title: t('insights.activity.activityWeekRecord.title', { reach: reachOf(first, today) }),
+    text: t('insights.activity.activityWeekRecord.text', { count: Math.round(last.sum), span }),
   });
 }
 
@@ -535,23 +568,24 @@ function dayRecords(ctx: InsightContext, add: Add): void {
   const defs = [
     {
       id: 'activity-longest-walk', topic: 'distance-record', measure: 'distanceKm' as const, answer: answers.longestWalk, mustReach: 5,
-      title: (yet: string) => `Your longest walk ${yet}`,
+      title: (reach: Reach) => t('insights.activity.activityLongestWalk.title', { reach }),
       text: (v: number, date: string, span: string, prev: number) =>
-        `You covered ${v.toFixed(1)} km on ${date}, your furthest day ${span}. Your previous best was ${prev.toFixed(1)} km.`,
+        t('insights.activity.activityLongestWalk.text', { km: formatFixed(v, 1), date, span, previous: formatFixed(prev, 1) }),
     },
     {
       id: 'activity-most-floors', topic: 'floors', measure: 'floors' as const, answer: answers.mostFloors, mustReach: 10,
-      title: (yet: string) => `Your most floors ${yet}`,
+      title: (reach: Reach) => t('insights.activity.activityMostFloors.title', { reach }),
       text: (v: number, date: string, span: string, prev: number) =>
-        `You climbed ${fmtInt(v)} floors on ${date}, your most in a day ${span}. Your previous best was ${fmtInt(prev)}.`,
+        t('insights.activity.activityMostFloors.text', { count: Math.round(v), date, span, previous: formatInteger(prev) }),
     },
     {
       id: 'activity-hardest-day', topic: 'hardest-day', measure: azm ? 'activeZoneMinutes' as const : 'briskMinutes' as const,
       answer: azm ? answers.hardestDay : answers.hardestBriskDay, mustReach: 30,
-      title: (yet: string) => `Your hardest day ${yet}`,
-      text: (v: number, date: string, span: string, prev: number) => azm
-        ? `You earned ${fmtInt(v)} active zone minutes on ${date}, your most in a day ${span}. Your previous best was ${fmtInt(prev)}.`
-        : `You did ${fmtInt(v)} minutes of brisk activity on ${date}, harder minutes counting double. That's your most in a day ${span}. Your previous best was ${fmtInt(prev)}.`,
+      title: (reach: Reach) => t('insights.activity.activityHardestDay.title', { reach }),
+      text: (v: number, date: string, span: string, prev: number) =>
+        t('insights.activity.activityHardestDay.text', {
+          source: azm ? 'zone' : 'brisk', count: Math.round(v), date, span, previous: formatInteger(prev),
+        }),
     },
   ];
   for (const def of defs) {
@@ -561,8 +595,8 @@ function dayRecords(ctx: InsightContext, add: Add): void {
     add({
       ...base, id: def.id, kind: 'milestone', tone: 'good',
       importance: 66, topic: def.topic, family: 'movement-milestone', today: 'as-news', news: r.age <= ENTRY_WINDOW + 1,
-      title: def.title(span === 'in the past year' ? 'in a year' : 'yet'),
-      text: def.text(r.value, dayMonth(r.date), span, r.previous),
+      title: def.title(reachOf(r.since, today)),
+      text: def.text(r.value, formatDayMonthLong(r.date), span, r.previous),
     });
   }
 }

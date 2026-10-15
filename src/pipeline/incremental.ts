@@ -1,5 +1,5 @@
 import { addDays, dateRange, type CivilDate } from '../lib/date';
-import type { DailyRecord, HealthDataset, SleepSession, SourceRef, StreamReport, StreamStatus } from '../types/health';
+import type { DailyRecord, HealthDataset, SleepSession, SourceRef, StreamErrorCode, StreamReport, StreamStatus } from '../types/health';
 import { answerQueries, queriesSpan, type HistoryAnswers, type HistoryQueries } from './history';
 import { fetchIntradayHeartRate, sampleCount, unpackIntraday, type IntradayDay } from './intraday';
 import { emptyRecord, normalize } from './normalize';
@@ -11,7 +11,7 @@ import {
   type ScopeKey,
   type StreamDescriptor,
 } from './registry';
-import { pool, type ApiResult, type HealthTransport } from './transport';
+import { pool, type ApiResult, type FetchError, type HealthTransport } from './transport';
 
 /**
  * The sync engine: decides what to fetch, fetches it, and describes what to
@@ -87,8 +87,15 @@ export interface StreamState {
   sources: SourceRef[];
   /** Outcome of the last fetch. Observation counts are recomputed on read. */
   report: StreamReport;
-  /** Why the last history backfill of this stream failed, if it did; cleared on success. */
+  /**
+   * Why the last history backfill of this stream failed, if it did; cleared on success. Kept the
+   * way a report keeps its error: Google's words, or a code and what it needs. States stored
+   * before codes hold one English sentence here instead.
+   */
   backfillError?: string;
+  backfillErrorCode?: StreamErrorCode;
+  /** How many of a failed rollup backfill's date chunks failed, of how many. */
+  backfillChunks?: { failed: number; total: number };
 }
 
 export interface DateRange {
@@ -153,7 +160,8 @@ export interface IncrementalOptions {
   historyDays?: number;
   grantedScopes?: ScopeKey[];
   includeIntraday?: boolean;
-  onProgress?: (done: number, total: number, label: string) => void;
+  /** After each stream: its English label, for logs, and its dataType, for the app to name it. */
+  onProgress?: (done: number, total: number, label: string, dataType: string) => void;
 }
 
 // ─────────────────────────────────────────────────────────────── planning
@@ -288,7 +296,7 @@ async function syncStream(
       truncated: res.truncated,
       ms: res.ms,
       httpStatus: res.status,
-      error: res.error ? summariseError(res.error) : undefined,
+      ...reportError(res.error),
     },
   };
   return { write: { dataType: stream.dataType, replace: okRanges, days, state }, points };
@@ -321,7 +329,7 @@ export async function syncIncremental(opts: IncrementalOptions): Promise<SyncOut
     });
     // Lists are newest-first, so even an incremental fetch sees the latest height.
     if (stream.dataType === 'height' && write.state.report.status !== 'error') profile = { ...profile, ...extractProfile(points) };
-    opts.onProgress?.(++done, total, stream.label);
+    opts.onProgress?.(++done, total, stream.label, stream.dataType);
     return write;
   });
 
@@ -374,11 +382,11 @@ export async function syncIncremental(opts: IncrementalOptions): Promise<SyncOut
           truncated: false,
           ms: res.ms,
           httpStatus: res.status,
-          error: res.error ? summariseError(res.error) : undefined,
+          ...reportError(res.error),
         },
       },
     };
-    opts.onProgress?.(++done, total, INTRADAY_HEART_RATE.label);
+    opts.onProgress?.(++done, total, INTRADAY_HEART_RATE.label, INTRADAY_HEART_RATE.dataType);
   } else if (!intradayAllowed) {
     intraday = { purge: true, replace: [], days: {}, state: skippedState({ ...INTRADAY_HEART_RATE, mode: 'rollup' }) };
   }
@@ -430,6 +438,7 @@ export async function backfillStream(
   const to = addDays(prev.coveredFrom, -1);
   const { res, okRanges, days, sources } = await fetchStreamDays(transport, stream, start, to);
   const failed = res.chunks?.filter((c) => !c.ok).length;
+  const error: Pick<StreamReport, 'error' | 'errorCode'> = res.ok ? {} : reportError(res.error ?? { code: 'http', status: res.status });
   return {
     dataType: stream.dataType,
     replace: okRanges,
@@ -438,9 +447,9 @@ export async function backfillStream(
       ...prev,
       coveredFrom: res.ok ? start : prev.coveredFrom,
       sources: mergeSources(prev.sources, [...sources.values()]),
-      backfillError: res.ok
-        ? undefined
-        : `${failed ? `${failed} of ${res.chunks!.length} date chunks failed: ` : ''}${summariseError(res.error ?? `HTTP ${res.status}`)}`,
+      backfillError: error.error,
+      backfillErrorCode: error.errorCode,
+      backfillChunks: !res.ok && failed ? { failed, total: res.chunks!.length } : undefined,
     },
   };
 }
@@ -494,7 +503,8 @@ function skippedState(s: Pick<StreamDescriptor, 'dataType' | 'label' | 'domain' 
       pagesFetched: 0,
       truncated: false,
       ms: 0,
-      error: `Scope not granted: ${s.scope}`,
+      errorCode: 'scope',
+      error: s.scope,
     },
   };
 }
@@ -663,6 +673,16 @@ function mergeSources(a: SourceRef[], b: SourceRef[]): SourceRef[] {
 function httpStatusToStatus(status: number): StreamStatus {
   if (status === 401 || status === 403) return 'unauthorized';
   return 'error';
+}
+
+/**
+ * A failed fetch's error as its report keeps it: Google's words (or the network's), shortened, or
+ * a code and what it needs, for the app to say in the person's language.
+ */
+function reportError(e: FetchError | { code: 'truncated' } | undefined): Pick<StreamReport, 'error' | 'errorCode'> {
+  if (!e) return {};
+  if ('text' in e) return { error: summariseError(e.text) };
+  return e.code === 'http' ? { errorCode: 'http', error: String(e.status) } : { errorCode: e.code };
 }
 
 /** Google's errors are verbose JSON; keep the one sentence that helps. */

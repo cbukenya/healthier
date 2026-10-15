@@ -1,12 +1,13 @@
 import { addDays, daysBetween, isoWeekdayIndex } from '../../../lib/date';
+import { t, type MessageKey } from '../../../i18n';
+import {
+  capitalize, formatDayMonthLong, formatDuration, formatFixed, formatHoursDecimal, formatList, formatRounded,
+} from '../../../i18n/format';
 import type { DailyRecord } from '../../../types/health';
-import { readiness, series, sleepRegularity, stats, values, type Readiness } from '../../derive';
+import { readiness, series, sleepRegularity, stats, values, type Readiness, type ReadinessPartId } from '../../derive';
 import { dipping, entropyShift, illnessDates, nocturnalTachycardia, sdbScreen } from '../../labs';
 import type { InsightContext } from '../context';
-import {
-  CHARGED, COAST_BELOW, ENTRY_WINDOW, beforeLatestMorning, briskMins, dayMonth, entered, fmtInt, hm, hoursText, listOf, plural,
-  sentence, zoneMins,
-} from '../helpers';
+import { CHARGED, COAST_BELOW, ENTRY_WINDOW, beforeLatestMorning, briskMins, entered, zoneMins } from '../helpers';
 import type { Finding } from '../types';
 
 type Add = (f: Finding) => void;
@@ -24,32 +25,50 @@ export function todayRules(ctx: InsightContext, add: Add): void {
   labsReminders(ctx, add);
 }
 
-/** A battery part as a plain clause: "you slept 5h 50m compared to your 7h 20m need". */
-function reason(p: ReadinessPart, ctx: InsightContext): string {
+/** Where a reason goes: after "the main reason is that" or "mostly because", or standing as a sentence. */
+type ReasonForm = 'because' | 'statement';
+
+/**
+ * Each battery part's reason in both forms. Many languages order a clause's words differently after
+ * "because" than in a sentence of its own, so each form has a message.
+ */
+const REASONS = {
+  sleep: { because: 'insights.today.reasons.sleep.because', statement: 'insights.today.reasons.sleep.statement' },
+  sleepDebt: { because: 'insights.today.reasons.sleepDebt.because', statement: 'insights.today.reasons.sleepDebt.statement' },
+  hrv: { because: 'insights.today.reasons.hrv.because', statement: 'insights.today.reasons.hrv.statement' },
+  restingHr: { because: 'insights.today.reasons.restingHr.because', statement: 'insights.today.reasons.restingHr.statement' },
+  breathing: { because: 'insights.today.reasons.breathing.because', statement: 'insights.today.reasons.breathing.statement' },
+  skinTemp: { because: 'insights.today.reasons.skinTemp.because', statement: 'insights.today.reasons.skinTemp.statement' },
+  strain: { because: 'insights.today.reasons.strain.because', statement: 'insights.today.reasons.strain.statement' },
+} as const satisfies Record<ReadinessPartId, Record<ReasonForm, MessageKey>>;
+
+/** A battery part as a plain clause, in the form its sentence needs: "you slept 5h 50m compared to your 7h 20m need". */
+function reason(p: ReadinessPart, ctx: InsightContext, form: ReasonForm): string {
   const low = p.contribution < 0;
   switch (p.id) {
     case 'sleep': {
-      const n = ctx.lastNight;
-      if (!n) return low ? "last night's sleep was short" : 'you slept well last night';
-      if (low) return `you slept ${hm(n.minutesAsleep)} compared to your ${ctx.needH} need`;
-      return n.minutesAsleep >= ctx.need ? `you slept ${hm(n.minutesAsleep)}, more than your ${ctx.needH} need` : `you slept ${hm(n.minutesAsleep)}`;
+      // The battery scores sleep only when last night is in the window, so it is the night here too.
+      const n = ctx.lastNight!;
+      return t(REASONS.sleep[form], {
+        night: low ? 'short' : n.minutesAsleep >= ctx.need ? 'enough' : 'underNeed',
+        slept: formatDuration(n.minutesAsleep),
+        need: ctx.needH,
+      });
     }
     case 'sleepDebt':
       return ctx.debt && ctx.debt.netMin > 0
-        ? `you're ${hoursText(ctx.debt.netMin)} short on sleep this week`
-        : "you've had a little extra sleep this week";
+        ? t(REASONS.sleepDebt[form], { balance: 'short', hours: formatHoursDecimal(ctx.debt.netMin) })
+        : t(REASONS.sleepDebt[form], { balance: 'extra' });
     case 'hrv':
-      return low ? 'your HRV came in lower than usual' : 'your HRV is higher than usual';
+      return t(REASONS.hrv[form], { direction: low ? 'lower' : 'higher' });
     case 'restingHr':
-      return low ? 'your resting heart rate is higher than usual' : 'your resting heart rate is lower than usual';
+      return t(REASONS.restingHr[form], { direction: low ? 'higher' : 'lower' });
     case 'breathing':
-      return 'your breathing rate is higher than usual';
+      return t(REASONS.breathing[form]);
     case 'skinTemp':
-      return 'your skin temperature is running warm';
+      return t(REASONS.skinTemp[form]);
     case 'strain':
-      return "you've had some hard days recently";
-    default:
-      return p.label.toLowerCase();
+      return t(REASONS.strain[form]);
   }
 }
 
@@ -65,11 +84,9 @@ function battery(ctx: InsightContext, add: Add): void {
     add({
       id: 'illness-pattern', domain: 'cardio', page: 'today', kind: 'alert', tone: 'watch',
       importance: 95, topic: 'illness', family: 'recovery', today: 'while-true', news: !day2, advice: 'rest',
-      title: 'Several of your signals are off',
-      text: day2
-        ? 'For a second morning, several of your overnight readings are outside their usual range together. When this lasts more than a day, it is worth taking seriously.'
-        : 'Several of your overnight readings are outside their usual range at the same time. This can happen after hard training, a late meal, alcohol or travel, and sometimes when a cold is on the way.',
-      action: 'Drink some extra water, keep today light, and see how tonight goes.',
+      title: t('insights.today.illnessPattern.title'),
+      text: t(day2 ? 'insights.today.illnessPattern.textSecondMorning' : 'insights.today.illnessPattern.text'),
+      action: t('insights.today.illnessPattern.action'),
     });
   }
 
@@ -78,43 +95,47 @@ function battery(ctx: InsightContext, add: Add): void {
     const lowDays = rPrev.score !== null && rPrev.score < COAST_BELOW
       ? (readiness(beforeLatestMorning(prevDays), ctx.goals.sleepNeed).score ?? 99) < COAST_BELOW ? 3 : 2
       : 1;
-    const why = topNeg && topNeg.contribution < 0 ? ` The main reason is that ${reason(topNeg, ctx)}.` : '';
+    const why = topNeg && topNeg.contribution < 0 ? reason(topNeg, ctx, 'because') : null;
     add({
       id: 'battery-low', domain: 'body', page: 'today', kind: 'alert', tone: 'watch',
       importance: 82, topic: 'battery', family: 'recovery', today: 'while-true', news: lowDays === 1, advice: 'rest',
-      title: 'Take it easy today',
-      text: `Your body battery is ${rNow.score} out of 100.${why}${lowDays >= 3 ? " This is your third low morning in a row. If your training doesn't explain it, it's worth listening to." : ''}`,
-      action: ctx.part === 'morning' ? 'An easy day is the right call. Your fitness builds while you recover.' : undefined,
+      title: t('insights.today.batteryLow.title'),
+      text: t('insights.today.batteryLow.text', {
+        score: rNow.score, hasReason: why ? 'yes' : 'no', reason: why ?? '', thirdLowMorning: lowDays >= 3 ? 'yes' : 'no',
+      }),
+      action: ctx.part === 'morning' ? t('insights.today.batteryLow.action') : undefined,
     });
   } else if (
     rNow.score >= CHARGED && topPos !== null && topPos.contribution > 0 &&
     entered(ctx.days, (w) => (readiness(w, ctx.goals.sleepNeed).score ?? 0) >= CHARGED)
   ) {
-    const why = rNow.parts.filter((p) => p.contribution > 0).slice(0, 2).map((p) => reason(p, ctx));
+    const why = rNow.parts.filter((p) => p.contribution > 0).slice(0, 2).map((p) => reason(p, ctx, 'statement'));
     add({
       id: 'battery-green', domain: 'body', page: 'today', kind: 'nudge', tone: 'good',
       importance: 74, topic: 'battery', family: 'recovery', today: 'while-true', news: true, advice: 'push', daypart: ['morning'],
-      title: "You're fully charged today",
-      text: `Your body battery is ${rNow.score} out of 100. ${sentence(listOf(why))}.`,
-      action: "If you've been saving a hard workout, today is a good day for it.",
+      title: t('insights.today.batteryGreen.title'),
+      text: t('insights.today.batteryGreen.text', { score: rNow.score, reasons: capitalize(formatList(why)) }),
+      action: t('insights.today.batteryGreen.action'),
     });
   }
 
   if (rPrev.score !== null && rNow.confidence !== 'low' && rPrev.confidence !== 'low') {
     const move = rNow.score - rPrev.score;
     if (move >= 8) {
+      const why = topPos && topPos.contribution > 0 ? reason(topPos, ctx, 'because') : null;
       add({
         id: 'battery-recharge', domain: 'body', page: 'today', kind: 'trend', tone: 'good', direction: 'up',
         importance: 57, topic: 'battery', family: 'recovery', today: 'while-true', news: true,
-        title: 'You recharged overnight',
-        text: `Your body battery climbed from ${rPrev.score} to ${rNow.score} overnight${topPos && topPos.contribution > 0 ? `, mostly because ${reason(topPos, ctx)}` : ''}.`,
+        title: t('insights.today.batteryRecharge.title'),
+        text: t('insights.today.batteryRecharge.text', { from: rPrev.score, to: rNow.score, hasReason: why ? 'yes' : 'no', reason: why ?? '' }),
       });
     } else if (move <= -8) {
+      const why = topNeg && topNeg.contribution < 0 ? reason(topNeg, ctx, 'because') : null;
       add({
         id: 'battery-drain', domain: 'body', page: 'today', kind: 'alert', tone: 'watch', direction: 'down',
         importance: 81, topic: 'battery', family: 'recovery', today: 'while-true', news: true,
-        title: 'Your body battery dropped overnight',
-        text: `Your body battery went from ${rPrev.score} to ${rNow.score} overnight.${topNeg && topNeg.contribution < 0 ? ` The main reason is that ${reason(topNeg, ctx)}.` : ''}`,
+        title: t('insights.today.batteryDrain.title'),
+        text: t('insights.today.batteryDrain.text', { from: rPrev.score, to: rNow.score, hasReason: why ? 'yes' : 'no', reason: why ?? '' }),
       });
     }
   }
@@ -133,50 +154,67 @@ function weeklyReview(ctx: InsightContext, add: Add): void {
   const before = days.filter((d) => d.date >= addDays(monday, -7) && d.date < monday);
   const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
   const sentences: string[] = [];
-  // The first sentence opens with "Last week"; the ones after it don't repeat it.
-  const lead = () => (sentences.length ? 'You' : 'Last week you');
+  // The first sentence opens with "Last week"; the ones after it don't repeat it, and bring the space
+  // before them in their own words, so a language that writes none between sentences can leave it out.
+  const opening = () => (sentences.length ? 'later' : 'first');
 
+  // Steps always come first, so their sentence always opens with "Last week".
   const steps = values(series(week, (d) => d.steps));
   const stepsBefore = values(series(before, (d) => d.steps));
   if (steps.length >= 5) {
     const avg = mean(steps);
-    const pct = stepsBefore.length >= 5 ? Math.round((avg / mean(stepsBefore) - 1) * 100) : null;
-    sentences.push(`${lead()} averaged ${fmtInt(avg)} steps a day${pct === null ? '' : Math.abs(pct) < 3 ? ', about the same as the week before' : `, ${Math.abs(pct)}% ${pct > 0 ? 'more' : 'fewer'} than the week before`}.`);
+    // A week before with no steps at all has nothing to compare with.
+    const pct = stepsBefore.length >= 5 && mean(stepsBefore) > 0 ? Math.round((avg / mean(stepsBefore) - 1) * 100) : null;
+    sentences.push(t('insights.today.weeklyReview.steps', {
+      change: pct === null ? 'none' : Math.abs(pct) < 3 ? 'same' : pct > 0 ? 'more' : 'fewer',
+      steps: Math.round(avg),
+      percent: Math.abs(pct ?? 0),
+    }));
   }
 
+  // Movement and sleep share a sentence: a message for each mix of the two.
   const azm = week.some((d) => d.zoneMinutes);
   const moved = week.filter((d) => (azm ? d.zoneMinutes : d.activeMinutes));
   const nights = week.filter((d) => d.sleep).map((d) => d.sleep!.minutesAsleep);
-  const parts: string[] = [];
-  if (moved.length >= 5) {
-    const total = Math.round(week.reduce((a, d) => a + (azm ? zoneMins(d) : briskMins(d)), 0));
-    parts.push(azm ? `earned ${total} active zone minutes` : `did ${total} minutes of brisk activity`);
+  const minutes = moved.length >= 5 ? Math.round(week.reduce((a, d) => a + (azm ? zoneMins(d) : briskMins(d)), 0)) : null;
+  const sleep = nights.length >= 5 ? formatDuration(mean(nights)) : null;
+  if (minutes !== null) {
+    const key = sleep === null
+      ? (azm ? 'insights.today.weeklyReview.zone' : 'insights.today.weeklyReview.brisk')
+      : (azm ? 'insights.today.weeklyReview.zoneAndSleep' : 'insights.today.weeklyReview.briskAndSleep');
+    sentences.push(t(key, { opening: opening(), minutes, sleep }));
+  } else if (sleep !== null) {
+    sentences.push(t('insights.today.weeklyReview.sleep', { opening: opening(), sleep }));
   }
-  if (nights.length >= 5) parts.push(`slept ${hm(mean(nights))} a night on average`);
-  if (parts.length) sentences.push(`${lead()} ${listOf(parts)}.`);
 
+  // HRV and weight are clauses of their own, listed in one sentence.
   const tail: string[] = [];
   const hrv = values(series(week, (d) => d.hrv));
   const weeksBefore = days.filter((d) => d.date >= addDays(monday, -28) && d.date < monday);
   const usual = stats(values(series(weeksBefore, (d) => d.hrv)));
   if (hrv.length >= 5 && usual && usual.n >= 14) {
     const pct = (mean(hrv) / usual.median - 1) * 100;
-    tail.push(`your HRV was ${Math.abs(pct) < 3 ? 'about usual' : `${Math.abs(pct) < 8 ? 'a little ' : ''}${pct > 0 ? 'above' : 'below'} usual`}`);
+    const level = Math.abs(pct) < 3 ? 'usual'
+      : Math.abs(pct) < 8 ? (pct > 0 ? 'littleAbove' : 'littleBelow')
+        : pct > 0 ? 'above' : 'below';
+    tail.push(t('insights.today.weeklyReview.hrv', { level }));
   }
   const kg = values(series(week, (d) => d.weightKg));
   const kgBefore = values(series(before, (d) => d.weightKg));
   if (kg.length >= 2 && kgBefore.length >= 2) {
     const change = mean(kg) - mean(kgBefore);
-    if (Math.abs(change) >= 0.2) tail.push(`your weigh-ins averaged ${Math.abs(change).toFixed(1)} kg ${change < 0 ? 'lower' : 'higher'} than the week before`);
+    if (Math.abs(change) >= 0.2) {
+      tail.push(t('insights.today.weeklyReview.weight', { direction: change < 0 ? 'lower' : 'higher', kg: formatFixed(Math.abs(change), 1) }));
+    }
   }
-  if (tail.length) sentences.push(`${sentence(listOf(tail))}.`);
+  if (tail.length) sentences.push(t('insights.today.weeklyReview.hrvAndWeight', { clauses: capitalize(formatList(tail)) }));
 
   if (sentences.length < 2) return;
   add({
     id: 'weekly-review', domain: 'data', page: 'today', kind: 'review', tone: 'neutral',
     importance: 50, topic: 'weekly-review', family: 'review', today: 'while-true', news: true, daypart: ['morning'],
-    title: 'Your week in review',
-    text: sentences.join(' '),
+    title: t('insights.today.weeklyReview.title'),
+    text: sentences.join(''),
   });
 }
 
@@ -192,26 +230,27 @@ function monthlyReview(ctx: InsightContext, add: Add): void {
   const stepB = stats(values(series(priorMonth, (d) => d.steps)));
   if (stepA && stepB && stepA.n >= 14 && stepB.n >= 14 && stepB.mean > 0) {
     const pct = Math.round(((stepA.mean - stepB.mean) / stepB.mean) * 100);
-    bits.push(pct === 0 ? 'you walked about the same' : `you walked ${Math.abs(pct)}% ${pct > 0 ? 'more' : 'less'}`);
+    bits.push(t('insights.today.monthlyLedger.steps', { change: pct === 0 ? 'same' : pct > 0 ? 'more' : 'less', percent: Math.abs(pct) }));
   }
   const rhrA = stats(values(series(lastMonth, (d) => d.restingHr)));
   const rhrB = stats(values(series(priorMonth, (d) => d.restingHr)));
   if (rhrA && rhrB && rhrA.n >= 14 && rhrB.n >= 14) {
     const delta = rhrA.mean - rhrB.mean;
-    bits.push(Math.abs(delta) < 0.1
-      ? 'your resting heart rate held steady'
-      : `your resting heart rate ${delta < 0 ? 'dropped' : 'rose'} by ${Math.abs(delta).toFixed(1)} bpm`);
+    bits.push(t('insights.today.monthlyLedger.restingHr', {
+      change: Math.abs(delta) < 0.1 ? 'steady' : delta < 0 ? 'down' : 'up',
+      bpm: formatFixed(Math.abs(delta), 1),
+    }));
   }
   const sriA = sleepRegularity(lastMonth);
   const sriB = sleepRegularity(priorMonth);
-  if (sriA && sriB) bits.push(`your sleep regularity score went from ${sriB.score} to ${sriA.score}`);
+  if (sriA && sriB) bits.push(t('insights.today.monthlyLedger.regularity', { from: sriB.score, to: sriA.score }));
 
   if (bits.length >= 2) {
     add({
       id: 'monthly-ledger', domain: 'data', page: 'today', kind: 'review', tone: 'neutral',
       importance: 48, topic: 'monthly', family: 'review', today: 'as-news', news: true,
-      title: 'How this month compared',
-      text: `Compared with the 30 days before, ${listOf(bits)}.`,
+      title: t('insights.today.monthlyLedger.title'),
+      text: t('insights.today.monthlyLedger.text', { changes: formatList(bits) }),
     });
   }
 }
@@ -231,9 +270,9 @@ function labsReminders(ctx: InsightContext, add: Add): void {
       id: 'labs-sdb-pattern', domain: 'sleep', page: 'today', kind: 'alert', tone: 'watch',
       importance: 93, topic: 'labs-sdb', family: 'labs', today: 'as-news',
       news: entered(days, (w) => sdbScreen(w).status === 'pattern') || monthStart,
-      title: 'A pattern in your breathing at night',
-      text: `On ${sdb.firedCount} of the last 14 nights, your oxygen, breathing rate and time awake were outside their usual range together. A cold, alcohol or a stuffy room can all do this.`,
-      action: 'You can see those nights in Labs. If you also snore heavily or feel very sleepy during the day, mention it to a clinician.',
+      title: t('insights.today.labsSdbPattern.title'),
+      text: t('insights.today.labsSdbPattern.text', { count: sdb.firedCount }),
+      action: t('insights.today.labsSdbPattern.action'),
     });
   }
 
@@ -243,9 +282,12 @@ function labsReminders(ctx: InsightContext, add: Add): void {
       id: 'labs-entropy-shift', domain: 'cardio', page: 'today', kind: 'alert', tone: 'watch',
       importance: 87, topic: 'labs-entropy', family: 'labs', today: 'as-news',
       news: entered(days, (w) => entropyShift(w).status === 'shift'),
-      title: 'Your HRV entropy has shifted',
-      text: `A nightly HRV measure from your device has been outside its usual range for ${plural(ent.shiftNights, 'night')} in a row. Last night it was ${ent.lastNight}, and it's usually around ${ent.baselineMedian}. It moves with everyday things like a cold, alcohol, poor sleep or hard training.`,
-      action: 'You can see the nights in Labs.',
+      title: t('insights.today.labsEntropyShift.title'),
+      // A shift always has both figures. labs.ts rounds them to two decimals; they read as they come: 2.1, not 2.10.
+      text: t('insights.today.labsEntropyShift.text', {
+        count: ent.shiftNights, lastNight: formatRounded(ent.lastNight!, 3), usual: formatRounded(ent.baselineMedian!, 3),
+      }),
+      action: t('insights.today.labsEntropyShift.action'),
     });
   }
 
@@ -258,9 +300,14 @@ function labsReminders(ctx: InsightContext, add: Add): void {
         id: 'labs-dip-pattern', domain: 'cardio', page: 'today', kind: 'alert', tone: 'watch',
         importance: 91, topic: 'labs-dip', family: 'labs', today: 'as-news',
         news: entered(days, (w: DailyRecord[]) => dipping(w, intraday, sick).status === 'pattern') || monthStart,
-        title: "Your heart rate isn't dropping much at night",
-        text: `${dip.riser ? 'Your heart rate has been higher at night than during the day. ' : ''}On ${dip.nightsUnder10} of ${dip.measurableNights} measured nights, your heart rate dropped less than 10% from its daytime level.${dip.excludedIllnessNights > 0 ? ' Nights with several signals off were left out.' : ''} Late meals, alcohol, heat and evening exercise can all reduce the drop.`,
-        action: 'Labs has the nights. If it lasts for weeks and you have symptoms, you could mention it to a clinician.',
+        title: t('insights.today.labsDipPattern.title'),
+        text: t('insights.today.labsDipPattern.text', {
+          higherAtNight: dip.riser ? 'yes' : 'no',
+          under: dip.nightsUnder10,
+          measured: dip.measurableNights,
+          illnessLeftOut: dip.excludedIllnessNights > 0 ? 'yes' : 'no',
+        }),
+        action: t('insights.today.labsDipPattern.action'),
       });
     }
 
@@ -272,9 +319,17 @@ function labsReminders(ctx: InsightContext, add: Add): void {
       add({
         id: 'labs-tachy-event', domain: 'cardio', page: 'today', kind: 'alert', tone: 'watch',
         importance: 94, topic: 'labs-tachy', family: 'labs', today: 'as-news', news: true,
-        title: 'Your heart rate went above 100 during sleep',
-        text: `On ${dayMonth(e.date)}, your heart rate stayed above 100 bpm for ${e.durationMin} minutes during ${e.sessionType === 'nap' ? 'a nap' : 'your night’s sleep'}, peaking at ${e.peakBpm}.${recur ? ` That's ${tachy.events.length} stretches like this in ${tachy.nightsScanned} nights.` : ''} Fever, alcohol, vivid dreams, waking up and moving can all raise your heart rate.`,
-        action: recur ? 'Labs lists them. If you notice palpitations, chest pain, dizziness or breathlessness, seek medical care.' : undefined,
+        title: t('insights.today.labsTachyEvent.title'),
+        text: t('insights.today.labsTachyEvent.text', {
+          session: e.sessionType,
+          date: formatDayMonthLong(e.date),
+          minutes: e.durationMin,
+          peak: e.peakBpm,
+          recurring: recur ? 'yes' : 'no',
+          count: tachy.events.length,
+          nights: tachy.nightsScanned,
+        }),
+        action: recur ? t('insights.today.labsTachyEvent.action') : undefined,
       });
     }
   }

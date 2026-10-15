@@ -189,9 +189,16 @@ export interface IntradaySample {
 
 export type StreamStatus = 'ok' | 'empty' | 'error' | 'unauthorized' | 'skipped';
 
+/**
+ * Errors Healthier names itself, because Google said nothing it could show: an error status with
+ * an empty reply, no answer at all, minute data cut short by paging, and a scope not granted.
+ */
+export type StreamErrorCode = 'http' | 'network' | 'truncated' | 'scope';
+
 /** One row per dataType per sync: what we asked for and what came back. */
 export interface StreamReport {
   dataType: string;
+  /** The registry's English name, for logs; the app names a stream by its dataType. */
   label: string;
   domain: MetricDomain;
   mode: 'rollup' | 'list';
@@ -209,7 +216,14 @@ export interface StreamReport {
   truncated: boolean;
   ms: number;
   httpStatus?: number;
+  /**
+   * Google's error, or the network's, in its own words, shown as it is. With an errorCode, what the
+   * code needs instead: the HTTP status, or the scope. Reports stored before codes may hold
+   * Healthier's own English here, which is shown as it is too.
+   */
   error?: string;
+  /** An error Healthier names itself, for the app to say in the person's language. */
+  errorCode?: StreamErrorCode;
   /** Most recent civil date with an observation. */
   latestDate?: CivilDate;
 }

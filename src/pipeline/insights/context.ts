@@ -1,4 +1,5 @@
 import type { CivilDate } from '../../lib/date';
+import { formatDuration } from '../../i18n/format';
 import type { DailyRecord, HealthDataset, SleepSession } from '../../types/health';
 import type { HistoryAnswers } from '../history';
 import type { IntradayDays } from '../labs';
@@ -8,7 +9,7 @@ import {
   type Point, type Readiness,
 } from '../derive';
 import { DEFAULT_GOALS, type Goals } from '../goals';
-import { beforeLatestMorning, daypartOf, hm, wallClock } from './helpers';
+import { beforeLatestMorning, daypartOf, wallClock } from './helpers';
 import type { Daypart } from './types';
 
 export interface InsightOptions {
@@ -107,7 +108,7 @@ export function buildContext(ds: InsightDataset, now: Date, extras?: InsightOpti
     answers: ds.answers ?? {},
     goals,
     need,
-    needH: hm(need),
+    needH: formatDuration(need),
     stepsSeries,
     doneSteps,
     stepMedian: stats(values(doneSteps.slice(-BASELINE_DAYS)))?.median ?? null,
