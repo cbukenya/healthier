@@ -310,6 +310,13 @@ export const WEIGHT_FOUND = 0.5;
 /** The typical cycle reads the last six; it needs three to say anything. */
 export const CYCLES_FOR_RANGE = 6;
 export const MIN_CYCLES = 3;
+/**
+ * With two cycles, an early guess at the next period: their lengths, EARLY_PAD days wider either
+ * side, since either start may have been found a few days off. It gives way to the typical cycle
+ * at three.
+ */
+export const EARLY_CYCLES = 2;
+const EARLY_PAD = 2;
 /** Ninety nights recorded in the last 120 with no cycle in them: three cycles' worth, and no rhythm to show. */
 const NO_RHYTHM_SPAN = 120;
 const NO_RHYTHM_NIGHTS = 90;
@@ -709,8 +716,10 @@ export interface CycleSummary {
   afterRise: Range | null;
   /** Logged periods with an end. */
   period: Range | null;
-  /** When the next period is likely, and what the range rests on. */
-  next: { from: CivilDate; to: CivilDate; likely: CivilDate; basis: 'cycles' | 'rise' } | null;
+  /** When the next period is likely, and what the range rests on: an `early` guess from two cycles is wider. */
+  next: { from: CivilDate; to: CivilDate; likely: CivilDate; basis: 'cycles' | 'rise' | 'early' } | null;
+  /** The two cycles an early guess rests on, before there are three for `length`. */
+  early: Range | null;
   /** Days from where the nights put a start to the first day of bleeding, for this person. */
   offset: number;
   /** The offset comes from the person's own confirmed starts, not the default. */
@@ -833,7 +842,19 @@ export function summarizeCycles(nights: Night[], log: CycleLog, today: CivilDate
     })()
     : null;
 
+  const early = !lengthRange && recent.length >= EARLY_CYCLES
+    ? { min: Math.min(...recent.map((c) => c.length)), max: Math.max(...recent.map((c) => c.length)), typical: Math.round(mean(recent.map((c) => c.length))), count: recent.length }
+    : null;
+
   let next: CycleSummary['next'] = null;
+  if (current && early) {
+    next = {
+      from: addDays(current.start, early.min - EARLY_PAD),
+      to: addDays(current.start, early.max + EARLY_PAD),
+      likely: addDays(current.start, early.typical),
+      basis: 'early',
+    };
+  }
   if (current && lengthRange) {
     next = {
       from: addDays(current.start, lengthRange.min),
@@ -871,6 +892,7 @@ export function summarizeCycles(nights: Night[], log: CycleLog, today: CivilDate
     afterRise,
     period,
     next,
+    early,
     offset,
     offsetLearned,
     riseDay,

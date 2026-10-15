@@ -283,6 +283,21 @@ describe('logged and confirmed starts', () => {
     assert.ok(found.filter((f) => starts.includes(f)).length >= found.length - 1, `most now land on their day: ${found.join(' ')}`);
   });
 
+  it('give an early guess at the next period from two cycles, two days wider either side', () => {
+    const flat = cycleNights([START], addDays(START, 75), { high: -0.15 });
+    const days = started(addDays(START, 2), addDays(START, 30), addDays(START, 59));
+    const s = summarizeCycles(flat, log({ days }), addDays(START, 75));
+    assert.equal(s.length, null, 'three cycles are needed for the typical cycle');
+    assert.deepEqual(s.early && { min: s.early.min, max: s.early.max, count: s.early.count }, { min: 28, max: 29, count: 2 });
+    assert.equal(s.next?.basis, 'early');
+    assert.equal(s.next?.from, addDays(START, 59 + 28 - 2));
+    assert.equal(s.next?.to, addDays(START, 59 + 29 + 2));
+    // A third cycle and the guess gives way to the typical cycle.
+    const later = summarizeCycles(cycleNights([START], addDays(START, 100), { high: -0.15 }), log({ days: [...days, ...started(addDays(START, 87))] }), addDays(START, 100));
+    assert.equal(later.next?.basis, 'cycles');
+    assert.equal(later.early, null);
+  });
+
   it('count even when the nights show nothing, and are never second-guessed', () => {
     const flat = cycleNights([START], addDays(START, 90), { high: -0.15 });
     const days = started(addDays(START, 2), addDays(START, 30), addDays(START, 59), addDays(START, 87));

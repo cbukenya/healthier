@@ -156,9 +156,11 @@ function CycleHero({
     ? t('cycle.next.collecting', { count: Math.max(1, MIN_CYCLES - complete) })
     : today > next.to
       ? t('cycle.next.past', { date: formatDayMonthLong(next.to) })
-      : next.from === next.to
-        ? rich('cycle.next.day', { date: formatDayMonthLong(next.from), b })
-        : rich('cycle.next.range', { from: formatDayMonthLong(next.from), to: formatDayMonthLong(next.to), b });
+      : next.basis === 'early'
+        ? rich('cycle.next.early', { from: formatDayMonthLong(next.from), to: formatDayMonthLong(next.to), b })
+        : next.from === next.to
+          ? rich('cycle.next.day', { date: formatDayMonthLong(next.from), b })
+          : rich('cycle.next.range', { from: formatDayMonthLong(next.from), to: formatDayMonthLong(next.to), b });
   const pending = c.source === 'found' && c.day <= 10;
   const existing = log.days.find((d) => d.date === c.start);
 
@@ -178,6 +180,14 @@ function CycleHero({
       color: 'text-zinc-50',
     });
   }
+  if (!summary.length && summary.early) {
+    reached.push({
+      title: t('cycle.reached.early', { same: summary.early.min === summary.early.max ? 'yes' : 'no', min: summary.early.min, max: summary.early.max }),
+      detail: t('cycle.reached.earlyDetail'),
+      value: span(summary.early.min, summary.early.max),
+      color: 'text-zinc-50',
+    });
+  }
   if (c.riseDay) {
     reached.push({
       title: t('cycle.reached.rise', { day: c.riseDay }),
@@ -187,9 +197,13 @@ function CycleHero({
     });
   }
   if (next) {
-    const basis = next.basis === 'rise' ? summary.afterRise : summary.length;
+    const basis = next.basis === 'rise' ? summary.afterRise : next.basis === 'early' ? summary.early : summary.length;
+    // An early guess is as wide as the days it puts the period on.
+    const [min, max] = next.basis === 'early'
+      ? [daysBetween(c.start, next.from), daysBetween(c.start, next.to)]
+      : [basis?.min ?? 0, basis?.max ?? 0];
     reached.push({
-      title: t('cycle.reached.next', { basis: next.basis, min: basis?.min ?? 0, max: basis?.max ?? 0 }),
+      title: t('cycle.reached.next', { basis: next.basis, min, max }),
       detail: t('cycle.reached.nextDetail', { from: formatDayMonthLong(next.from), to: formatDayMonthLong(next.to) }),
       value: next.from === next.to ? formatCivil(next.from) : formatCivilRange(next.from, next.to),
       color: 'text-pink-300',
@@ -596,7 +610,7 @@ function CycleHistory({ summary, log, today, className = '' }: { summary: CycleS
       <div className="px-5 pb-5">
         {!rows.length && <p className="py-6 text-center text-detail text-zinc-500">{t('cycle.history.empty')}</p>}
         {rows.map((c) => (
-          <CycleBar key={c.start} cycle={c} log={log} today={today} typical={summary.length?.typical ?? 28} />
+          <CycleBar key={c.start} cycle={c} log={log} today={today} typical={summary.length?.typical ?? summary.early?.typical ?? 28} />
         ))}
         {rows.length > 0 && (
           <div className="mt-3 flex flex-wrap gap-x-3.5 gap-y-2 text-caption text-zinc-400">
