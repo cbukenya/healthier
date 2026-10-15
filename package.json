@@ -44,7 +44,7 @@
     "esbuild": "^0.28.2",
     "intl-messageformat": "^12.1.2",
     "lucide-react": "^1.55.0",
-    "motion": "^12.23.24",
+    "motion": "^14.1.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "recharts": "^3.10.1",
