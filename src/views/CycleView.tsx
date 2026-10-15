@@ -61,7 +61,9 @@ export function CycleView({ data, clock, intraday }: { data: SyncResult; clock?:
 
   return (
     <div className="space-y-3">
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-start">
+      {/* On a computer each row's cards run to the same height, the side cards sharing what the
+          hero leaves, so no row ends in a gap. */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
         <CycleHero
           className="lg:col-span-8"
           summary={summary}
@@ -71,10 +73,10 @@ export function CycleView({ data, clock, intraday }: { data: SyncResult; clock?:
           onLog={() => setSheet({ kind: 'day', date: today })}
           onStarted={(suggest) => setSheet({ kind: 'start', suggest })}
         />
-        <div className="lg:col-span-4 space-y-3">
-          <NowCard summary={summary} nights={nights} />
-          <LastPeriodCard summary={summary} log={log} today={today} />
-          <LoggedDayCard log={log} today={today} onLog={() => setSheet({ kind: 'day', date: today })} />
+        <div className="lg:col-span-4 flex flex-col gap-3">
+          <NowCard className="lg:grow" summary={summary} nights={nights} />
+          <LastPeriodCard className="lg:grow" summary={summary} log={log} today={today} />
+          <LoggedDayCard className="lg:grow" log={log} today={today} onLog={() => setSheet({ kind: 'day', date: today })} />
         </div>
       </div>
 
@@ -86,7 +88,7 @@ export function CycleView({ data, clock, intraday }: { data: SyncResult; clock?:
 
       <BodyThroughCycle summary={summary} nights={nights} log={log} />
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
         <CycleHistory className="lg:col-span-7" summary={summary} log={log} today={today} />
         <CycleCalendar className="lg:col-span-5" summary={summary} log={log} today={today} onPick={(date) => setSheet({ kind: 'day', date })} />
       </div>
@@ -329,7 +331,7 @@ function CycleStrip({ summary, log }: { summary: CycleSummary; log: CycleLog }) 
 }
 
 /** Where in the cycle today is, and how the nights since the rise differ from the ones before it. */
-function NowCard({ summary, nights }: { summary: CycleSummary; nights: Night[] }) {
+function NowCard({ summary, nights, className = '' }: { summary: CycleSummary; nights: Night[]; className?: string }) {
   const c = summary.current;
   if (!c) return null;
   const after = c.phase === 'after-rise' && c.riseDay !== null;
@@ -345,7 +347,7 @@ function NowCard({ summary, nights }: { summary: CycleSummary; nights: Night[] }
     })
     : [];
   return (
-    <Card className="p-5">
+    <Card className={`p-5 ${className}`}>
       <p className={`text-eyebrow uppercase ${after ? 'text-violet-300' : 'text-zinc-400'}`}>
         {after ? t('cycle.now.afterRise.eyebrow') : t('cycle.now.beforeRise.eyebrow')}
       </p>
@@ -377,14 +379,14 @@ function NowCard({ summary, nights }: { summary: CycleSummary; nights: Night[] }
 }
 
 /** The last period logged: when, how long, how heavy, and the usual length. */
-function LastPeriodCard({ summary, log, today }: { summary: CycleSummary; log: CycleLog; today: CivilDate }) {
+function LastPeriodCard({ summary, log, today, className = '' }: { summary: CycleSummary; log: CycleLog; today: CivilDate; className?: string }) {
   const last = loggedPeriods(log.days).filter((p) => p.start <= today).at(-1);
   if (!last) return null;
   const flows = log.days.filter((d) => d.date >= last.start && d.date <= last.end).map((d) => d.flow);
   const heaviest = [...HEAVINESS].reverse().find((f) => flows.includes(f)) ?? null;
   const ongoing = last.end >= addDays(today, -1);
   return (
-    <Card className="p-5">
+    <Card className={`p-5 ${className}`}>
       <p className="text-eyebrow uppercase text-pink-300">{t('cycle.lastPeriod.eyebrow')}</p>
       <p className="mt-2 font-display text-headline text-zinc-50">
         {last.start === last.end ? formatDayMonthLong(last.start) : formatCivilRange(last.start, last.end)}
@@ -414,14 +416,14 @@ function LastPeriodCard({ summary, log, today }: { summary: CycleSummary; log: C
 }
 
 /** What's logged for today, and the way to log or change it. */
-function LoggedDayCard({ log, today, onLog }: { log: CycleLog; today: CivilDate; onLog: () => void }) {
+function LoggedDayCard({ log, today, onLog, className = '' }: { log: CycleLog; today: CivilDate; onLog: () => void; className?: string }) {
   const day = log.days.find((d) => d.date === today);
   const chips = [
     ...(day?.flow ? [t(FLOW_LABEL[day.flow])] : []),
     ...(day?.symptoms ?? []).map((s) => t(SYMPTOM_LABEL[s])),
   ];
   return (
-    <Card className="p-5">
+    <Card className={`p-5 ${className}`}>
       <div className="flex items-center justify-between gap-3">
         <h2 className="text-eyebrow uppercase text-zinc-400">{t('cycle.logged.eyebrow')}</h2>
         <button type="button" onClick={onLog} className="-my-2 -mr-2 min-h-11 px-2 text-caption text-zinc-300 underline underline-offset-2 hover:text-zinc-100">
