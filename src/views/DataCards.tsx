@@ -360,15 +360,18 @@ function SwitchRow({ label, note, on, onToggle }: { label: string; note: string;
         <div id={id} className="text-body text-zinc-200">{label}</div>
         <p className="mt-0.5 text-caption leading-relaxed text-zinc-500">{note}</p>
       </div>
+      {/* Track and knob in the same units, so a browser's larger default text size scales both
+          together, and the knob is centred by the track rather than placed by offsets. The
+          ::before widens what a finger can hit to 44px tall. */}
       <button
         type="button"
         role="switch"
         aria-checked={on}
         aria-labelledby={id}
         onClick={onToggle}
-        className={`relative shrink-0 mt-0.5 w-12 h-7 rounded-full transition-colors ${on ? 'bg-pink-600' : 'bg-zinc-700'}`}
+        className={`relative shrink-0 inline-flex items-center w-11 h-6 p-0.5 rounded-full transition-colors before:absolute before:-inset-x-1.5 before:-inset-y-2.5 before:content-[''] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pink-300 ${on ? 'bg-pink-400' : 'bg-zinc-700 hover:bg-zinc-600'}`}
       >
-        <span className={`absolute top-[3px] size-[22px] rounded-full bg-zinc-50 transition-[left] ${on ? 'left-[23px]' : 'left-[3px]'}`} />
+        <span aria-hidden="true" className={`size-5 rounded-full bg-white shadow-sm shadow-black/40 transition-transform ${on ? 'translate-x-5' : 'translate-x-0'}`} />
       </button>
     </div>
   );
