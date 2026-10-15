@@ -1,6 +1,6 @@
 import { buildContext, type InsightDataset, type InsightOptions } from './context';
 import { settle } from './conflicts';
-import { PAGES, place, placeable } from './place';
+import { PAGES, carouselOf, place, placeable } from './place';
 import type { HistoryQueries } from '../history';
 import { activityQueries, activityRules } from './rules/activity';
 import { bodyQueries, bodyRules } from './rules/body';
@@ -43,7 +43,9 @@ import type { Finding, InsightFeeds } from './types';
  * One pass, five feeds: every rule file adds findings for its page, the
  * conflict rules settle them all together, and each one goes to exactly one
  * place. Today while it's key (an alert or nudge while true, anything else
- * while it's news), otherwise its own page for as long as it holds.
+ * while it's news), otherwise its own page for as long as it holds. A Today
+ * with fewer than two cards brings forward what matters most from the pages,
+ * cautious first: still true, though no longer news.
  *
  * Copy laws, enforced in the rules: plain sentences with the figures inside
  * them; evidence first, the action on its own line after it; wins carry no
@@ -66,7 +68,7 @@ export function evaluate(ds: InsightDataset, now: Date = new Date(), extras?: In
   sleepRules(ctx, add);
   vitalsRules(ctx, add);
   bodyRules(ctx, add);
-  const settled = settle(found.filter((f) => placeable(f, ctx.part)));
+  const settled = settle(found.filter((f) => placeable(f, ctx.part)), (f) => carouselOf(f, ctx.part));
   return { ctx, found, settled, feeds: place(settled, ctx) };
 }
 

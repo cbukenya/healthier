@@ -2,16 +2,20 @@ import type { Finding, Tone } from './types';
 
 /**
  * The conflict rules: pure functions over the findings, applied in order to
- * Today and every page together, so no two cards anywhere contradict.
+ * Today and every page together, so no two cards contradict.
  *
  *   1. "Several of your signals are off" speaks for the whole recovery family.
  *   2. Opposite claims about the same metric never show together.
- *   3. Inside a family, a cautious card beats good news.
+ *   3. Inside a family, a cautious card beats good news shown beside it.
  *   4. Nothing suggests pushing hard while anything advises rest.
  *   5. One card per topic.
+ *
+ * `where` says which carousel a card will show in, for rule 3: good news only
+ * yields to a cautious card in the same carousel. Without it, every card counts
+ * as beside every other.
  */
-export function settle(findings: Finding[]): Finding[] {
-  return [illnessSpeaksForRecovery, oppositeClaims, familyTone, advice, oneCardPerTopic].reduce(
+export function settle(findings: Finding[], where: (f: Finding) => string = () => ''): Finding[] {
+  return [illnessSpeaksForRecovery, oppositeClaims, (fs: Finding[]) => familyTone(fs, where), advice, oneCardPerTopic].reduce(
     (fs, rule) => rule(fs),
     findings,
   );
@@ -38,9 +42,14 @@ export function oppositeClaims(fs: Finding[]): Finding[] {
   return fs.filter((f) => !f.claims || f.claims.direction === winner.get(f.claims.metric)!.claims!.direction);
 }
 
-export function familyTone(fs: Finding[]): Finding[] {
-  const cautious = new Set(fs.filter((f) => f.tone === 'watch').map((f) => f.family));
-  return fs.filter((f) => f.tone !== 'good' || !cautious.has(f.family));
+/**
+ * Good news gives way to a cautious card from its family in the same carousel. A good night stays
+ * on Today while the sleep debt it eases waits on the Sleep page; side by side, the debt card speaks
+ * for both.
+ */
+export function familyTone(fs: Finding[], where: (f: Finding) => string = () => ''): Finding[] {
+  const cautious = new Set(fs.filter((f) => f.tone === 'watch').map((f) => `${where(f)}:${f.family}`));
+  return fs.filter((f) => f.tone !== 'good' || !cautious.has(`${where(f)}:${f.family}`));
 }
 
 export function advice(fs: Finding[]): Finding[] {
