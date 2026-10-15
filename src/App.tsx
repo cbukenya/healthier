@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import type { IntradaySample } from './types/health';
-import { FileCode2, FlaskConical, Footprints, Heart, Moon, RefreshCw, User, ShieldAlert, PersonStanding } from 'lucide-react';
+import { CircleDotDashed, FileCode2, FlaskConical, Footprints, Heart, Moon, RefreshCw, User, ShieldAlert, PersonStanding } from 'lucide-react';
 import { useAuth } from './hooks/useAuth';
 import { useInstance } from './hooks/useInstance';
 import { useHealth, type SyncFailure } from './hooks/useHealth';
 import { HistoryProvider } from './hooks/useHistory';
 import { GoalsProvider } from './hooks/useGoals';
+import { CycleProvider, useCycleTracking } from './hooks/useCycle';
+import { CycleView } from './views/CycleView';
 import { DASHBOARD_WINDOW_DAYS } from './pipeline/sync';
 import { DEMO_CLOCK } from './pipeline/demo';
 import { formatCivilDay } from './i18n/format';
@@ -95,7 +97,7 @@ export default function App() {
     return map;
   }, [health.data]);
 
-  const [view, setView] = useState<'today' | 'activity' | 'sleep' | 'vitals' | 'body' | 'labs' | 'data'>('today');
+  const [view, setView] = useState<View>('today');
   // The data's last day: yours on live data, the fixture's in demo mode.
   const today = health.data?.days.at(-1)?.date ?? null;
 
@@ -155,85 +157,9 @@ export default function App() {
     );
   }
 
-  return (
-    <div className="min-h-screen bg-black text-zinc-300 font-sans selection:bg-zinc-800 selection:text-white">
-      {/* Header */}
-      <header className="sticky top-0 z-30 bg-black/80 backdrop-blur-md border-b border-zinc-800/80">
-        <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <img src="/logo.svg" alt="" width={28} height={28} />
-            <span className="text-body font-semibold text-white tracking-wide">{t('app.name')}</span>
-          </div>
-          
-          <div className="flex items-center gap-3">
-            {health.phase === 'revalidating' && (
-              <span className="flex items-center gap-1.5 text-caption text-zinc-500 mr-2">
-                <RefreshCw size={10} className="animate-spin" />
-                {t('app.header.syncing')}
-              </span>
-            )}
-            
-            {user && !demo && (
-              <div className="flex items-center gap-2 px-2 py-1 rounded-full bg-zinc-900 border border-zinc-800/80">
-                {user.pictureUrl ? (
-                  <img src={user.pictureUrl} alt={t('app.header.picture')} className="w-5 h-5 rounded-full object-cover" referrerPolicy="no-referrer" />
-                ) : (
-                  <div className="w-5 h-5 rounded-full bg-zinc-800 flex items-center justify-center">
-                    <User size={10} className="text-zinc-400" />
-                  </div>
-                )}
-                <span className="text-caption font-medium text-zinc-300 pr-1">
-                  {user.name?.split(' ')[0] || t('app.header.someone')}
-                </span>
-              </div>
-            )}
-
-            <button
-              onClick={() => {
-                if (demo) setDemo(false);
-                else signOut();
-              }}
-              className="min-h-11 md:min-h-0 px-3 py-1.5 rounded-lg text-detail md:text-caption font-medium text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
-            >
-              {demo ? t('app.header.exitDemo') : t('app.header.signOut')}
-            </button>
-          </div>
-        </div>
-      </header>
-
-      {/* Navigation & Status */}
+  const shell = (
       <div className="max-w-5xl mx-auto px-4 pt-3 pb-6 md:pt-6">
-        <nav className="flex items-center justify-between md:justify-start gap-0.5 md:gap-1 overflow-x-auto pb-2 no-scrollbar">
-          <NavButton 
-            active={view === 'today'} onClick={() => setView('today')} 
-            icon={<User size={14} />} label={t('app.nav.today')} 
-          />
-          <NavButton 
-            active={view === 'activity'} onClick={() => setView('activity')} 
-            icon={<Footprints size={14} />} label={t('app.nav.activity')} color={DOMAIN.movement.text} 
-          />
-          <NavButton 
-            active={view === 'sleep'} onClick={() => setView('sleep')} 
-            icon={<Moon size={14} />} label={t('app.nav.sleep')} color={DOMAIN.sleep.text} 
-          />
-          <NavButton 
-            active={view === 'vitals'} onClick={() => setView('vitals')} 
-            icon={<Heart size={14} />} label={t('app.nav.vitals')} color={DOMAIN.cardio.text} 
-          />
-          <NavButton 
-            active={view === 'body'} onClick={() => setView('body')} 
-            icon={<PersonStanding size={14} />} label={t('app.nav.body')} color={DOMAIN.body.text} 
-          />
-          <NavButton 
-            active={view === 'labs'} onClick={() => setView('labs')} 
-            icon={<FlaskConical size={14} />} label={t('app.nav.labs')} color="text-yellow-400" 
-          />
-          <div className="hidden md:block w-px h-4 bg-zinc-800 mx-2 shrink-0" />
-          <NavButton 
-            active={view === 'data'} onClick={() => setView('data')} 
-            icon={<FileCode2 size={14} />} label={t('app.nav.data')} color="text-zinc-400" 
-          />
-        </nav>
+        <PageNav view={view} setView={setView} />
         {today && (
           <time dateTime={today} className="block mt-1 px-3 text-right text-detail text-zinc-500">
             {formatCivilDay(today)}
@@ -295,6 +221,7 @@ export default function App() {
             {view === 'sleep' && <SleepView data={health.data} intraday={intradayDays} clock={demo ? DEMO_CLOCK : undefined} />}
             {view === 'vitals' && <VitalsView data={health.data} intraday={intradayDays} clock={demo ? DEMO_CLOCK : undefined} />}
             {view === 'body' && <BodyView data={health.data} onGender={demo ? undefined : saveGender} intraday={intradayDays} clock={demo ? DEMO_CLOCK : undefined} />}
+            {view === 'cycle' && <CycleView />}
             {view === 'labs' && <LabsView data={health.data} intraday={intradayDays} />}
             {view === 'data' && <DataView data={health.data} onFullSync={health.fullSync} onDisconnect={demo ? undefined : disconnect} />}
           </main>
@@ -302,6 +229,106 @@ export default function App() {
           </GoalsProvider>
         )}
       </div>
+  );
+
+  return (
+    <div className="min-h-screen bg-black text-zinc-300 font-sans selection:bg-zinc-800 selection:text-white">
+      {/* Header */}
+      <header className="sticky top-0 z-30 bg-black/80 backdrop-blur-md border-b border-zinc-800/80">
+        <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <img src="/logo.svg" alt="" width={28} height={28} />
+            <span className="text-body font-semibold text-white tracking-wide">{t('app.name')}</span>
+          </div>
+          
+          <div className="flex items-center gap-3">
+            {health.phase === 'revalidating' && (
+              <span className="flex items-center gap-1.5 text-caption text-zinc-500 mr-2">
+                <RefreshCw size={10} className="animate-spin" />
+                {t('app.header.syncing')}
+              </span>
+            )}
+            
+            {user && !demo && (
+              <div className="flex items-center gap-2 px-2 py-1 rounded-full bg-zinc-900 border border-zinc-800/80">
+                {user.pictureUrl ? (
+                  <img src={user.pictureUrl} alt={t('app.header.picture')} className="w-5 h-5 rounded-full object-cover" referrerPolicy="no-referrer" />
+                ) : (
+                  <div className="w-5 h-5 rounded-full bg-zinc-800 flex items-center justify-center">
+                    <User size={10} className="text-zinc-400" />
+                  </div>
+                )}
+                <span className="text-caption font-medium text-zinc-300 pr-1">
+                  {user.name?.split(' ')[0] || t('app.header.someone')}
+                </span>
+              </div>
+            )}
+
+            <button
+              onClick={() => {
+                if (demo) setDemo(false);
+                else signOut();
+              }}
+              className="min-h-11 md:min-h-0 px-3 py-1.5 rounded-lg text-detail md:text-caption font-medium text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
+            >
+              {demo ? t('app.header.exitDemo') : t('app.header.signOut')}
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* Navigation & Status. Cycle tracking reaches the nav as well as the pages. */}
+      {health.data ? <CycleProvider data={health.data} live={!demo}>{shell}</CycleProvider> : shell}
     </div>
+  );
+}
+
+type View = 'today' | 'activity' | 'sleep' | 'vitals' | 'body' | 'cycle' | 'labs' | 'data';
+
+/** The pages, the Cycle page among them while cycle tracking is on. */
+function PageNav({ view, setView }: { view: View; setView: (view: View) => void }) {
+  const tracking = useCycleTracking();
+  // Turning tracking off on the Data page takes the Cycle page away; never leave anyone on it.
+  useEffect(() => {
+    if (view === 'cycle' && !tracking) setView('today');
+  }, [view, tracking, setView]);
+  return (
+    <nav className="flex items-center justify-between md:justify-start gap-0.5 md:gap-1 overflow-x-auto pb-2 no-scrollbar">
+      <NavButton
+        active={view === 'today'} onClick={() => setView('today')}
+        icon={<User size={14} />} label={t('app.nav.today')}
+      />
+      <NavButton
+        active={view === 'activity'} onClick={() => setView('activity')}
+        icon={<Footprints size={14} />} label={t('app.nav.activity')} color={DOMAIN.movement.text}
+      />
+      <NavButton
+        active={view === 'sleep'} onClick={() => setView('sleep')}
+        icon={<Moon size={14} />} label={t('app.nav.sleep')} color={DOMAIN.sleep.text}
+      />
+      <NavButton
+        active={view === 'vitals'} onClick={() => setView('vitals')}
+        icon={<Heart size={14} />} label={t('app.nav.vitals')} color={DOMAIN.cardio.text}
+      />
+      <NavButton
+        active={view === 'body'} onClick={() => setView('body')}
+        icon={<PersonStanding size={14} />} label={t('app.nav.body')} color={DOMAIN.body.text}
+      />
+      {tracking && (
+        <NavButton
+          active={view === 'cycle'} onClick={() => setView('cycle')}
+          icon={<CircleDotDashed size={14} />} label={t('app.nav.cycle')} color={DOMAIN.cycle.text}
+        />
+      )}
+      <NavButton
+        active={view === 'labs'} onClick={() => setView('labs')}
+        icon={<FlaskConical size={14} />} label={t('app.nav.labs')} color="text-yellow-400"
+      />
+      <div className="hidden md:block w-px h-4 bg-zinc-800 mx-2 shrink-0" />
+      <NavButton
+        active={view === 'data'} onClick={() => setView('data')}
+        icon={<FileCode2 size={14} />} label={t('app.nav.data')} color="text-zinc-400"
+      />
+    </nav>
   );
 }

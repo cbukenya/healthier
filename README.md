@@ -83,6 +83,11 @@ place at a time: on Today while it matters, otherwise on its own page.
   </tr>
 </table>
 
+**Cycle.** For anyone who has periods, and off until it's turned on in Data. Healthier finds your
+cycles in your nightly temperature, resting heart rate and HRV, whether or not you log anything.
+It shows your body through the cycle and gives the next period as a range from your own cycles.
+Anything you log, kept encrypted on your own server, makes the cycles more certain.
+
 ## Try the demo
 
 Demo mode shows a year of made-up data, run through the same pipeline as real data. You can try
