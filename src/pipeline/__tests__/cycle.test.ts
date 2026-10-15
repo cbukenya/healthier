@@ -117,6 +117,16 @@ describe('cycles found in nightly temperature', () => {
     assert.equal(s.next?.to, addDays(s.current!.rise!, 14));
   });
 
+  it('keeps the rise right up to the period, and past it while the cycle runs long', () => {
+    const latest = starts[starts.length - 1];
+    for (let day = 18; day <= 32; day++) {
+      const until = addDays(latest, day - 1);
+      const s = summarizeCycles(cycleNights(starts, until), log(), until);
+      assert.equal(s.current?.rise, addDays(latest, 14), `day ${day}`);
+      assert.equal(s.next?.basis, 'rise', `day ${day}`);
+    }
+  });
+
   it('keeps going through nights the watch missed', () => {
     const patchy = cycleNights(starts, today, { gaps: 0.15, seed: 7 });
     const s = summarizeCycles(patchy, log(), today);
