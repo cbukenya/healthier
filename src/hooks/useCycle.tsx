@@ -2,10 +2,12 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 import type { CivilDate } from '../lib/date';
 import { api } from '../lib/api';
 import {
-  EMPTY_CYCLE_LOG, nightsFrom, readCycleLog, summarizeCycles, withDay, withRejected,
+  EMPTY_CYCLE_LOG, judgedDays, nightsFrom, readCycleLog, summarizeCycles, withDay, withRejected,
   type CycleDay, type CycleLog, type CycleSettings, type CycleSummary, type Night,
 } from '../pipeline/cycle';
+import type { CycleInsight } from '../pipeline/insights/context';
 import type { SyncResult } from '../pipeline/sync';
+import type { DailyRecord } from '../types/health';
 import type { CycleDayResponse, CycleLogResponse, CycleRejectedResponse, CycleSettingsResponse } from '../types/api';
 
 /**
@@ -22,6 +24,14 @@ interface CycleContextValue {
   summary: CycleSummary | null;
   nights: Night[];
   today: CivilDate | null;
+  /**
+   * The days with each second-half night moved back by the person's own shift: for judging
+   * whether a reading is unusual, never for showing. Null with tracking off, and until three
+   * cycles show a shift.
+   */
+  judged: DailyRecord[] | null;
+  /** What the insight cards know about cycles. Null with tracking off. */
+  insight: CycleInsight | null;
   setSettings: (settings: CycleSettings) => void;
   setDay: (day: CycleDay) => void;
   setRejected: (date: CivilDate, rejected: boolean) => void;
@@ -36,6 +46,8 @@ const CycleContext = createContext<CycleContextValue>({
   summary: null,
   nights: [],
   today: null,
+  judged: null,
+  insight: null,
   setSettings: () => {},
   setDay: () => {},
   setRejected: () => {},
@@ -129,9 +141,15 @@ export function CycleProvider({
     [log, nights, today],
   );
 
+  const judged = useMemo(
+    () => (summary && today ? judgedDays(data.days, nights, summary, today) : null),
+    [summary, nights, today, data],
+  );
+  const insight = useMemo(() => (summary ? { summary, nights, log, judged } : null), [summary, nights, log, judged]);
+
   const value = useMemo(
-    () => ({ log, summary, nights, today, setSettings, setDay, setRejected, forget, failed }),
-    [log, summary, nights, today, setSettings, setDay, setRejected, forget, failed],
+    () => ({ log, summary, nights, today, judged, insight, setSettings, setDay, setRejected, forget, failed }),
+    [log, summary, nights, today, judged, insight, setSettings, setDay, setRejected, forget, failed],
   );
   return <CycleContext.Provider value={value}>{children}</CycleContext.Provider>;
 }

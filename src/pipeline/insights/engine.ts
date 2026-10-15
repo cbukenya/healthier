@@ -1,4 +1,4 @@
-import { buildContext, type InsightDataset, type InsightOptions } from './context';
+import { buildContext, type InsightContext, type InsightDataset, type InsightOptions } from './context';
 import { settle } from './conflicts';
 import { PAGES, carouselOf, place, placeable } from './place';
 import type { HistoryQueries } from '../history';
@@ -8,6 +8,7 @@ import { bodyCards, bodyQueries } from './cards/body';
 import { sleepCards, sleepQueries } from './cards/sleep';
 import { todayCards } from './cards/today';
 import { vitalsCards, vitalsQueries } from './cards/vitals';
+import { cycleCards } from './cards/cycle';
 import type { Finding, InsightFeeds } from './types';
 
 /**
@@ -67,10 +68,38 @@ export function evaluate(ds: InsightDataset, now: Date = new Date(), extras?: In
   todayCards(ctx, add);
   activityCards(ctx, add);
   sleepCards(ctx, add);
-  vitalsCards(ctx, add);
+  vitalsCards(ctx, cycleAware(ds, now, extras, ctx, add));
   bodyCards(ctx, add);
+  cycleCards(ctx, add);
   const settled = settle(found.filter((f) => placeable(f, ctx.part)), (f) => carouselOf(f, ctx.part));
   return { ctx, found, settled, feeds: place(settled, ctx) };
+}
+
+/**
+ * Vitals cards that say a night or a week is off its usual range, and could be saying so only
+ * because of where it falls in a cycle.
+ */
+const CYCLE_SENSITIVE = new Set([
+  'hrv-trend-up', 'hrv-trend-down', 'hrv-acute-high', 'hrv-acute-low',
+  'rhr-shift-up', 'rhr-shift-down', 'rhr-acute-high', 'rhr-acute-low', 'vitals-warm',
+]);
+
+/**
+ * With cycle tracking on, the Vitals cards run again on the window judged with the cycle in mind
+ * (each second-half night moved back by the person's own shift). A CYCLE_SENSITIVE card that
+ * doesn't show there is only the cycle moving the nights the way it always does, so it steps
+ * aside. Nothing that shows only there is added.
+ */
+function cycleAware(ds: InsightDataset, now: Date, extras: InsightOptions | undefined, ctx: InsightContext, add: (f: Finding) => void) {
+  const judged = ctx.cycle?.judged;
+  if (!judged) return add;
+  const again = buildContext({ ...ds, days: judged }, now, { ...extras, cycle: undefined });
+  const still = new Set<string>();
+  // With the same verdict on several signals at once, so a card steps aside in both or in neither.
+  if (again) vitalsCards({ ...again, illness: ctx.illness, illnessBefore: ctx.illnessBefore }, (f) => still.add(f.id));
+  return (f: Finding) => {
+    if (!CYCLE_SENSITIVE.has(f.id) || still.has(f.id)) add(f);
+  };
 }
 
 /** Today's key insights and each page's own, for the carousels. */

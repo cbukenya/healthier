@@ -74,7 +74,7 @@ export function pageFloor(page: InsightPage, ctx: InsightContext, onToday: Obser
   return { ...floor, id: `${page}-floor`, page, domain: domainOf[page], ...floors[page](ctx) };
 }
 
-const domainOf = { activity: 'movement', sleep: 'sleep', vitals: 'cardio', body: 'body' } as const;
+const domainOf = { activity: 'movement', sleep: 'sleep', vitals: 'cardio', body: 'body', cycle: 'cycle' } as const;
 
 type FloorCopy = { title: string; text: string };
 
@@ -145,5 +145,10 @@ const floors: Record<InsightPage, (ctx: InsightContext) => FloorCopy> = {
       title: t('insights.floors.bodyFloor.title'),
       text: t('insights.floors.bodyFloor.text', { threshold: formatRounded(TREND_KG_PER_WEEK, 3), ...last }),
     };
+  },
+  cycle(ctx) {
+    const c = ctx.cycle?.summary.current;
+    const values = { known: c ? 'yes' : 'no', day: c?.day ?? 0 };
+    return { title: t('insights.floors.cycleFloor.title', values), text: t('insights.floors.cycleFloor.text', values) };
   },
 };

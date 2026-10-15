@@ -16,6 +16,7 @@ import {
   fmtDuration, fmtNum,
 } from '../ui/primitives';
 import type { SyncResult } from '../pipeline/sync';
+import { useCycle } from '../hooks/useCycle';
 import { useGoals } from '../hooks/useGoals';
 import { BodyBattery, BodyBatteryCompact } from './BodyBattery';
 import { ThisWeek } from './ThisWeek';
@@ -40,7 +41,8 @@ export function TodayView({
   clock?: { now: Date; timeZone: string };
 }) {
   const goals = useGoals();
-  const s = todaySummary(data, clock?.now, { intraday, timeZone: clock?.timeZone, goals });
+  const { insight: cycle, judged } = useCycle();
+  const s = todaySummary(data, clock?.now, { intraday, timeZone: clock?.timeZone, goals, cycle: cycle ?? undefined });
   const days = data.days;
   const last = days[days.length - 1];
   const today = last.date;
@@ -63,6 +65,8 @@ export function TodayView({
 
   // Each overnight vital from last night or the one before, never further back.
   const rhrNow = isRecent(s.rhr.date, today) ? s.rhr : null;
+  // With cycle tracking on, the same reading judged against this part of the cycle.
+  const rhrCycle = judged && compareToBaseline(series(judged, (d) => d.restingHr), BASELINE_DAYS, BASELINE_MIN_READINGS, NOISE_FLOOR.restingHr);
   const hrvNow = isRecent(s.hrv.date, today) ? s.hrv : null;
   const resp = compareToBaseline(respSeries, BASELINE_DAYS, BASELINE_MIN_READINGS, NOISE_FLOOR.respiratoryRate);
   const respNow = isRecent(resp.date, today) ? resp : null;
@@ -130,7 +134,7 @@ export function TodayView({
             label={t('today.heart.label')}
             icon={<Heart size={14} className={DOMAIN.cardio.text} />}
             value={<Value value={rhrNow?.value ?? null} size="md" unit={t('units.bpm')} />}
-            pill={rhrNow && <BandPill c={rhrNow} />}
+            pill={rhrNow && <BandPill c={rhrNow} cycle={rhrCycle} />}
             chart={rhrNow && <Spark series={rhrSeries.slice(-21)} color={DOMAIN.cardio.hex} height={28} baseline={usual(rhrNow)} />}
             rows={[
               [t('today.heart.hrv'), hrvNow && `${fmtNum(hrvNow.value)} ${t('units.ms')}`],
@@ -251,7 +255,7 @@ export function TodayView({
                   </div>
                   {rhrNow && (
                     <div className="mt-1.5 flex items-center gap-2">
-                      <BandPill c={rhrNow} />
+                      <BandPill c={rhrNow} cycle={rhrCycle} />
                     </div>
                   )}
                   <div className="mt-3">

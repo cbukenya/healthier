@@ -2,11 +2,12 @@ import React, { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Bell, BellOff, ChevronDown, ChevronRight, CircleCheck, CircleDashed, Clock, Eye, Info } from 'lucide-react';
 import type { SyncResult } from '../pipeline/sync';
 import {
-  completedIntradayDays, dipping, entropyShift, nocturnalTachycardia, sdbScreen, strainToday,
+  completedIntradayDays, dipping, entropyShift, illnessDates, nocturnalTachycardia, sdbScreen, strainToday,
   type DipCategory, type EntropyShift, type IntradayDays, type NightTrace, type SdbNight, type StrainKey, type StrainSignal, type StrainToday,
   type TachycardiaEvent,
 } from '../pipeline/labs';
 import { useMediaQuery } from '../hooks/useMediaQuery';
+import { useCycle } from '../hooks/useCycle';
 import { t, type MessageKey } from '../i18n';
 import { rich, type Wrap } from '../i18n/react';
 import { capitalize, formatCivil, formatCivilLong, formatClock, formatFixed, formatList, formatRounded } from '../i18n/format';
@@ -480,13 +481,24 @@ function StrainScale({ level, compact = false }: { level: StrainToday['level']; 
   );
 }
 
-function strainLab(days: Days): Lab {
-  const r = strainToday(days);
+/** `cycleDays`: with cycle tracking on, the days judged against the person's own cycle (see cycleAdjusted). */
+function strainLab(days: Days, cycleDays: Days | null): Lab {
+  const r = strainToday(days, cycleDays);
   const base = { key: 'strain' as const, title: t('labs.strain.title'), gloss: t('labs.strain.gloss'), graph: <StrainScale level={r.level} compact /> };
   const rose = r.level === 'high';
   const off = r.signals.filter((s) => s.status === 'off');
   const offWords = formatList(off.map((s) => t(STRAIN_WORDS[s.key])));
-  const picture = <><StrainTiles signals={r.signals} rose={rose} /><StrainScale level={r.level} /></>;
+  const picture = (
+    <>
+      <StrainTiles signals={r.signals} rose={rose} />
+      <StrainScale level={r.level} />
+      {r.explained.length > 0 && (
+        <p className="text-caption leading-normal text-zinc-400">
+          {t('labs.strain.cycle', { signals: capitalize(formatList(r.explained.map((k) => t(STRAIN_WORDS[k])))), count: r.explained.length })}
+        </p>
+      )}
+    </>
+  );
 
   if (r.status === 'collecting') {
     return {
@@ -666,9 +678,10 @@ function Corridor({ median, rose = false, compact = false }: { median: number | 
   );
 }
 
-function dipLab(days: Days, intraday: IntradayDays): Lab {
-  // Leaves out nights with several signals off, exactly as the insight does.
-  const r = dipping(days, intraday);
+function dipLab(days: Days, intraday: IntradayDays, judged: Days | null): Lab {
+  // Leaves out nights with several signals off, exactly as the insight does, and with cycle
+  // tracking on, judged against the person's own cycle as the insight judges them.
+  const r = dipping(days, intraday, illnessDates(days, judged));
   const base = { key: 'dip' as const, title: t('labs.dip.title'), gloss: t('labs.dip.gloss') };
   const latestNonRem = [...days].reverse().find((d) => d.nonRemHr !== null)?.nonRemHr ?? null;
   const latestRhr = [...days].reverse().find((d) => d.restingHr !== null)?.restingHr ?? null;
@@ -1156,9 +1169,12 @@ function Overview({ labs }: { labs: Lab[] }) {
 
 export function LabsView({ data, intraday = {} }: { data: SyncResult; intraday?: IntradayDays }) {
   const wide = useMediaQuery('(min-width: 768px)');
+  const { judged } = useCycle();
   const labs = useMemo(
-    () => [sdbLab(data.days), strainLab(data.days), irnLab(data), dipLab(data.days, intraday), entropyLab(data.days), tachyLab(data.days, intraday)],
-    [data, intraday],
+    () => [
+      sdbLab(data.days), strainLab(data.days, judged), irnLab(data), dipLab(data.days, intraday, judged), entropyLab(data.days), tachyLab(data.days, intraday),
+    ],
+    [data, intraday, judged],
   );
 
   if (!wide) {

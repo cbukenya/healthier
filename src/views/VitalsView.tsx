@@ -18,6 +18,7 @@ import { SpanSelector, useSpan } from '../ui/span';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 import { InsightsCarousel } from '../components/InsightsCarousel';
 import { usePageInsights, type Clock } from '../hooks/usePageInsights';
+import { useCycle } from '../hooks/useCycle';
 import type { IntradayDays } from '../pipeline/labs';
 import type { DailyRecord } from '../types/health';
 import { HeartRateCard } from './HeartRateCard';
@@ -53,6 +54,7 @@ interface Metric {
 export function VitalsView({ data, clock, intraday }: { data: SyncResult; clock?: Clock; intraday?: IntradayDays }) {
   const days = data.days;
   const insights = usePageInsights(data, 'vitals', clock, intraday);
+  const { judged } = useCycle();
   const today = days.at(-1)?.date ?? null;
   const spanState = useSpan(data, '30');
   const { days: window, bucket } = spanState;
@@ -77,6 +79,9 @@ export function VitalsView({ data, clock, intraday }: { data: SyncResult; clock?
   const rhrCmp = compareToBaseline(rhrAll, BASELINE_DAYS, BASELINE_MIN_READINGS, NOISE_FLOOR.restingHr);
   const respCmp = compareToBaseline(respAll, BASELINE_DAYS, BASELINE_MIN_READINGS, NOISE_FLOOR.respiratoryRate);
   const spo2Cmp = compareToBaseline(spo2All, BASELINE_DAYS, BASELINE_MIN_READINGS, NOISE_FLOOR.spo2);
+  // With cycle tracking on, the same readings judged against this part of the cycle.
+  const hrvCycle = judged && compareToBaseline(series(judged, (d) => d.hrv), BASELINE_DAYS, BASELINE_MIN_READINGS, NOISE_FLOOR.hrv);
+  const rhrCycle = judged && compareToBaseline(series(judged, (d) => d.restingHr), BASELINE_DAYS, BASELINE_MIN_READINGS, NOISE_FLOOR.restingHr);
 
   if (!values(rhrAll).length) {
     return (
@@ -175,7 +180,7 @@ export function VitalsView({ data, clock, intraday }: { data: SyncResult; clock?
               label={t('vitals.latest.hrv.label')}
               icon={<Activity size={14} className={DOMAIN.cardio.text} />}
               value={<Value value={hrvCmp.value} size="md" unit={t('units.ms')} />}
-              pill={hrvCmp.value !== null && <BandPill c={hrvCmp} />}
+              pill={hrvCmp.value !== null && <BandPill c={hrvCmp} cycle={hrvCycle} />}
               chart={hrvCmp.value !== null && <Spark series={hrvAll.slice(-28)} color={DOMAIN.cardio.hex} height={28} baseline={usual(hrvCmp)} />}
               rows={[[t('vitals.latest.usual'), hrvCmp.baseline !== null && `${fmtNum(hrvCmp.baseline, 0)} ${t('units.ms')}`]]}
               empty={hrvCmp.value === null ? t('vitals.latest.hrv.empty') : null}
@@ -185,7 +190,7 @@ export function VitalsView({ data, clock, intraday }: { data: SyncResult; clock?
               label={t('vitals.latest.restingHr.label')}
               icon={<Heart size={14} className={DOMAIN.cardio.text} />}
               value={<Value value={rhrCmp.value} size="md" unit={t('units.bpm')} />}
-              pill={rhrCmp.value !== null && <BandPill c={rhrCmp} />}
+              pill={rhrCmp.value !== null && <BandPill c={rhrCmp} cycle={rhrCycle} />}
               chart={rhrCmp.value !== null && <Spark series={rhrAll.slice(-28)} color={DOMAIN.cardio.hex} height={28} baseline={usual(rhrCmp)} />}
               rows={[[t('vitals.latest.usual'), rhrCmp.baseline !== null && `${fmtNum(rhrCmp.baseline, 0)} ${t('units.bpm')}`]]}
               note={from(rhrCmp.date)}

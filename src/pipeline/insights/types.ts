@@ -1,7 +1,7 @@
 export type Daypart = 'morning' | 'midday' | 'evening';
 
-/** Where a card lives: Today, or one of the four pages with an insight carousel. */
-export type Page = 'today' | 'activity' | 'sleep' | 'vitals' | 'body';
+/** Where a card lives: Today, or one of the pages with an insight carousel. The Cycle page has cards only while tracking is on. */
+export type Page = 'today' | 'activity' | 'sleep' | 'vitals' | 'body' | 'cycle';
 export type InsightPage = Exclude<Page, 'today'>;
 
 /** What sort of card it is; the page carousels show it as an icon chip. */
@@ -10,7 +10,7 @@ export type Kind = 'alert' | 'nudge' | 'trend' | 'milestone' | 'pattern' | 'revi
 export type Tone = 'good' | 'watch' | 'neutral';
 
 /** The data a card is about, for the page chip on Today. */
-export type Domain = 'sleep' | 'movement' | 'cardio' | 'body' | 'data';
+export type Domain = 'sleep' | 'movement' | 'cardio' | 'body' | 'cycle' | 'data';
 
 /** A card as the carousels show it. */
 export interface Observation {

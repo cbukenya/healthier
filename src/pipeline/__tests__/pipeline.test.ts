@@ -23,6 +23,7 @@ import { STREAMS } from '../registry';
 import { answerQueries, parseQueries, queryRange, type HistoryQueries } from '../history';
 import { answerFromRows } from '../incremental';
 import { emptyRecord } from '../normalize';
+import { EMPTY_CYCLE_LOG, summarizeCycles } from '../cycle';
 import type { SyncResult } from '../sync';
 import { formatCivilDay, formatCivilRange } from '../../i18n/format';
 import { t } from '../../i18n';
@@ -1155,6 +1156,42 @@ const listing = (days: Days, now: Date = MORNING) => {
   const f = feedsAt(days, now);
   return [...f.today.map((o) => `today:${o.id}`), ...Object.entries(f.pages).flatMap(([p, os]) => os.map((o) => `${p}:${o.id}`))].join(' | ');
 };
+
+describe('insight engine — cycle tracking', () => {
+  /** Cycle tracking with these days judged against the cycle, and no cycles of its own to write about. */
+  const tracking = (judged: Days) => {
+    const log = { ...EMPTY_CYCLE_LOG, settings: { tracking: true, todayCards: true } };
+    return { summary: summarizeCycles([], log, judged[judged.length - 1].date), nights: [], log, judged };
+  };
+  const ids = (f: ReturnType<typeof feedsAt>) => [...f.today, ...Object.values(f.pages).flat()].map((o) => o.id);
+  const withCycle = (days: Days, judged: Days) => ids(insightFeeds(dsOf(days), MORNING, { cycle: tracking(judged) }));
+
+  it('writes nothing about cycles while tracking is off', () => {
+    const f = feedsAt(syntheticDays(28));
+    const cycle = [...f.today, ...Object.values(f.pages).flat()].filter((o) => o.domain === 'cycle');
+    assert.deepEqual(cycle.map((o) => o.id), ['cycle-floor'], 'only the floor of a page that is not shown');
+  });
+
+  it('lets a high resting heart rate the cycle explains step aside, and keeps one it does not', () => {
+    const high = syntheticDays(28, { restingHr: 75 });
+    assert.ok(ids(feedsAt(high)).includes('rhr-acute-high'));
+    // Judged against the cycle, this morning is usual for this part of it.
+    const explained = high.map((d, i) => (i === 27 ? { ...d, restingHr: 62 } : d));
+    assert.ok(!withCycle(high, explained).includes('rhr-acute-high'));
+    assert.ok(withCycle(high, high).includes('rhr-acute-high'), "a rise the cycle doesn't explain stays");
+  });
+
+  it('calls several signals off only while they stay off once the cycle is allowed for', () => {
+    const rough = syntheticDays(28, { restingHr: 70, resp: 17.5, tempDev: 0.8, hrv: 24 });
+    const calm = syntheticDays(28);
+    assert.ok(withCycle(rough, rough).includes('illness-pattern'));
+    const explained = withCycle(rough, calm);
+    for (const id of ['illness-pattern', 'rhr-acute-high', 'hrv-acute-low', 'vitals-warm']) {
+      assert.ok(!explained.includes(id), `${id}: the cycle explains it`);
+    }
+    assert.ok(!withCycle(calm, rough).includes('illness-pattern'), 'judged days never add it');
+  });
+});
 
 describe('insight engine — stateless guards', () => {
   it('shows exactly the daypart floor card on a fully typical, unchanged month', () => {

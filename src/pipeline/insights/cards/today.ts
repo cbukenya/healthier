@@ -80,7 +80,7 @@ function battery(ctx: InsightContext, add: Add): void {
     // The pattern outranks and replaces the single-signal cards. It's a multi-signal DEVIATION
     // detector, not an illness classifier: heavy training, alcohol, heat, short sleep, travel and
     // cycle effects all produce it, so it names the deviation and offers illness as one reason.
-    const day2 = rPrev.flags.length > 0;
+    const day2 = ctx.illnessBefore;
     add({
       id: 'illness-pattern', domain: 'cardio', page: 'today', kind: 'alert', tone: 'watch',
       importance: 95, topic: 'illness', family: 'recovery', today: 'while-true', news: !day2, advice: 'rest',
@@ -293,7 +293,7 @@ function labsReminders(ctx: InsightContext, add: Add): void {
 
   if (ctx.intraday) {
     const intraday = ctx.intraday;
-    const sick = illnessDates(days);
+    const sick = illnessDates(days, ctx.judged);
     const dip = dipping(days, intraday, sick);
     if (dip.status === 'pattern') {
       add({

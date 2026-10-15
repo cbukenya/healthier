@@ -175,6 +175,8 @@ function demoDays(): DemoDay[] {
     let asleep = 440 + r.normal(26);
     if (ago >= 1 && ago <= 7) asleep = 362 + r.normal(14);
     if (ago === 0) asleep = 478;
+    // Shorter nights just before a period, as many people's are.
+    if (DEMO_CYCLE_STARTS.some((s) => date < s && date >= addDays(s, -3))) asleep -= 30;
     const awake = Math.max(8, round((rough.has(date) ? 58 : 28) + r.normal(8)));
     const deep = round(asleep * (0.16 + r.normal(0.02)));
     const rem = round(asleep * (0.21 + r.normal(0.025)));
