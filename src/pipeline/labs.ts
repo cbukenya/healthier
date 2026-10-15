@@ -1,6 +1,7 @@
 import type { DailyRecord, IntradaySample, SleepSession } from '../types/health';
 import { BASELINE_DAYS, BASELINE_MIN_READINGS, series, compareToBaseline, stats, values } from './derive';
 import { addDays } from '../lib/date';
+import { t } from '../i18n';
 import { formatCivil, formatClock } from '../i18n/format';
 import type { SyncResult } from './sync';
 
@@ -117,6 +118,9 @@ export function completedIntradayDays(intraday: IntradayDays): string[] {
   return Object.keys(intraday).filter((k) => intraday[k] && intraday[k].length > 60); // At least an hour of samples
 }
 
+/** Where the median drop sits, in the blood-pressure terms its bands come from; 'none' before any night. */
+export type DipCategory = 'none' | 'extreme-dipper' | 'dipper' | 'non-dipper' | 'riser';
+
 /**
  * Day-to-night heart-rate drop over the last 30 finished days.
  *
@@ -144,9 +148,9 @@ export function dipping(days: DailyRecord[], intraday: IntradayDays, sick: Set<s
 
   const medianDip = nights.length ? stats(nights.map((n) => n.dip))!.median : null;
   const nightsUnder10 = nights.filter((n) => n.dip < 10).length;
-  const category =
-    medianDip === null ? 'no pattern'
-      : medianDip > 20 ? 'extreme dipper'
+  const category: DipCategory =
+    medianDip === null ? 'none'
+      : medianDip > 20 ? 'extreme-dipper'
         : medianDip >= 10 ? 'dipper'
           : medianDip > 0 ? 'non-dipper'
             : 'riser';
@@ -260,9 +264,9 @@ export interface TachycardiaEvent {
   endMin: number;
   durationMin: number;
   peakBpm: number;
-  stage: string;
+  /** The sleep stage at the peak, or null when the session has no stages there. */
+  stage: 'deep' | 'rem' | 'light' | null;
   sleepWindow: string;
-  sleepWindowTime: string;
   sessionType: 'night' | 'nap';
 }
 
@@ -312,19 +316,20 @@ export function nocturnalTachycardia(days: DailyRecord[], intraday: IntradayDays
     const samples = [addDays(dayDate, -1), dayDate, addDays(dayDate, 1)]
       .flatMap(validSamples)
       .map((s) => ({ s, t: Date.parse(s.iso) }))
-      .filter(({ t }) => !isNaN(t) && t >= startMs && t <= endMs)
+      .filter(({ t: ms }) => !isNaN(ms) && ms >= startMs && ms <= endMs)
       .sort((a, b) => a.t - b.t);
 
     const windowMin = (endMs - startMs) / 60_000;
     if (samples.length < windowMin * 0.5) continue;
     scannedDates.add(dayDate);
 
-    const stageAt = (t: number) => {
-      const offset = (t - startMs) / 60_000;
+    const stageAt = (ms: number) => {
+      const offset = (ms - startMs) / 60_000;
       return session.segments.find((sg) => offset >= sg.offsetMin && offset < sg.offsetMin + sg.durationMin)?.stage ?? null;
     };
-    const windowTime = `${formatClock(session.bedtimeMin)} – ${formatClock(session.wakeMin)}`;
-    const sleepWindow = `${isNap ? 'Nap' : 'Night sleep'} (${windowTime})`;
+    const from = formatClock(session.bedtimeMin);
+    const to = formatClock(session.wakeMin);
+    const sleepWindow = t('labs.tachy.events.window', { kind: isNap ? 'nap' : 'night', from, to });
     const stretches: { from: number; to: number }[] = [];
 
     let run: { s: IntradaySample; t: number }[] = [];
@@ -341,9 +346,8 @@ export function nocturnalTachycardia(days: DailyRecord[], intraday: IntradayDays
           endMin: last.s.minutesOfDay,
           durationMin: Math.round((last.t - first.t) / 60_000) + 1,
           peakBpm: Math.round(peak.s.value),
-          stage: stage === 'deep' ? 'Deep sleep' : stage === 'rem' ? 'REM sleep' : stage === 'light' ? 'Light sleep' : isNap ? 'Nap' : 'Night sleep',
+          stage: stage === 'awake' ? null : stage,
           sleepWindow,
-          sleepWindowTime: windowTime,
           sessionType: isNap ? 'nap' : 'night',
         });
       }
@@ -374,7 +378,7 @@ export function nocturnalTachycardia(days: DailyRecord[], intraday: IntradayDays
     bedtimeMin: drawn.session.bedtimeMin,
     wakeMin: drawn.session.wakeMin,
     durationMin: (drawn.endMs - drawn.startMs) / 60_000,
-    points: drawn.samples.map(({ s, t }) => ({ min: (t - drawn.startMs) / 60_000, bpm: s.value })),
+    points: drawn.samples.map(({ s, t: ms }) => ({ min: (ms - drawn.startMs) / 60_000, bpm: s.value })),
     stretches: drawn.stretches,
   };
   return {
@@ -428,9 +432,8 @@ export function sdbScreen(days: DailyRecord[]) {
     };
   });
   const flags = nights
-    .map((n) => ({ n, off: Number(n.oxygen) + Number(n.breathing) + Number(n.awake) }))
-    .filter(({ off }) => off >= 2)
-    .map(({ n, off }) => ({ id: n.date, label: formatCivil(n.date), fired: true as const, detail: `${off} signals off` }));
+    .filter((n) => Number(n.oxygen) + Number(n.breathing) + Number(n.awake) >= 2)
+    .map((n) => ({ id: n.date, label: formatCivil(n.date), fired: true as const }));
 
   // Arousals per hour on usual nights, for context.
   const arousals = before

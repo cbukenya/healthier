@@ -204,7 +204,6 @@ export function Delta({
   digits = 1,
   phrase,
   values,
-  suffix,
 }: {
   value: number | null;
   unit?: string;
@@ -212,8 +211,6 @@ export function Delta({
   digits?: number;
   phrase?: MessageKey;
   values?: Values;
-  /** Words after the change, set muted, for the cards that haven't moved to `phrase` yet. */
-  suffix?: string;
 }) {
   if (value === null || !Number.isFinite(value)) {
     return <span className="text-caption text-zinc-600">{t('ui.delta.none')}</span>;
@@ -237,7 +234,6 @@ export function Delta({
   return (
     <span className={`text-caption font-medium tabular-nums ${tone}`}>
       {phrase ? rich(phrase, { ...values, change, muted: (w) => <span className="text-zinc-500 font-normal">{w}</span> }) : change}
-      {suffix ? <span className="text-zinc-500 font-normal"> {suffix}</span> : null}
     </span>
   );
 }

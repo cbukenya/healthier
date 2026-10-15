@@ -1,6 +1,7 @@
 import React, { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { CivilDate } from '../lib/date';
 import { formatCivil, formatCivilRange } from '../i18n/format';
+import { t, type MessageKey } from '../i18n';
 import {
   DAY, HOUR, MINUTE, ZONE_NAMES, byDay, hourly, lowerBound, tickStep, visibleRuns, wallClock, wallDate, wallTimes,
   zoneOf, zoneStarts, zoneStops, type Pt,
@@ -11,12 +12,12 @@ import { Card, DOMAIN, EFFORT } from '../ui/primitives';
 const ZONE_COLORS = [EFFORT.light, EFFORT.moderate, EFFORT.vigorous, EFFORT.peak] as const;
 
 /** The zoom buttons; pinching, ctrl and the wheel, and the strip's edges zoom in between. */
-const SPANS = [
-  { label: '3d', ms: 3 * DAY },
-  { label: '24h', ms: DAY },
-  { label: '6h', ms: 6 * HOUR },
-  { label: '2h', ms: 2 * HOUR },
-  { label: '30m', ms: 30 * MINUTE },
+const SPANS: { label: MessageKey; ms: number }[] = [
+  { label: 'vitals.heartRate.zoom.threeDays', ms: 3 * DAY },
+  { label: 'vitals.heartRate.zoom.twentyFourHours', ms: DAY },
+  { label: 'vitals.heartRate.zoom.sixHours', ms: 6 * HOUR },
+  { label: 'vitals.heartRate.zoom.twoHours', ms: 2 * HOUR },
+  { label: 'vitals.heartRate.zoom.thirtyMinutes', ms: 30 * MINUTE },
 ];
 const MIN_SPAN = 15 * MINUTE;
 const MAX_SPAN = 7 * DAY;
@@ -164,9 +165,12 @@ export function HeartRateCard({ samples, days, wide, className = '' }: {
   const dates = count
     ? wallDate(ts[a]) === wallDate(ts[b - 1]) ? formatCivil(wallDate(ts[a])) : formatCivilRange(wallDate(ts[a]), wallDate(ts[b - 1]))
     : formatCivil(wallDate(from));
-  const subtitle = count
-    ? `${dates} · ${count.toLocaleString('en-GB')} readings${following ? ` · latest ${wallClock(ts[ts.length - 1])}` : ''}`
-    : `${dates} · no readings`;
+  const subtitle = t('vitals.heartRate.subtitle', {
+    view: following ? 'now' : 'past',
+    dates,
+    count,
+    time: wallClock(ts[ts.length - 1]),
+  });
   const stats = count ? [low, Math.round(sum / count), high] : [null, null, null];
 
   // Hover, or a tap: the reading nearest the pointer.
@@ -342,7 +346,7 @@ export function HeartRateCard({ samples, days, wide, className = '' }: {
     <div>
       <dt className="text-eyebrow-sm uppercase text-zinc-500">{label}</dt>
       <dd className="mt-0.5 font-display text-number-xs text-zinc-50 tabular-nums">
-        {v ?? '—'} <span className="font-sans text-caption font-medium text-zinc-500">bpm</span>
+        {v ?? '—'} <span className="font-sans text-caption font-medium text-zinc-500">{t('units.bpm')}</span>
       </dd>
     </div>
   );
@@ -353,20 +357,20 @@ export function HeartRateCard({ samples, days, wide, className = '' }: {
         <div className="min-w-0">
           <h3 className="font-display text-title-sm text-zinc-100 flex items-center gap-2">
             <span className={`shrink-0 w-1.5 h-1.5 rounded-full ${DOMAIN.cardio.bg} ring-2 ${DOMAIN.cardio.ring}`} />
-            Heart rate
+            {t('vitals.heartRate.title')}
           </h3>
           <p className="text-caption text-zinc-500 mt-1.5 tabular-nums">{subtitle}</p>
         </div>
         {/* Spread across a phone; side by side beside the title on wider screens. */}
         <dl className="w-full md:w-auto flex justify-between md:grid md:grid-cols-3 md:gap-6">
-          {stat('Lowest', stats[0])}
-          {stat('Average', stats[1])}
-          {stat('Highest', stats[2])}
+          {stat(t('vitals.heartRate.stats.lowest'), stats[0])}
+          {stat(t('vitals.heartRate.stats.average'), stats[1])}
+          {stat(t('vitals.heartRate.stats.highest'), stats[2])}
         </dl>
       </div>
 
       <div className="px-5 pt-3.5 flex flex-wrap items-center gap-2.5">
-        <div role="group" aria-label="Zoom" className="inline-flex bg-zinc-950/80 border border-zinc-800 rounded-lg p-0.5">
+        <div role="group" aria-label={t('vitals.heartRate.zoom.label')} className="inline-flex bg-zinc-950/80 border border-zinc-800 rounded-lg p-0.5">
           {SPANS.filter((o) => o.ms <= longest).map((o) => {
             const on = Math.abs(span - o.ms) < MINUTE;
             return (
@@ -377,7 +381,7 @@ export function HeartRateCard({ samples, days, wide, className = '' }: {
                 onClick={() => (following ? show(end - o.ms, o.ms) : show(from + span / 2 - o.ms / 2, o.ms))}
                 className={`min-h-9 md:min-h-0 px-2.5 py-1 rounded-[6px] text-caption font-medium transition-colors ${on ? 'bg-zinc-800 text-zinc-100' : 'text-zinc-500 hover:text-zinc-300'}`}
               >
-                {o.label}
+                {t(o.label)}
               </button>
             );
           })}
@@ -388,7 +392,7 @@ export function HeartRateCard({ samples, days, wide, className = '' }: {
             onClick={() => setView({ span, to: null })}
             className="min-h-9 md:min-h-0 px-2.5 py-1 rounded-lg border border-zinc-800 text-caption font-medium text-zinc-300 hover:bg-zinc-900 transition-colors"
           >
-            Back to now
+            {t('vitals.heartRate.backToNow')}
           </button>
         )}
       </div>
@@ -398,7 +402,7 @@ export function HeartRateCard({ samples, days, wide, className = '' }: {
           ref={plotRef}
           role="img"
           tabIndex={0}
-          aria-label={`Heart rate, ${subtitle}: lowest ${stats[0] ?? 'none'}, average ${stats[1] ?? 'none'}, highest ${stats[2] ?? 'none'} bpm. The arrow keys move through the days; plus and minus zoom.`}
+          aria-label={t('vitals.heartRate.chart', { summary: subtitle, count, lowest: stats[0], average: stats[1], highest: stats[2] })}
           onKeyDown={onKeyDown}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
@@ -490,8 +494,14 @@ export function HeartRateCard({ samples, days, wide, className = '' }: {
               className="absolute -top-2 -translate-x-1/2 -translate-y-full px-2 py-1 rounded-lg border border-zinc-800 bg-zinc-950 text-caption text-zinc-200 whitespace-nowrap tabular-nums pointer-events-none"
               style={{ left: Math.min(plotW - 70, Math.max(70, hover.left)) }}
             >
-              {multiDay ? `${formatCivil(wallDate(hover.t))} ` : ''}{wallClock(hover.t)} · {hover.v} bpm
-              {hover.zones ? ` · ${ZONE_NAMES[zoneOf(hover.v, hover.zones)]}` : ''}
+              {t('vitals.heartRate.tooltip', {
+                span: multiDay ? 'days' : 'day',
+                zoned: hover.zones ? 'yes' : 'no',
+                date: formatCivil(wallDate(hover.t)),
+                time: wallClock(hover.t),
+                bpm: hover.v,
+                zone: hover.zones ? t(ZONE_NAMES[zoneOf(hover.v, hover.zones)]) : undefined,
+              })}
             </div>
           )}
         </div>
@@ -549,11 +559,11 @@ export function HeartRateCard({ samples, days, wide, className = '' }: {
             {ZONE_NAMES.map((name, k) => (
               <li key={name} className="flex items-center gap-1.5 text-caption text-zinc-300">
                 <span className="size-2 rounded-full" style={{ background: ZONE_COLORS[k] }} />
-                {name}
+                {t(name)}
               </li>
             ))}
           </ul>
-          <p className="mt-2 text-caption text-zinc-500">Your zones, updated daily by Google Health.</p>
+          <p className="mt-2 text-caption text-zinc-500">{t('vitals.heartRate.zonesSource')}</p>
         </div>
       )}
       {!hasZones && <div className="pb-4" />}
