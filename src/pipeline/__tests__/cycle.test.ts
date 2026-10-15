@@ -78,7 +78,9 @@ function cycleNights(
   return out;
 }
 
-const log = (patch: Partial<CycleLog> = {}): CycleLog => ({ ...EMPTY_CYCLE_LOG, settings: { tracking: true, todayCards: true }, ...patch });
+const log = (patch: Partial<CycleLog> = {}): CycleLog => ({
+  ...EMPTY_CYCLE_LOG, settings: { tracking: true, todayCards: true, otherPages: true }, ...patch,
+});
 const started = (...dates: CivilDate[]): CycleDay[] => dates.map((date) => ({ date, flow: 'unspecified' }));
 
 describe('cycles found in nightly temperature', () => {
@@ -293,7 +295,13 @@ describe('the cycle log', () => {
     assert.equal(parseCycleDay('2026-03-02', { symptoms: ['hiccups'] }), null);
     assert.equal(parseCycleDay('2026-03-02', { note: 'x'.repeat(501) }), null);
     assert.equal(parseCycleSettings({ tracking: 'yes', todayCards: true }), null);
-    assert.deepEqual(parseCycleSettings({ tracking: true, todayCards: false }), { tracking: true, todayCards: false });
+    assert.equal(parseCycleSettings({ tracking: true, todayCards: true, otherPages: 'no' }), null);
+    assert.deepEqual(
+      parseCycleSettings({ tracking: true, todayCards: false, otherPages: false }),
+      { tracking: true, todayCards: false, otherPages: false },
+    );
+    // A page loaded before the other pages' switch leaves it out: it stays on.
+    assert.deepEqual(parseCycleSettings({ tracking: true, todayCards: false }), { tracking: true, todayCards: false, otherPages: true });
   });
 
   it('reads what it can of a stored log, one day per date, oldest first', () => {
@@ -303,7 +311,7 @@ describe('the cycle log', () => {
       rejected: ['2026-02-01', 'never'],
     });
     assert.deepEqual(read, {
-      settings: { tracking: true, todayCards: true },
+      settings: { tracking: true, todayCards: true, otherPages: true },
       days: [{ date: '2026-03-01', symptoms: ['acne'] }, { date: '2026-03-05', flow: 'light' }],
       rejected: ['2026-02-01'],
     });
@@ -395,7 +403,7 @@ describe('allowing for the cycle elsewhere', () => {
 describe('cycle cards', () => {
   const starts = startsFor([28, 30, 27, 29, 31, 28, 28]);
   const latest = starts[starts.length - 1];
-  const quiet = log({ settings: { tracking: true, todayCards: false } });
+  const quiet = log({ settings: { tracking: true, todayCards: false, otherPages: true } });
   /** The cards on a morning, from the nights up to it. */
   const cardsOn = (today: CivilDate, l = log(), tweak: (n: Night) => Night = (n) => n) => {
     const nights = cycleNights(starts, today).map(tweak);

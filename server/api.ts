@@ -96,7 +96,7 @@ export function apiRoutes(deps: Deps): Router {
     }),
   );
 
-  /** Cycle tracking on or off, and whether cycle cards may show on Today. */
+  /** Cycle tracking on or off, whether cycle cards may show on Today, and whether the other pages allow for the cycle. */
   router.put(
     '/cycle/settings',
     asyncHandler(async (req, res) => {

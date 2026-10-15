@@ -42,10 +42,15 @@ export interface CycleDay {
 }
 
 export interface CycleSettings {
-  /** The Cycle page, and everything cycle-aware elsewhere. Off until the person turns it on. */
+  /** The Cycle page and its cards. Off until the person turns it on; nothing about cycles runs without it. */
   tracking: boolean;
   /** Cycle cards may show on Today. Off keeps them on the Cycle page. */
   todayCards: boolean;
+  /**
+   * The other pages allow for the cycle when they judge a night (see cycleAdjusted). Off, they read
+   * the nights as for someone who doesn't track cycles; the Cycle page and its cards stay.
+   */
+  otherPages: boolean;
 }
 
 /** What the person keeps: settings, logged days, and the found starts they said weren't a period. */
@@ -55,7 +60,7 @@ export interface CycleLog {
   rejected: CivilDate[];
 }
 
-export const DEFAULT_CYCLE_SETTINGS: CycleSettings = { tracking: false, todayCards: true };
+export const DEFAULT_CYCLE_SETTINGS: CycleSettings = { tracking: false, todayCards: true, otherPages: true };
 export const EMPTY_CYCLE_LOG: CycleLog = { settings: DEFAULT_CYCLE_SETTINGS, days: [], rejected: [] };
 
 export const MAX_NOTE = 500;
@@ -92,12 +97,20 @@ export function parseCycleDay(date: unknown, raw: unknown): CycleDay | null {
   return day;
 }
 
-/** Settings as sent: null unless both are booleans. */
+/**
+ * Settings as sent: null unless each is a boolean. `otherPages` came later, so a page loaded before
+ * it may leave it out, and it stays on.
+ */
 export function parseCycleSettings(raw: unknown): CycleSettings | null {
   if (!raw || typeof raw !== 'object') return null;
   const o = raw as Record<string, unknown>;
   if (typeof o.tracking !== 'boolean' || typeof o.todayCards !== 'boolean') return null;
-  return { tracking: o.tracking, todayCards: o.todayCards };
+  if (o.otherPages !== undefined && typeof o.otherPages !== 'boolean') return null;
+  return {
+    tracking: o.tracking,
+    todayCards: o.todayCards,
+    otherPages: typeof o.otherPages === 'boolean' ? o.otherPages : DEFAULT_CYCLE_SETTINGS.otherPages,
+  };
 }
 
 /** A day with something on it. */
@@ -113,6 +126,7 @@ export function readCycleLog(raw: unknown): CycleLog {
   const settings: CycleSettings = {
     tracking: typeof s.tracking === 'boolean' ? s.tracking : DEFAULT_CYCLE_SETTINGS.tracking,
     todayCards: typeof s.todayCards === 'boolean' ? s.todayCards : DEFAULT_CYCLE_SETTINGS.todayCards,
+    otherPages: typeof s.otherPages === 'boolean' ? s.otherPages : DEFAULT_CYCLE_SETTINGS.otherPages,
   };
   const byDate = new Map<CivilDate, CycleDay>();
   for (const d of Array.isArray(o.days) ? o.days.slice(0, MAX_DAYS) : []) {

@@ -68,6 +68,15 @@ describe('demo mode', () => {
     return { summary, nights, log: DEMO_CYCLE_LOG, judged: judgedDays(data.days, nights, summary, today) };
   };
 
+  it("reads every other page as without cycle tracking when they're not to allow for the cycle", () => {
+    const without = insightFeeds(data, DEMO_CLOCK.now, { intraday, timeZone: DEMO_CLOCK.timeZone });
+    const off = insightFeeds(data, DEMO_CLOCK.now, { intraday, timeZone: DEMO_CLOCK.timeZone, cycle: { ...cycle(), judged: null } });
+    // Cycle cards may still reach Today; everything else is as it would be without tracking.
+    const notCycle = (f: typeof off) => f.today.filter((o) => o.domain !== 'cycle');
+    assert.deepEqual(notCycle(off), notCycle(without));
+    for (const page of PAGES.filter((p) => p !== 'cycle')) assert.deepEqual(off.pages[page], without.pages[page], page);
+  });
+
   it('shows cards everywhere: at least two on Today, and cards of its own on every page', () => {
     const feeds = insightFeeds(data, DEMO_CLOCK.now, { intraday, timeZone: DEMO_CLOCK.timeZone, cycle: cycle() });
     assert.ok(feeds.today.length >= TODAY_MIN, `Today: ${feeds.today.map((o) => o.id)}`);

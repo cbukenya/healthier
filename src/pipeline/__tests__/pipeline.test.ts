@@ -1160,7 +1160,7 @@ const listing = (days: Days, now: Date = MORNING) => {
 describe('insight engine — cycle tracking', () => {
   /** Cycle tracking with these days judged against the cycle, and no cycles of its own to write about. */
   const tracking = (judged: Days) => {
-    const log = { ...EMPTY_CYCLE_LOG, settings: { tracking: true, todayCards: true } };
+    const log = { ...EMPTY_CYCLE_LOG, settings: { tracking: true, todayCards: true, otherPages: true } };
     return { summary: summarizeCycles([], log, judged[judged.length - 1].date), nights: [], log, judged };
   };
   const ids = (f: ReturnType<typeof feedsAt>) => [...f.today, ...Object.values(f.pages).flat()].map((o) => o.id);
@@ -1190,6 +1190,14 @@ describe('insight engine — cycle tracking', () => {
       assert.ok(!explained.includes(id), `${id}: the cycle explains it`);
     }
     assert.ok(!withCycle(calm, rough).includes('illness-pattern'), 'judged days never add it');
+  });
+
+  it("reads the nights as without cycle tracking when the other pages aren't to allow for the cycle", () => {
+    // "Allow for your cycle on other pages" off: tracking on, but no judged days.
+    for (const days of [syntheticDays(28, { restingHr: 75 }), syntheticDays(28, { restingHr: 70, resp: 17.5, tempDev: 0.8, hrv: 24 })]) {
+      const off = insightFeeds(dsOf(days), MORNING, { cycle: { ...tracking(days), judged: null } });
+      assert.deepEqual(ids(off), ids(feedsAt(days)));
+    }
   });
 });
 

@@ -285,7 +285,7 @@ export function GoalsCard({ autoNeed }: {
 
 /**
  * Cycle tracking: off until the person turns it on, for anyone who has periods, whatever gender is
- * set. The log can be deleted on its own.
+ * set. The log can be deleted on its own. Full width on a computer, its switches two to a row.
  */
 export function CycleCard({ kept }: {
   /** A log is kept on the server, though tracking is off and it wasn't sent. */
@@ -308,30 +308,42 @@ export function CycleCard({ kept }: {
     <Card>
       <CardHead title={t('data.cycle.title')} hint={t('data.cycle.hint')} domain="cycle" />
       <div className="px-5 pb-4">
-        <SwitchRow
-          label={t('data.cycle.tracking')}
-          note={t('data.cycle.trackingNote')}
-          on={on}
-          onToggle={() => setSettings({ ...log.settings, tracking: !on })}
-        />
-        {on && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 lg:gap-x-8">
           <SwitchRow
-            label={t('data.cycle.todayCards')}
-            note={t('data.cycle.todayCardsNote')}
-            on={log.settings.todayCards}
-            onToggle={() => setSettings({ ...log.settings, todayCards: !log.settings.todayCards })}
+            label={t('data.cycle.tracking')}
+            note={t('data.cycle.trackingNote')}
+            on={on}
+            onToggle={() => setSettings({ ...log.settings, tracking: !on })}
           />
-        )}
-        <p className="pt-3 border-t border-zinc-800/60 text-caption leading-relaxed text-zinc-500">{on ? t('data.cycle.private') : t('data.cycle.off')}</p>
-        {(on || kept || log.days.length > 0) && (
-          <button
-            type="button"
-            onClick={remove}
-            className="mt-3 min-h-10 px-3.5 rounded-lg border border-rose-900/60 text-caption font-medium text-rose-300 hover:bg-rose-500/10 transition-colors"
-          >
-            {t('data.cycle.delete')}
-          </button>
-        )}
+          {on && (
+            <>
+              <SwitchRow
+                label={t('data.cycle.todayCards')}
+                note={t('data.cycle.todayCardsNote')}
+                on={log.settings.todayCards}
+                onToggle={() => setSettings({ ...log.settings, todayCards: !log.settings.todayCards })}
+              />
+              <SwitchRow
+                label={t('data.cycle.otherPages')}
+                note={t('data.cycle.otherPagesNote')}
+                on={log.settings.otherPages}
+                onToggle={() => setSettings({ ...log.settings, otherPages: !log.settings.otherPages })}
+              />
+            </>
+          )}
+        </div>
+        <div className="pt-3 border-t border-zinc-800/60 flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+          <p className="grow basis-64 text-caption leading-relaxed text-zinc-500">{on ? t('data.cycle.private') : t('data.cycle.off')}</p>
+          {(on || kept || log.days.length > 0) && (
+            <button
+              type="button"
+              onClick={remove}
+              className="shrink-0 min-h-10 px-3.5 rounded-lg border border-rose-900/60 text-caption font-medium text-rose-300 hover:bg-rose-500/10 transition-colors"
+            >
+              {t('data.cycle.delete')}
+            </button>
+          )}
+        </div>
         {failed && <p role="alert" className="mt-3 text-caption text-rose-400">{t('data.cycle.failed')}</p>}
         {deleteFailed && <p role="alert" className="mt-3 text-caption text-rose-400">{t('data.cycle.deleteFailed')}</p>}
       </div>

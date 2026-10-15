@@ -26,8 +26,8 @@ interface CycleContextValue {
   today: CivilDate | null;
   /**
    * The days with each second-half night moved back by the person's own shift: for judging
-   * whether a reading is unusual, never for showing. Null with tracking off, and until three
-   * cycles show a shift.
+   * whether a reading is unusual, never for showing. Null with tracking off, with "Allow for your
+   * cycle on other pages" off, and until three cycles show a shift.
    */
   judged: DailyRecord[] | null;
   /** What the insight cards know about cycles. Null with tracking off. */
@@ -141,9 +141,11 @@ export function CycleProvider({
     [log, nights, today],
   );
 
+  // Off, the other pages read the nights as for someone who doesn't track cycles.
+  const otherPages = log.settings.otherPages;
   const judged = useMemo(
-    () => (summary && today ? judgedDays(data.days, nights, summary, today) : null),
-    [summary, nights, today, data],
+    () => (summary && today && otherPages ? judgedDays(data.days, nights, summary, today) : null),
+    [summary, nights, today, data, otherPages],
   );
   const insight = useMemo(() => (summary ? { summary, nights, log, judged } : null), [summary, nights, log, judged]);
 
