@@ -4,7 +4,7 @@ import { names, t, type MessageKey } from '../i18n';
 import { rich } from '../i18n/react';
 import { formatCivil, formatCivilLong, formatCivilRange, formatDayMonthLong, formatFixed, formatMonthYear, formatRounded } from '../i18n/format';
 import {
-  MAX_CYCLE, MIN_CYCLE, MIN_CYCLES, SECOND_HALF_DAYS, byCycleDay, loggedPeriods, sinceRise,
+  MAX_CYCLE, MIN_CYCLE, MIN_CYCLES, SECOND_HALF_DAYS, byCycleDay, loggedPeriods, secondHalfDays, sinceRise,
   type Cycle, type CycleLog, type CycleSummary, type Flow, type Night, type Symptom,
 } from '../pipeline/cycle';
 import { useCycle } from '../hooks/useCycle';
@@ -84,7 +84,7 @@ export function CycleView({ data, clock, intraday }: { data: SyncResult; clock?:
         </p>
       )}
 
-      <BodyThroughCycle summary={summary} nights={nights} />
+      <BodyThroughCycle summary={summary} nights={nights} log={log} />
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-start">
         <CycleHistory className="lg:col-span-7" summary={summary} log={log} today={today} />
@@ -451,17 +451,21 @@ const MEASURES = [
   { field: 'hrv', name: 'cycle.body.rows.hrv', unit: 'units.ms', digits: 0, signed: false },
 ] as const;
 
-/** Temperature, resting heart rate and HRV by cycle day: this cycle over the middle of the last six. */
-function BodyThroughCycle({ summary, nights }: { summary: CycleSummary; nights: Night[] }) {
+/**
+ * Temperature, resting heart rate and HRV by cycle day: this cycle over the middle of the last six.
+ * The period is the usual one logged, or this cycle's as logged; the second half runs as on the
+ * strip above. The legend names only what's drawn.
+ */
+function BodyThroughCycle({ summary, nights, log }: { summary: CycleSummary; nights: Night[]; log: CycleLog }) {
   const c = summary.current;
   const shifts = sinceRise(nights, summary);
   const rows = MEASURES.map((m) => ({ ...m, points: byCycleDay(nights, summary, m.field, CHART_DAYS) }));
   const pastCount = summary.cycles.filter((x) => x.length !== null && x.length >= MIN_CYCLE && x.length <= MAX_CYCLE).slice(-6).length;
   const hasBand = rows.some((r) => r.points.some((p) => p.middle !== null));
   if (!c && !hasBand) return null;
-  const periodDays = summary.period?.typical ?? null;
-  const riseFrom = summary.riseDay?.typical ?? c?.riseDay ?? null;
-  const riseTo = summary.length?.typical ?? null;
+  const thisPeriod = c ? periodOf(log, c.start) : null;
+  const periodDays = summary.period?.typical ?? (thisPeriod ? daysBetween(thisPeriod.start, thisPeriod.end) + 1 : null);
+  const half = secondHalfDays(summary);
   const ticks = [1, 7, 14, 21, 28, 35].filter((d) => !c || Math.abs(d - c.day) >= 3);
 
   return (
@@ -473,10 +477,10 @@ function BodyThroughCycle({ summary, nights }: { summary: CycleSummary; nights: 
       />
       <div className="px-5 pb-4">
         <div className="pb-3 flex flex-wrap gap-x-3.5 gap-y-1.5 text-caption text-zinc-400">
-          <span className="flex items-center gap-1.5"><span className="w-4 h-0.5 bg-zinc-50" />{t('cycle.body.legend.mine')}</span>
-          <span className="flex items-center gap-1.5"><span className="w-4 h-2.5 rounded-sm bg-zinc-700" />{t('cycle.body.legend.usual')}</span>
-          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-pink-400/35" />{t('cycle.body.legend.period')}</span>
-          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-violet-400/35" />{t('cycle.body.legend.afterRise')}</span>
+          {c && <span className="flex items-center gap-1.5"><span className="w-4 h-0.5 bg-zinc-50" />{t('cycle.body.legend.mine')}</span>}
+          {hasBand && <span className="flex items-center gap-1.5"><span className="w-4 h-2.5 rounded-sm bg-zinc-700" />{t('cycle.body.legend.usual')}</span>}
+          {periodDays && <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-pink-400/35" />{t('cycle.body.legend.period')}</span>}
+          {half && <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-violet-400/35" />{t('cycle.body.legend.afterRise')}</span>}
         </div>
         {rows.map((r) => {
           const latest = [...r.points].reverse().find((p) => p.mine !== null)?.mine ?? null;
@@ -505,8 +509,7 @@ function BodyThroughCycle({ summary, nights }: { summary: CycleSummary; nights: 
                   points={r.points}
                   today={c?.day ?? null}
                   periodDays={periodDays}
-                  riseFrom={riseFrom}
-                  riseTo={riseTo}
+                  half={half}
                   label={t('cycle.body.chart', { name: t(r.name) })}
                 />
               </div>
@@ -535,13 +538,13 @@ function BodyThroughCycle({ summary, nights }: { summary: CycleSummary; nights: 
 
 /** One measure by cycle day, drawn to fill its width: lines keep their weight as it stretches. */
 function CycleChart({
-  points, today, periodDays, riseFrom, riseTo, label,
+  points, today, periodDays, half, label,
 }: {
   points: ReturnType<typeof byCycleDay>;
   today: number | null;
   periodDays: number | null;
-  riseFrom: number | null;
-  riseTo: number | null;
+  /** The second half's first and last cycle days. */
+  half: { from: number; to: number } | null;
   label: string;
 }) {
   const W = 340;
@@ -571,8 +574,8 @@ function CycleChart({
   return (
     <svg role="img" aria-label={label} viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="block w-full h-[90px]">
       {periodDays && <rect x={0} y={0} width={x(periodDays + 0.5)} height={H} fill="rgba(244,114,182,0.13)" />}
-      {riseFrom && riseTo && riseTo > riseFrom && (
-        <rect x={x(riseFrom - 0.5)} y={0} width={x(riseTo - 0.5) - x(riseFrom - 0.5)} height={H} fill="rgba(167,139,250,0.10)" />
+      {half && half.to > half.from && (
+        <rect x={x(half.from - 0.5)} y={0} width={x(half.to + 0.5) - x(half.from - 0.5)} height={H} fill="rgba(167,139,250,0.10)" />
       )}
       {band && <path d={band} fill="#3f3f46" fillOpacity={0.75} stroke="none" />}
       {today !== null && today <= CHART_DAYS && (

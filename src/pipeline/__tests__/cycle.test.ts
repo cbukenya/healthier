@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { addDays, daysBetween, type CivilDate } from '../../lib/date';
 import {
   EMPTY_CYCLE_LOG, FIRST_SEEN_NIGHTS, SECOND_HALF_DAYS, WEIGHT_FOUND, WEIGHT_LOGGED, byCycleDay, calibrateOffset, cycleAdjusted,
-  findStarts, judgedDays, loggedPeriods, nightsFrom, parseCycleDay, parseCycleSettings, readCycleLog, secondHalf,
+  findStarts, judgedDays, loggedPeriods, nightsFrom, parseCycleDay, parseCycleSettings, readCycleLog, secondHalf, secondHalfDays,
   summarizeCycles, typicalShifts, weightedMedian, withDay, withRejected,
   type CycleDay, type CycleLog, type Night,
 } from '../cycle';
@@ -179,6 +179,9 @@ describe('cycles found in the nights', () => {
     assert.equal(s.next?.basis, 'cycles');
     assert.equal(s.next?.from, addDays(s.current!.start, s.length!.min));
     assert.equal(s.next?.to, addDays(s.current!.start, s.length!.max));
+    // The chart's second half runs from the day this one began to the typical cycle's last day.
+    assert.deepEqual(secondHalfDays(s), { from: s.current!.riseDay, to: s.length!.typical });
+    assert.equal(s.current!.riseDay, s.length!.typical - SECOND_HALF_DAYS + 1);
   });
 
   it('puts the cycle under way in its second half from the likely next period, counted back, right up to the period', () => {
@@ -297,6 +300,16 @@ describe('logged and confirmed starts', () => {
     assert.equal(s.next?.basis, 'early');
     assert.equal(s.next?.from, addDays(START, 59 + 28 - 2));
     assert.equal(s.next?.to, addDays(START, 59 + 29 + 2));
+    // Day 17: the second half the chart draws is still to come, counted back from the guess.
+    assert.equal(s.current?.riseDay, null);
+    assert.deepEqual(secondHalfDays(s), { from: 29 - SECOND_HALF_DAYS + 1, to: 29 });
+    // Day 22: it has begun, on the day the page says.
+    const risen = summarizeCycles(cycleNights([START], addDays(START, 80), { high: -0.15 }), log({ days }), addDays(START, 80));
+    assert.equal(risen.current?.riseDay, 29 - SECOND_HALF_DAYS + 1);
+    assert.deepEqual(secondHalfDays(risen), { from: risen.current!.riseDay, to: 29 });
+    // One cycle: nothing to count back from.
+    const one = summarizeCycles(flat, log({ days: started(addDays(START, 2), addDays(START, 30)) }), addDays(START, 40));
+    assert.equal(secondHalfDays(one), null);
     // A third cycle and the guess gives way to the typical cycle.
     const later = summarizeCycles(cycleNights([START], addDays(START, 100), { high: -0.15 }), log({ days: [...days, ...started(addDays(START, 87))] }), addDays(START, 100));
     assert.equal(later.next?.basis, 'cycles');

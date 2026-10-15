@@ -782,6 +782,17 @@ export function byCycleDay(
   return out;
 }
 
+/**
+ * The days of a cycle its second half likely runs, by cycle day: from the day this cycle's began,
+ * or is likely to begin, to the last day of the typical cycle, or of the early guess from two
+ * cycles. Null until there are two cycles.
+ */
+export function secondHalfDays(summary: CycleSummary): { from: number; to: number } | null {
+  const typical = summary.length?.typical ?? summary.early?.typical ?? null;
+  if (typical === null) return null;
+  return { from: summary.current?.riseDay ?? typical - SECOND_HALF_DAYS + 1, to: typical };
+}
+
 // ─────────────────────────────────────────────────────── aware elsewhere
 
 export type Shifts = Record<'temp' | 'restingHr' | 'hrv', number | null>;
