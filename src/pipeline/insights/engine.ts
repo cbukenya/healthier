@@ -2,6 +2,7 @@ import { buildContext, type InsightDataset, type InsightOptions } from './contex
 import { settle } from './conflicts';
 import { PAGES, carouselOf, place, placeable } from './place';
 import type { HistoryQueries } from '../history';
+import { cycleQueries } from '../cycle';
 import { activityCards, activityQueries } from './cards/activity';
 import { bodyCards, bodyQueries } from './cards/body';
 import { sleepCards, sleepQueries } from './cards/sleep';
@@ -56,7 +57,7 @@ import type { Finding, InsightFeeds } from './types';
  * request. Each page's cards declare their own beside the code that reads the
  * answers.
  */
-export const HISTORY_QUERIES: HistoryQueries = { ...activityQueries, ...sleepQueries, ...vitalsQueries, ...bodyQueries };
+export const HISTORY_QUERIES: HistoryQueries = { ...activityQueries, ...sleepQueries, ...vitalsQueries, ...bodyQueries, ...cycleQueries };
 
 export function evaluate(ds: InsightDataset, now: Date = new Date(), extras?: InsightOptions) {
   const ctx = buildContext(ds, now, extras);

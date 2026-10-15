@@ -106,6 +106,20 @@ const MIGRATIONS: { id: number; name: string; sql: string }[] = [
       ALTER TABLE users ADD COLUMN goals jsonb;
     `,
   },
+  {
+    id: 4,
+    name: 'cycle logs',
+    sql: `
+      -- The person's cycle settings and log (CycleLog in src/pipeline/cycle.ts), one row a person.
+      -- Periods and symptoms are among the most private things anyone records, so the whole log is
+      -- AES-256-GCM ciphertext under ENCRYPTION_KEY, like the Google tokens.
+      CREATE TABLE cycle_logs (
+        user_id    uuid PRIMARY KEY REFERENCES users (id) ON DELETE CASCADE,
+        data       bytea NOT NULL,
+        updated_at timestamptz NOT NULL DEFAULT now()
+      );
+    `,
+  },
 ];
 
 export function createDb(connectionString: string): Db {

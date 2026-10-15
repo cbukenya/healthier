@@ -14,6 +14,7 @@ import {
 } from '../src/pipeline/incremental';
 import type { DailyRecord, StreamReport } from '../src/types/health';
 import { readGoals } from '../src/pipeline/goals';
+import { EMPTY_CYCLE_LOG } from '../src/pipeline/cycle';
 import { answerQueries, queriesSpan, type HistoryAnswers, type HistoryQueries } from '../src/pipeline/history';
 import { SCOPES, type ScopeKey } from '../src/pipeline/registry';
 import { HealthTransport } from '../src/pipeline/transport';
@@ -26,6 +27,7 @@ import {
   applySyncOutput,
   deleteExpiredSessions,
   deleteTokens,
+  getCycleLog,
   getIntradayDays,
   getOldestStreamDay,
   getStreamDays,
@@ -275,14 +277,21 @@ export async function loadDataset(
 
   const to = todayCivilIn(user.timeZone);
   const from = addDays(to, -(DASHBOARD_WINDOW_DAYS - 1));
-  const [rows, intraday, states] = await Promise.all([
+  const [rows, intraday, states, cycleLog] = await Promise.all([
     getStreamDays(deps.db, userId, from, to),
     getIntradayDays(deps.db, userId, from, to),
     getStreamStates(deps.db, userId),
+    getCycleLog(deps.db, deps.config.encryptionKey, userId),
   ]);
+  // With tracking off, the log stays on the server: only the setting goes out.
+  const cycle = cycleLog.settings.tracking ? cycleLog : { ...EMPTY_CYCLE_LOG, settings: cycleLog.settings };
   const dataset = assembleDataset(
-    // Gender and goals are the person's own settings, kept on their account rather than read from Google.
-    { rows, intraday, states: states.values(), profile: { ...state.profile, gender: user.gender, goals: readGoals(user.goals) }, run: state.run },
+    // Gender, goals and the cycle log are the person's own, kept on their account rather than read from Google.
+    {
+      rows, intraday, states: states.values(),
+      profile: { ...state.profile, gender: user.gender, goals: readGoals(user.goals), cycle },
+      run: state.run,
+    },
     from,
     to,
   );
