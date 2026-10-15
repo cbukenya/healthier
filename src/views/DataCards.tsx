@@ -293,7 +293,6 @@ export function CycleCard({ kept }: {
 }) {
   const { log, setSettings, forget, failed } = useCycle();
   const [deleteFailed, setDeleteFailed] = useState(false);
-  const id = useId();
   const on = log.settings.tracking;
   const remove = async () => {
     if (!window.confirm(t('data.cycle.confirm'))) return;
@@ -309,22 +308,20 @@ export function CycleCard({ kept }: {
     <Card>
       <CardHead title={t('data.cycle.title')} hint={t('data.cycle.hint')} domain="cycle" />
       <div className="px-5 pb-4">
-        <div className="py-3 border-t border-zinc-800/60 flex items-start justify-between gap-4">
-          <div className="min-w-0">
-            <div id={id} className="text-body text-zinc-200">{t('data.cycle.tracking')}</div>
-            <p className="mt-0.5 text-caption leading-relaxed text-zinc-500">{t('data.cycle.trackingNote')}</p>
-          </div>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={on}
-            aria-labelledby={id}
-            onClick={() => setSettings({ ...log.settings, tracking: !on })}
-            className={`relative shrink-0 mt-0.5 w-12 h-7 rounded-full transition-colors ${on ? 'bg-pink-600' : 'bg-zinc-700'}`}
-          >
-            <span className={`absolute top-[3px] size-[22px] rounded-full bg-zinc-50 transition-[left] ${on ? 'left-[23px]' : 'left-[3px]'}`} />
-          </button>
-        </div>
+        <SwitchRow
+          label={t('data.cycle.tracking')}
+          note={t('data.cycle.trackingNote')}
+          on={on}
+          onToggle={() => setSettings({ ...log.settings, tracking: !on })}
+        />
+        {on && (
+          <SwitchRow
+            label={t('data.cycle.todayCards')}
+            note={t('data.cycle.todayCardsNote')}
+            on={log.settings.todayCards}
+            onToggle={() => setSettings({ ...log.settings, todayCards: !log.settings.todayCards })}
+          />
+        )}
         <p className="pt-3 border-t border-zinc-800/60 text-caption leading-relaxed text-zinc-500">{on ? t('data.cycle.private') : t('data.cycle.off')}</p>
         {(on || kept || log.days.length > 0) && (
           <button
@@ -339,6 +336,29 @@ export function CycleCard({ kept }: {
         {deleteFailed && <p role="alert" className="mt-3 text-caption text-rose-400">{t('data.cycle.deleteFailed')}</p>}
       </div>
     </Card>
+  );
+}
+
+/** A setting that's on or off: its name, a line on what it does, and a switch. */
+function SwitchRow({ label, note, on, onToggle }: { label: string; note: string; on: boolean; onToggle: () => void }) {
+  const id = useId();
+  return (
+    <div className="py-3 border-t border-zinc-800/60 flex items-start justify-between gap-4">
+      <div className="min-w-0">
+        <div id={id} className="text-body text-zinc-200">{label}</div>
+        <p className="mt-0.5 text-caption leading-relaxed text-zinc-500">{note}</p>
+      </div>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={on}
+        aria-labelledby={id}
+        onClick={onToggle}
+        className={`relative shrink-0 mt-0.5 w-12 h-7 rounded-full transition-colors ${on ? 'bg-pink-600' : 'bg-zinc-700'}`}
+      >
+        <span className={`absolute top-[3px] size-[22px] rounded-full bg-zinc-50 transition-[left] ${on ? 'left-[23px]' : 'left-[3px]'}`} />
+      </button>
+    </div>
   );
 }
 

@@ -3,12 +3,17 @@ import assert from 'node:assert/strict';
 
 import { addDays, daysBetween, type CivilDate } from '../../lib/date';
 import {
-  EMPTY_CYCLE_LOG, MIN_SHIFT_SD, WEIGHT_FOUND, WEIGHT_LOGGED, byCycleDay, calibrateOffset, findShifts, loggedPeriods,
-  nightsFrom, parseCycleDay, parseCycleSettings, readCycleLog, summarizeCycles, weightedMedian, withDay, withRejected,
+  EMPTY_CYCLE_LOG, FALL_NIGHTS, MIN_SHIFT_SD, WEIGHT_FOUND, WEIGHT_LOGGED, byCycleDay, calibrateOffset, cycleAdjusted, findShifts,
+  judgedDays, loggedPeriods, nightsFrom, parseCycleDay, parseCycleSettings, readCycleLog, secondHalf, summarizeCycles, typicalShifts,
+  weightedMedian, withDay, withRejected,
   type CycleDay, type CycleLog, type Night,
 } from '../cycle';
 import { answerQuery, parseQueries } from '../history';
+import { cycleCards } from '../insights/cards/cycle';
+import type { InsightContext } from '../insights/context';
+import type { Finding } from '../insights/types';
 import { emptyRecord } from '../normalize';
+import { formatDayMonthLong } from '../../i18n/format';
 
 /**
  * Cycles found in nightly skin temperature: every start within a day from the nights alone, a
@@ -344,6 +349,115 @@ describe('the nights', () => {
     assert.equal(rows[9].mine, -0.15);
     assert.equal(rows[10].mine, null, 'nothing yet past today');
     assert.equal(rows[30].middle, null, 'no past cycle ran 31 days');
+  });
+});
+
+describe('allowing for the cycle elsewhere', () => {
+  const starts = startsFor([28, 30, 27, 29, 31, 28, 28]);
+  const today = addDays(starts[starts.length - 1], 17);
+  const nights = cycleNights(starts, today);
+  const s = summarizeCycles(nights, log(), today);
+  /** The window's days, carrying the nights' readings. */
+  const days = nights.slice(-60).map((n) => ({ ...emptyRecord(n.date), skinTempDeviationC: n.temp, restingHr: n.restingHr, hrv: n.hrv }));
+  const near = (a: number, b: number) => Math.abs(a - b) < 1e-9;
+
+  it("finds the person's own second-half shift in each measure, once three cycles show it", () => {
+    const shifts = typicalShifts(nights, s);
+    assert.ok(Math.abs(shifts.temp! - 0.4) < 0.05, `temperature ${shifts.temp}`);
+    assert.ok(Math.abs(shifts.restingHr! - 2.5) < 0.6, `resting heart rate ${shifts.restingHr}`);
+    assert.ok(Math.abs(shifts.hrv! + 5) < 1.5, `HRV ${shifts.hrv}`);
+
+    // Two complete cycles aren't enough to say, so nothing is judged differently.
+    const early = startsFor([28, 30, 27]);
+    const until = addDays(early[early.length - 1], 17);
+    const few = cycleNights(early, until);
+    const summary = summarizeCycles(few, log(), until);
+    assert.deepEqual(typicalShifts(few, summary), { temp: null, restingHr: null, hrv: null });
+    assert.equal(judgedDays(days, few, summary, until), null);
+  });
+
+  it('moves only second-half nights, by whole steps, and leaves the rest as they were', () => {
+    const shifts = typicalShifts(nights, s);
+    const judged = cycleAdjusted(days, s, shifts, today);
+    const half = secondHalf(s, today);
+    assert.ok(half.has(today), 'this cycle has risen: today is in its second half');
+    assert.ok(!half.has(starts[starts.length - 1]), 'a period is in the first half');
+    days.forEach((d, i) => {
+      const j = judged[i];
+      if (!half.has(d.date)) return assert.deepEqual(j, d);
+      assert.ok(near(d.restingHr! - j.restingHr!, Math.round(shifts.restingHr!)), d.date);
+      assert.ok(near(j.hrv! - d.hrv!, -Math.round(shifts.hrv!)), d.date);
+      assert.ok(near(d.skinTempDeviationC! - j.skinTempDeviationC!, Math.round(shifts.temp! * 100) / 100), d.date);
+    });
+  });
+});
+
+describe('cycle cards', () => {
+  const starts = startsFor([28, 30, 27, 29, 31, 28, 28]);
+  const latest = starts[starts.length - 1];
+  const quiet = log({ settings: { tracking: true, todayCards: false } });
+  /** The cards on a morning, from the nights up to it. */
+  const cardsOn = (today: CivilDate, l = log(), tweak: (n: Night) => Night = (n) => n) => {
+    const nights = cycleNights(starts, today).map(tweak);
+    const summary = summarizeCycles(nights, l, today);
+    const cards: Finding[] = [];
+    cycleCards({ today, cycle: { summary, nights, log: l, judged: null } } as unknown as InsightContext, (f) => cards.push(f));
+    return { summary, card: (id: string) => cards.find((f) => f.id === id) };
+  };
+
+  it('says a period is due from two days before it is likely until the range ends, on Today only if allowed', () => {
+    const { from, to } = cardsOn(addDays(latest, 17)).summary.next!;
+    assert.equal(cardsOn(addDays(from, -3)).card('cycle-due'), undefined);
+    const soon = cardsOn(addDays(from, -2)).card('cycle-due')!;
+    assert.equal(soon.title, 'Your period is likely in the next few days');
+    assert.equal(
+      soon.text,
+      `Your temperature rose on day 15 of this cycle. In your last 6 cycles your period came 14 days after the rise, so the next one is likely on ${formatDayMonthLong(from)}.`,
+    );
+    assert.equal(soon.today, 'while-true');
+    const due = cardsOn(from).card('cycle-due')!;
+    assert.equal(due.title, 'Your period could start any day now');
+    assert.match(due.text, /If it has started, you can log it on the Cycle page\. If you don't, Healthier will find it in your nights a few days later\./);
+    assert.equal(cardsOn(addDays(to, 1)).card('cycle-due'), undefined);
+    assert.equal(cardsOn(from, quiet).card('cycle-due')!.today, 'never', 'on the Cycle page instead');
+  });
+
+  it('tells Today about a new cycle in its first week, once it can be found, and only if allowed', () => {
+    // The fall is the night before the start, and it's sure once FALL_NIGHTS nights from it are in.
+    // A night or two sooner it already shows, a day or two early: give or take a day.
+    const fall = addDays(latest, -1);
+    const sure = addDays(fall, FALL_NIGHTS - 1);
+    const shown: CivilDate[] = [];
+    for (let k = 0; k <= 12; k++) {
+      const morning = addDays(latest, k);
+      const { summary, card } = cardsOn(morning);
+      const c = card('cycle-new');
+      if (!c) continue;
+      shown.push(morning);
+      assert.equal(c.kind, 'nudge', 'a nudge: on Today, never on the Cycle page, which has its own');
+      assert.ok(summary.current!.day <= FALL_NIGHTS - summary.offset + 2, `${morning}: day ${summary.current!.day}`);
+    }
+    assert.ok(shown.length >= 3 && shown.includes(sure), shown.join(' '));
+    assert.ok(shown.every((d) => d <= addDays(latest, 6)), 'not past the first week');
+    assert.equal(
+      cardsOn(sure).card('cycle-new')!.text,
+      `Your temperature and heart rate fell back on ${formatDayMonthLong(fall)}, the way they do when a period starts, so day 1 of a new cycle is ${formatDayMonthLong(latest)}, give or take a day. If that's right, there's nothing to do. If it began on another day, or it wasn't a period, you can say so on the Cycle page.`,
+    );
+    assert.equal(cardsOn(sure, quiet).card('cycle-new'), undefined);
+    assert.equal(cardsOn(sure, log({ days: started(latest) })).card('cycle-new'), undefined, 'a logged start needs no card');
+  });
+
+  it('notices what repeats: shorter sleep before a period, the heart in the second half, regular cycles', () => {
+    const today = addDays(latest, 17);
+    const shorter = (n: Night): Night => ({ ...n, asleep: starts.some((st) => n.date < st && n.date >= addDays(st, -3)) ? 380 : 430 });
+    const { card } = cardsOn(today, log(), shorter);
+    assert.match(card('cycle-sleep-before')!.text, /^Over your last 6 cycles, you slept 6h 20m on average in the three nights before your period, 50 minutes less/);
+    assert.match(card('cycle-heart-follows')!.text, /^Over your last 6 cycles, your resting heart rate ran about 2\.\d bpm higher after your temperature rise/);
+    assert.equal(
+      card('cycle-steady')!.text,
+      'Your last 6 cycles all ran between 27 and 31 days. Regular cycles make your next period easier to see coming.',
+    );
+    assert.equal(cardsOn(today, log(), (n) => ({ ...n, asleep: 430 })).card('cycle-sleep-before'), undefined, 'no difference, no card');
   });
 });
 

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  CalendarCheck, ChevronLeft, ChevronRight, Crown, Database, FileCode2, Footprints, Heart, Moon, PersonStanding, Timer,
+  CalendarCheck, ChevronLeft, ChevronRight, CircleDotDashed, Crown, Database, FileCode2, Footprints, Heart, Moon, PersonStanding, Timer,
   TrendingDown, TrendingUp, TriangleAlert, createLucideIcon,
 } from 'lucide-react';
 import type { InsightPage, Kind, Observation } from '../pipeline/insights';
@@ -10,6 +10,7 @@ const DOMAIN_LABELS: Record<string, MessageKey> = {
   cardio: 'insights.carousel.domains.cardio',
   sleep: 'insights.carousel.domains.sleep',
   body: 'insights.carousel.domains.body',
+  cycle: 'insights.carousel.domains.cycle',
   data: 'insights.carousel.domains.data',
   movement: 'insights.carousel.domains.movement',
 };
@@ -18,6 +19,7 @@ const DOMAIN_ICONS: Record<string, React.ReactNode> = {
   cardio: <Heart size={14} />,
   sleep: <Moon size={14} />,
   body: <PersonStanding size={14} />,
+  cycle: <CircleDotDashed size={14} />,
   data: <FileCode2 size={14} />,
   movement: <Footprints size={14} />,
 };
@@ -41,6 +43,7 @@ const DOMAIN_STYLES: Record<string, { color: string, border: string, bg: string 
   cardio: { color: '#fb7185', border: 'rgba(251,113,133,.3)', bg: 'rgba(251,113,133,.08)' },
   sleep: { color: '#818cf8', border: 'rgba(129,140,248,.3)', bg: 'rgba(129,140,248,.08)' },
   body: { color: '#5eead4', border: 'rgba(94,234,212,.3)', bg: 'rgba(94,234,212,.08)' },
+  cycle: { color: '#f472b6', border: 'rgba(244,114,182,.3)', bg: 'rgba(244,114,182,.08)' },
   data: { color: '#a1a1aa', border: 'rgba(161,161,170,.3)', bg: 'rgba(161,161,170,.08)' },
   movement: { color: '#34d399', border: 'rgba(52,211,153,.3)', bg: 'rgba(52,211,153,.08)' },
 };
@@ -89,11 +92,13 @@ function KindIcon({ obs }: { obs: Observation }) {
   }
 }
 
-const PAGE_COPY: Record<InsightPage, { title: MessageKey; description: MessageKey }> = {
+/** Each page's carousel: its title, what it covers, and its own disclaimer where the general one isn't enough. */
+const PAGE_COPY: Record<InsightPage, { title: MessageKey; description: MessageKey; disclaimer?: MessageKey }> = {
   activity: { title: 'insights.carousel.pages.activity.title', description: 'insights.carousel.pages.activity.description' },
   sleep: { title: 'insights.carousel.pages.sleep.title', description: 'insights.carousel.pages.sleep.description' },
   vitals: { title: 'insights.carousel.pages.vitals.title', description: 'insights.carousel.pages.vitals.description' },
   body: { title: 'insights.carousel.pages.body.title', description: 'insights.carousel.pages.body.description' },
+  cycle: { title: 'insights.carousel.pages.cycle.title', description: 'insights.carousel.pages.cycle.description', disclaimer: 'cycle.disclaimer' },
 };
 
 /**
@@ -251,7 +256,7 @@ export function InsightsCarousel({ observations, page }: { observations: Observa
         </div>
         
         <p className="text-caption text-zinc-500 mt-1 px-4 md:px-0 text-center max-w-lg mx-auto">
-          {t('insights.carousel.disclaimer')}
+          {t(copy?.disclaimer ?? 'insights.carousel.disclaimer')}
         </p>
       </div>
     </div>

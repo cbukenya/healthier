@@ -89,6 +89,18 @@ describe('day-to-night heart rate', () => {
     // The default is the shared illness set, so a card calling without one agrees with the insight.
     assert.deepEqual(dipping(days, intraday), dipping(days, intraday, illnessDates(days)));
   });
+
+  it('with cycle tracking, leaves out only the nights still off once the cycle is allowed for', () => {
+    const days = nights(40);
+    const off = (d: DailyRecord): DailyRecord => ({ ...d, restingHr: 75, respiratoryRate: 18 });
+    days[35] = off(days[35]);
+    days[38] = off(days[38]);
+    assert.deepEqual([...illnessDates(days)], [days[35].date, days[38].date]);
+    // Night 35 is only the cycle; night 38 is more than that. A night the cycle can't explain stays,
+    // and judged nights can't add one (night 30 is off only in the judged days).
+    const judged = days.map((d, i) => (i === 35 ? nights(40)[35] : i === 30 ? off(d) : d));
+    assert.deepEqual([...illnessDates(days, judged)], [days[38].date]);
+  });
 });
 
 describe('HRV entropy', () => {
@@ -277,6 +289,24 @@ describe('system strain', () => {
 
   it('collects until it has usual ranges', () => {
     assert.equal(strainToday(nights(20)).status, 'collecting');
+  });
+
+  it('with cycle tracking, counts a signal the cycle explains as in, and never makes one off', () => {
+    const days = nights(40);
+    const last = days[days.length - 1];
+    last.restingHr = 70;
+    last.respiratoryRate = 17;
+    // The same days judged against the cycle: the resting heart rate is what this part of it brings.
+    const judged = days.map((d, i) => (i === days.length - 1 ? { ...d, restingHr: days[i - 1].restingHr } : d));
+    const r = strainToday(days, judged);
+    assert.deepEqual(r.explained, ['restingHr']);
+    assert.equal(r.signals.find((s) => s.key === 'restingHr')!.status, 'in');
+    assert.equal(r.off, 1);
+    assert.equal(r.level, 'baseline');
+
+    // Judged days that look worse than the readings change nothing.
+    const worse = days.map((d, i) => (i === days.length - 1 ? { ...d, hrv: 5 } : d));
+    assert.deepEqual(strainToday(days, worse), strainToday(days));
   });
 });
 

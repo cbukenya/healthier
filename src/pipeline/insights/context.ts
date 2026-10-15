@@ -9,6 +9,7 @@ import {
   type Point, type Readiness,
 } from '../derive';
 import { DEFAULT_GOALS, type Goals } from '../goals';
+import type { CycleLog, CycleSummary, Night } from '../cycle';
 import { beforeLatestMorning, daypartOf, wallClock } from './helpers';
 import type { Daypart } from './types';
 
@@ -18,6 +19,20 @@ export interface InsightOptions {
   timeZone?: string;
   /** The person's goals; the defaults when they haven't set any. */
   goals?: Goals;
+  /** Cycle tracking, only while it's on. */
+  cycle?: CycleInsight;
+}
+
+/** What the cycle-aware cards read: the cycles found and logged, and the window judged with them in mind. */
+export interface CycleInsight {
+  summary: CycleSummary;
+  nights: Night[];
+  log: CycleLog;
+  /**
+   * The window's days with each second-half night moved back by the person's own shift
+   * (cycleAdjusted), for judging what's unusual; null until three cycles show the shift.
+   */
+  judged: DailyRecord[] | null;
 }
 
 type ReadinessPart = Readiness['parts'][number];
@@ -69,8 +84,17 @@ export interface InsightContext {
   prevDays: DailyRecord[];
   topPos: ReadinessPart | null;
   topNeg: ReadinessPart | null;
-  /** Several overnight signals off at once: single-signal cards step aside. */
+  /**
+   * Several overnight signals off at once: single-signal cards step aside. With cycle tracking on,
+   * judged against the person's own cycle, so the second half of a cycle isn't mistaken for it.
+   */
   illness: boolean;
+  /** The same, as of the morning before the latest one. */
+  illnessBefore: boolean;
+  /** Cycle tracking, while it's on; null otherwise. */
+  cycle: CycleInsight | null;
+  /** The days judged against the person's own cycle, while tracking is on and a shift is known; null otherwise. */
+  judged: DailyRecord[] | null;
   debt: ReturnType<typeof sleepDebt>;
   /** The battery's own debt figure, only from a fully recorded week. */
   debtMin: number | null;
@@ -92,6 +116,13 @@ export function buildContext(ds: InsightDataset, now: Date, extras?: InsightOpti
 
   const rNow = readiness(days, goals.sleepNeed);
   const prevDays = beforeLatestMorning(days);
+  const cycle = extras?.cycle ?? null;
+  const judged = cycle?.judged ?? null;
+  const rPrev = readiness(prevDays, goals.sleepNeed);
+  // The battery's score stays the person's own. Whether several signals are off is judged with the
+  // cycle in mind too, while tracking is on: the cycle can explain them away, never add them.
+  const illness = rNow.flags.length > 0 && (!judged || readiness(judged, goals.sleepNeed).flags.length > 0);
+  const illnessBefore = rPrev.flags.length > 0 && (!judged || readiness(beforeLatestMorning(judged), goals.sleepNeed).flags.length > 0);
   const byContribution = [...rNow.parts].sort((a, b) => b.contribution - a.contribution);
   const debt = sleepDebt(days, need);
 
@@ -116,11 +147,14 @@ export function buildContext(ds: InsightDataset, now: Date, extras?: InsightOpti
     lastNight: lastNightDay?.sleep ?? null,
     lastNightIsRecent: isRecent(lastNightDay?.date, today),
     rNow,
-    rPrev: readiness(prevDays, goals.sleepNeed),
+    rPrev,
     prevDays,
     topPos: byContribution[0] ?? null,
     topNeg: byContribution[byContribution.length - 1] ?? null,
-    illness: rNow.flags.length > 0,
+    illness,
+    illnessBefore,
+    cycle,
+    judged,
     debt,
     debtMin: debt && debt.coverage === 'full' ? debt.netMin : null,
     load: loadRatio(doneSteps),

@@ -37,6 +37,8 @@ export interface StrainSignal {
 export interface StrainToday {
   status: 'collecting' | 'waiting' | 'ready';
   signals: StrainSignal[];
+  /** Off in the readings, but only by as much as this part of the person's cycle moves them, so counted as in. */
+  explained: StrainKey[];
   /** How many of the four have a reading on the latest day. */
   arrived: number;
   off: number;
@@ -56,8 +58,27 @@ const STRAIN_INPUTS: { key: StrainKey; get: (d: DailyRecord) => number | null }[
  * that day: one that hasn't arrived yet shows as no data, never as yesterday's.
  * It compares once two of them have a usual range (8 readings in the four
  * weeks before) and a reading today.
+ *
+ * With `judged` (cycle tracking on, see cycleAdjusted), a signal that's off only by as much as
+ * this part of the person's cycle moves it counts as in. The cycle can explain a signal away,
+ * never make one off.
  */
-export function strainToday(days: DailyRecord[]): StrainToday {
+export function strainToday(days: DailyRecord[], judged: DailyRecord[] | null = null): StrainToday {
+  const raw = strainOf(days);
+  if (!judged) return raw;
+  const aware = strainOf(judged);
+  const explained = raw.signals
+    .filter((s, i) => s.status === 'off' && aware.signals[i].status === 'in')
+    .map((s) => s.key);
+  if (!explained.length) return raw;
+  const signals = raw.signals.map((s) => (explained.includes(s.key) ? { ...s, status: 'in' as const } : s));
+  const off = signals.filter((s) => s.status === 'off').length;
+  return { ...raw, signals, off, level: raw.status !== 'ready' ? null : levelOf(off), explained };
+}
+
+const levelOf = (off: number): StrainToday['level'] => (off >= 3 ? 'high' : off === 2 ? 'elevated' : 'baseline');
+
+function strainOf(days: DailyRecord[]): StrainToday {
   const latest = days[days.length - 1];
   const prior = days.slice(-29, -1);
   const ranged = (get: (d: DailyRecord) => number | null) => prior.filter((d) => get(d) !== null).length >= 8;
@@ -97,15 +118,26 @@ export function strainToday(days: DailyRecord[]): StrainToday {
     signals,
     arrived: STRAIN_INPUTS.filter(({ get }) => today(get)).length,
     off,
-    level: status !== 'ready' ? null : off >= 3 ? 'high' : off === 2 ? 'elevated' : 'baseline',
+    level: status !== 'ready' ? null : levelOf(off),
+    explained: [],
   };
 }
 
-export function illnessDates(days: DailyRecord[]): Set<string> {
+/**
+ * Days with several overnight signals off at once. With `judged` (cycle tracking on, see
+ * cycleAdjusted), only the days still off once the person's cycle is allowed for: the cycle can
+ * explain a day away, never add one.
+ */
+export function illnessDates(days: DailyRecord[], judged: DailyRecord[] | null = null): Set<string> {
+  const at = new Map((judged ?? []).map((d, i) => [d.date, i]));
+  const stillOff = (date: string) => {
+    const j = at.get(date);
+    return !judged || j === undefined || calculateOffSignals(judged, j) >= 2;
+  };
   const dates = new Set<string>();
   for (let i = 28; i < days.length; i++) {
     const offSignals = calculateOffSignals(days, i);
-    if (offSignals >= 2) {
+    if (offSignals >= 2 && stillOff(days[i].date)) {
       dates.add(days[i].date);
     }
   }

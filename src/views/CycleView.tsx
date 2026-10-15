@@ -8,6 +8,10 @@ import {
   type Cycle, type CycleLog, type CycleSummary, type Flow, type Night, type Symptom,
 } from '../pipeline/cycle';
 import { useCycle } from '../hooks/useCycle';
+import { usePageInsights, type Clock } from '../hooks/usePageInsights';
+import { InsightsCarousel } from '../components/InsightsCarousel';
+import type { IntradayDays } from '../pipeline/labs';
+import type { SyncResult } from '../pipeline/sync';
 import { Card, CardHead, DOMAIN } from '../ui/primitives';
 import { Chips, Sheet } from '../ui/Sheet';
 
@@ -48,8 +52,9 @@ const SYMPTOM_LABEL: Record<Symptom, MessageKey> = {
 
 type SheetState = { kind: 'day'; date: CivilDate } | { kind: 'start'; suggest: CivilDate | null } | null;
 
-export function CycleView() {
+export function CycleView({ data, clock, intraday }: { data: SyncResult; clock?: Clock; intraday?: IntradayDays }) {
   const { summary, log, nights, today, failed } = useCycle();
+  const insights = usePageInsights(data, 'cycle', clock, intraday);
   const [sheet, setSheet] = useState<SheetState>(null);
   if (!summary || !today) return null;
   const close = () => setSheet(null);
@@ -86,7 +91,8 @@ export function CycleView() {
         <CycleCalendar className="lg:col-span-5" summary={summary} log={log} today={today} onPick={(date) => setSheet({ kind: 'day', date })} />
       </div>
 
-      <p className="px-4 pt-2 text-center text-caption leading-relaxed text-zinc-500 max-w-2xl mx-auto">{t('cycle.disclaimer')}</p>
+      {/* Its footer is the Cycle page's disclaimer: not a way to tell fertile days, nor contraception. */}
+      <InsightsCarousel observations={insights} page="cycle" />
 
       {sheet?.kind === 'day' && <DaySheet date={sheet.date} onClose={close} />}
       {sheet?.kind === 'start' && <StartSheet suggest={sheet.suggest} onClose={close} />}

@@ -124,6 +124,7 @@
       "typical": "in your usual range",
       "above": "above usual",
       "farAbove": "well above usual",
+      "cycle": "usual for this part of your cycle",
       "soFarToday": "so far today",
       "noHistory": "no history",
       "needsDays": "baseline needs {count, plural, one {# more day} other {# more days}}",
@@ -176,6 +177,10 @@
         "body": {
           "title": "Body insights",
           "description": "What your weigh-ins add up to over time, measured against your own trend."
+        },
+        "cycle": {
+          "title": "Cycle insights",
+          "description": "What repeats across your cycles, found in your own nights and your log."
         }
       },
       "kinds": {
@@ -192,7 +197,8 @@
         "sleep": "Sleep",
         "body": "Body",
         "data": "Data",
-        "movement": "Activity"
+        "movement": "Activity",
+        "cycle": "Cycle"
       }
     },
     "common": {
@@ -299,6 +305,10 @@
         "textLatest": "Your latest weigh-in was {weight} kg on {date}. A few more weigh-ins over the next weeks will show your trend.",
         "title": "No clear change in your weight",
         "text": "Your weight trend is moving by less than {threshold} kg a week either way. Your latest weigh-in was {weight} kg on {date}."
+      },
+      "cycleFloor": {
+        "title": "{known, select, yes {Day {day} of your cycle} other {Your cycles}}",
+        "text": "{known, select, yes {Nothing stands out in this cycle so far. When something repeats across your cycles, like shorter sleep before your period, it will show here.} other {Once Healthier has found a few cycles in your nights, anything that repeats across them will show here.}}"
       }
     },
     "today": {
@@ -778,6 +788,28 @@
       "activityHardestDay": {
         "title": "{reach, select, year {Your hardest day in a year} other {Your hardest day yet}}",
         "text": "{source, select, zone {You earned {count, plural, one {# active zone minute} other {# active zone minutes}} on {date}, your most in a day {span}. Your previous best was {previous}.} other {You did {count, plural, one {# minute} other {# minutes}} of brisk activity on {date}, harder minutes counting double. That's your most in a day {span}. Your previous best was {previous}.}}"
+      }
+    },
+    "cycle": {
+      "due": {
+        "title": "{started, select, yes {Your period could start any day now} other {Your period is likely in the next few days}}",
+        "text": "{basis, select, rise {Your temperature rose on day {rise} of this cycle. In {count, plural, one {your last cycle} other {your last # cycles}} your period came {same, select, yes {{min, plural, one {# day} other {# days}} after the rise, so the next one is likely on {from}.} other {{min} to {max} days after the rise, so the next one is likely between {from} and {to}.}}} other {{same, select, yes {{count, plural, one {Your last cycle} other {Your last # cycles each}} ran {min, plural, one {# day} other {# days}}, so your next period is likely on {from}.} other {{count, plural, one {Your last cycle} other {Your last # cycles}} ran {min} to {max} days, so your next period is likely between {from} and {to}.}}}}{started, select, yes { If it has started, you can log it on the {tab} page. If you don't, Healthier will find it in your nights a few days later.} other {}}"
+      },
+      "newCycle": {
+        "title": "A new cycle seems to have started",
+        "text": "Your temperature and heart rate fell back on {fall}, the way they do when a period starts, so day 1 of a new cycle is {date}, give or take a day. If that's right, there's nothing to do. If it began on another day, or it wasn't a period, you can say so on the {tab} page."
+      },
+      "sleepBefore": {
+        "title": "You sleep less before your period",
+        "text": "Over {count, plural, one {your last cycle} other {your last # cycles}}, you slept {before} on average in the three nights before your period, {diff, plural, one {# minute} other {# minutes}} less than on the other nights of those cycles. An earlier bedtime in the days before your next one could make up some of it."
+      },
+      "heartFollows": {
+        "title": "Your heart follows your cycle",
+        "text": "Over {count, plural, one {your last cycle} other {your last # cycles}}, your resting heart rate ran about {bpm} bpm higher after your temperature rise than before it. That's a common pattern in the second half of a cycle.{aware, select, yes { Healthier allows for it elsewhere, so a higher heart rate then is only called unusual when it goes beyond your own pattern.} other {}}"
+      },
+      "steady": {
+        "title": "Your cycles are regular",
+        "text": "{spread, select, none {Your last {count, plural, one {cycle} other {# cycles each}} ran {min, plural, one {# day} other {# days}}} other {Your last {count, plural, one {cycle} other {# cycles all}} ran between {min} and {max} days}}{periods, select, same {, and your periods lasted {periodMin, plural, one {# day} other {# days}} each time.} range {, and your periods lasted {periodMin} to {periodMax} days.} other {.}} Regular cycles make your next period easier to see coming."
       }
     }
   },
@@ -1824,7 +1856,8 @@
         "explainer": "One metric can move because of a late meal or a warm room. When <b>several move at once</b>, it's a clearer sign that something changed: often recovery, sometimes a cold coming on.",
         "extra": "Each signal counts as off when it leaves your usual range in the direction that matters: resting HR and breathing rate above it, HRV below it, and skin temperature 0.5 °C or more above.",
         "footer": "Counts how many of resting heart rate, breathing rate, skin temperature and HRV are outside your usual range on the latest day. Several at once often follows hard training, short sleep, alcohol, heat or travel, or feeling under the weather."
-      }
+      },
+      "cycle": "{signals} {count, plural, one {has moved only as much as it usually does} other {have moved only as much as they usually do}} in this part of your cycle, so {count, plural, one {it isn't} other {they aren't}} counted as off."
     },
     "irn": {
       "title": "Irregular rhythm notifications",
@@ -2038,7 +2071,9 @@
       "title": "Cycle tracking",
       "hint": "Off until you turn it on. Google Health doesn't share periods with other apps, so Healthier finds your cycles in your nights and keeps a log of its own.",
       "tracking": "Cycle page",
-      "trackingNote": "Adds the Cycle page: your cycles, found in your nightly temperature, resting heart rate and HRV, and a log of your periods and how you feel.",
+      "trackingNote": "Adds the Cycle page: your cycles, found in your nightly temperature, resting heart rate and HRV, and a log of your periods and how you feel. While it's on, Healthier also allows for your cycle when it says whether a night's readings are unusual.",
+      "todayCards": "Cycle cards on Today",
+      "todayCardsNote": "A card on Today when your period is likely in the next few days, or when your nights show a new cycle has started. Turned off, they stay on the Cycle page.",
       "private": "Your log stays on this server, encrypted, and you can delete it on its own.",
       "off": "Turned off, nothing about cycles shows anywhere. Anything you logged is kept until you delete it.",
       "delete": "Delete cycle data",

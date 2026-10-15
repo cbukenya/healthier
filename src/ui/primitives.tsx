@@ -161,8 +161,14 @@ const BAND_COPY: Record<Band, { label: MessageKey; cls: string }> = {
  *
  * `partial` marks a day still in progress: half a day's steps against whole
  * days always reads "below usual", so it gets no verdict yet.
+ *
+ * `cycle` is the same reading judged with cycle tracking on (see cycleAdjusted): when it's
+ * inside the usual range there, the pill says the reading is usual for this part of the cycle
+ * instead of calling it unusual. The numbers shown stay the real ones.
  */
-export function BandPill({ c, invert = false, partial = false }: { c: Comparison; invert?: boolean; partial?: boolean }) {
+export function BandPill({
+  c, invert = false, partial = false, cycle = null,
+}: { c: Comparison; invert?: boolean; partial?: boolean; cycle?: Comparison | null }) {
   if (partial) {
     return (
       <span className="text-note px-2 py-0.5 rounded-full border border-zinc-800 text-zinc-500">{t('ui.band.soFarToday')}</span>
@@ -175,7 +181,9 @@ export function BandPill({ c, invert = false, partial = false }: { c: Comparison
       </span>
     );
   }
-  const copy = BAND_COPY[c.band];
+  const copy = c.band !== 'typical' && cycle?.band === 'typical' && cycle.date === c.date
+    ? { label: 'ui.band.cycle' as const, cls: 'text-pink-300/90 bg-pink-500/[0.07] border-pink-500/15' }
+    : BAND_COPY[c.band];
   return (
     <span
       className={`text-note px-2 py-0.5 rounded-full border font-medium ${copy.cls}`}
