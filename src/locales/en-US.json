@@ -793,11 +793,11 @@
     "cycle": {
       "due": {
         "title": "{started, select, yes {Your period could start any day now} other {Your period is likely in the next few days}}",
-        "text": "{basis, select, rise {Your temperature rose on day {rise} of this cycle. In {count, plural, one {your last cycle} other {your last # cycles}} your period came {same, select, yes {{min, plural, one {# day} other {# days}} after the rise, so the next one is likely on {from}.} other {{min} to {max} days after the rise, so the next one is likely between {from} and {to}.}}} other {{same, select, yes {{count, plural, one {Your last cycle} other {Your last # cycles each}} ran {min, plural, one {# day} other {# days}}, so your next period is likely on {from}.} other {{count, plural, one {Your last cycle} other {Your last # cycles}} ran {min} to {max} days, so your next period is likely between {from} and {to}.}}}}{started, select, yes { If it has started, you can log it on the {tab} page. If you don't, Healthier will find it in your nights a few days later.} other {}}"
+        "text": "{basis, select, rise {Your second half began on day {rise} of this cycle. In {count, plural, one {your last cycle} other {your last # cycles}} your period came {same, select, yes {{min, plural, one {# day} other {# days}} after that, so the next one is likely on {from}.} other {{min} to {max} days after that, so the next one is likely between {from} and {to}.}}} other {{same, select, yes {{count, plural, one {Your last cycle} other {Your last # cycles each}} ran {min, plural, one {# day} other {# days}}, so your next period is likely on {from}.} other {{count, plural, one {Your last cycle} other {Your last # cycles}} ran {min} to {max} days, so your next period is likely between {from} and {to}.}}}}{started, select, yes { If it has started, you can log it on the {tab} page. If you don't, Healthier will find it in your nights a few days later.} other {}}"
       },
       "newCycle": {
         "title": "A new cycle seems to have started",
-        "text": "Your temperature and heart rate fell back on {fall}, the way they do when a period starts, so day 1 of a new cycle is {date}, give or take a day. If that's right, there's nothing to do. If it began on another day, or it wasn't a period, you can say so on the {tab} page."
+        "text": "Your heart rate, HRV and temperature changed the way they do when a period starts, so day 1 of a new cycle was about {date}, give or take a few days. If that's right, there's nothing to do. If it began on another day, or it wasn't a period, you can say so on the {tab} page."
       },
       "sleepBefore": {
         "title": "You sleep less before your period",
@@ -805,7 +805,7 @@
       },
       "heartFollows": {
         "title": "Your heart follows your cycle",
-        "text": "Over {count, plural, one {your last cycle} other {your last # cycles}}, your resting heart rate ran about {bpm} bpm higher after your temperature rise than before it. That's a common pattern in the second half of a cycle.{aware, select, yes { Healthier allows for it elsewhere, so a higher heart rate then is only called unusual when it goes beyond your own pattern.} other {}}"
+        "text": "Over {count, plural, one {your last cycle} other {your last # cycles}}, your resting heart rate ran about {bpm} bpm higher in the second half than in the first. That's a common pattern in the second half of a cycle.{aware, select, yes { Healthier allows for it elsewhere, so a higher heart rate then is only called unusual when it goes beyond your own pattern.} other {}}"
       },
       "steady": {
         "title": "Your cycles are regular",
@@ -1515,13 +1515,13 @@
     "signedValue": "{sign, select, up {+} other {−}}{value}",
     "phase": {
       "period": "Your period",
-      "beforeRise": "Before your temperature rise",
-      "afterRise": "After your temperature rise"
+      "beforeRise": "First half of your cycle",
+      "afterRise": "Second half of your cycle"
     },
     "next": {
       "range": "Your next period is likely between <b>{from}</b> and <b>{to}</b>.",
       "day": "Your next period is likely around <b>{date}</b>.",
-      "past": "Your next period was likely by {date}. Cycles run long now and then: the new one shows when your nights fall back, or when you log it.",
+      "past": "Your next period was likely by {date}. Cycles run long now and then: the new one shows a few days after it starts, or as soon as you log it.",
       "collecting": "After {count, plural, one {# more cycle} other {# more cycles}}, Healthier can say when your next period is likely."
     },
     "actions": {
@@ -1529,26 +1529,26 @@
       "started": "My period started"
     },
     "strip": {
-      "label": "Day {day} of this cycle.{rise, select, yes { Your temperature rose on day {riseDay}.} other {}}{next, select, yes { Your next period is likely from day {from} to day {to}.} other {}}",
+      "label": "Day {day} of this cycle.{rise, select, yes { The second half began on day {riseDay}.} other {}}{next, select, yes { Your next period is likely from day {from} to day {to}.} other {}}",
       "today": "Today",
       "period": "Period",
-      "rise": "Rise",
+      "rise": "Second half",
       "next": "Likely next"
     },
     "reached": {
       "title": "How it was reached",
       "start": "{source, select, logged {This cycle began on {date}} other {This cycle began around {date}}}",
-      "startDetail": "{source, select, logged {You logged it. Today is day {day}.} other {Your temperature and heart rate fell back the night before. Today is day {day}.}}",
+      "startDetail": "{source, select, logged {You logged it. Today is day {day}.} other {Found in your nights, give or take a few days. Today is day {day}.}}",
       "cycles": "Your last {count} cycles ran {min} to {max} days",
       "cyclesDetail": "{logged, plural, =0 {} one {One began with a period you logged. } other {# began with a period you logged. }}{found, plural, =0 {} one {One was found in your nights. } other {# were found in your nights. }}Logged ones count twice as much, and the middle is {typical} days.",
-      "rise": "Your temperature and heart rate rose on day {day}",
-      "riseDetail": "They've stayed up since.",
-      "next": "{basis, select, rise {So your next period is likely {min} to {max} days after the rise} other {So your next period is likely {min} to {max} days after this cycle began}}",
+      "rise": "Your second half began on day {day}",
+      "riseDetail": "Your heart rate and temperature have stayed up since.",
+      "next": "{basis, select, rise {So your next period is likely {min} to {max} days after the second half began} other {So your next period is likely {min} to {max} days after this cycle began}}",
       "nextDetail": "That puts it between {from} and {to}."
     },
     "found": {
       "title": "A new cycle, found in your nights",
-      "text": "Your temperature and heart rate fell back on {fall}. {learned, select, yes {In the cycles you confirmed, your period started} other {A period usually starts}} {offset, plural, =0 {the same day as} one {the day after} other {# days after}} a fall like this, so day 1 is {date}, give or take a day.",
+      "text": "Your heart rate, HRV and temperature changed the way they do when a period starts, so day 1 was about {date}, give or take a few days.{learned, select, yes { That day allows for how your nights lined up with the periods you confirmed.} other {}}",
       "confirm": "That's right",
       "change": "Change the day",
       "reject": "It wasn't a period",
@@ -1556,23 +1556,23 @@
     },
     "collecting": {
       "title": "Finding your rhythm",
-      "text": "Healthier looks for your cycles in your nightly temperature, resting heart rate and HRV. It needs two cycles in a row to see a rhythm, or a period you log."
+      "text": "Healthier looks for your cycles in your nightly heart rate, HRV, temperature and breathing. It needs a few cycles to be sure of them, or a period you log."
     },
     "noRhythm": {
-      "title": "No clear rhythm in your nights yet",
-      "text": "Your temperature and heart rate haven't shown the rise and fall that marks a cycle. That's common on hormonal contraception, when cycles vary a lot, or when the watch comes off at night.",
-      "logged": "Periods you log are still used just as they are."
+      "title": "Healthier hasn't found your cycles yet",
+      "text": "Your nights haven't shown a cycle clearly enough to be sure of it. Wrist readings are often too faint for that, and it's common on hormonal contraception, when cycles vary a lot, or when the watch comes off at night.",
+      "logged": "A period you log is certain, and shows your cycles straight away."
     },
     "now": {
       "afterRise": {
-        "eyebrow": "After the temperature rise",
+        "eyebrow": "Second half",
         "of": "of about {days}",
-        "text": "Since day {day}, you've run warmer, with a faster resting heart rate, the way your nights go in the second half of a cycle."
+        "text": "Since day {day}, your heart rate has run faster and your HRV lower, often a little warmer too, the way nights go in the second half of a cycle."
       },
       "beforeRise": {
-        "eyebrow": "Before the temperature rise",
-        "text": "In your last cycles, the rise came on day {days}.",
-        "unknown": "The rise comes after ovulation, around the middle of a cycle."
+        "eyebrow": "First half",
+        "text": "In your last cycles, the second half began on day {days}.",
+        "unknown": "The second half begins after ovulation, around the middle of a cycle."
       },
       "rows": {
         "temp": "Skin temperature",
@@ -1624,7 +1624,7 @@
         "mine": "This cycle",
         "usual": "Your past cycles",
         "period": "Period",
-        "afterRise": "After the rise"
+        "afterRise": "Second half"
       },
       "rows": {
         "temp": "Skin temperature",
@@ -1637,12 +1637,12 @@
     },
     "history": {
       "title": "Your cycles",
-      "hint": "Each bar is one cycle, found in your nights whether you logged it or not. Solid pink is a period you logged; dashed is a start found in your nights, give or take a day.",
+      "hint": "Each bar is one cycle, found in your nights whether you logged it or not. Solid pink is a period you logged; dashed is a start found in your nights, give or take a few days.",
       "empty": "Your cycles will show here as Healthier finds them in your nights, or as you log them.",
       "legend": {
         "logged": "Period you logged",
         "found": "Start found in your nights",
-        "rise": "Temperature rose"
+        "rise": "Second half began"
       },
       "stats": {
         "typical": "Typical cycle",
@@ -1650,7 +1650,7 @@
         "period": "Periods you logged",
         "days": "days"
       },
-      "row": "From {date}: {length}, {source, select, logged {a period you logged} other {a start found in your nights}}{rise, select, yes {, temperature rose on day {riseDay}} other {}}."
+      "row": "From {date}: {length}, {source, select, logged {a period you logged} other {a start found in your nights}}{rise, select, yes {, second half from day {riseDay}} other {}}."
     },
     "calendar": {
       "previous": "Previous month",
@@ -1661,7 +1661,7 @@
         "period": "a period day",
         "spotting": "spotting",
         "found": "a start found in your nights",
-        "rise": "your temperature rose",
+        "rise": "your second half began",
         "logged": "something logged",
         "likely": "your period may start",
         "likelyDay": "your period is most likely to start"
@@ -1669,7 +1669,7 @@
       "legend": {
         "period": "Period",
         "likely": "Likely period",
-        "rise": "Temperature rose",
+        "rise": "Second half began",
         "logged": "Logged"
       }
     },
@@ -2071,7 +2071,7 @@
       "title": "Cycle tracking",
       "hint": "Off until you turn it on. Google Health doesn't share periods with other apps, so Healthier finds your cycles in your nights and keeps a log of its own.",
       "tracking": "Cycle page",
-      "trackingNote": "Adds the Cycle page: your cycles, found in your nightly temperature, resting heart rate and HRV, and a log of your periods and how you feel.",
+      "trackingNote": "Adds the Cycle page: your cycles, found in your nightly heart rate, HRV, temperature and breathing, and a log of your periods and how you feel.",
       "todayCards": "Cycle cards on Today",
       "todayCardsNote": "A card on Today when your period is likely in the next few days, or when your nights show a new cycle has started. Turned off, they stay on the Cycle page.",
       "otherPages": "Allow for your cycle on other pages",

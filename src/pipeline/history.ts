@@ -38,6 +38,8 @@ export const MEASURES = {
   sleepEfficiency: (d: DailyRecord) => d.sleep?.efficiency ?? null,
   restingHr: (d: DailyRecord) => d.restingHr,
   hrv: (d: DailyRecord) => d.hrv,
+  /** Heart rate in non-REM sleep. */
+  nonRemHr: (d: DailyRecord) => d.nonRemHr,
   respiratoryRate: (d: DailyRecord) => d.respiratoryRate,
   spo2: (d: DailyRecord) => d.spo2?.avg ?? null,
   skinTempDeviationC: (d: DailyRecord) => d.skinTempDeviationC,

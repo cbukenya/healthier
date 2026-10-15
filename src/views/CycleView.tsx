@@ -214,12 +214,7 @@ function CycleHero({
         <div className="rounded-2xl border border-pink-500/30 bg-pink-500/[0.06] p-4 md:p-5">
           <h2 className="font-display text-title text-pink-100">{t('cycle.found.title')}</h2>
           <p className="mt-1.5 text-body-sm text-zinc-300 leading-relaxed">
-            {t('cycle.found.text', {
-              fall: formatDayMonthLong(addDays(c.start, -summary.offset)),
-              learned: summary.offsetLearned ? 'yes' : 'no',
-              offset: summary.offset,
-              date: formatCivilLong(c.start),
-            })}
+            {t('cycle.found.text', { learned: summary.offsetLearned ? 'yes' : 'no', date: formatCivilLong(c.start) })}
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <button
