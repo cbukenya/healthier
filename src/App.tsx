@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import type { IntradaySample } from './types/health';
 import { FileCode2, FlaskConical, Footprints, Heart, Moon, RefreshCw, User, ShieldAlert, PersonStanding } from 'lucide-react';
 import { useAuth } from './hooks/useAuth';
+import { useInstance } from './hooks/useInstance';
 import { useHealth, type SyncFailure } from './hooks/useHealth';
 import { HistoryProvider } from './hooks/useHistory';
 import { GoalsProvider } from './hooks/useGoals';
@@ -46,6 +47,7 @@ function failureText(f: SyncFailure): string {
 
 export default function App() {
   const { user, needsReconnect, ready, signIn, signOut, deleteAccount, reload } = useAuth();
+  const instance = useInstance();
   const [demo, setDemo] = useState(false);
   // Set by the server when a Google sign-in comes back with an error, e.g. ?auth_error=access_denied.
   const [authError] = useState(() => new URLSearchParams(window.location.search).get('auth_error'));
@@ -103,7 +105,7 @@ export default function App() {
     }
   }, [user, demo]);
 
-  if (!ready) {
+  if (!ready || !instance) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
         <div className="w-5 h-5 rounded-full border-2 border-zinc-800 border-t-zinc-400 animate-spin" />
@@ -136,12 +138,14 @@ export default function App() {
             >
               {needsReconnect ? t('app.signIn.reconnect') : t('app.signIn.connect')}
             </button>
-            <button
-              onClick={() => setDemo(true)}
-              className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-zinc-800 text-white font-medium hover:bg-zinc-700 transition-colors"
-            >
-              {t('app.signIn.demo')}
-            </button>
+            {instance.demo && (
+              <button
+                onClick={() => setDemo(true)}
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-zinc-800 text-white font-medium hover:bg-zinc-700 transition-colors"
+              >
+                {t('app.signIn.demo')}
+              </button>
+            )}
           </div>
           {/* Google requires this disclosure in the app itself for the Health API's restricted scopes. */}
           <p className="mt-6 text-caption leading-relaxed text-zinc-500">{t('app.signIn.disclosure')}</p>
