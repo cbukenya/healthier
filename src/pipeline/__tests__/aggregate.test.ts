@@ -5,7 +5,6 @@ import { addDays } from '../../lib/date';
 import {
   bucketFor,
   bucketForSeries,
-  bucketLabel,
   bucketStart,
   groupDays,
   groupNights,
@@ -15,6 +14,7 @@ import {
 } from '../aggregate';
 import { emptyRecord } from '../normalize';
 import type { DailyRecord } from '../../types/health';
+import { bucketLabel } from '../../i18n/format';
 
 const days = (from: string, n: number) => Array.from({ length: n }, (_, i) => addDays(from, i));
 

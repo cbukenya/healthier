@@ -161,19 +161,5 @@ export function groupNights(days: DailyRecord[], bucket: Bucket) {
   });
 }
 
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
-/** Axis and tooltip labels for a bucket's start date. */
-export function bucketLabel(date: CivilDate, bucket: Bucket, style: 'tick' | 'full' = 'tick'): string {
-  const [y, m, d] = date.split('-').map(Number);
-  if (bucket === 'month') return style === 'full' ? `${MONTHS[m - 1]} ${y}` : `${MONTHS[m - 1]} ${String(y).slice(2)}`;
-  const day = `${d} ${MONTHS[m - 1]}`;
-  if (bucket === 'week') return style === 'full' ? `Week of ${day} ${y}` : day;
-  return day;
-}
-
 /** Rolling-mean length that suits the bucket: 7 days, 4 weeks, none for months. */
 export const meanWindowFor = (bucket: Bucket): number | null => (bucket === 'day' ? 7 : bucket === 'week' ? 4 : null);
-
-/** "7-day mean", "4-week mean". */
-export const meanLabel = (bucket: Bucket, n: number) => `${n}-${bucket === 'week' ? 'week' : 'day'} mean`;

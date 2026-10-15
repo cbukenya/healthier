@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { formatCivilLong } from '../lib/date';
+import { formatCivilLong, formatThousands } from '../i18n/format';
 import {
   byWeekday, completedDays, loadRatio, periodShift, series, stats, values, windowShift, type Point,
 } from '../pipeline/derive';
@@ -9,11 +9,11 @@ import type { SyncResult } from '../pipeline/sync';
 import type { DailyRecord } from '../types/health';
 import { groupMean, groupSeries, wholeWeeks } from '../pipeline/aggregate';
 import { emptyRecord } from '../pipeline/normalize';
-import { SpanSelector, spanName, useSpan } from '../ui/span';
+import { SpanSelector, spanSummaryTitle, useSpan } from '../ui/span';
 import { ChartChips } from '../ui/ChartChips';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 import { useGoals } from '../hooks/useGoals';
-import { WHO_WEEK, stepsShort } from '../pipeline/goals';
+import { WHO_WEEK } from '../pipeline/goals';
 import { InsightsCarousel } from '../components/InsightsCarousel';
 import { usePageInsights, type Clock } from '../hooks/usePageInsights';
 import type { IntradayDays } from '../pipeline/labs';
@@ -156,7 +156,7 @@ export function ActivityView({ data, clock, intraday }: { data: SyncResult; cloc
   const total = (s: Point[]) => stats(values(s))?.sum;
   const summaryCard = (
     <Card>
-      <CardHead domain="movement" title={`${spanName(spanState)} summary`} />
+      <CardHead domain="movement" title={spanSummaryTitle(spanState)} />
       <div className="px-5 pb-4 md:pb-5">
         <Row dense={!wide} label="Typical day">{fmtNum(stats(spanSteps)?.median, 0)} steps</Row>
         {best && (
@@ -165,7 +165,7 @@ export function ActivityView({ data, clock, intraday }: { data: SyncResult; cloc
             <span className="text-zinc-500"> · {formatCivilLong(best.date)}</span>
           </Row>
         )}
-        <Row dense={!wide} label={`Days over ${stepsShort(goal)}`}>{values(stepsWin).filter((v) => v >= goal).length}</Row>
+        <Row dense={!wide} label={`Days over ${formatThousands(goal)}`}>{values(stepsWin).filter((v) => v >= goal).length}</Row>
         <Row dense={!wide} label="Distance">{fmtNum(total(distWin), 1)} km</Row>
         <Row dense={!wide} label="Active energy">{fmtNum(total(kcalWin), 0)} kcal</Row>
         {briskPerDay && (

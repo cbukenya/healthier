@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { addDays, civilFromGH, civilFromInstant, dateRange, formatCivilDay, formatCivilRange, isoWeekdayIndex, parseUtcOffsetSeconds, todayCivil } from '../../lib/date';
+import { addDays, civilFromGH, civilFromInstant, dateRange, isoWeekdayIndex, parseUtcOffsetSeconds, todayCivil } from '../../lib/date';
 import { int, num, nullIf, round } from '../coerce';
 import { splitWindow, MAX_ROLLUP_WINDOW_DAYS } from '../transport';
 import { syncHealthData } from '../sync';
@@ -23,6 +23,7 @@ import { answerQueries, parseQueries, queryRange, type HistoryQueries } from '..
 import { answerFromRows } from '../incremental';
 import { emptyRecord } from '../normalize';
 import type { SyncResult } from '../sync';
+import { formatCivilDay, formatCivilRange } from '../../i18n/format';
 
 /** Every test runs against a fixed "today" so the 62-day window is deterministic. */
 const NOW = new Date('2026-08-19T01:39:00+02:00');

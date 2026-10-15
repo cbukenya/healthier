@@ -5,13 +5,14 @@ import {
   Area, Bar, BarChart, CartesianGrid, Cell, ComposedChart, Line, ReferenceArea,
   ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts';
-import { formatCivil, formatClock, weekdayLetter, type CivilDate } from '../lib/date';
+import type { CivilDate } from '../lib/date';
 import { lastIndexWithValue, rollingMean, values, type Point } from '../pipeline/derive';
 import { niceScale } from '../lib/scale';
-import { bucketLabel, bucketStart, meanLabel, meanWindowFor, type Bucket } from '../pipeline/aggregate';
+import { bucketStart, meanWindowFor, type Bucket } from '../pipeline/aggregate';
 import { AXIS, GRID, fmtDuration, fmtNum } from '../ui/primitives';
 import { rulerStep } from '../ui/DayRuler';
 import type { DailyRecord, SleepSession } from '../types/health';
+import { bucketLabel, formatCivil, formatClock, meanLabel, weekdayLetter } from '../i18n/format';
 
 /**
  * Charts.

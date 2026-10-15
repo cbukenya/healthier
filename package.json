@@ -18,7 +18,7 @@
     "start": "node dist/server.cjs",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
-    "test": "TZ=UTC tsx --test src/pipeline/__tests__/*.test.ts server/__tests__/*.test.ts",
+    "test": "TZ=UTC tsx --test src/pipeline/__tests__/*.test.ts src/i18n/__tests__/*.test.ts server/__tests__/*.test.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -29,6 +29,7 @@
     "pg": "^8.23.1"
   },
   "devDependencies": {
+    "@babel/parser": "^7.29.9",
     "@tailwindcss/vite": "^4.1.14",
     "@types/compression": "^1.8.1",
     "@types/cookie-parser": "^1.4.10",
@@ -41,6 +42,7 @@
     "autoprefixer": "^10.6.1",
     "clsx": "^2.1.1",
     "esbuild": "^0.28.2",
+    "intl-messageformat": "^12.1.2",
     "lucide-react": "^1.55.0",
     "motion": "^12.23.24",
     "react": "^19.3.0",

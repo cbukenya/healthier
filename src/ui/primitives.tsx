@@ -1,5 +1,8 @@
 import React from 'react';
-import { type Band, type Comparison, stats, type Point } from '../pipeline/derive';
+import { BASELINE_DAYS, BASELINE_MIN_READINGS, type Band, type Comparison, stats, type Point } from '../pipeline/derive';
+import { t, type MessageKey, type Values } from '../i18n';
+import { rich } from '../i18n/react';
+import { durationPieces, formatDuration, formatFixed, formatNumber, formatRounded } from '../i18n/format';
 
 /**
  * Design tokens and primitives.
@@ -97,9 +100,9 @@ export const DURATION_UNIT = 'font-sans text-unit font-medium text-zinc-400';
  * a step count. Anything else comes back as it was.
  */
 export function withUnits(shown: string, unitClass: string): React.ReactNode {
-  const m = /^(−?\d+)h (\d+)m$/.exec(shown);
-  if (!m) return shown;
-  return <>{m[1]}<span className={unitClass}>h</span>{' '}{m[2]}<span className={unitClass}>m</span></>;
+  const pieces = durationPieces(shown);
+  if (!pieces) return shown;
+  return <>{pieces.map((p, i) => (p.unit ? <span key={i} className={unitClass}>{p.text}</span> : p.text))}</>;
 }
 
 /**
@@ -129,7 +132,7 @@ export function Value({
     value === null || value === undefined || value === ''
       ? '—'
       : typeof value === 'number'
-        ? value.toLocaleString('en-GB', { minimumFractionDigits: digits, maximumFractionDigits: digits })
+        ? formatNumber(value, digits)
         : value;
   const missing = shown === '—';
   return (
@@ -142,12 +145,12 @@ export function Value({
   );
 }
 
-const BAND_COPY: Record<Band, { label: string; cls: string }> = {
-  'far-below': { label: 'well below usual', cls: 'text-sky-300 bg-sky-500/10 border-sky-500/20' },
-  below: { label: 'below usual', cls: 'text-sky-300/90 bg-sky-500/[0.07] border-sky-500/15' },
-  typical: { label: 'in your usual range', cls: 'text-zinc-400 bg-zinc-800/60 border-zinc-700/60' },
-  above: { label: 'above usual', cls: 'text-amber-300/90 bg-amber-500/[0.07] border-amber-500/15' },
-  'far-above': { label: 'well above usual', cls: 'text-amber-300 bg-amber-500/10 border-amber-500/20' },
+const BAND_COPY: Record<Band, { label: MessageKey; cls: string }> = {
+  'far-below': { label: 'ui.band.farBelow', cls: 'text-sky-300 bg-sky-500/10 border-sky-500/20' },
+  below: { label: 'ui.band.below', cls: 'text-sky-300/90 bg-sky-500/[0.07] border-sky-500/15' },
+  typical: { label: 'ui.band.typical', cls: 'text-zinc-400 bg-zinc-800/60 border-zinc-700/60' },
+  above: { label: 'ui.band.above', cls: 'text-amber-300/90 bg-amber-500/[0.07] border-amber-500/15' },
+  'far-above': { label: 'ui.band.farAbove', cls: 'text-amber-300 bg-amber-500/10 border-amber-500/20' },
 };
 
 /**
@@ -161,13 +164,13 @@ const BAND_COPY: Record<Band, { label: string; cls: string }> = {
 export function BandPill({ c, invert = false, partial = false }: { c: Comparison; invert?: boolean; partial?: boolean }) {
   if (partial) {
     return (
-      <span className="text-note px-2 py-0.5 rounded-full border border-zinc-800 text-zinc-500">so far today</span>
+      <span className="text-note px-2 py-0.5 rounded-full border border-zinc-800 text-zinc-500">{t('ui.band.soFarToday')}</span>
     );
   }
-  if (!c.band || c.n < 8) {
+  if (!c.band || c.n < BASELINE_MIN_READINGS) {
     return (
       <span className="text-note px-2 py-0.5 rounded-full border border-zinc-800 text-zinc-500">
-        {c.n === 0 ? 'no history' : `baseline needs ${8 - c.n} more days`}
+        {c.n === 0 ? t('ui.band.noHistory') : t('ui.band.needsDays', { count: BASELINE_MIN_READINGS - c.n })}
       </span>
     );
   }
@@ -175,32 +178,45 @@ export function BandPill({ c, invert = false, partial = false }: { c: Comparison
   return (
     <span
       className={`text-note px-2 py-0.5 rounded-full border font-medium ${copy.cls}`}
-      title={
-        `latest ${fmtNum(c.value)} · 28-day typical ${fmtNum(c.baseline)} ± ${fmtNum(c.spread)}` +
-        ` · z=${c.z?.toFixed(2)} · from ${c.n} days`
-      }
+      title={t('ui.band.detail', {
+        value: fmtNum(c.value),
+        days: BASELINE_DAYS,
+        baseline: fmtNum(c.baseline),
+        spread: fmtNum(c.spread),
+        z: c.z === null ? undefined : formatFixed(c.z, 2),
+        count: c.n,
+      })}
     >
-      {copy.label}
+      {t(copy.label)}
     </span>
   );
 }
 
-/** Signed change, with the caller declaring which direction is welcome. */
+/**
+ * Signed change, with the caller declaring which direction is welcome. `phrase` says it in a
+ * sentence: a message with the change as {change} and the words after it set muted,
+ * "{change}<muted> vs the week before</muted>", so a language can put them in its own order.
+ */
 export function Delta({
   value,
   unit = '',
   goodWhen = 'up',
   digits = 1,
+  phrase,
+  values,
   suffix,
 }: {
   value: number | null;
   unit?: string;
   goodWhen?: 'up' | 'down' | 'neither';
   digits?: number;
+  phrase?: MessageKey;
+  values?: Values;
+  /** Words after the change, set muted, for the cards that haven't moved to `phrase` yet. */
   suffix?: string;
 }) {
   if (value === null || !Number.isFinite(value)) {
-    return <span className="text-caption text-zinc-600">no comparison</span>;
+    return <span className="text-caption text-zinc-600">{t('ui.delta.none')}</span>;
   }
   const up = value > 0;
   const good = goodWhen === 'neither' ? null : goodWhen === 'up' ? up : !up;
@@ -212,24 +228,25 @@ export function Delta({
         : good
           ? 'text-emerald-400'
           : 'text-rose-400';
+  const change = (
+    <>
+      {up ? '↑' : value < 0 ? '↓' : ''} {formatNumber(Math.abs(value), digits)}
+      {unit}
+    </>
+  );
   return (
     <span className={`text-caption font-medium tabular-nums ${tone}`}>
-      {up ? '↑' : value < 0 ? '↓' : ''} {Math.abs(value).toLocaleString('en-GB', { minimumFractionDigits: digits, maximumFractionDigits: digits })}
-      {unit}
+      {phrase ? rich(phrase, { ...values, change, muted: (w) => <span className="text-zinc-500 font-normal">{w}</span> }) : change}
       {suffix ? <span className="text-zinc-500 font-normal"> {suffix}</span> : null}
     </span>
   );
 }
 
 export const fmtNum = (v: number | null | undefined, digits = 1) =>
-  v === null || v === undefined || !Number.isFinite(v) ? '—' : (Math.round(v * 10 ** digits) / 10 ** digits).toLocaleString('en-GB');
+  v === null || v === undefined || !Number.isFinite(v) ? '—' : formatRounded(v, digits);
 
-export const fmtDuration = (mins: number | null | undefined) => {
-  if (mins === null || mins === undefined || !Number.isFinite(mins)) return '—';
-  const sign = mins < 0 ? '−' : '';
-  const m = Math.abs(Math.round(mins));
-  return `${sign}${Math.floor(m / 60)}h ${String(m % 60).padStart(2, '0')}m`;
-};
+export const fmtDuration = (mins: number | null | undefined) =>
+  mins === null || mins === undefined || !Number.isFinite(mins) ? '—' : formatDuration(mins);
 
 // ────────────────────────────────────────────────────────────────── states
 
@@ -377,19 +394,19 @@ export function CardSummary({
   const fmt = format || ((v: number) => fmtNum(v, digits));
   
   const isToday = latestDate !== undefined && latestDate === lastDate;
-  const latestLabel = isToday ? (isSleep ? 'last night: ' : 'today: ') : 'latest: ';
+  const latestLabel = t(isToday ? (isSleep ? 'ui.summary.lastNight' : 'ui.summary.today') : 'ui.summary.latest');
   
   return (
     <div className="flex items-center gap-3 text-caption font-medium leading-tight justify-end">
       {showMean && (
         <div>
-          <span className="text-zinc-500">avg: </span>
+          <span className="text-zinc-500">{t('ui.summary.average')} </span>
           <span style={{ color }}>{fmt(st.mean)}</span>
           <span className="text-zinc-500">{unitStr}</span>
         </div>
       )}
       <div>
-        <span className="text-zinc-500">{latestLabel}</span>
+        <span className="text-zinc-500">{latestLabel} </span>
         <span style={{ color }}>{fmt(latest)}</span>
         <span className="text-zinc-500">{unitStr}</span>
       </div>

@@ -1,29 +1,32 @@
 import React, { useEffect, useId, useMemo, useState } from 'react';
 import { ChevronDown, Lock, Minus, Plus, RefreshCw } from 'lucide-react';
-import { daysBetween, formatCivil, type CivilDate } from '../lib/date';
+import { daysBetween, type CivilDate } from '../lib/date';
+import { formatCivil, formatCivilYear, formatFixed, formatInteger, formatList, formatMonthYear } from '../i18n/format';
+import { hasMessage, t, type MessageKey } from '../i18n';
+import { rich } from '../i18n/react';
+import { streamName } from '../i18n/streams';
 import { BASELINE_DAYS, NEED_ESTIMATE } from '../pipeline/derive';
 import { REFETCH_DAYS } from '../pipeline/incremental';
 import { DEFAULT_GOALS, GOAL_LIMITS, WHO_WEEK, fitGoal, sameGoals, type GoalLimit, type Goals } from '../pipeline/goals';
-import { DOMAIN_LABELS, INTRADAY_HEART_RATE, STREAMS, STREAMS_BY_TYPE } from '../pipeline/registry';
+import { parseSource } from '../pipeline/normalize';
+import { INTRADAY_HEART_RATE, STREAMS, STREAMS_BY_TYPE } from '../pipeline/registry';
 import type { SyncResult } from '../pipeline/sync';
 import type { HistoryInfo } from '../types/api';
-import type { MetricDomain, StreamReport } from '../types/health';
+import type { MetricDomain, SourceRef, StreamReport } from '../types/health';
 import { useGoalsControl } from '../hooks/useGoals';
-import { SPANS } from '../ui/span';
+import { SPANS, spanLabel } from '../ui/span';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 import { Card, CardHead, DURATION_UNIT, fmtDuration, withUnits } from '../ui/primitives';
-
-const plural = (n: number, word: string) => `${n} ${n === 1 ? word : `${word}s`}`;
 
 // ─────────────────────────────────────────────────────────── sync status
 
 /** "Just now", "12 minutes ago", "3 hours ago", "2 days ago". */
 function ago(then: number, now: number): string {
   const min = Math.floor((now - then) / 60_000);
-  if (min < 1) return 'Just now';
-  if (min < 60) return `${plural(min, 'minute')} ago`;
+  if (min < 1) return t('data.sync.lastSynced.justNow');
+  if (min < 60) return t('data.sync.lastSynced.minutes', { count: min });
   const h = Math.floor(min / 60);
-  return h < 24 ? `${plural(h, 'hour')} ago` : `${plural(Math.floor(h / 24), 'day')} ago`;
+  return h < 24 ? t('data.sync.lastSynced.hours', { count: h }) : t('data.sync.lastSynced.days', { count: Math.floor(h / 24) });
 }
 
 /**
@@ -55,24 +58,26 @@ export function SyncStatus({
   const known = !Number.isNaN(synced);
   // The app syncs whenever it opens on data older than 15 minutes, so a day-old sync means it couldn't.
   const stale = known && now - synced > 24 * 3_600_000;
-  const took = meta.ms < 1000 ? `${meta.ms} ms` : `${(meta.ms / 1000).toFixed(1)} s`;
+  const took = meta.ms < 1000
+    ? t('data.sync.took.milliseconds', { ms: meta.ms })
+    : t('data.sync.took.seconds', { seconds: formatFixed(meta.ms / 1000, 1) });
 
   return (
     <Card>
       <CardHead
-        title="Sync status"
+        title={t('data.sync.title')}
         right={
           <button
             onClick={onFullSync}
-            title="Fetch the whole window from Google again, not just the last few days"
+            title={t('data.sync.fullSyncHint')}
             className="-my-2.5 md:-my-1 min-h-11 md:min-h-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 transition-colors text-caption font-medium text-zinc-200"
           >
-            <RefreshCw size={12} aria-hidden="true" /> Full sync
+            <RefreshCw size={12} aria-hidden="true" /> {t('data.sync.fullSync')}
           </button>
         }
       />
       <dl className="px-5 grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-2 text-caption">
-        <dt className="text-zinc-500">Last synced</dt>
+        <dt className="text-zinc-500">{t('data.sync.lastSynced.label')}</dt>
         <dd className="text-right text-zinc-200">
           {known ? (
             <>
@@ -83,21 +88,21 @@ export function SyncStatus({
             '—'
           )}
         </dd>
-        <dt className="text-zinc-500">Window</dt>
+        <dt className="text-zinc-500">{t('data.sync.window.label')}</dt>
         <dd className="text-right text-zinc-200 tabular-nums">
-          {formatCivil(meta.from)} → {formatCivil(meta.to)} · {data.days.length} days
+          {t('data.sync.window.value', { from: formatCivil(meta.from), to: formatCivil(meta.to), count: data.days.length })}
         </dd>
         {history?.from && (
           <>
-            <dt className="text-zinc-500">History</dt>
+            <dt className="text-zinc-500">{t('data.sync.history.label')}</dt>
             <dd className="text-right text-zinc-200">
-              from {formatCivil(history.from)} {history.from.slice(0, 4)} ·{' '}
+              {t('data.sync.history.from', { date: formatCivilYear(history.from) })} ·{' '}
               {history.backfilling ? (
-                <span className="text-amber-400">importing…</span>
+                <span className="text-amber-400">{t('data.sync.history.importing')}</span>
               ) : history.complete ? (
-                <span className="text-emerald-400">complete</span>
+                <span className="text-emerald-400">{t('data.sync.history.complete')}</span>
               ) : (
-                <span className="text-amber-400" title="Some streams failed to import; they retry after the next sync.">incomplete, retrying</span>
+                <span className="text-amber-400" title={t('data.sync.history.incompleteHint')}>{t('data.sync.history.incomplete')}</span>
               )}
             </dd>
           </>
@@ -105,14 +110,14 @@ export function SyncStatus({
       </dl>
       <div className="mt-3 pl-5 pr-2 py-0.5 min-h-10 border-t border-zinc-800/60 flex items-center justify-between gap-3">
         <span className="text-note text-zinc-500 tabular-nums">
-          Last sync: {plural(meta.totalRequests, 'request')} in {took}
+          {t('data.sync.lastSync', { count: meta.totalRequests, took })}
         </span>
         {onDisconnect && (
           <button
             onClick={onDisconnect}
             className="min-h-11 md:min-h-9 px-3 rounded-lg text-caption font-medium text-rose-400 hover:bg-rose-500/10 transition-colors"
           >
-            Disconnect &amp; delete data
+            {t('data.sync.disconnect')}
           </button>
         )}
       </div>
@@ -121,10 +126,6 @@ export function SyncStatus({
 }
 
 // ─────────────────────────────────────────────────────────── data facts
-
-/** "August 2024". */
-const monthYear = (date: CivilDate) =>
-  new Date(`${date}T12:00:00Z`).toLocaleDateString('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' });
 
 /**
  * What anyone needs to know to trust the numbers, in everyday words: no AI,
@@ -140,39 +141,33 @@ export function DataFacts({ windowDays, windowFrom, historyFrom, className = '' 
 }) {
   // The words are the app's own: body battery, sleep score, insights, usual, window, history, sync, Today so far, Labs.
   // The span buttons past the window, by their own labels: "90d, 1y and All".
-  const longer = SPANS.filter((s) => s.days > windowDays).map((s) => s.label);
-  const views = longer.length < 2 ? longer.join('') : `${longer.slice(0, -1).join(', ')} and ${longer[longer.length - 1]}`;
-  const history = historyFrom && historyFrom < windowFrom && longer.length
-    ? ` The ${views} views add your history, back to ${monthYear(historyFrom)}.`
-    : '';
-  const facts: [lead: string, text: string][] = [
+  const longer = SPANS.filter((s) => s.days > windowDays).map((s) => spanLabel(s.id));
+  // The month the history goes back to, when it reaches past the window and a longer view shows it.
+  const back = historyFrom && historyFrom < windowFrom && longer.length ? formatMonthYear(historyFrom) : null;
+  const facts: [id: string, lead: string, text: string][] = [
+    ['arithmetic', t('data.facts.arithmetic.lead'), t('data.facts.arithmetic.text')],
+    ['usual', t('data.facts.usual.lead'), t('data.facts.usual.text', { days: BASELINE_DAYS })],
     [
-      'Arithmetic, not AI',
-      "Your body battery, sleep score and insights are worked out with plain arithmetic from your own data. Nothing is written or guessed by AI. Sleep stages and cardio fitness are your watch's own estimates.",
+      'window',
+      t('data.facts.window.lead', { days: windowDays }),
+      t('data.facts.window.text', {
+        days: windowDays,
+        history: back ? 'shown' : 'none',
+        views: formatList(longer),
+        viewCount: longer.length,
+        month: back,
+        refetch: REFETCH_DAYS,
+      }),
     ],
-    [
-      'Usual means usual for you',
-      `Anything called usual or unusual is compared with your own last ${BASELINE_DAYS} days, not with other people. One odd day won't change what's normal for you.`,
-    ],
-    [
-      `Your ${windowDays}-day window`,
-      `Your insights and most charts use your window, the last ${windowDays} days.${history} Every sync re-checks the last ${REFETCH_DAYS} days, because watches often send data late.`,
-    ],
-    [
-      'Missing days stay blank',
-      'A day with nothing recorded shows a dash, not a zero, and is left out of every average. Today so far joins your averages once the day is over.',
-    ],
-    [
-      'Heart rate, minute by minute',
-      'Your watch measures your heart rate every few seconds. Healthier keeps one average per minute for the heart rate charts and Labs, so very short spikes are smoothed out.',
-    ],
+    ['missing', t('data.facts.missing.lead'), t('data.facts.missing.text')],
+    ['minutes', t('data.facts.minutes.lead'), t('data.facts.minutes.text')],
   ];
   return (
     <Card className={className}>
-      <CardHead title="Data facts" domain="data" />
+      <CardHead title={t('data.facts.title')} domain="data" />
       <ul className="px-5 pb-2">
-        {facts.map(([lead, text], i) => (
-          <li key={lead} className={i ? 'py-3 border-t border-zinc-800/60' : 'pt-1 pb-3'}>
+        {facts.map(([id, lead, text], i) => (
+          <li key={id} className={i ? 'py-3 border-t border-zinc-800/60' : 'pt-1 pb-3'}>
             <div className="text-body-sm font-medium text-zinc-200">{lead}</div>
             <p className="mt-0.5 text-caption leading-relaxed text-zinc-400">{text}</p>
           </li>
@@ -185,16 +180,14 @@ export function DataFacts({ windowDays, windowFrom, historyFrom, className = '' 
 // ───────────────────────────────────────────────────────────────── goals
 
 /** "7", "8½": hours from minutes on the hour or half hour. */
-const hours = (min: number) => `${Math.floor(min / 60)}${min % 60 ? '½' : ''}`;
-
-const DAYS = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven'];
+const hours = (min: number) => t('data.goals.sleepNeed.hours', { hours: Math.floor(min / 60), half: min % 60 ? 'yes' : 'no' });
 
 /** How many days at a daily brisk goal it takes to reach the WHO's week, if a week is enough. */
 function briskNote(perDay: number): string {
   const days = Math.ceil(WHO_WEEK / perDay);
   return days <= 7
-    ? `Your inner ring. ${DAYS[days]} days like that reach the WHO's ${WHO_WEEK} a week.`
-    : `Your inner ring. Even every day, that stays under the WHO's ${WHO_WEEK} a week.`;
+    ? t('data.goals.brisk.noteDays', { days, minutes: WHO_WEEK })
+    : t('data.goals.brisk.noteEveryDay', { minutes: WHO_WEEK });
 }
 
 /**
@@ -220,8 +213,8 @@ export function GoalsCard({ autoNeed }: {
   return (
     <Card>
       <CardHead
-        title="Goals"
-        hint="Google Health doesn't share the goals you set in Fitbit, so set them here."
+        title={t('data.goals.title')}
+        hint={t('data.goals.hint')}
         right={
           !sameGoals(goals, DEFAULT_GOALS) && (
             <button
@@ -229,59 +222,60 @@ export function GoalsCard({ autoNeed }: {
               onClick={() => change(DEFAULT_GOALS)}
               className="-my-2.5 md:-my-1.5 -mr-2 min-h-11 md:min-h-0 px-2 md:py-1.5 rounded-lg text-caption font-medium text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60 transition-colors"
             >
-              Reset to defaults
+              {t('data.goals.reset')}
             </button>
           )
         }
       />
       <div className="px-5 pb-1.5">
         <GoalRow
-          label="Steps"
-          per="a day"
-          shown={goals.steps.toLocaleString('en-GB')}
+          label={t('data.goals.steps.label')}
+          per={t('data.goals.steps.per')}
+          shown={formatInteger(goals.steps)}
           {...stepper(goals.steps, L.steps, (v) => ({ steps: v }))}
-          lessLabel="Fewer steps"
-          moreLabel="More steps"
-          note="Your outer ring, the steps chart's line and your streaks."
+          lessLabel={t('data.goals.steps.less')}
+          moreLabel={t('data.goals.steps.more')}
+          note={t('data.goals.steps.note')}
         />
         <GoalRow
-          label="Brisk minutes"
-          per="a day"
-          shown={String(goals.briskMinutes)}
+          label={t('data.goals.brisk.label')}
+          per={t('data.goals.brisk.per')}
+          shown={formatInteger(goals.briskMinutes)}
           {...stepper(goals.briskMinutes, L.briskMinutes, (v) => ({ briskMinutes: v }))}
-          lessLabel="Fewer brisk minutes"
-          moreLabel="More brisk minutes"
+          lessLabel={t('data.goals.brisk.less')}
+          moreLabel={t('data.goals.brisk.more')}
           note={briskNote(goals.briskMinutes)}
         />
         <GoalRow
-          label="Sleep need"
-          per="a night"
-          badge={goals.sleepNeed === null ? 'Auto' : undefined}
+          label={t('data.goals.sleepNeed.label')}
+          per={t('data.goals.sleepNeed.per')}
+          badge={goals.sleepNeed === null ? t('data.goals.sleepNeed.auto') : undefined}
           shown={withUnits(fmtDuration(need), DURATION_UNIT)}
           {...stepper(need, L.sleepNeed, (v) => ({ sleepNeed: v }))}
-          lessLabel="Less sleep"
-          moreLabel="More sleep"
+          lessLabel={t('data.goals.sleepNeed.less')}
+          moreLabel={t('data.goals.sleepNeed.more')}
           note={
-            goals.sleepNeed === null ? (
-              `Worked out from your recent nights, between ${hours(NEED_ESTIMATE.floor)} and ${hours(NEED_ESTIMATE.ceiling)} hours. Your body battery and sleep debt use it.`
-            ) : (
-              <>
-                Your own figure, between {hours(L.sleepNeed.min)} and {hours(L.sleepNeed.max)} hours. Your body battery and sleep debt use it.{' '}
-                <button
-                  type="button"
-                  onClick={() => set({ sleepNeed: null })}
-                  className="text-zinc-300 underline underline-offset-2 hover:text-zinc-100"
-                >
-                  Back to auto
-                </button>
-              </>
-            )
+            goals.sleepNeed === null
+              ? t('data.goals.sleepNeed.noteAuto', { min: hours(NEED_ESTIMATE.floor), max: hours(NEED_ESTIMATE.ceiling) })
+              : rich('data.goals.sleepNeed.noteOwn', {
+                  min: hours(L.sleepNeed.min),
+                  max: hours(L.sleepNeed.max),
+                  button: (words) => (
+                    <button
+                      type="button"
+                      onClick={() => set({ sleepNeed: null })}
+                      className="text-zinc-300 underline underline-offset-2 hover:text-zinc-100"
+                    >
+                      {words}
+                    </button>
+                  ),
+                })
           }
         />
       </div>
       {failed && (
         <p role="alert" className="px-5 pb-4 text-caption text-rose-400">
-          Couldn't save that change, so your goals are as they were. Try again.
+          {t('data.goals.failed')}
         </p>
       )}
     </Card>
@@ -339,15 +333,23 @@ type Kind = 'ok' | 'behind' | 'empty' | 'unshared' | 'failed';
 /** A daily stream whose latest reading is this many days old has stopped arriving. */
 const BEHIND_AFTER = 3;
 
-const KIND: Record<Kind, { summary: string; text: string; dot: string }> = {
-  ok: { summary: 'up to date', text: 'text-zinc-300', dot: 'bg-emerald-400' },
-  behind: { summary: 'behind', text: 'text-amber-300', dot: 'bg-amber-400' },
-  empty: { summary: 'with nothing recorded', text: 'text-zinc-500', dot: 'ring-1 ring-inset ring-zinc-600' },
-  unshared: { summary: 'not shared', text: 'text-zinc-400', dot: '' },
-  failed: { summary: 'failed', text: 'text-rose-400', dot: 'bg-rose-400' },
+const KIND: Record<Kind, { summary: MessageKey; text: string; dot: string }> = {
+  ok: { summary: 'data.streams.summary.ok', text: 'text-zinc-300', dot: 'bg-emerald-400' },
+  behind: { summary: 'data.streams.summary.behind', text: 'text-amber-300', dot: 'bg-amber-400' },
+  empty: { summary: 'data.streams.summary.empty', text: 'text-zinc-500', dot: 'ring-1 ring-inset ring-zinc-600' },
+  unshared: { summary: 'data.streams.summary.unshared', text: 'text-zinc-400', dot: '' },
+  failed: { summary: 'data.streams.summary.failed', text: 'text-rose-400', dot: 'bg-rose-400' },
 };
 
 const DOMAINS: MetricDomain[] = ['movement', 'sleep', 'cardio', 'body', 'wellbeing'];
+/** Each group's heading. */
+const DOMAIN_NAMES = {
+  movement: 'data.streams.domains.movement',
+  sleep: 'data.streams.domains.sleep',
+  cardio: 'data.streams.domains.cardio',
+  body: 'data.streams.domains.body',
+  wellbeing: 'data.streams.domains.wellbeing',
+} as const satisfies Record<MetricDomain, MessageKey>;
 /** On wide screens the groups sit in two columns of about the same height. */
 const LEFT: MetricDomain[] = ['movement', 'sleep', 'body'];
 
@@ -363,12 +365,31 @@ function kindOf(r: StreamReport, today: CivilDate): Kind {
   return !occasional && daysBetween(r.latestDate, today) >= BEHIND_AFTER ? 'behind' : 'ok';
 }
 
-/** "Today", "Yesterday", "14 Aug", or "2 Mar 2025" from another year. */
-function when(date: CivilDate, today: CivilDate): string {
+/** Today, yesterday or a date, for the messages to say: "14 Aug", or "2 Mar 2025" from another year. */
+function when(date: CivilDate, today: CivilDate): { day: 'today' | 'yesterday' | 'date'; date: string } {
   const n = daysBetween(date, today);
-  if (n <= 0) return 'Today';
-  if (n === 1) return 'Yesterday';
-  return date.slice(0, 4) === today.slice(0, 4) ? formatCivil(date) : `${formatCivil(date)} ${date.slice(0, 4)}`;
+  return {
+    day: n <= 0 ? 'today' : n === 1 ? 'yesterday' : 'date',
+    date: date.slice(0, 4) === today.slice(0, 4) ? formatCivil(date) : formatCivilYear(date),
+  };
+}
+
+/**
+ * What a reading's source is called: a device's or app's own name, or a platform's, as it came. A
+ * device Google knows only by its kind ("WATCH") is stored under the kind's English name ("Watch"),
+ * so the language file names that one, when it knows the kind.
+ */
+function deviceName(src: SourceRef): string {
+  if (src.app) return src.label;
+  const kind = src.formFactor;
+  if (kind) {
+    // The label normalize.ts stores for a source it knows only by this kind.
+    if (src.label !== parseSource({ device: { formFactor: kind } })?.label) return src.label;
+    const key = `data.streams.formFactors.${kind.toUpperCase()}`;
+    return hasMessage(key) ? t(key) : src.label;
+  }
+  // A source Google says nothing about is stored as "Unknown".
+  return src.platform === 'UNKNOWN' && src.label === parseSource({})?.label ? t('data.streams.unknownSource') : src.label;
 }
 
 interface StreamRow {
@@ -403,59 +424,60 @@ export function DataStreams({ data }: { data: SyncResult }) {
   const heartRateDays = useMemo(() => new Set((data.heartRateSamples ?? []).map((s) => s.date)).size, [data.heartRateSamples]);
 
   const rows = useMemo(() => {
-    /** ", from Google Pixel Watch 3" for the device behind a day's reading, when it's known. */
+    /** The device behind a day's reading ("from Google Pixel Watch 3"), or logged by hand, when it's known. */
     const source = (dataType: string, date: CivilDate | undefined) => {
       const id = date ? data.days.find((d) => d.date === date)?.sourceByType[dataType] : undefined;
       const src = id ? data.meta.sources.find((s) => s.id === id) : undefined;
-      return !src ? '' : src.method === 'MANUAL' ? ', logged by hand' : `, from ${src.label}`;
+      return { source: !src ? 'none' : src.method === 'MANUAL' ? 'hand' : 'device', device: src ? deviceName(src) : '' };
     };
 
     return data.meta.streams.map((r): StreamRow => {
       const kind = kindOf(r, today);
       const latest = r.latestDate;
-      const day = latest ? when(latest, today) : '';
-      const lower = day === 'Today' || day === 'Yesterday' ? day.toLowerCase() : `on ${day}`;
+      const day = latest ? when(latest, today) : { day: 'date', date: '' };
       const intraday = r.dataType === INTRADAY_HEART_RATE.dataType;
       const days = intraday ? heartRateDays : r.observations;
       const coverage = days === windowDays
-        ? `Every day in the window has ${intraday ? 'some' : 'one'}.`
-        : `${days} of the ${windowDays} days in the window have ${intraday ? 'some' : 'one'}.`;
-      const truncated = r.truncated ? ' Google had more readings than one fetch takes, so some older ones may be missing.' : '';
+        ? t(intraday ? 'data.streams.coverage.everyDayMinutes' : 'data.streams.coverage.everyDay')
+        : t(intraday ? 'data.streams.coverage.someDaysMinutes' : 'data.streams.coverage.someDays', { days, total: windowDays });
 
       let status: string;
       let detail: string;
       switch (kind) {
-        case 'ok':
-          status = day;
+        case 'ok': {
+          status = t('data.streams.status.latest', day);
+          const reading = { when: t('data.streams.latestWhen', day), ...source(r.dataType, latest) };
           detail = STREAMS_BY_TYPE.get(r.dataType)?.occasional
-            ? `Last reading ${lower}${source(r.dataType, latest)}. These come now and then, so a gap since the last one is normal.`
-            : `Latest ${intraday ? 'minute' : 'reading'} ${lower}${source(r.dataType, latest)}. ${coverage}`;
+            ? t('data.streams.detail.occasional', reading)
+            : t(intraday ? 'data.streams.detail.latestMinute' : 'data.streams.detail.latestReading', { ...reading, coverage });
           break;
+        }
         case 'behind':
-          status = `Nothing since ${day}`;
-          detail = `Nothing new since ${day}. Healthier asks for it on every sync, so it fills in as soon as your device records it again.`;
+          status = t('data.streams.status.behind', { date: day.date });
+          detail = t('data.streams.detail.behind', { date: day.date });
           break;
         case 'empty':
-          status = 'Nothing recorded';
-          detail = 'Google has no readings of this for you: none of your devices record it, or nothing has been logged.';
+          status = t('data.streams.status.empty');
+          detail = t('data.streams.detail.empty');
           break;
         case 'unshared':
-          status = 'Not shared';
-          detail = "Healthier wasn't given access to this when you connected Google, so it doesn't ask for it. To add it, sign out, sign back in and allow it when Google asks.";
+          status = t('data.streams.status.unshared');
+          detail = t('data.streams.detail.unshared');
           break;
         case 'failed':
-          status = r.status === 'unauthorized' ? 'No access' : 'Failed';
-          detail = r.status === 'unauthorized'
-            ? "Google refused access to this on the last fetch. If you didn't allow it when connecting, sign out, sign back in and allow it."
-            : 'Google answered the last fetch with an error, so the days already stored stay as they were. Healthier tries again on the next sync.';
+          status = t(r.status === 'unauthorized' ? 'data.streams.status.unauthorized' : 'data.streams.status.failed');
+          detail = t(r.status === 'unauthorized' ? 'data.streams.detail.unauthorized' : 'data.streams.detail.failed');
           break;
       }
 
-      const how = intraday ? 'one-minute averages' : r.mode === 'rollup' ? 'daily totals' : 'individual readings';
+      const how = t(intraday ? 'data.streams.fetch.minutes' : r.mode === 'rollup' ? 'data.streams.fetch.totals' : 'data.streams.fetch.readings');
+      const last = { how, requests: r.requests, pages: r.pagesFetched, ms: r.ms };
       const fetch = kind === 'unshared'
-        ? 'not fetched'
-        : `${how} · last fetch: ${plural(r.requests, 'request')}, ${plural(r.pagesFetched, 'page')}, ${r.ms} ms${r.httpStatus && r.httpStatus !== 200 ? `, HTTP ${r.httpStatus}` : ''}`;
-      return { report: r, kind, status, detail: detail + truncated, fetch };
+        ? t('data.streams.fetch.none')
+        : r.httpStatus && r.httpStatus !== 200
+          ? t('data.streams.fetch.lastWithStatus', { ...last, status: r.httpStatus })
+          : t('data.streams.fetch.last', last);
+      return { report: r, kind, status, detail: r.truncated ? t('data.streams.detail.truncated', { detail }) : detail, fetch };
     });
   }, [data, today, windowDays, heartRateDays]);
 
@@ -473,16 +495,16 @@ export function DataStreams({ data }: { data: SyncResult }) {
   return (
     <Card>
       <CardHead
-        title="Data streams"
+        title={t('data.streams.title')}
         domain="data"
-        hint="Everything Healthier reads from Google Health, and whether it's arriving. Open one to see where it comes from and what happened on the last fetch."
+        hint={t('data.streams.hint')}
       />
-      <ul aria-label="Summary" className="px-5 -mt-1 flex flex-wrap gap-x-4 gap-y-1 text-caption text-zinc-400">
+      <ul aria-label={t('data.streams.summary.label')} className="px-5 -mt-1 flex flex-wrap gap-x-4 gap-y-1 text-caption text-zinc-400">
         {counts.map(({ kind, n }) => (
           <li key={kind} className="flex items-center gap-1.5">
             <Mark kind={kind} />
             <span>
-              <span className="font-semibold text-zinc-200 tabular-nums">{n}</span> {KIND[kind].summary}
+              {rich(KIND[kind].summary, { count: n, b: (w) => <span className="font-semibold text-zinc-200 tabular-nums">{w}</span> })}
             </span>
           </li>
         ))}
@@ -492,7 +514,7 @@ export function DataStreams({ data }: { data: SyncResult }) {
           <div key={i} className="min-w-0">
             {col.map((g) => (
               <div key={g.domain} className="pt-2">
-                <h4 className="pt-2 pb-1 text-eyebrow uppercase text-zinc-500">{DOMAIN_LABELS[g.domain]}</h4>
+                <h4 className="pt-2 pb-1 text-eyebrow uppercase text-zinc-500">{t(DOMAIN_NAMES[g.domain])}</h4>
                 <ul>
                   {g.rows.map((row) => (
                     <StreamItem
@@ -533,7 +555,7 @@ function StreamItem({ row, open, onToggle }: { row: StreamRow; open: boolean; on
         onClick={onToggle}
         className="w-full min-h-11 md:min-h-10 flex items-center gap-2.5 py-2 text-left"
       >
-        <span className="flex-1 min-w-0 truncate text-body-sm text-zinc-200">{r.label}</span>
+        <span className="flex-1 min-w-0 truncate text-body-sm text-zinc-200">{streamName(r.dataType, r.label)}</span>
         <span className={`shrink-0 flex items-center gap-1.5 text-detail ${KIND[row.kind].text}`}>
           <Mark kind={row.kind} />
           {row.status}

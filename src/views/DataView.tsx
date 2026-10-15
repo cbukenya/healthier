@@ -1,27 +1,29 @@
 import React, { useMemo, useState } from 'react';
-import { formatCivil } from '../lib/date';
+import { bucketLabel, formatCivil, formatClock, formatHour } from '../i18n/format';
+import { t, type MessageKey } from '../i18n';
+import { streamName } from '../i18n/streams';
 import { coverage, estimatedSleepTarget } from '../pipeline/derive';
 import { STREAMS } from '../pipeline/registry';
 import { Card, CardHead, Segmented } from '../ui/primitives';
-import { bucketLabel, groupDays, mean } from '../pipeline/aggregate';
+import { groupDays, mean, type Bucket } from '../pipeline/aggregate';
 import { CoverageGrid } from '../charts';
 import { DataFacts, DataStreams, GoalsCard, SyncStatus } from './DataCards';
-import type { SyncResult } from '../pipeline/sync';
+import { DASHBOARD_WINDOW_DAYS, type SyncResult } from '../pipeline/sync';
 import { useHistory } from '../hooks/useHistory';
 import { SpanSelector, useSpan } from '../ui/span';
 
 const NO_HOURS: number[] = new Array(24).fill(0);
 
 const COVERAGE_HINT = {
-  day: "Each block is a day: solid where the stream has an observation. Gaps are days the API returned nothing (or the sentinel 'zero' that means missing).",
-  week: 'Each block is a week, shaded by how many of its days have an observation: solid is all seven.',
-  month: 'Each block is a month, shaded by how many of its days have an observation.',
-} as const;
+  day: 'data.coverage.hint.day',
+  week: 'data.coverage.hint.week',
+  month: 'data.coverage.hint.month',
+} as const satisfies Record<Bucket, MessageKey>;
 
 export function DataView({ data, onFullSync, onDisconnect }: { data: SyncResult; onFullSync: () => void; onDisconnect?: () => void }) {
   const spanState = useSpan(data, '90');
   const history = useHistory().info;
-  const cov = coverage(spanState.days, STREAMS.map((s) => ({ dataType: s.dataType, label: s.label })));
+  const cov = coverage(spanState.days, STREAMS.map((s) => ({ dataType: s.dataType, label: streamName(s.dataType, s.label) })));
 
   // Minutes of heart rate recorded per hour, per day: counted once, not per row.
   const [hrSpan, setHrSpan] = useState<'14' | '30' | '62'>('14');
@@ -41,7 +43,7 @@ export function DataView({ data, onFullSync, onDisconnect }: { data: SyncResult;
     if (hrSpan !== '62') {
       return [...days].reverse().map((d, i) => ({
         key: d.date,
-        label: i === 0 ? 'Today' : formatCivil(d.date),
+        label: i === 0 ? t('data.intraday.today') : formatCivil(d.date),
         title: formatCivil(d.date),
         minutes: hoursOf(d.date),
         days: 1,
@@ -65,8 +67,8 @@ export function DataView({ data, onFullSync, onDisconnect }: { data: SyncResult;
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-start">
         <Card className="lg:col-span-8">
           <CardHead
-            title="Coverage matrix"
-            hint={COVERAGE_HINT[spanState.bucket]}
+            title={t('data.coverage.title')}
+            hint={t(COVERAGE_HINT[spanState.bucket])}
             domain="data"
             right={<SpanSelector state={spanState} />}
           />
@@ -84,11 +86,11 @@ export function DataView({ data, onFullSync, onDisconnect }: { data: SyncResult;
           {/* Full height, so it ends level with the facts beside it. */}
           <Card className="h-full">
             <CardHead
-              title="Intraday coverage (Heart rate)"
+              title={t('data.intraday.title')}
               hint={
                 hrSpan === '62'
-                  ? 'Minutes of heart rate recorded in each hour, averaged per week over the 62 days minute data is kept. Gaps show when the watch is usually off.'
-                  : `Minutes of heart rate recorded in each hour over the last ${hrSpan} days. Each block is one hour; solid means most of it was recorded.`
+                  ? t('data.intraday.hintWeekly', { days: DASHBOARD_WINDOW_DAYS })
+                  : t('data.intraday.hint', { days: Number(hrSpan) })
               }
               domain="cardio"
               right={
@@ -96,7 +98,7 @@ export function DataView({ data, onFullSync, onDisconnect }: { data: SyncResult;
                   size="sm"
                   value={hrSpan}
                   onChange={setHrSpan}
-                  options={[{ id: '14', label: '14d' }, { id: '30', label: '30d' }, { id: '62', label: '62d' }]}
+                  options={(['14', '30', '62'] as const).map((id) => ({ id, label: t('data.intraday.span', { days: Number(id) }) }))}
                 />
               }
             />
@@ -105,7 +107,7 @@ export function DataView({ data, onFullSync, onDisconnect }: { data: SyncResult;
                 <div className="flex gap-0.5 pl-[64px] text-micro text-zinc-500 mb-1">
                   {Array.from({ length: 24 }).map((_, i) => (
                     <div key={i} className="flex-1 text-center">
-                      {String(i).padStart(2, '0')}
+                      {formatHour(i)}
                     </div>
                   ))}
                 </div>
@@ -118,15 +120,15 @@ export function DataView({ data, onFullSync, onDisconnect }: { data: SyncResult;
                       {row.minutes.map((m, h) => {
                         const intensity =
                           m === 0 ? 'bg-zinc-900/50' : m < 15 ? 'bg-emerald-500/20' : m < 45 ? 'bg-emerald-500/50' : 'bg-emerald-500';
-                        const hour = `${String(h).padStart(2, '0')}:00`;
+                        const hour = formatClock(h * 60);
                         return (
                           <div
                             key={h}
                             className={`${hrRows.length > 20 ? 'h-2.5' : 'h-4'} flex-1 rounded-sm ${intensity}`}
                             title={
                               row.days === 1
-                                ? `${row.title} ${hour} · ${m} min recorded`
-                                : `${row.title} ${hour} · ${Math.round(m)} min recorded on average, over ${row.days} days`
+                                ? t('data.intraday.cell', { date: row.title, time: hour, minutes: m })
+                                : t('data.intraday.cellAverage', { date: row.title, time: hour, minutes: Math.round(m), days: row.days })
                             }
                           />
                         );

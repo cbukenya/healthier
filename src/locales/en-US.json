@@ -1,0 +1,367 @@
+{
+  "format": {
+    "months": ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"],
+    "monthsShort": ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
+    "monthsWithDay": ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"],
+    "monthsShortWithDay": ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
+    "weekdays": ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
+    "weekdaysShort": ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
+    "weekdaysNarrow": ["S", "M", "T", "W", "T", "F", "S"],
+    "date": {
+      "dayMonth": "{day} {month}",
+      "dayMonthYear": "{day} {month} {year}",
+      "weekdayDayMonth": "{weekday} {day} {month}",
+      "full": "{weekday} {month} {day} {year}",
+      "monthYear": "{month} {year}",
+      "monthYearShort": "{month} {year}",
+      "rangeInMonth": "{fromDay}–{toDay} {month}",
+      "range": "{from} – {to}",
+      "weekOf": "Week of {date}",
+      "numeric": "{year}-{month}-{day}",
+      "year": "{year}"
+    },
+    "time": {
+      "clock": "{hours}:{minutes}",
+      "hour": "{hours}"
+    },
+    "duration": {
+      "hoursMinutes": "{sign, select, minus {−} plus {+} other {}}{hours}<unit>h</unit> {minutes, number, ::integer-width/*00}<unit>m</unit>",
+      "hours": "{sign, select, minus {−} plus {+} other {}}{hours}<unit>h</unit>",
+      "minutes": "{sign, select, minus {−} plus {+} other {}}{minutes}<unit>m</unit>",
+      "hoursDecimal": "{count, plural, =1 {# hour} other {{hours} hours}}"
+    },
+    "list": {
+      "and": {
+        "pair": "{first} and {second}",
+        "start": "{first}, {rest}",
+        "end": "{first} and {last}"
+      },
+      "or": {
+        "pair": "{first} or {second}",
+        "start": "{first}, {rest}",
+        "end": "{first} or {last}"
+      }
+    },
+    "thousands": "{value}k",
+    "mean": "{unit, select, week {{count}-week mean} other {{count}-day mean}}"
+  },
+  "app": {
+    "name": "Healthier",
+    "signIn": {
+      "intro": "A personalized health and fitness tracker that connects with your Google Health data. It establishes rolling baselines and presents actionable trend analysis to help you understand your body better.",
+      "expired": "Your Google connection has expired or was revoked. Reconnect to resume syncing; your stored data is still here.",
+      "cancelled": "Google sign-in was cancelled.",
+      "notInvited": "This Healthier instance is invite-only, and that Google account is not on its list. Ask whoever runs it to add you.",
+      "failed": "Google sign-in failed ({code}). Check the server logs for details.",
+      "connect": "Connect Google Account",
+      "reconnect": "Reconnect Google Account",
+      "demo": "Demo mode",
+      "disclosure": "Healthier reads your health and fitness data from Google Health (activity, sleep, heart rate, vitals and body measurements) to show your trends, work out your personal baselines and generate insights. It is stored only on the server running this app, used for nothing else, and never shared. You can disconnect and delete it at any time from the Data tab.",
+      "wellness": "For general wellness only. Healthier is not a medical device and doesn't diagnose, detect or monitor any condition."
+    },
+    "header": {
+      "syncing": "syncing",
+      "picture": "Profile",
+      "someone": "User",
+      "exitDemo": "Exit Demo",
+      "signOut": "Sign Out"
+    },
+    "nav": {
+      "today": "Today",
+      "activity": "Activity",
+      "sleep": "Sleep",
+      "vitals": "Vitals",
+      "body": "Body",
+      "labs": "Labs",
+      "data": "Data"
+    },
+    "syncFailed": {
+      "title": "Sync Failed",
+      "retry": "Retry"
+    },
+    "loadingDemo": "Loading sample data...",
+    "firstSync": {
+      "title": "Building your health baseline",
+      "body": "Importing your last {days, plural, one {day} other {# days}} from Google Health, including minute-by-minute heart rate. Baselines and insights are computed over the full window, so the dashboard opens once it is all in. This usually takes under a minute, and only happens once.",
+      "progress": "{stream} imported · {done} of {total}",
+      "connecting": "Connecting to Google Health..."
+    },
+    "disconnect": {
+      "confirm": "Disconnect Google and permanently delete all of your data stored by Healthier?",
+      "failed": "Could not delete your data. Please try again."
+    }
+  },
+  "ui": {
+    "band": {
+      "farBelow": "well below usual",
+      "below": "below usual",
+      "typical": "in your usual range",
+      "above": "above usual",
+      "farAbove": "well above usual",
+      "soFarToday": "so far today",
+      "noHistory": "no history",
+      "needsDays": "baseline needs {count, plural, one {# more day} other {# more days}}",
+      "detail": "latest {value} · {days}-day typical {baseline} ± {spread} · z={z} · from {count, plural, one {# day} other {# days}}"
+    },
+    "delta": {
+      "none": "no comparison"
+    },
+    "summary": {
+      "average": "avg:",
+      "today": "today:",
+      "lastNight": "last night:",
+      "latest": "latest:"
+    },
+    "span": {
+      "chips": {
+        "twoWeeks": "14d",
+        "month": "30d",
+        "quarter": "90d",
+        "year": "1y",
+        "all": "All"
+      },
+      "summary": "{span, select, all {All-time summary} year {1-year summary} other {{days}-day summary}}",
+      "loading": "Loading history…",
+      "importing": "Importing older history…",
+      "needsMore": "Needs more than {span} of history"
+    }
+  },
+  "insights": {
+    "carousel": {
+      "title": "Key insights",
+      "description": "Derived from your data to give you a quick overview of what it means — the things that stand out, good or bad, that deserve your attention.",
+      "position": "{index} of {count}",
+      "previous": "Previous insights",
+      "next": "Next insights",
+      "disclaimer": "General wellness information, not medical advice. Healthier is not a medical device. If you're worried about your health, talk to a clinician.",
+      "pages": {
+        "activity": {
+          "title": "Activity insights",
+          "description": "What stands out in how you move: trends, streaks and records, worked out from your own data."
+        },
+        "sleep": {
+          "title": "Sleep insights",
+          "description": "What stands out in your nights: how long, how regular and which way they are heading, worked out from your own data."
+        },
+        "vitals": {
+          "title": "Vitals insights",
+          "description": "What stands out in your heart and recovery readings, measured against your own usual range."
+        },
+        "body": {
+          "title": "Body insights",
+          "description": "What your weigh-ins add up to over time, measured against your own trend."
+        }
+      },
+      "kinds": {
+        "alert": "Alert",
+        "nudge": "Nudge",
+        "trend": "Trend",
+        "milestone": "Milestone",
+        "pattern": "Pattern",
+        "review": "Review",
+        "data": "Data"
+      },
+      "domains": {
+        "cardio": "Vitals",
+        "sleep": "Sleep",
+        "body": "Body",
+        "data": "Data",
+        "movement": "Activity"
+      }
+    }
+  },
+  "data": {
+    "coverage": {
+      "title": "Coverage matrix",
+      "hint": {
+        "day": "Each block is a day: solid where the stream has an observation. Gaps are days the API returned nothing (or the sentinel 'zero' that means missing).",
+        "week": "Each block is a week, shaded by how many of its days have an observation: solid is all seven.",
+        "month": "Each block is a month, shaded by how many of its days have an observation."
+      }
+    },
+    "sync": {
+      "title": "Sync status",
+      "fullSync": "Full sync",
+      "fullSyncHint": "Fetch the whole window from Google again, not just the last few days",
+      "lastSynced": {
+        "label": "Last synced",
+        "justNow": "Just now",
+        "minutes": "{count, plural, one {# minute ago} other {# minutes ago}}",
+        "hours": "{count, plural, one {# hour ago} other {# hours ago}}",
+        "days": "{count, plural, one {# day ago} other {# days ago}}"
+      },
+      "window": {
+        "label": "Window",
+        "value": "{from} → {to} · {count, plural, one {# day} other {# days}}"
+      },
+      "history": {
+        "label": "History",
+        "from": "from {date}",
+        "importing": "importing…",
+        "complete": "complete",
+        "incomplete": "incomplete, retrying",
+        "incompleteHint": "Some streams failed to import; they retry after the next sync."
+      },
+      "lastSync": "Last sync: {count, plural, one {# request} other {# requests}} in {took}",
+      "took": {
+        "milliseconds": "{ms} ms",
+        "seconds": "{seconds} s"
+      },
+      "disconnect": "Disconnect & delete data"
+    },
+    "goals": {
+      "title": "Goals",
+      "reset": "Reset to defaults",
+      "hint": "Google Health doesn't share the goals you set in Fitbit, so set them here.",
+      "steps": {
+        "label": "Steps",
+        "per": "a day",
+        "less": "Fewer steps",
+        "more": "More steps",
+        "note": "Your outer ring, the steps chart's line and your streaks."
+      },
+      "brisk": {
+        "label": "Brisk minutes",
+        "per": "a day",
+        "less": "Fewer brisk minutes",
+        "more": "More brisk minutes",
+        "noteDays": "{days, plural, =1 {Your inner ring. One day like that reaches the WHO's {minutes} a week.} =2 {Your inner ring. Two days like that reach the WHO's {minutes} a week.} =3 {Your inner ring. Three days like that reach the WHO's {minutes} a week.} =4 {Your inner ring. Four days like that reach the WHO's {minutes} a week.} =5 {Your inner ring. Five days like that reach the WHO's {minutes} a week.} =6 {Your inner ring. Six days like that reach the WHO's {minutes} a week.} =7 {Your inner ring. Seven days like that reach the WHO's {minutes} a week.} other {Your inner ring. # days like that reach the WHO's {minutes} a week.}}",
+        "noteEveryDay": "Your inner ring. Even every day, that stays under the WHO's {minutes} a week."
+      },
+      "sleepNeed": {
+        "label": "Sleep need",
+        "per": "a night",
+        "auto": "Auto",
+        "less": "Less sleep",
+        "more": "More sleep",
+        "hours": "{half, select, yes {{hours}½} other {{hours}}}",
+        "noteAuto": "Worked out from your recent nights, between {min} and {max} hours. Your body battery and sleep debt use it.",
+        "noteOwn": "Your own figure, between {min} and {max} hours. Your body battery and sleep debt use it. <button>Back to auto</button>"
+      },
+      "failed": "Couldn't save that change, so your goals are as they were. Try again."
+    },
+    "intraday": {
+      "title": "Intraday coverage (Heart rate)",
+      "span": "{days}d",
+      "hint": "Minutes of heart rate recorded in each hour over the last {days, plural, one {# day} other {# days}}. Each block is one hour; solid means most of it was recorded.",
+      "hintWeekly": "Minutes of heart rate recorded in each hour, averaged per week over the {days, plural, one {# day} other {# days}} minute data is kept. Gaps show when the watch is usually off.",
+      "today": "Today",
+      "cell": "{date} {time} · {minutes} min recorded",
+      "cellAverage": "{date} {time} · {minutes} min recorded on average, over {days, plural, one {# day} other {# days}}"
+    },
+    "facts": {
+      "title": "Data facts",
+      "arithmetic": {
+        "lead": "Arithmetic, not AI",
+        "text": "Your body battery, sleep score and insights are worked out with plain arithmetic from your own data. Nothing is written or guessed by AI. Sleep stages and cardio fitness are your watch's own estimates."
+      },
+      "usual": {
+        "lead": "Usual means usual for you",
+        "text": "Anything called usual or unusual is compared with your own last {days, plural, one {# day} other {# days}}, not with other people. One odd day won't change what's normal for you."
+      },
+      "window": {
+        "lead": "Your {days}-day window",
+        "text": "{history, select, shown {Your insights and most charts use your window, the last {days, plural, one {# day} other {# days}}. {viewCount, plural, one {The {views} view adds your history, back to {month}.} other {The {views} views add your history, back to {month}.}} Every sync re-checks the last {refetch, plural, one {# day} other {# days}}, because watches often send data late.} other {Your insights and most charts use your window, the last {days, plural, one {# day} other {# days}}. Every sync re-checks the last {refetch, plural, one {# day} other {# days}}, because watches often send data late.}}"
+      },
+      "missing": {
+        "lead": "Missing days stay blank",
+        "text": "A day with nothing recorded shows a dash, not a zero, and is left out of every average. Today so far joins your averages once the day is over."
+      },
+      "minutes": {
+        "lead": "Heart rate, minute by minute",
+        "text": "Your watch measures your heart rate every few seconds. Healthier keeps one average per minute for the heart rate charts and Labs, so very short spikes are smoothed out."
+      }
+    },
+    "streams": {
+      "title": "Data streams",
+      "hint": "Everything Healthier reads from Google Health, and whether it's arriving. Open one to see where it comes from and what happened on the last fetch.",
+      "summary": {
+        "label": "Summary",
+        "ok": "<b>{count}</b> up to date",
+        "behind": "<b>{count}</b> behind",
+        "empty": "<b>{count}</b> with nothing recorded",
+        "unshared": "<b>{count}</b> not shared",
+        "failed": "<b>{count}</b> failed"
+      },
+      "status": {
+        "latest": "{day, select, today {Today} yesterday {Yesterday} other {{date}}}",
+        "behind": "Nothing since {date}",
+        "empty": "Nothing recorded",
+        "unshared": "Not shared",
+        "unauthorized": "No access",
+        "failed": "Failed"
+      },
+      "latestWhen": "{day, select, today {today} yesterday {yesterday} other {on {date}}}",
+      "formFactors": {
+        "WATCH": "Watch",
+        "RING": "Ring",
+        "PHONE": "Phone",
+        "SCALE": "Scale",
+        "FITNESS_BAND": "Fitness Band",
+        "CHEST_STRAP": "Chest Strap",
+        "TABLET": "Tablet",
+        "HEAD_MOUNTED": "Head Mounted",
+        "SMART_DISPLAY": "Smart Display"
+      },
+      "unknownSource": "Unknown",
+      "detail": {
+        "occasional": "{source, select, hand {Last reading {when}, logged by hand.} device {Last reading {when}, from {device}.} other {Last reading {when}.}} These come now and then, so a gap since the last one is normal.",
+        "latestReading": "{source, select, hand {Latest reading {when}, logged by hand.} device {Latest reading {when}, from {device}.} other {Latest reading {when}.}} {coverage}",
+        "latestMinute": "{source, select, hand {Latest minute {when}, logged by hand.} device {Latest minute {when}, from {device}.} other {Latest minute {when}.}} {coverage}",
+        "behind": "Nothing new since {date}. Healthier asks for it on every sync, so it fills in as soon as your device records it again.",
+        "empty": "Google has no readings of this for you: none of your devices record it, or nothing has been logged.",
+        "unshared": "Healthier wasn't given access to this when you connected Google, so it doesn't ask for it. To add it, sign out, sign back in and allow it when Google asks.",
+        "unauthorized": "Google refused access to this on the last fetch. If you didn't allow it when connecting, sign out, sign back in and allow it.",
+        "failed": "Google answered the last fetch with an error, so the days already stored stay as they were. Healthier tries again on the next sync.",
+        "truncated": "{detail} Google had more readings than one fetch takes, so some older ones may be missing."
+      },
+      "coverage": {
+        "everyDay": "Every day in the window has one.",
+        "everyDayMinutes": "Every day in the window has some.",
+        "someDays": "{days, plural, one {# of the {total, plural, one {# day} other {# days}} in the window has one.} other {# of the {total, plural, one {# day} other {# days}} in the window have one.}}",
+        "someDaysMinutes": "{days, plural, one {# of the {total, plural, one {# day} other {# days}} in the window has some.} other {# of the {total, plural, one {# day} other {# days}} in the window have some.}}"
+      },
+      "fetch": {
+        "minutes": "one-minute averages",
+        "totals": "daily totals",
+        "readings": "individual readings",
+        "last": "{how} · last fetch: {requests, plural, one {# request} other {# requests}}, {pages, plural, one {# page} other {# pages}}, {ms} ms",
+        "lastWithStatus": "{how} · last fetch: {requests, plural, one {# request} other {# requests}}, {pages, plural, one {# page} other {# pages}}, {ms} ms, HTTP {status}",
+        "none": "not fetched"
+      },
+      "domains": {
+        "movement": "Activity & Movement",
+        "sleep": "Sleep & Recovery",
+        "cardio": "Vitals & Heart",
+        "body": "Body",
+        "wellbeing": "Wellbeing"
+      }
+    }
+  },
+  "streams": {
+    "steps": "Steps",
+    "distance": "Distance",
+    "floors": "Floors climbed",
+    "active-minutes": "Active minutes",
+    "active-zone-minutes": "Active Zone Minutes",
+    "total-calories": "Total energy",
+    "active-energy-burned": "Active energy",
+    "sleep": "Sleep sessions",
+    "heart-rate": "Heart rate (intraday)",
+    "electrocardiogram": "ECG",
+    "irregular-rhythm-notification": "Irregular Rhythm Notification",
+    "daily-resting-heart-rate": "Resting heart rate",
+    "daily-heart-rate-zones": "Heart rate zones",
+    "daily-heart-rate-variability": "Heart-rate variability",
+    "daily-oxygen-saturation": "Blood oxygen",
+    "daily-respiratory-rate": "Breathing rate",
+    "daily-vo2-max": "Cardio fitness (VO₂max)",
+    "daily-sleep-temperature-derivations": "Skin temperature",
+    "weight": "Weight",
+    "body-fat": "Body fat",
+    "height": "Height",
+    "nutrition-log": "Nutrition (Macros)",
+    "hydration-log": "Hydration",
+    "blood-glucose": "Blood glucose"
+  }
+}
