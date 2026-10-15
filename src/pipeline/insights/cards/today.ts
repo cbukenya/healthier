@@ -18,7 +18,7 @@ type ReadinessPart = Readiness['parts'][number];
  * several-signals pattern, the week and month in review and the Labs
  * reminders. They live on Today and nowhere else.
  */
-export function todayRules(ctx: InsightContext, add: Add): void {
+export function todayCards(ctx: InsightContext, add: Add): void {
   battery(ctx, add);
   weeklyReview(ctx, add);
   monthlyReview(ctx, add);

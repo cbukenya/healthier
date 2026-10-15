@@ -32,7 +32,7 @@ export const vitalsQueries = {
 } satisfies HistoryQueries;
 
 /** HRV and resting heart rate, breathing, oxygen and temperature, cardio fitness and record weeks. */
-export function vitalsRules(ctx: InsightContext, add: Add): void {
+export function vitalsCards(ctx: InsightContext, add: Add): void {
   const hrvTrend = hrvTrends(ctx, add);
   hrvNight(ctx, add, hrvTrend);
   restingHeartRate(ctx, add);
