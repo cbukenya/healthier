@@ -32,7 +32,7 @@ export const activityQueries = {
 } satisfies HistoryQueries;
 
 /** Steps, active minutes, when and how you move, and the moments in the day worth a nudge. */
-export function activityRules(ctx: InsightContext, add: Add): void {
+export function activityCards(ctx: InsightContext, add: Add): void {
   volume(ctx, add);
   quietDays(ctx, add);
   milestones(ctx, add);

@@ -1,12 +1,12 @@
 import {
   BASELINE_DAYS, BASELINE_MIN_READINGS, NOISE_FLOOR, compareToBaseline, isRecent, latestPoint, periodShift, series, weightTrend,
-} from '../derive';
-import type { InsightContext } from './context';
-import { sleepMins } from './helpers';
-import { TREND_KG_PER_WEEK } from './rules/body';
-import type { Finding, InsightPage, Observation } from './types';
-import { t } from '../../i18n';
-import { formatDayMonthLong, formatDuration, formatInteger, formatList, formatRounded } from '../../i18n/format';
+} from '../../derive';
+import type { InsightContext } from '../context';
+import { sleepMins } from '../helpers';
+import { TREND_KG_PER_WEEK } from './body';
+import type { Finding, InsightPage, Observation } from '../types';
+import { t } from '../../../i18n';
+import { formatDayMonthLong, formatDuration, formatInteger, formatList, formatRounded } from '../../../i18n/format';
 
 /**
  * The cards that show when a carousel has nothing else. Each one only says
@@ -140,7 +140,7 @@ const floors: Record<InsightPage, (ctx: InsightContext) => FloorCopy> = {
     if (!trend) {
       return { title: t('insights.floors.bodyFloor.titleLatest'), text: t('insights.floors.bodyFloor.textLatest', last) };
     }
-    // Only reached while the trend sits under the threshold and the scale isn't stale: the rules own both.
+    // Only reached while the trend sits under the threshold and the scale isn't stale: the body cards own both.
     return {
       title: t('insights.floors.bodyFloor.title'),
       text: t('insights.floors.bodyFloor.text', { threshold: formatRounded(TREND_KG_PER_WEEK, 3), ...last }),

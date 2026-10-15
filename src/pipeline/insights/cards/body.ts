@@ -24,7 +24,7 @@ export const TREND_KG_PER_WEEK = 0.15;
 const STALE_AFTER = 15;
 
 /** Weight and body composition: neutral by design, whichever way they move. */
-export function bodyRules(ctx: InsightContext, add: Add): void {
+export function bodyCards(ctx: InsightContext, add: Add): void {
   weight(ctx, add);
   fastChange(ctx, add);
   holdingSteady(ctx, add);
