@@ -19,6 +19,35 @@ export const onToday = (f: Finding, part: Daypart) =>
 export const placeable = (f: Finding, part: Daypart) =>
   onToday(f, part) || (f.kind !== 'nudge' && f.page !== 'today');
 
+/** The carousel a card shows in, before a quiet Today brings any forward. */
+export const carouselOf = (f: Finding, part: Daypart): string => (onToday(f, part) ? 'today' : f.page);
+
+/** Today never shows fewer cards than this while others it could show wait on their pages. */
+export const TODAY_MIN = 2;
+
+/** Good news and a cautious card from the same family: never side by side (see the conflict rules). */
+const clash = (a: Finding, b: Finding) =>
+  a.family === b.family && ((a.tone === 'good' && b.tone === 'watch') || (a.tone === 'watch' && b.tone === 'good'));
+
+/** Cautious first, then the more important. */
+const forwardOrder = (a: Finding, b: Finding) =>
+  Number(b.tone === 'watch') - Number(a.tone === 'watch') || b.importance - a.importance;
+
+/**
+ * A quiet Today brings forward what matters most from the pages: a card that is still true but no
+ * longer news, cautious ones first, until Today has TODAY_MIN. It moves, so it shows in one place.
+ * Page-only cards stay put, and so does a card outside its part of the day or beside its rival.
+ */
+export function bringForward(today: Finding[], waiting: Finding[], part: Daypart): Finding[] {
+  const out = [...today];
+  const candidates = waiting.filter((f) => f.today !== 'never' && inPart(f, part)).sort(forwardOrder);
+  for (const f of candidates) {
+    if (out.length >= TODAY_MIN) break;
+    if (!out.some((g) => clash(f, g))) out.push(f);
+  }
+  return out;
+}
+
 /** What needs attention first, then fresh news, then the rest by importance. */
 const pageOrder = (a: Finding, b: Finding) =>
   Number(b.tone === 'watch') - Number(a.tone === 'watch') || Number(b.news) - Number(a.news) || b.importance - a.importance;
@@ -32,10 +61,15 @@ export const toObservation = (f: Finding): Observation => ({
   ...(f.direction ? { direction: f.direction } : {}),
 });
 
-/** Each settled finding goes to exactly one place: Today while it's key, otherwise its own page. */
+/**
+ * Each settled finding goes to exactly one place: Today while it's key, otherwise its own page. A
+ * quiet Today brings forward what matters most from the pages (bringForward).
+ */
 export function place(settled: Finding[], ctx: InsightContext): InsightFeeds {
-  const today = settled.filter((f) => onToday(f, ctx.part)).sort((a, b) => b.importance - a.importance);
-  const rest = settled.filter((f) => !onToday(f, ctx.part));
+  const key = settled.filter((f) => onToday(f, ctx.part));
+  const waiting = settled.filter((f) => !onToday(f, ctx.part));
+  const today = bringForward(key, waiting, ctx.part).sort((a, b) => b.importance - a.importance);
+  const rest = settled.filter((f) => !today.includes(f));
 
   const todayFeed = (today.length ? today : [todayFloor(ctx)]).map(toObservation);
   const pages = {} as InsightFeeds['pages'];

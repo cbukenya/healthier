@@ -11,6 +11,7 @@ import {
   type Finding,
 } from '../insights';
 import { freshEntry } from '../insights/helpers';
+import { bringForward, carouselOf, TODAY_MIN } from '../insights/place';
 import { scoreSleep } from '../sleep';
 import {
   compareToBaseline, coverage, findGaps, periodShift, rollingMean, series, stats, values,
@@ -1139,6 +1140,16 @@ const whereIs = (days: Days, id: string, now: Date = MORNING) => {
   if (f.today.some((o) => o.id === id)) return 'today';
   return Object.entries(f.pages).find(([, os]) => os.some((o) => o.id === id))?.[0] ?? null;
 };
+/**
+ * Where a card's own rules put it: Today while it's key, else its page; null when it shows nowhere.
+ * A quiet Today may still bring it forward; the news tests read this, the placement tests whereIs.
+ */
+const homeIn = (ds: any, now: Date, id: string) => {
+  const r = evaluate(ds, now);
+  const f = r?.settled.find((x) => x.id === id);
+  return f ? carouselOf(f, r!.ctx.part) : null;
+};
+const homeOf = (days: Days, id: string, now: Date = MORNING) => homeIn(dsOf(days), now, id);
 const cardOf = (days: Days, id: string, now: Date = MORNING) => everyCard(days, now).find((o) => o.id === id);
 const listing = (days: Days, now: Date = MORNING) => {
   const f = feedsAt(days, now);
@@ -1174,7 +1185,8 @@ describe('insight engine — stateless guards', () => {
 
     const lasting = syntheticDays(28);
     for (let i = 21; i < 28; i++) lasting[i].hrv = 25 + (i % 2);
-    assert.equal(whereIs(lasting, 'hrv-trend-down'), 'vitals', listing(lasting));
+    assert.equal(homeOf(lasting, 'hrv-trend-down'), 'vitals', 'no longer news: its own place is Vitals');
+    assert.equal(whereIs(lasting, 'hrv-trend-down'), 'today', 'and a quiet Today brings it forward');
     assert.match(cardOf(lasting, 'hrv-trend-down')!.text, /It's been like this for 5 days\./);
 
     const over = syntheticDays(28);
@@ -1330,7 +1342,7 @@ describe('insight engine — stateless guards', () => {
 
     const older = syntheticDays(28);
     older[0].weightKg = 90; older[5].weightKg = 89; older[22].weightKg = 87.8;
-    assert.equal(whereIs(older, 'weight-down'), 'body', 'no new reading: not news, still true');
+    assert.equal(homeOf(older, 'weight-down'), 'body', 'no new reading: not news, still true');
   });
 
   it('crosses the WHO weekly bar on the crossing day', () => {
@@ -1346,7 +1358,7 @@ describe('insight engine — stateless guards', () => {
 
     const next = [...days, emptyRecord('2026-07-29')];
     next[28].activeMinutes = { light: 20, moderate: 10, vigorous: 0 };
-    assert.equal(whereIs(next, 'who-week', new Date('2026-07-29T08:00:00')), 'activity', 'the day after, on its page');
+    assert.equal(homeOf(next, 'who-week', new Date('2026-07-29T08:00:00')), 'activity', 'the day after, on its page');
   });
 
   it('finds a real recovery tax and stays silent on a null one', () => {
@@ -1405,7 +1417,7 @@ describe('insight engine — one place at a time', () => {
     // The yesterday test, run forward: the same grid cut to each length in turn.
     const trace = (days: Days, id: string, from: number) => {
       const out: string[] = [];
-      for (let n = from; n <= days.length; n++) out.push(whereIs(days.slice(0, n), id) ?? '-');
+      for (let n = from; n <= days.length; n++) out.push(homeOf(days.slice(0, n), id) ?? '-');
       return out.join(' ');
     };
     const grid = (n: number, from: number, change: (d: Days[number], i: number) => void) => {
@@ -1444,14 +1456,17 @@ describe('insight engine — one place at a time', () => {
     }
   });
 
-  it('settles every feed so no family mixes tones and no metric is claimed both ways', () => {
+  it('settles every feed so no carousel mixes tones in a family and no metric is claimed both ways', () => {
     for (const [name, days, now] of scenarios) {
       const r = evaluate(dsOf(days), now)!;
       const shown = new Set([...r.feeds.today, ...Object.values(r.feeds.pages).flat()].map((o) => o.id));
       const cards = r.settled.filter((x) => shown.has(x.id));
-      for (const fam of new Set(cards.map((x) => x.family))) {
-        const tones = new Set(cards.filter((x) => x.family === fam).map((x) => x.tone));
-        assert.ok(!(tones.has('watch') && tones.has('good')), `${name}: ${fam} mixes tones`);
+      for (const [feed, os] of [['today', r.feeds.today], ...Object.entries(r.feeds.pages)] as const) {
+        const here = r.settled.filter((x) => os.some((o) => o.id === x.id));
+        for (const fam of new Set(here.map((x) => x.family))) {
+          const tones = new Set(here.filter((x) => x.family === fam).map((x) => x.tone));
+          assert.ok(!(tones.has('watch') && tones.has('good')), `${name}: ${fam} mixes tones on ${feed}`);
+        }
       }
       const claims = new Map<string, string>();
       for (const x of cards) {
@@ -1494,7 +1509,7 @@ describe('insight engine — Activity in depth', () => {
   /** The same grid cut to each length in turn: the yesterday test, run forward. */
   const trace = (days: Days, id: string, from: number) => {
     const out: string[] = [];
-    for (let n = from; n <= days.length; n++) out.push(whereIs(days.slice(0, n), id) ?? '-');
+    for (let n = from; n <= days.length; n++) out.push(homeOf(days.slice(0, n), id) ?? '-');
     return out.join(' ');
   };
   // Grids of 56 days end on Tue 25 Aug.
@@ -1566,7 +1581,7 @@ describe('insight engine — Activity in depth', () => {
     days[27].distanceKm = 10;
     const card = cardOf(days, 'activity-distance-month')!;
     assert.equal(card.title, "You've passed 100 km this month");
-    assert.equal(whereIs(days, 'activity-distance-month'), 'activity', 'passed days ago: on the page');
+    assert.equal(homeOf(days, 'activity-distance-month'), 'activity', 'passed days ago: on the page');
   });
 
   it('finds your most floors in any week', () => {
@@ -1629,7 +1644,7 @@ describe('insight engine — Activity in depth', () => {
 describe('insight engine — Sleep in depth', () => {
   const trace = (days: Days, id: string, from: number) => {
     const out: string[] = [];
-    for (let n = from; n <= days.length; n++) out.push(whereIs(days.slice(0, n), id) ?? '-');
+    for (let n = from; n <= days.length; n++) out.push(homeOf(days.slice(0, n), id) ?? '-');
     return out.join(' ');
   };
   // Grids of 40 days end on Sun 9 Aug; 56 days on Tue 25 Aug.
@@ -1982,6 +1997,9 @@ describe('insight engine — all time and the week in review', () => {
   /** The app's real history queries, answered from older days as the server would answer them. */
   const feedsWith = (window: Days, before: Days, now: Date) =>
     insightFeeds({ days: window, answers: answerQueries(HISTORY_QUERIES, before, window.at(-1)!.date, window[0].date, before[0]?.date ?? null) } as any, now);
+  /** Where its own rules put a card, before a quiet Today brings any forward. */
+  const homeWith = (window: Days, before: Days, now: Date, id: string) =>
+    homeIn({ days: window, answers: answerQueries(HISTORY_QUERIES, before, window.at(-1)!.date, window[0].date, before[0]?.date ?? null) }, now, id);
   const find = (f: ReturnType<typeof feedsWith>, id: string) => {
     if (f.today.some((o) => o.id === id)) return { where: 'today', card: f.today.find((o) => o.id === id)! };
     for (const [page, os] of Object.entries(f.pages)) {
@@ -2003,7 +2021,7 @@ describe('insight engine — all time and the week in review', () => {
     const sep1 = find(feedsWith(window(), before, SEP1), 'activity-best-month')!;
     assert.equal(sep1.where, 'today');
     assert.equal(sep1.card.text, "You averaged 10,000 steps a day in August. That's your most active month since March, as far back as your history goes.");
-    assert.equal(find(feedsWith(window(67), before, new Date('2026-09-05T08:00:00')), 'activity-best-month')?.where, 'activity');
+    assert.equal(homeWith(window(67), before, new Date('2026-09-05T08:00:00'), 'activity-best-month'), 'activity');
     assert.equal(find(feedsWith(window(), [], SEP1), 'activity-best-month'), null, 'two months are no record');
     const may = older((d) => { d.steps = d.date.startsWith('2026-05') ? 12000 : 7000; });
     assert.equal(find(feedsWith(window(), may, SEP1), 'activity-best-month'), null);
@@ -2082,6 +2100,9 @@ describe('insight engine — records in the past year', () => {
     });
   const feedsWith = (window: Days, before: Days, now: Date) =>
     insightFeeds({ days: window, answers: answerQueries(HISTORY_QUERIES, before, window.at(-1)!.date, window[0].date, before[0]?.date ?? null) } as any, now);
+  /** Where its own rules put a card, before a quiet Today brings any forward. */
+  const homeWith = (window: Days, before: Days, now: Date, id: string) =>
+    homeIn({ days: window, answers: answerQueries(HISTORY_QUERIES, before, window.at(-1)!.date, window[0].date, before[0]?.date ?? null) }, now, id);
   const cardIn = (f: ReturnType<typeof feedsWith>, id: string) => [...f.today, ...Object.values(f.pages).flat()].find((o) => o.id === id);
   const whereIn = (f: ReturnType<typeof feedsWith>, id: string) =>
     f.today.some((o) => o.id === id) ? 'today' : Object.entries(f.pages).find(([, os]) => os.some((o) => o.id === id))?.[0] ?? '-';
@@ -2135,7 +2156,7 @@ describe('insight engine — records in the past year', () => {
     const trace: string[] = [];
     for (let n = 61; n <= 69; n++) {
       const cut = window.slice(0, n);
-      trace.push(whereIn(feedsWith(cut, before, new Date(`${cut.at(-1)!.date}T08:00:00`)), 'activity-longest-walk'));
+      trace.push(homeWith(cut, before, new Date(`${cut.at(-1)!.date}T08:00:00`), 'activity-longest-walk') ?? '-');
     }
     assert.equal(trace.join(' '), '- today today today activity activity activity activity -');
   });
@@ -2211,16 +2232,19 @@ describe('insight engine — conflict rules', () => {
     ]), ['illness-pattern', 'who-week']);
   });
 
-  it('folds a good night into the debt card instead of showing both', () => {
-    assert.deepEqual(ids([
-      finding({ id: 'night-good', tone: 'good', page: 'sleep', family: 'sleep-amount', topic: 'sleep-night' }),
-      finding({ id: 'sleep-debt', tone: 'watch', page: 'sleep', family: 'sleep-amount', topic: 'sleep-debt' }),
-    ]), ['sleep-debt']);
+  it('folds a good night into the debt card when they would show together', () => {
+    const night = finding({ id: 'night-good', tone: 'good', page: 'sleep', family: 'sleep-amount', topic: 'sleep-night' });
+    const debt = finding({ id: 'sleep-debt', tone: 'watch', page: 'sleep', family: 'sleep-amount', topic: 'sleep-debt' });
+    assert.deepEqual(ids([night, debt]), ['sleep-debt']);
+    // Apart, both stand: the good night on Today, the debt it eases waiting on Sleep.
+    const where = (f: Finding) => (f.id === 'night-good' ? 'today' : 'sleep');
+    assert.deepEqual(settle([night, debt], where).map((f) => f.id).sort(), ['night-good', 'sleep-debt']);
 
     const days = syntheticDays(28);
     for (let i = 20; i < 27; i++) days[i].sleep!.minutesAsleep = 330;
     days[27].sleep!.minutesAsleep = 520;
-    assert.equal(cardOf(days, 'night-good'), undefined, listing(days));
+    assert.equal(whereIs(days, 'night-good'), 'today', listing(days));
+    assert.equal(whereIs(days, 'sleep-debt'), 'sleep', 'no longer news, and Today already has two cards');
     assert.match(cardOf(days, 'sleep-debt')!.text, /^Last night's 8h 40m helped\. Over the 7 nights before it, you slept [\d.]+ hours less than you need\./);
   });
 
@@ -2250,10 +2274,51 @@ describe('insight engine — conflict rules', () => {
   });
 });
 
+describe('insight engine — a quiet Today', () => {
+  const finding = (f: Partial<Finding> & Pick<Finding, 'id'>): Finding => ({
+    domain: 'cardio', page: 'vitals', kind: 'trend', tone: 'neutral', title: f.id, text: '',
+    importance: 50, topic: f.id, family: f.id, today: 'as-news', news: false, ...f,
+  });
+  const ids = (fs: Finding[]) => fs.map((f) => f.id);
+
+  it('brings forward what matters most from the pages, cautious first, until Today has two', () => {
+    const today = [finding({ id: 'recharged', page: 'today', tone: 'good', family: 'recovery', today: 'while-true' })];
+    const waiting = [
+      finding({ id: 'best-month', page: 'sleep', tone: 'good', importance: 63 }),
+      finding({ id: 'sleep-debt', page: 'sleep', tone: 'watch', importance: 89 }),
+      finding({ id: 'bedtime', page: 'sleep', tone: 'watch', importance: 66 }),
+    ];
+    assert.equal(TODAY_MIN, 2);
+    assert.deepEqual(ids(bringForward(today, waiting, 'morning')), ['recharged', 'sleep-debt']);
+    assert.deepEqual(ids(bringForward([], waiting, 'morning')), ['sleep-debt', 'bedtime'], 'cautious before good news');
+    assert.deepEqual(ids(bringForward([...today, waiting[0]], waiting.slice(1), 'morning')), ['recharged', 'best-month'], 'two is enough');
+  });
+
+  it('leaves page-only cards, cards outside their part of the day and cards beside their rival where they are', () => {
+    const today = [finding({ id: 'recharged', page: 'today', tone: 'good', family: 'recovery', today: 'while-true' })];
+    const waiting = [
+      finding({ id: 'week-shape', page: 'vitals', importance: 99, today: 'never' }),
+      finding({ id: 'last-night', page: 'sleep', tone: 'watch', importance: 98, daypart: ['morning'] }),
+      finding({ id: 'rhr-up', page: 'vitals', tone: 'watch', importance: 97, family: 'recovery' }),
+    ];
+    assert.deepEqual(ids(bringForward(today, waiting, 'midday')), ['recharged']);
+    assert.deepEqual(ids(bringForward(today, waiting, 'morning')), ['recharged', 'last-night']);
+  });
+
+  it('moves a lasting slide to a quiet Today, so its page points there instead', () => {
+    const lasting = syntheticDays(28);
+    for (let i = 21; i < 28; i++) lasting[i].hrv = 25 + (i % 2);
+    const f = feedsAt(lasting);
+    assert.ok(f.today.some((o) => o.id === 'hrv-trend-down'), listing(lasting));
+    assert.ok(!f.pages.vitals.some((o) => o.id === 'hrv-trend-down'), 'one place at a time');
+    assert.equal(f.pages.vitals[0].id, 'vitals-on-today');
+  });
+});
+
 describe('insight engine — calibrated against stored history', () => {
   const trace = (days: Days, id: string, from: number, now: Date = MORNING) => {
     const out: string[] = [];
-    for (let n = from; n <= days.length; n++) out.push(whereIs(days.slice(0, n), id, now) ?? '-');
+    for (let n = from; n <= days.length; n++) out.push(homeOf(days.slice(0, n), id, now) ?? '-');
     return out.join(' ');
   };
 
