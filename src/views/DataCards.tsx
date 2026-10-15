@@ -14,6 +14,7 @@ import type { SyncResult } from '../pipeline/sync';
 import type { HistoryInfo } from '../types/api';
 import type { MetricDomain, SourceRef, StreamReport } from '../types/health';
 import { useGoalsControl } from '../hooks/useGoals';
+import { useCycle } from '../hooks/useCycle';
 import { SPANS, spanLabel } from '../ui/span';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 import { Card, CardHead, DURATION_UNIT, fmtDuration, withUnits } from '../ui/primitives';
@@ -278,6 +279,65 @@ export function GoalsCard({ autoNeed }: {
           {t('data.goals.failed')}
         </p>
       )}
+    </Card>
+  );
+}
+
+/**
+ * Cycle tracking: off until the person turns it on, for anyone who has periods, whatever gender is
+ * set. The log can be deleted on its own.
+ */
+export function CycleCard({ kept }: {
+  /** A log is kept on the server, though tracking is off and it wasn't sent. */
+  kept: boolean;
+}) {
+  const { log, setSettings, forget, failed } = useCycle();
+  const [deleteFailed, setDeleteFailed] = useState(false);
+  const id = useId();
+  const on = log.settings.tracking;
+  const remove = async () => {
+    if (!window.confirm(t('data.cycle.confirm'))) return;
+    try {
+      await forget();
+      setDeleteFailed(false);
+    } catch (err) {
+      console.error('Failed to delete the cycle log:', err);
+      setDeleteFailed(true);
+    }
+  };
+  return (
+    <Card>
+      <CardHead title={t('data.cycle.title')} hint={t('data.cycle.hint')} domain="cycle" />
+      <div className="px-5 pb-4">
+        <div className="py-3 border-t border-zinc-800/60 flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <div id={id} className="text-body text-zinc-200">{t('data.cycle.tracking')}</div>
+            <p className="mt-0.5 text-caption leading-relaxed text-zinc-500">{t('data.cycle.trackingNote')}</p>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={on}
+            aria-labelledby={id}
+            onClick={() => setSettings({ ...log.settings, tracking: !on })}
+            className={`relative shrink-0 mt-0.5 w-12 h-7 rounded-full transition-colors ${on ? 'bg-pink-600' : 'bg-zinc-700'}`}
+          >
+            <span className={`absolute top-[3px] size-[22px] rounded-full bg-zinc-50 transition-[left] ${on ? 'left-[23px]' : 'left-[3px]'}`} />
+          </button>
+        </div>
+        <p className="pt-3 border-t border-zinc-800/60 text-caption leading-relaxed text-zinc-500">{on ? t('data.cycle.private') : t('data.cycle.off')}</p>
+        {(on || kept || log.days.length > 0) && (
+          <button
+            type="button"
+            onClick={remove}
+            className="mt-3 min-h-10 px-3.5 rounded-lg border border-rose-900/60 text-caption font-medium text-rose-300 hover:bg-rose-500/10 transition-colors"
+          >
+            {t('data.cycle.delete')}
+          </button>
+        )}
+        {failed && <p role="alert" className="mt-3 text-caption text-rose-400">{t('data.cycle.failed')}</p>}
+        {deleteFailed && <p role="alert" className="mt-3 text-caption text-rose-400">{t('data.cycle.deleteFailed')}</p>}
+      </div>
     </Card>
   );
 }

@@ -23,6 +23,7 @@ export const DOMAIN = {
   body: { text: 'text-teal-300', bg: 'bg-teal-500/10', ring: 'ring-teal-500/25', hex: '#5eead4', dim: '#115e59' },
   data: { text: 'text-amber-400', bg: 'bg-amber-500/10', ring: 'ring-amber-500/25', hex: '#fbbf24', dim: '#78350f' },
   wellbeing: { text: 'text-violet-400', bg: 'bg-violet-500/10', ring: 'ring-violet-500/25', hex: '#a78bfa', dim: '#4c1d95' },
+  cycle: { text: 'text-pink-400', bg: 'bg-pink-500/10', ring: 'ring-pink-500/25', hex: '#f472b6', dim: '#831843' },
 } as const;
 
 export type DomainKey = keyof typeof DOMAIN;

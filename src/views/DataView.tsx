@@ -7,7 +7,7 @@ import { STREAMS } from '../pipeline/registry';
 import { Card, CardHead, Segmented } from '../ui/primitives';
 import { groupDays, mean, type Bucket } from '../pipeline/aggregate';
 import { CoverageGrid } from '../charts';
-import { DataFacts, DataStreams, GoalsCard, SyncStatus } from './DataCards';
+import { CycleCard, DataFacts, DataStreams, GoalsCard, SyncStatus } from './DataCards';
 import { DASHBOARD_WINDOW_DAYS, type SyncResult } from '../pipeline/sync';
 import { useHistory } from '../hooks/useHistory';
 import { SpanSelector, useSpan } from '../ui/span';
@@ -78,6 +78,7 @@ export function DataView({ data, onFullSync, onDisconnect }: { data: SyncResult;
         <div className="lg:col-span-4 space-y-3">
           <SyncStatus data={data} history={history} onFullSync={onFullSync} onDisconnect={onDisconnect} />
           <GoalsCard autoNeed={estimatedSleepTarget(data.days)} />
+          <CycleCard kept={!!data.profile?.cycleKept} />
         </div>
       </div>
 

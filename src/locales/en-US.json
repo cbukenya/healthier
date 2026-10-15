@@ -86,6 +86,7 @@
       "sleep": "Sleep",
       "vitals": "Vitals",
       "body": "Body",
+      "cycle": "Cycle",
       "labs": "Labs",
       "data": "Data"
     },
@@ -114,6 +115,9 @@
     }
   },
   "ui": {
+    "sheet": {
+      "close": "Close"
+    },
     "band": {
       "farBelow": "well below usual",
       "below": "below usual",
@@ -1470,6 +1474,209 @@
       "note": "Scale body fat is approximate, so its trend on the same scale says more than any one reading."
     }
   },
+  "cycle": {
+    "eyebrow": "Today in your cycle",
+    "day": "Day {day}",
+    "days": "{count, plural, one {# day} other {# days}}",
+    "span": "{min}–{max}",
+    "signed": "{sign, select, up {+} other {−}}{value} {unit}",
+    "signedValue": "{sign, select, up {+} other {−}}{value}",
+    "phase": {
+      "period": "Your period",
+      "beforeRise": "Before your temperature rise",
+      "afterRise": "After your temperature rise"
+    },
+    "next": {
+      "range": "Your next period is likely between <b>{from}</b> and <b>{to}</b>.",
+      "day": "Your next period is likely around <b>{date}</b>.",
+      "past": "Your next period was likely by {date}. Cycles run long now and then: the new one shows when your nights fall back, or when you log it.",
+      "collecting": "After {count, plural, one {# more cycle} other {# more cycles}}, Healthier can say when your next period is likely."
+    },
+    "actions": {
+      "logToday": "Log today",
+      "started": "My period started"
+    },
+    "strip": {
+      "label": "Day {day} of this cycle.{rise, select, yes { Your temperature rose on day {riseDay}.} other {}}{next, select, yes { Your next period is likely from day {from} to day {to}.} other {}}",
+      "today": "Today",
+      "period": "Period",
+      "rise": "Rise",
+      "next": "Likely next"
+    },
+    "reached": {
+      "title": "How it was reached",
+      "start": "{source, select, logged {This cycle began on {date}} other {This cycle began around {date}}}",
+      "startDetail": "{source, select, logged {You logged it. Today is day {day}.} other {Your temperature and heart rate fell back the night before. Today is day {day}.}}",
+      "cycles": "Your last {count} cycles ran {min} to {max} days",
+      "cyclesDetail": "{logged, plural, =0 {} one {One began with a period you logged. } other {# began with a period you logged. }}{found, plural, =0 {} one {One was found in your nights. } other {# were found in your nights. }}Logged ones count twice as much, and the middle is {typical} days.",
+      "rise": "Your temperature and heart rate rose on day {day}",
+      "riseDetail": "They've stayed up since.",
+      "next": "{basis, select, rise {So your next period is likely {min} to {max} days after the rise} other {So your next period is likely {min} to {max} days after this cycle began}}",
+      "nextDetail": "That puts it between {from} and {to}."
+    },
+    "found": {
+      "title": "A new cycle, found in your nights",
+      "text": "Your temperature and heart rate fell back on {fall}. {learned, select, yes {In the cycles you confirmed, your period started} other {A period usually starts}} {offset, plural, =0 {the same day as} one {the day after} other {# days after}} a fall like this, so day 1 is {date}, give or take a day.",
+      "confirm": "That's right",
+      "change": "Change the day",
+      "reject": "It wasn't a period",
+      "note": "Confirmed, this cycle counts twice as much in your ranges. Left alone, it still counts, with less weight."
+    },
+    "collecting": {
+      "title": "Finding your rhythm",
+      "text": "Healthier looks for your cycles in your nightly temperature, resting heart rate and HRV. It needs two cycles in a row to see a rhythm, or a period you log."
+    },
+    "noRhythm": {
+      "title": "No clear rhythm in your nights yet",
+      "text": "Your temperature and heart rate haven't shown the rise and fall that marks a cycle. That's common on hormonal contraception, when cycles vary a lot, or when the watch comes off at night.",
+      "logged": "Periods you log are still used just as they are."
+    },
+    "now": {
+      "afterRise": {
+        "eyebrow": "After the temperature rise",
+        "of": "of about {days}",
+        "text": "Since day {day}, you've run warmer, with a faster resting heart rate, the way your nights go in the second half of a cycle."
+      },
+      "beforeRise": {
+        "eyebrow": "Before the temperature rise",
+        "text": "In your last cycles, the rise came on day {days}.",
+        "unknown": "The rise comes after ovulation, around the middle of a cycle."
+      },
+      "rows": {
+        "temp": "Skin temperature",
+        "restingHr": "Resting heart rate",
+        "hrv": "HRV"
+      }
+    },
+    "lastPeriod": {
+      "eyebrow": "Last period",
+      "length": "Length",
+      "ongoing": "Still going",
+      "startOnly": "Only its start logged",
+      "heaviest": "Heaviest flow",
+      "usual": "Your usual",
+      "usualRange": "{days} days"
+    },
+    "logged": {
+      "eyebrow": "Logged today",
+      "change": "Change",
+      "add": "Log",
+      "none": "Nothing logged yet."
+    },
+    "flow": {
+      "none": "None",
+      "spotting": "Spotting",
+      "light": "Light",
+      "medium": "Medium",
+      "heavy": "Heavy",
+      "unspecified": "Period"
+    },
+    "symptoms": {
+      "cramps": "Cramps",
+      "headache": "Headache",
+      "bloating": "Bloating",
+      "breasts": "Tender breasts",
+      "back": "Back pain",
+      "acne": "Acne",
+      "tired": "Tired",
+      "lowMood": "Low mood",
+      "irritable": "Irritable",
+      "cravings": "Cravings",
+      "sleep": "Trouble sleeping"
+    },
+    "body": {
+      "title": "Your body through the cycle",
+      "hint": "This cycle, night by night, against your last {count, plural, one {cycle} other {# cycles}}. The grey band is where your past cycles usually were on the same day. Skin temperature is the watch's change from your own baseline.",
+      "hintFew": "This cycle so far, night by night. Your past cycles show as a band once there are three.",
+      "legend": {
+        "mine": "This cycle",
+        "usual": "Your past cycles",
+        "period": "Period",
+        "afterRise": "After the rise"
+      },
+      "rows": {
+        "temp": "Skin temperature",
+        "restingHr": "Resting heart rate",
+        "hrv": "HRV"
+      },
+      "change": "{change} {unit} {direction, select, up {higher} other {lower}} since day {day}",
+      "chart": "{name} through this cycle, against your past cycles",
+      "axisDay": "Day {day}"
+    },
+    "history": {
+      "title": "Your cycles",
+      "hint": "Each bar is one cycle, found in your nights whether you logged it or not. Solid pink is a period you logged; dashed is a start found in your nights, give or take a day.",
+      "empty": "Your cycles will show here as Healthier finds them in your nights, or as you log them.",
+      "legend": {
+        "logged": "Period you logged",
+        "found": "Start found in your nights",
+        "rise": "Temperature rose"
+      },
+      "stats": {
+        "typical": "Typical cycle",
+        "range": "Shortest to longest",
+        "period": "Periods you logged",
+        "days": "days"
+      },
+      "row": "From {date}: {length}, {source, select, logged {a period you logged} other {a start found in your nights}}{rise, select, yes {, temperature rose on day {riseDay}} other {}}."
+    },
+    "calendar": {
+      "previous": "Previous month",
+      "next": "Next month",
+      "day": "{date}{notes, select, yes {: {list}} other {}}",
+      "notes": {
+        "today": "today",
+        "period": "a period day",
+        "spotting": "spotting",
+        "found": "a start found in your nights",
+        "rise": "your temperature rose",
+        "logged": "something logged",
+        "likely": "your period may start",
+        "likelyDay": "your period is most likely to start"
+      },
+      "legend": {
+        "period": "Period",
+        "likely": "Likely period",
+        "rise": "Temperature rose",
+        "logged": "Logged"
+      }
+    },
+    "sheet": {
+      "save": "Save",
+      "private": "Kept on your own server, encrypted.",
+      "day": {
+        "eyebrow": "Cycle day {day}",
+        "eyebrowPlain": "Log a day",
+        "flow": "Bleeding",
+        "flowNote": {
+          "none": "Pick light, medium or heavy on the day a period starts.",
+          "spotting": "Spotting is noted, but it doesn't start a period on its own.",
+          "continues": "Part of the period that started on {date}.",
+          "starts": "This starts a period: day 1 of a new cycle."
+        },
+        "feel": "How you feel",
+        "note": "Notes",
+        "notePlaceholder": "Anything you want to remember about this day"
+      },
+      "start": {
+        "title": "When did your period start?",
+        "suggest": "Your nights suggest {date}.",
+        "today": "Today",
+        "yesterday": "Yesterday",
+        "twoDays": "2 days ago",
+        "another": "Another day",
+        "future": "Days after today can't be picked.",
+        "result": "Day 1 is {date}.",
+        "detail": "Your last cycle ran {days} days, and today is day {day} of the new one.",
+        "short": "That would make your last cycle {days} days{usual, select, yes {, much shorter than your usual {min} to {max}} other {, much shorter than most}}. If it was spotting, log it as spotting instead.",
+        "flow": "How heavy, on that day",
+        "optional": "optional",
+        "note": "A start you confirm counts twice as much as one found in your nights. You can move or delete it later from the calendar."
+      }
+    },
+    "failed": "That change couldn't be saved, so it was undone. Try again in a moment.",
+    "disclaimer": "General wellness information, not medical advice. Healthier doesn't tell you when you're fertile and isn't a form of contraception. If something about your cycle worries you, talk to a clinician."
+  },
   "labs": {
     "intro": {
       "lead": "Experimental views of <b>multi-week patterns in your wearable data</b>, each against your own usual range.",
@@ -1827,6 +2034,18 @@
     "howItWorks": "How it works"
   },
   "data": {
+    "cycle": {
+      "title": "Cycle tracking",
+      "hint": "Off until you turn it on. Google Health doesn't share periods with other apps, so Healthier finds your cycles in your nights and keeps a log of its own.",
+      "tracking": "Cycle page",
+      "trackingNote": "Adds the Cycle page: your cycles, found in your nightly temperature, resting heart rate and HRV, and a log of your periods and how you feel.",
+      "private": "Your log stays on this server, encrypted, and you can delete it on its own.",
+      "off": "Turned off, nothing about cycles shows anywhere. Anything you logged is kept until you delete it.",
+      "delete": "Delete cycle data",
+      "confirm": "Delete your cycle log and settings? This can't be undone.",
+      "deleteFailed": "Your cycle data couldn't be deleted. Try again in a moment.",
+      "failed": "That couldn't be saved. Try again in a moment."
+    },
     "coverage": {
       "title": "Coverage matrix",
       "hint": {

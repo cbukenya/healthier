@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import type {
-  CycleDayResponse, CycleRejectedResponse, CycleSettingsResponse, DatasetResponse, GoalsResponse, HistoryResponse,
+  CycleDayResponse, CycleLogResponse, CycleRejectedResponse, CycleSettingsResponse, DatasetResponse, GoalsResponse, HistoryResponse,
   InstanceResponse, MeResponse, ProfileResponse, SyncResponse,
 } from '../src/types/api';
 import { parseGoals } from '../src/pipeline/goals';
@@ -11,7 +11,7 @@ import { requireUser, SESSION_COOKIE, sessionCookieOptions } from './auth';
 import { revokeToken } from './google';
 import { asyncHandler, type Deps } from './http';
 import {
-  deleteCycleLog, deleteUser, getTokens, getUser, hasTokens, setGender, setGoals, setTimeZone, updateCycleLog,
+  deleteCycleLog, deleteUser, getCycleLog, getTokens, getUser, hasTokens, setGender, setGoals, setTimeZone, updateCycleLog,
 } from './repo';
 import { historyInfo, loadDataset, loadHistory, startSync, syncStatus } from './sync';
 
@@ -83,6 +83,15 @@ export function apiRoutes(deps: Deps): Router {
       }
       await setGoals(deps.db, res.locals.userId, goals);
       const body: GoalsResponse = { goals };
+      res.json(body);
+    }),
+  );
+
+  /** The whole cycle log: the dataset carries it only while tracking is on. */
+  router.get(
+    '/cycle',
+    asyncHandler(async (req, res) => {
+      const body: CycleLogResponse = { cycle: await getCycleLog(deps.db, deps.config.encryptionKey, res.locals.userId) };
       res.json(body);
     }),
   );

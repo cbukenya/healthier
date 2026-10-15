@@ -289,7 +289,10 @@ export async function loadDataset(
     // Gender, goals and the cycle log are the person's own, kept on their account rather than read from Google.
     {
       rows, intraday, states: states.values(),
-      profile: { ...state.profile, gender: user.gender, goals: readGoals(user.goals), cycle },
+      profile: {
+        ...state.profile, gender: user.gender, goals: readGoals(user.goals), cycle,
+        cycleKept: cycleLog.days.length > 0 || cycleLog.rejected.length > 0,
+      },
       run: state.run,
     },
     from,

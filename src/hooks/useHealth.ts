@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { DASHBOARD_WINDOW_DAYS, syncWithHistory, type SyncResult } from '../pipeline/sync';
 import { unpackDataset } from '../pipeline/incremental';
 import { createFixtureFetch } from '../pipeline/fixtures';
-import { DEMO_CLOCK, DEMO_DAYS, buildDemoPayloads } from '../pipeline/demo';
+import { DEMO_CLOCK, DEMO_CYCLE_LOG, DEMO_DAYS, buildDemoPayloads } from '../pipeline/demo';
 import { HISTORY_QUERIES } from '../pipeline/insights';
 import { api, ApiError } from '../lib/api';
 import type { DatasetResponse, HistoryInfo, SyncResponse, SyncStatus } from '../types/api';
@@ -153,9 +153,10 @@ async function demoSync(signal: AbortSignal, onProgress: Progress): Promise<{ da
   });
 }
 
-/** The demo, with its history as the Data tab and the long views read it. */
+/** The demo, with its history as the Data tab and the long views read it, and the cycle log it keeps. */
 async function demoResult(signal: AbortSignal, onProgress: Progress) {
   const { data, history } = await demoSync(signal, onProgress);
+  data.profile = { ...data.profile, cycle: DEMO_CYCLE_LOG, cycleKept: true };
   return { data, history: { from: history[0]?.date ?? null, complete: true, backfilling: false }, localHistory: history };
 }
 

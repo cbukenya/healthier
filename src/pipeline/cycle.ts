@@ -434,6 +434,12 @@ export function shiftsIn(nights: Night[], t: (number | null)[], min: number): Sh
  * of each start against the fall nearest it, once there are two. Until then, DEFAULT_OFFSET.
  */
 export function calibrateOffset(shifts: Shift[], logged: CivilDate[]): number {
+  const gaps = offsetGaps(shifts, logged);
+  return gaps.length < 2 ? DEFAULT_OFFSET : Math.min(3, Math.max(0, Math.round(median(gaps))));
+}
+
+/** Each confirmed start against the fall nearest it, in days, where there is one. */
+function offsetGaps(shifts: Shift[], logged: CivilDate[]): number[] {
   const falls = shifts.map((s) => s.fall).filter((f): f is CivilDate => f !== null);
   const gaps: number[] = [];
   for (const start of logged) {
@@ -444,7 +450,7 @@ export function calibrateOffset(shifts: Shift[], logged: CivilDate[]): number {
     }
     if (best !== null) gaps.push(best);
   }
-  return gaps.length < 2 ? DEFAULT_OFFSET : Math.min(3, Math.max(-1, Math.round(median(gaps))));
+  return gaps;
 }
 
 // ──────────────────────────────────────────────────────────────── cycles
@@ -490,7 +496,7 @@ export interface CycleSummary {
   cycles: Cycle[];
   /** The cycle under way, and where today sits in it. */
   current: (Cycle & { day: number; riseDay: number | null; phase: 'before-rise' | 'after-rise' }) | null;
-  /** The last six complete cycles inside MIN_CYCLE to MAX_CYCLE, once there are three. */
+  /** The last six complete cycles inside MIN_CYCLE to MAX_CYCLE, once there are three; how many began with a logged period and how many were found. */
   length: (Range & { logged: number; found: number }) | null;
   /** Days from the rise to the next start, in cycles that have both. */
   afterRise: Range | null;
@@ -500,6 +506,10 @@ export interface CycleSummary {
   next: { from: CivilDate; to: CivilDate; likely: CivilDate; basis: 'cycles' | 'rise' } | null;
   /** Days from a fall to a start, for this person. */
   offset: number;
+  /** The offset comes from the person's own confirmed starts, not the default. */
+  offsetLearned: boolean;
+  /** The cycle day the temperature rose on, in complete cycles that have one. */
+  riseDay: Range | null;
   /** Found starts, before any confirmation: for the page to offer to confirm. */
   found: CivilDate[];
 }
@@ -619,6 +629,7 @@ export function summarizeCycles(nights: Night[], log: CycleLog, today: CivilDate
   const shifts = shiftsIn(upToToday, signal, MIN_SHIFT_SD);
   const periods = loggedPeriods(log.days);
   const offset = calibrateOffset(shifts, periods.map((p) => p.start));
+  const offsetLearned = offsetGaps(shifts, periods.map((p) => p.start)).length >= 2;
   const startsOf = (list: Shift[]) => list
     .filter((s): s is Shift & { fall: CivilDate } => s.fall !== null)
     .map((s) => addDays(s.fall, offset))
@@ -655,6 +666,12 @@ export function summarizeCycles(nights: Night[], log: CycleLog, today: CivilDate
   );
   const period = rangeOf(
     periods.filter((p) => p.length !== null).slice(-CYCLES_FOR_RANGE).map((p) => ({ value: p.length!, weight: WEIGHT_LOGGED })),
+  );
+  const riseDay = rangeOf(
+    complete
+      .filter((c) => c.rise !== null)
+      .slice(-CYCLES_FOR_RANGE)
+      .map((c) => ({ value: daysBetween(c.start, c.rise!) + 1, weight: c.weight })),
   );
 
   const last = cycles[cycles.length - 1];
@@ -700,14 +717,32 @@ export function summarizeCycles(nights: Night[], log: CycleLog, today: CivilDate
     cycles,
     current,
     length: lengthRange
-      ? { ...lengthRange, logged: recent.filter((c) => c.weight === WEIGHT_LOGGED).length, found: recent.filter((c) => c.weight < WEIGHT_LOGGED).length }
+      ? { ...lengthRange, logged: recent.filter((c) => c.source === 'logged').length, found: recent.filter((c) => c.source === 'found').length }
       : null,
     afterRise,
     period,
     next,
     offset,
+    offsetLearned,
+    riseDay,
     found,
   };
+}
+
+/**
+ * How this cycle's nights since the rise differ from its nights before it: temperature in °C,
+ * resting heart rate in bpm, HRV in ms. Null for a measure without three nights on each side.
+ */
+export function sinceRise(nights: Night[], summary: CycleSummary): Record<'temp' | 'restingHr' | 'hrv', number | null> | null {
+  const c = summary.current;
+  if (!c || !c.rise) return null;
+  const inCycle = nights.filter((n) => n.date >= c.start);
+  const shift = (field: 'temp' | 'restingHr' | 'hrv') => {
+    const before = inCycle.filter((n) => n.date < c.rise!).map((n) => n[field]).filter(isNum);
+    const after = inCycle.filter((n) => n.date >= c.rise!).map((n) => n[field]).filter(isNum);
+    return before.length >= 3 && after.length >= 3 ? mean(after) - mean(before) : null;
+  };
+  return { temp: shift('temp'), restingHr: shift('restingHr'), hrv: shift('hrv') };
 }
 
 /**
