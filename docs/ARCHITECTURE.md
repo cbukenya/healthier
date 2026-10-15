@@ -209,7 +209,9 @@ Google Health lets apps add periods but not read them back, so cycles are found 
     cycles show them.
 
   The first two reach Today only when the person allows it on the Data page.
-- **Allowing for the cycle elsewhere**, also only while tracking is on. `typicalShifts` measures how
+- **Allowing for the cycle elsewhere**, only while tracking is on and "Allow for your cycle on other
+  pages" (`otherPages`, on by default) is too. Turned off, the other pages read the nights as for
+  someone who doesn't track cycles, and the Cycle page and its cards stay. `typicalShifts` measures how
   far the person's own temperature, resting heart rate and HRV move in the second half, once three
   cycles show it. `cycleAdjusted` moves each second-half night back by that much, in whole steps,
   into a copy of the days used only for judging. The cycle can explain a reading away, never add an
