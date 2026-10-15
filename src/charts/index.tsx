@@ -5,14 +5,15 @@ import {
   Area, Bar, BarChart, CartesianGrid, Cell, ComposedChart, Line, ReferenceArea,
   ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts';
-import type { CivilDate } from '../lib/date';
+import { isoWeekdayIndex, type CivilDate } from '../lib/date';
 import { lastIndexWithValue, rollingMean, values, type Point } from '../pipeline/derive';
 import { niceScale } from '../lib/scale';
 import { bucketStart, meanWindowFor, type Bucket } from '../pipeline/aggregate';
 import { AXIS, GRID, fmtDuration, fmtNum } from '../ui/primitives';
 import { rulerStep } from '../ui/DayRuler';
 import type { DailyRecord, SleepSession } from '../types/health';
-import { bucketLabel, formatCivil, formatClock, meanLabel, weekdayLetter } from '../i18n/format';
+import { names, numberFormat, t, type MessageKey } from '../i18n';
+import { bucketLabel, formatCivil, formatCivilNumeric, formatClock, formatYear, meanLabel, weekdayLetter } from '../i18n/format';
 
 /**
  * Charts.
@@ -69,11 +70,18 @@ function labels(date: CivilDate, bucket: Bucket) {
 /** Recharts passes the axis label; show the row's full heading instead. */
 const tooltipHeading = (label: unknown, payload: readonly any[] | undefined) => payload?.[0]?.payload?.full ?? String(label ?? '');
 
+/** A tooltip's value with its unit, when it has one: "52 bpm". */
+const reading = (value: string, unit?: string) => (unit ? t('charts.tooltip.value', { value, unit }) : value);
+
+/** A tick with every decimal it has, in the language's decimal mark: "0.25", "97.5". A scale's −0 reads "0", not "-0". */
+const tickNumber = (v: number) => numberFormat({ maximumFractionDigits: 20 }).format(v === 0 ? 0 : v);
+
 /**
  * Y-axis ticks: thousands as "18k" or "4.5k". The axis column is about 28px wide, so a full
  * "18,000" lost its first digits and read as "000".
  */
-export const axisTick = (v: number) => (Math.abs(v) >= 1000 ? `${Number((v / 1000).toFixed(2))}k` : `${v}`);
+export const axisTick = (v: number) =>
+  Math.abs(v) >= 1000 ? t('format.thousands', { value: tickNumber(Number((v / 1000).toFixed(2))) }) : tickNumber(v);
 
 /** Sparse x-axis labels: roughly one per week, always including the last day. */
 function tickInterval(n: number): number {
@@ -216,8 +224,8 @@ export function TrendChart({
           labelStyle={{ color: '#e4e4e7', fontWeight: 600, marginBottom: 2 }}
           labelFormatter={tooltipHeading}
           formatter={(v: any, name?: string | number) => [
-            v === null ? 'not recorded' : `${format(Number(v))}${unit ? ` ${unit}` : ''}`,
-            name === 'mean' && meanWindow ? meanLabel(bucket, meanWindow) : bucket === 'day' ? 'reading' : `${bucket}ly average`,
+            v === null ? t('charts.tooltip.notRecorded') : reading(format(Number(v)), unit),
+            name === 'mean' && meanWindow ? meanLabel(bucket, meanWindow) : t('charts.trend.series', { bucket }),
           ]}
         />
         {area && !sparse && (
@@ -256,18 +264,18 @@ export function TrendChart({
           <>
             <span className="flex items-center gap-1.5">
               <i className="block w-3.5 h-px" style={{ background: color, opacity: 0.6 }} />
-              {bucket === 'day' ? 'Each day' : `Each ${bucket}`}
+              {t('charts.trend.legend.each', { bucket })}
             </span>
             <span className="flex items-center gap-1.5">
               <i className="block w-3.5 h-[2.5px] rounded-full" style={{ background: color }} />
-              {`${meanWindow}-${bucket === 'week' ? 'week' : 'day'} average`}
+              {t('charts.trend.legend.average', { bucket, count: meanWindow })}
             </span>
           </>
         )}
         {baseline && (
           <span className="flex items-center gap-1.5">
             <i className="block w-3.5 h-2 rounded-sm bg-zinc-400/20" />
-            Your usual range
+            {t('charts.trend.legend.usualRange')}
           </span>
         )}
       </div>
@@ -315,8 +323,8 @@ export function BarSeries({
           labelStyle={{ color: '#e4e4e7', fontWeight: 600 }}
           labelFormatter={tooltipHeading}
           formatter={(v: any) => [
-            v === null ? 'not recorded' : `${format(Number(v))}${unit ? ` ${unit}` : ''}`,
-            bucket === 'day' ? '' : 'average per day',
+            v === null ? t('charts.tooltip.notRecorded') : reading(format(Number(v)), unit),
+            bucket === 'day' ? '' : t('charts.bars.averagePerDay'),
           ]}
         />
         <Bar dataKey="value" radius={[3, 3, 0, 0]} isAnimationActive={false}>
@@ -376,7 +384,7 @@ export function StackedBars({
           labelFormatter={tooltipHeading}
           formatter={(v: any, name?: string | number) => {
             const k = keys.find((x) => x.key === name);
-            return [v === null ? '—' : `${fmtNum(Number(v), 0)}${unit ? ` ${unit}` : ''}`, k?.label ?? name ?? ''];
+            return [v === null ? '—' : reading(fmtNum(Number(v), 0), unit), k?.label ?? name ?? ''];
           }}
         />
         {keys.map((k, i) => (
@@ -398,7 +406,7 @@ export function RangeBandChart({
   color,
   height = 180,
   get,
-  unit = '%',
+  unit = t('units.percent'),
   domain,
   bucket = 'day',
 }: {
@@ -430,7 +438,6 @@ export function RangeBandChart({
     [days, get, bucket],
   );
   if (!rows.some((r) => r.avg !== null)) return <NoSeries height={height} />;
-  const period = bucket === 'day' ? 'nightly' : `${bucket}'s`;
   return (
     <ResponsiveContainer width="100%" height={height}>
       <ComposedChart data={rows} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
@@ -443,10 +450,13 @@ export function RangeBandChart({
           labelFormatter={tooltipHeading}
           formatter={(v: any, name?: string | number) => {
             if (name === 'band') {
-              return Array.isArray(v) ? [`${fmtNum(v[0])}–${fmtNum(v[1])}${unit}`, `${period} range`] : ([null, null] as any);
+              return Array.isArray(v)
+                ? [t('charts.tooltip.range', { low: fmtNum(v[0]), high: fmtNum(v[1]), unit }), t('charts.range.band', { bucket })]
+                : ([null, null] as any);
             }
-            const map: Record<string, string> = { avg: 'average', low: `${period} low`, high: `${period} high` };
-            return [v === null ? '—' : `${fmtNum(Number(v))}${unit}`, map[String(name)] ?? name ?? ''];
+            const map: Record<string, MessageKey> = { avg: 'charts.range.average', low: 'charts.range.low', high: 'charts.range.high' };
+            const key = map[String(name)];
+            return [v === null ? '—' : t('charts.tooltip.valueSymbol', { value: fmtNum(Number(v)), unit }), key ? t(key, { bucket }) : name ?? ''];
           }}
         />
         <Area
@@ -464,7 +474,7 @@ export function RangeBandChart({
 export function DivergingBars({
   series,
   height = 170,
-  unit = '°C',
+  unit = t('units.celsius'),
   posColor = '#fb7185',
   negColor = '#818cf8',
   bucket = 'day',
@@ -490,8 +500,10 @@ export function DivergingBars({
           labelStyle={{ color: '#e4e4e7', fontWeight: 600 }}
           labelFormatter={tooltipHeading}
           formatter={(v: any) => [
-            v === null ? 'not recorded' : `${v > 0 ? '+' : ''}${fmtNum(Number(v), 2)}${unit}`,
-            bucket === 'day' ? 'vs baseline' : `${bucket}ly average vs baseline`,
+            v === null
+              ? t('charts.tooltip.notRecorded')
+              : t('charts.tooltip.valueSymbol', { value: `${v > 0 ? '+' : ''}${fmtNum(Number(v), 2)}`, unit }),
+            t('charts.diverging.series', { bucket }),
           ]}
         />
         <Bar dataKey="value" radius={[2, 2, 0, 0]} isAnimationActive={false}>
@@ -507,11 +519,11 @@ export function DivergingBars({
 // ─────────────────────────────────────────────────────────────── hypnogram
 
 const STAGE_STYLE = {
-  awake: { row: 0, label: 'Awake', color: '#d8b48a' },
-  rem: { row: 1, label: 'REM', color: '#a78bfa' },
-  light: { row: 2, label: 'Light', color: '#818cf8' },
-  deep: { row: 3, label: 'Deep', color: '#4338ca' },
-} as const;
+  awake: { row: 0, label: 'sleep.stages.awake', color: '#d8b48a' },
+  rem: { row: 1, label: 'sleep.stages.rem', color: '#a78bfa' },
+  light: { row: 2, label: 'sleep.stages.light', color: '#818cf8' },
+  deep: { row: 3, label: 'sleep.stages.deep', color: '#4338ca' },
+} as const satisfies Record<string, { row: number; label: MessageKey; color: string }>;
 
 /**
  * Hand-drawn SVG rather than a chart library: a hypnogram is a step function
@@ -539,9 +551,7 @@ export function Hypnogram({ session, height = 200 }: { session: SleepSession; he
   if (!segs.length) {
     return (
       <div className="px-5 pb-5">
-        <p className="text-caption text-zinc-500">
-          This night has stage totals but no segment timeline, so there's no hypnogram to draw.
-        </p>
+        <p className="text-caption text-zinc-500">{t('charts.hypnogram.noTimeline')}</p>
       </div>
     );
   }
@@ -607,7 +617,7 @@ export function Hypnogram({ session, height = 200 }: { session: SleepSession; he
       <div ref={box} style={{ height }}>
         {W > 0 && (
           <svg width={W} height={height} viewBox={`0 0 ${W} ${height}`} className="block" role="img"
-            aria-label={`Sleep stages, ${fmtDuration(session.minutesAsleep)} asleep`}>
+            aria-label={t('charts.hypnogram.label', { duration: fmtDuration(session.minutesAsleep) })}>
             <defs>
               {runs.map((r, i) => {
                 if (!linked(i)) return null;
@@ -627,7 +637,7 @@ export function Hypnogram({ session, height = 200 }: { session: SleepSession; he
               return (
                 <g key={k}>
                   <line x1={PL} x2={W - PR} y1={y} y2={y} stroke={GRID} strokeWidth={1} />
-                  <text x={PL - 10} y={y + 3.5} textAnchor="end" fontSize={10.5} fill={AXIS}>{st.label}</text>
+                  <text x={PL - 10} y={y + 3.5} textAnchor="end" fontSize={10.5} fill={AXIS}>{t(st.label)}</text>
                 </g>
               );
             })}
@@ -645,13 +655,15 @@ export function Hypnogram({ session, height = 200 }: { session: SleepSession; he
               const st = STAGE_STYLE[r.stage];
               return (
                 <path key={i} d={blockPath(i)} fill={st.color}>
-                  <title>{`${st.label} · ${Math.round(r.to - r.from)} min · from ${formatClock(r.clockMin)}`}</title>
+                  <title>
+                    {t('charts.hypnogram.block', { stage: t(st.label), minutes: Math.round(r.to - r.from), time: formatClock(r.clockMin) })}
+                  </title>
                 </path>
               );
             })}
             {session.shortAwakeningsMin.map((m, i) => (
               <line key={i} x1={x(m)} x2={x(m)} y1={PT - 12} y2={PT - 4} stroke="#e4e4e7" strokeWidth={1.6} strokeLinecap="round">
-                <title>{`Brief awakening at ${formatClock(segs[0].clockMin + m)}`}</title>
+                <title>{t('charts.hypnogram.awakening', { time: formatClock(segs[0].clockMin + m) })}</title>
               </line>
             ))}
             {hourTicks.map((m) => (
@@ -675,11 +687,11 @@ export function StageLegend() {
       {Object.values(STAGE_STYLE).map((s) => (
         <span key={s.label} className="flex items-center gap-1.5 text-note uppercase tracking-wider text-zinc-500">
           <i className="w-2.5 h-2.5 rounded-sm" style={{ background: s.color }} />
-          {s.label}
+          {t(s.label)}
         </span>
       ))}
       <span className="flex items-center gap-1.5 text-note uppercase tracking-wider text-zinc-500">
-        <i className="w-[2px] h-3 bg-zinc-200" /> brief awakening
+        <i className="w-[2px] h-3 bg-zinc-200" /> {t('charts.stageLegend.briefAwakening')}
       </span>
     </div>
   );
@@ -700,7 +712,7 @@ export function StageBar({ session, height = 14 }: { session: SleepSession; heig
           <div
             key={k}
             style={{ width: `${(v / total) * 100}%`, background: STAGE_STYLE[k].color }}
-            title={`${STAGE_STYLE[k].label} ${v} min`}
+            title={t('charts.stageBar.title', { stage: t(STAGE_STYLE[k].label), minutes: v })}
           />
         ) : null,
       )}
@@ -778,12 +790,15 @@ export function CoverageGrid({
                 const total = c.to - c.from + 1;
                 let recorded = 0;
                 for (let i = c.from; i <= c.to; i++) if (r.days[i]) recorded++;
-                const when = bucket === 'day' ? dates[c.from] : bucketLabel(c.date, bucket, 'full');
-                const detail = bucket === 'day' ? (recorded ? 'recorded' : 'no data') : `${recorded}/${total} days recorded`;
+                const when = bucket === 'day' ? formatCivilNumeric(dates[c.from]) : bucketLabel(c.date, bucket, 'full');
+                const title =
+                  bucket === 'day'
+                    ? t(recorded ? 'charts.coverage.dayRecorded' : 'charts.coverage.dayMissing', { date: when, stream: r.label })
+                    : t('charts.coverage.bucket', { date: when, stream: r.label, recorded, total });
                 return (
                   <span
                     key={c.date}
-                    title={`${when} · ${r.label} · ${detail}`}
+                    title={title}
                     className={`flex-1 h-3.5 rounded-[1.5px] ${recorded ? 'bg-emerald-500' : 'bg-zinc-800'}`}
                     // A full bucket matches a recorded day; partial ones fade with their share.
                     style={recorded ? { opacity: 0.25 + 0.45 * (recorded / total) } : undefined}
@@ -791,8 +806,9 @@ export function CoverageGrid({
                 );
               })}
             </div>
+            {/* The counts go in raw, without digit grouping ("1043/1096", not "1,043/1,096"), to keep to the 52px column. */}
             <span className="w-[52px] shrink-0 text-right text-note text-zinc-500 tabular-nums">
-              {r.observed}/{r.total}
+              {t('charts.coverage.count', { observed: r.observed, total: r.total })}
             </span>
           </div>
         ))}
@@ -811,11 +827,11 @@ function coverageLabel(cells: { date: CivilDate }[], i: number, bucket: Bucket):
   const prev = cells[i - 1];
   if (bucket === 'day') {
     if (cells.length <= 31) return formatCivil(c.date);
-    return i === 0 || weekdayLetter(c.date) === 'M' ? formatCivil(c.date) : null;
+    return i === 0 || isoWeekdayIndex(c.date) === 0 ? formatCivil(c.date) : null;
   }
   if (bucket === 'week') return !prev || prev.date.slice(0, 7) !== c.date.slice(0, 7) ? bucketLabel(c.date, 'month') : null;
   if (cells.length <= 36) return bucketLabel(c.date, 'month');
-  return i === 0 || c.date.slice(5, 7) === '01' ? c.date.slice(0, 4) : null;
+  return i === 0 || c.date.slice(5, 7) === '01' ? formatYear(c.date) : null;
 }
 
 // ─────────────────────────────────────────────────────── weekday profile
@@ -834,8 +850,8 @@ export function WeekdayProfile({
 }) {
   // Monday-first reads better for weekly habits than the JS Sunday-first order.
   const order = [1, 2, 3, 4, 5, 6, 0];
-  const names = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
-  const full = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const letters = names('format.weekdaysNarrow');
+  const full = names('format.weekdays');
   const max = Math.max(...data.map((d) => d.mean ?? 0), 1);
   return (
     <div className={`flex items-end gap-1.5 px-5 pb-5 ${className}`}>
@@ -844,7 +860,11 @@ export function WeekdayProfile({
         const h = d.mean === null ? 0 : (d.mean / max) * 100;
         return (
           <div key={wd} className="flex-1 flex flex-col items-center h-full"
-            title={`${full[wd]} · ${d.mean === null ? 'no data' : format(d.mean)} · ${d.n} days`}>
+            title={
+              d.mean === null
+                ? t('charts.weekday.noData', { weekday: full[wd], count: d.n })
+                : t('charts.weekday.tooltip', { weekday: full[wd], value: format(d.mean), count: d.n })
+            }>
             <span className="text-micro text-zinc-500 tabular-nums mb-1">
               {d.mean === null ? '' : format(d.mean)}
             </span>
@@ -857,7 +877,7 @@ export function WeekdayProfile({
                 style={{ height: `${h}%`, minHeight: h > 0 ? 3 : 0, background: color, opacity: 0.8 }}
               />
             </div>
-            <span className="text-note text-zinc-500 mt-1.5">{names[wd]}</span>
+            <span className="text-note text-zinc-500 mt-1.5">{letters[wd]}</span>
           </div>
         );
       })}
@@ -908,7 +928,7 @@ export function Spark({
     <svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" className="w-full" style={{ height }}>
       {band && (
         <>
-          <title>Shaded: your usual range</title>
+          <title>{t('charts.spark.usualRange')}</title>
           <rect x={0} y={y(band.hi)} width={width} height={Math.max(0, y(band.lo) - y(band.hi))} fill="#a1a1aa" opacity={0.12} />
         </>
       )}
@@ -927,7 +947,7 @@ export function Spark({
 function NoSeries({ height }: { height: number }) {
   return (
     <div className="flex items-center justify-center text-caption text-zinc-600" style={{ height }}>
-      Nothing recorded in this window
+      {t('charts.empty')}
     </div>
   );
 }

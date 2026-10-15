@@ -27,26 +27,26 @@ export function todayRules(ctx: InsightContext, add: Add): void {
 /** A battery part as a plain clause: "you slept 5h 50m compared to your 7h 20m need". */
 function reason(p: ReadinessPart, ctx: InsightContext): string {
   const low = p.contribution < 0;
-  switch (p.label) {
-    case 'Last night’s sleep': {
+  switch (p.id) {
+    case 'sleep': {
       const n = ctx.lastNight;
       if (!n) return low ? "last night's sleep was short" : 'you slept well last night';
       if (low) return `you slept ${hm(n.minutesAsleep)} compared to your ${ctx.needH} need`;
       return n.minutesAsleep >= ctx.need ? `you slept ${hm(n.minutesAsleep)}, more than your ${ctx.needH} need` : `you slept ${hm(n.minutesAsleep)}`;
     }
-    case 'Recent sleep debt':
+    case 'sleepDebt':
       return ctx.debt && ctx.debt.netMin > 0
         ? `you're ${hoursText(ctx.debt.netMin)} short on sleep this week`
         : "you've had a little extra sleep this week";
-    case 'HRV vs baseline':
+    case 'hrv':
       return low ? 'your HRV came in lower than usual' : 'your HRV is higher than usual';
-    case 'Resting HR vs baseline':
+    case 'restingHr':
       return low ? 'your resting heart rate is higher than usual' : 'your resting heart rate is lower than usual';
-    case 'Breathing rate':
+    case 'breathing':
       return 'your breathing rate is higher than usual';
-    case 'Skin temperature':
+    case 'skinTemp':
       return 'your skin temperature is running warm';
-    case 'Recent strain':
+    case 'strain':
       return "you've had some hard days recently";
     default:
       return p.label.toLowerCase();

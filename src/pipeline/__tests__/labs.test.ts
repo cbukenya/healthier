@@ -301,7 +301,7 @@ describe('sleep debt', () => {
     for (let i = 20; i < 27; i++) days[i].sleep!.minutesAsleep = 330; // a short week
     const need = estimatedSleepTarget(days);
     const debt = sleepDebt(days, need)!;
-    const part = readiness(days).parts.find((p) => p.label === 'Recent sleep debt')!;
+    const part = readiness(days).parts.find((p) => p.id === 'sleepDebt')!;
     assert.match(part.detail, new RegExp(`^${(debt.netMin / 60).toFixed(1)}h short`));
     // A week into the debt it waits on the Sleep page, so look everywhere.
     const feeds = insightFeeds({ days } as any, new Date(`${days[27].date}T09:00:00`));
