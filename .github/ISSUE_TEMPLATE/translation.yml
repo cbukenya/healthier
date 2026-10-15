@@ -1,0 +1,30 @@
+name: Translation
+description: Translate Healthier into a language, or fix a translation.
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Every word Healthier shows lives in one file per language, in `src/locales/`. The [guide for translators](https://github.com/cbukenya/healthier/blob/main/src/locales/README.md) explains how messages work.
+        Opening an issue first means nobody translates the same language twice.
+  - type: input
+    id: language
+    attributes:
+      label: Language
+      description: Its name and tag, such as Swedish (sv-SE).
+    validations:
+      required: true
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What would you like to do?
+      options:
+        - Start a new language
+        - Fix or improve an existing translation
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Anything else?
+      description: For a fix, the words as they read now, where they appear, and what they should say.

@@ -1,7 +1,12 @@
 name: Feature request
-description: Suggest an improvement or a new insight.
+description: Suggest an improvement to how Healthier works or looks.
 labels: [enhancement]
 body:
+  - type: markdown
+    attributes:
+      value: |
+        For a new insight card or lab, the **Insight or lab idea** template asks the questions that help most.
+        **Never paste health data, tokens or your `.env` here.**
   - type: textarea
     id: problem
     attributes:
@@ -12,8 +17,3 @@ body:
     id: idea
     attributes:
       label: How do you imagine it working?
-  - type: textarea
-    id: evidence
-    attributes:
-      label: For new health insights, what's the evidence?
-      description: Insights should be grounded in research. Links to papers or guidelines help a lot.

@@ -3,22 +3,125 @@
 [![CI](https://github.com/cbukenya/healthier/actions/workflows/ci.yml/badge.svg)](https://github.com/cbukenya/healthier/actions/workflows/ci.yml)
 [![License: AGPL v3](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
 
-A personal health and fitness dashboard for your Google Health data, built to be self-hosted.
+**Your Google Health data, made clear.** Healthier is an open-source dashboard you host yourself.
+It covers the data your watch and phone collect: sleep, activity, heart rate, HRV, weight and
+more. Every insight is plain arithmetic that you can trace back to your own numbers. Every formula
+is open, for anyone to read and improve.
 
-The server signs you in with Google, keeps your tokens encrypted in its own Postgres database,
-and syncs your data in the background, so the dashboard opens on recent numbers. Nothing runs
-on third-party infrastructure except Google's own APIs, which hold the data. There is no
-telemetry.
+![The Today page: body battery and the readings that moved it, last night's sleep, activity so far and overnight vitals](docs/screenshots/today.png)
 
-**Intended purpose.** Healthier is a personal wellness and data-visualisation tool. It is not a
-medical device: it does not diagnose, screen for, detect, monitor, prevent or treat any disease or
-condition, and it must not be used to make medical decisions. Its insights describe changes in
-your own data against your own usual ranges. If you have symptoms or concerns, talk to a clinician.
+<p align="center">
+  <img src="docs/screenshots/phone-today.png" alt="Today on a phone" width="24%">
+  <img src="docs/screenshots/phone-sleep.png" alt="Sleep on a phone" width="24%">
+  <img src="docs/screenshots/phone-vitals.png" alt="Vitals on a phone, with a day of heart rate" width="24%">
+  <img src="docs/screenshots/phone-labs.png" alt="Labs on a phone" width="24%">
+</p>
+<p align="center"><sub>All screenshots are from demo mode: a year of made-up data, not a real person's.</sub></p>
 
-The first sign-in imports the last 62 days (the window every baseline and insight is computed
-over) before the dashboard opens. Older history, up to two years by default, then imports in the
-background for the 90-day, 1-year and All views. After that, each sync fetches only the last few
-days.
+> **Not a medical device.** Healthier is a personal wellness and data-visualisation tool. It does
+> not diagnose, screen for, detect, monitor, prevent or treat any disease or condition, and it
+> must not be used to make medical decisions. Its insights describe changes in your own data
+> against your own usual ranges. If you have symptoms or concerns, talk to a clinician.
+
+## Why Healthier
+
+Healthier started because I found the Google Health app hard to read. All the data was there,
+but it took too much digging to learn what it meant. These ideas guide the project:
+
+**Clear before clever.** A glance should tell you how you slept, how much you've moved and how
+you're recovering. Insights are plain sentences with the numbers inside them.
+
+**Arithmetic you can trace.** Every score and insight is plain arithmetic on your own data. No AI
+writes or guesses anything. The same data always gives the same answer, and every result can be
+followed back to the readings behind it. For example, the body battery lists what raised and
+lowered it, and each insight says what it compared.
+
+**Open algorithms.** Most wearables give you a score without showing how they reached it. In
+Healthier every formula is in the open, so anyone can check it, question it and improve it. The
+goal is for the open-source community to build the best insights on fitness data, together.
+
+**For everyone.** Many of the most polished health apps are iPhone-only, and Android users are left
+waiting. Healthier runs in any browser, on a phone or a computer. It reads Google Health, which
+Fitbit and Pixel watches, Android apps and Apple Health on the iPhone can all feed (see
+[Getting your data in](#getting-your-data-in)).
+
+**Labs: follow the data.** Labs are experiments on your own data. Each one looks for a pattern over
+several weeks, such as:
+- nights when breathing, oxygen and time awake shift together;
+- how far your heart rate drops at night;
+- stretches of fast heart rate while you sleep.
+
+Some labs will start rough, and not every one will be scientifically robust at first. Out in the
+open they can only get better, and anyone can propose a new one. Google's
+[Health Guardian](https://blog.google/products-and-platforms/products/google-health/health-guardian-features-live/)
+for Pixel Watch works in a similar spirit: it watches blood pressure, insulin resistance and sleep
+breathing trends in the background, with Google's proprietary models. In Healthier, the
+arithmetic behind every lab is open to read. Like the rest of Healthier, Labs don't detect,
+screen for or rule out any condition.
+
+**Yours.** You run it yourself, and it has no telemetry. Your Google tokens are encrypted in your
+own database. Nothing leaves your server except requests to Google's API.
+
+## A quick tour
+
+Each page compares your numbers with your own usual ranges, and ends with insight cards: trends,
+records from the past year, patterns, and nudges at the right time of day. A card shows in one
+place at a time: on Today while it matters, otherwise on its own page.
+
+<table>
+  <tr>
+    <td width="50%" valign="top"><img src="docs/screenshots/activity.png" alt="The Activity page"><br><b>Activity.</b> Steps and brisk minutes against your goals and the WHO's 150 minutes a week. Energy, distance, intensity and weekly totals, from 14 days back to all your history.</td>
+    <td width="50%" valign="top"><img src="docs/screenshots/sleep.png" alt="The Sleep page"><br><b>Sleep.</b> A sleep score with its parts and your stages through the night. Your sleep window across the month, regularity, naps, and sleep debt against your own need.</td>
+  </tr>
+  <tr>
+    <td valign="top"><img src="docs/screenshots/vitals.png" alt="The Vitals page"><br><b>Vitals.</b> Heart rate minute by minute, with your zones. HRV, resting heart rate, breathing, blood oxygen, skin temperature and cardio fitness, each against your usual range.</td>
+    <td valign="top"><img src="docs/screenshots/body.png" alt="The Body page"><br><b>Body.</b> Your weight trend underneath the day-to-day swings, body fat and lean mass from a smart scale, and BMI.</td>
+  </tr>
+  <tr>
+    <td valign="top"><img src="docs/screenshots/labs.png" alt="The Labs page"><br><b>Labs.</b> Six experiments with multi-week patterns: breathing during sleep, signs of strain, irregular rhythm notifications from your device, heart rate dipping at night, HRV entropy, and fast heart rate during sleep.</td>
+    <td valign="top"><img src="docs/screenshots/data.png" alt="The Data page"><br><b>Data.</b> Every stream Healthier reads, what arrived and when, coverage day by day, and your goals.</td>
+  </tr>
+</table>
+
+## Try the demo
+
+Demo mode shows a year of made-up data, run through the same pipeline as real data. You can try
+every page before you connect anything. It runs in your browser, so the quickest way in needs no
+Google account, database or Docker. You only need Node.js 22 or later:
+
+```sh
+git clone https://github.com/cbukenya/healthier.git
+cd healthier
+npm install
+npm run demo
+```
+
+Open the address it prints and choose **Demo mode**. Every install has the same button on its
+sign-in screen.
+
+## Getting your data in
+
+Healthier reads your data from Google Health, through Google's Health API. Anything that reaches
+your Google Health account can show up in it.
+
+- **Fitbit or Pixel Watch:** the watch syncs to the Google Health app (formerly the Fitbit app), on
+  Android or iPhone. There's nothing else to set up.
+- **Android apps:** apps that share through Health Connect, such as Samsung Health or Oura, can
+  reach Google Health too.
+- **iPhone and Apple Health:** the Google Health app for iPhone can read from Apple Health. Data
+  from an Apple Watch, or from any app that writes to Apple Health, can then reach Healthier.
+  1. Install the Google Health app, and sign in with the Google account you'll use for Healthier.
+  2. In the app, open **Connections → Apps and services → Apple Health → Get started**. Menu names
+     can differ between versions.
+  3. Choose the categories to share, and allow them when iOS asks.
+
+  Since version 5.05 (August 2026), the connection works both ways, so your Fitbit data can reach
+  Apple Health as well.
+
+Apple Health data is new to Healthier, and what arrives depends on what Google Health imports.
+The **Data** page shows every stream and where it came from. If you try it, please
+[open an issue](https://github.com/cbukenya/healthier/issues/new/choose) and tell us what works
+and what doesn't. Leave out any health data.
 
 ## Self-hosting
 
@@ -33,9 +136,14 @@ curl -fsSL https://raw.githubusercontent.com/cbukenya/healthier/main/.env.exampl
 docker compose up -d
 ```
 
-Open http://localhost:3000 and choose **Connect Google Account**; the first account to sign in is
-created on the spot. If a required setting is missing, the app container exits and
+Open http://localhost:3000 and choose **Connect Google Account**. Signing in for the first time
+creates your account. If a required setting is missing, the app container exits, and
 `docker compose logs app` lists what to set.
+
+The first sign-in imports the last 62 days before the dashboard opens. Every baseline and insight
+is worked out over that window. Older history, up to two years by default, then imports in the
+background for the 90-day, 1-year and All views. After that, each sync fetches only the last few
+days.
 
 **Upgrading:** `docker compose pull && docker compose up -d`. Database migrations run on start.
 To control when upgrades happen, pin `HEALTHIER_VERSION` in `.env` to a
@@ -45,9 +153,6 @@ To control when upgrades happen, pin `HEALTHIER_VERSION` in `.env` to a
 `docker compose exec db pg_dump -U healthier healthier > backup.sql` dumps it. Keep
 `ENCRYPTION_KEY` safe as well: without it, stored Google tokens can't be read and everyone has to
 sign in again.
-
-**Demo mode** on the sign-in screen shows bundled sample data through the same pipeline as live
-data, without signing in.
 
 ## Setting up Google access
 
@@ -60,10 +165,12 @@ Each install needs its own OAuth client in a Google Cloud project you own:
    - **Data access**: add `openid`, `email`, `profile`,
      `googlehealth.activity_and_fitness.readonly`, `googlehealth.sleep.readonly`,
      `googlehealth.health_metrics_and_measurements.readonly`, `googlehealth.nutrition.readonly`,
-     `googlehealth.ecg.readonly`, `googlehealth.irn.readonly`, `googlehealth.profile.readonly`
-     (your age, for the Body page; an existing install needs it added and each user to sign in
-     again before age appears). A scope missing from the table goes in **Manually add scopes**
-     as its full URL, e.g. `https://www.googleapis.com/auth/googlehealth.profile.readonly`.
+     `googlehealth.ecg.readonly`, `googlehealth.irn.readonly` and
+     `googlehealth.profile.readonly`.
+     - The last one gives Healthier your age, for the Body page. If an install was set up before
+       it, add the scope, and each user signs in again before their age appears.
+     - If a scope isn't in the list, add it under **Manually add scopes** as its full URL, such as
+       `https://www.googleapis.com/auth/googlehealth.profile.readonly`.
    - **Audience**: while in **Testing**, add each Google account that will sign in as a test user.
 4. **Clients → Create client**: type **Web application**, with `<APP_URL>/auth/callback` as an
    authorized redirect URI, e.g. `http://localhost:3000/auth/callback`.
@@ -72,8 +179,8 @@ Each install needs its own OAuth client in a Google Cloud project you own:
 **Who can sign up.** Signing in creates the account; there is no separate registration. Who gets
 that far depends on the OAuth app's status:
 
-- **Testing**: only its test users, and Google expires their access every 7 days, after which the
-  app asks them to reconnect.
+- **Testing**: only its test users. Google expires their access every 7 days, after which the app
+  asks them to reconnect.
 - **In production, unverified**: anyone with a Google account, after an "unverified app" warning.
   Google caps unverified apps at 100 users, and access no longer expires weekly. Set
   `ALLOWED_EMAILS` so only the people you choose can join.
@@ -113,6 +220,20 @@ the app, then:
 
 Session cookies are marked `Secure` automatically when `APP_URL` is https.
 
+## Contributing
+
+Healthier gets better the more people look at their own data with it and say what they find. Here
+are some ways to help:
+
+- **Insights:** check the arithmetic, sharpen a card's words, or propose a new card along with the
+  research behind it.
+- **Labs:** improve an experiment, or bring a new one.
+- **Translations:** every word lives in one file per language, in [`src/locales/`](src/locales).
+- **Reports:** tell us what's unclear, wrong or missing, especially from iPhone and Android setups
+  we haven't seen.
+
+[CONTRIBUTING.md](CONTRIBUTING.md) explains how.
+
 ## Development
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, checks and the release process. In short:
@@ -126,12 +247,17 @@ npm test
 
 ### How it fits together
 
-- `server.ts` and `server/`: Express app. Google OAuth (`auth.ts`), sign-up control (`access.ts`),
-  the JSON API (`api.ts`), background sync (`sync.ts`), Postgres access and migrations (`db.ts`,
-  `repo.ts`).
-- `src/pipeline/`: fetches and normalises Google Health data and derives the insights.
-  `incremental.ts` is the sync engine: what to fetch, and how per-stream daily rows are stored and
-  reassembled. It runs on the server for live data and in the browser for demo mode.
+- `server.ts` and `server/`: the Express app. It covers:
+  - Google OAuth (`auth.ts`) and sign-up control (`access.ts`);
+  - the JSON API (`api.ts`) and background sync (`sync.ts`);
+  - Postgres access and migrations (`db.ts`, `repo.ts`).
+- `src/pipeline/`: fetches and normalises Google Health data.
+  - `incremental.ts` is the sync engine: what to fetch, and how per-stream daily rows are stored and
+    reassembled. It runs on the server for live data and in the browser for demo mode.
+  - `insights/` is the insight engine. Each page's cards are in `insights/cards/`.
+  - `labs.ts` holds the arithmetic for Labs.
+  - `demo.ts` makes up the demo person.
+- `src/locales/`: every word the app shows, one file per language.
 - `src/`: the React dashboard.
 
 How it works and why: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).

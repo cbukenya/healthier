@@ -23,8 +23,8 @@ How Healthier works and why, for contributors. What's planned lives in the
    month, your biggest day yet), which ask for it through history queries. Everything that judges
    today (baselines, readiness, insights, labs) keeps its fixed recent window, so a reading from
    years ago never shifts what "your usual" means now.
-6. **One today.** The window ends on the user's today, in their own zone (demo mode: the fixture's
-   clock and zone). Every card and insight judges against that day; the device clock only picks
+6. **One today.** The window ends on the user's today, in their own zone (demo mode: the demo
+   person's clock and zone). Every card and insight judges against that day; the device clock only picks
    morning, midday or evening. Only readings from today or yesterday count as "last night", and
    today's movement is still in progress, so whole-day comparisons read finished days.
 
@@ -127,6 +127,56 @@ years, monthly beyond, as averages per recorded day. Sparse series such as weigh
 unless they would exceed 120 points. Baseline bands are hidden on grouped charts, because they
 describe the last 28 days.
 
+## Insight engine
+
+`src/pipeline/insights/` turns the day grid into the cards on every page. It runs plain arithmetic
+over the person's own days, plus the clock. There is no model call and no stored state, so every
+device shows the same cards.
+
+- **Cards** are written in `insights/cards/`, one file per page.
+  - `today.ts` holds the cards that only make sense on Today: the body battery, the weekly review
+    and Labs reminders.
+  - Each card adds findings: words from the language file, and the fields that place them.
+- **News comes from the data.** To know whether something is new, the engine runs the same card on
+  the window cut back a day or more: the yesterday test, in `helpers.ts`. A card is news only when
+  it wasn't already true. Nothing is remembered between visits.
+- **Conflicts are settled together**, in `conflicts.ts`:
+  - illness speaks for recovery;
+  - no metric is claimed both ways;
+  - no push sits beside rest;
+  - good news gives way to a cautious card from its family in the same carousel;
+  - one card per topic.
+- **Each card shows in one place,** decided in `place.ts`.
+  - It shows on Today while it's key: an alert or nudge while it's true, anything else while it's
+    news. Otherwise it shows on its own page.
+  - A Today with fewer than two cards brings forward what matters most from the pages, cautious
+    cards first.
+  - A carousel with nothing to say shows a floor card (`cards/floors.ts`).
+- **The clock only picks the part of the day.** Today is the window's last day. Whether it's
+  morning, midday or evening decides which nudges and day cards fit.
+
+The comment at the top of `insights/engine.ts` has the full vocabulary.
+
+## Labs
+
+Labs are experiments that look for patterns over several weeks. Their arithmetic is in
+`src/pipeline/labs.ts`, and their cards are in `src/views/LabsView.tsx`. They look for:
+- breathing, oxygen and time awake off together at night;
+- strain across four signals: resting heart rate, breathing, HRV and skin temperature;
+- heart rate dipping at night;
+- shifts in HRV entropy;
+- fast heart rate during sleep;
+- irregular rhythm notifications, as the device reports them.
+
+Each lab is a pure function from the days, and minute heart rate where it needs it, to a status
+and its figures.
+- It judges against the person's own usual range, worked out from days before the ones it judges,
+  or against a fixed band whose source it names.
+- Too few nights reads as collecting, never as nothing found.
+- When a pattern appears, and once a month while it lasts, Today shows a plain reminder
+  (`cards/today.ts`).
+- No lab names a condition. CONTRIBUTING.md has the rules for its words.
+
 ## Goals
 
 The step goal, the daily brisk minutes and the sleep need are the person's own, set on the Data
@@ -150,9 +200,26 @@ one file. The h and m of a big duration are set as units by `withUnits` in
 `src/ui/primitives.tsx`. Chart ticks share `TICK` in `src/charts/index.tsx`, because SVG text
 can't read the CSS tokens.
 
+## Languages
+
+Every word the app shows comes from `src/locales/<tag>.json`, one file per language, in ICU
+MessageFormat (`src/i18n/`). Numbers, dates, durations and lists are formatted by
+`src/i18n/format.ts`, from each language's conventions.
+
+- **The server sends codes, never words.** A sync error or a stream's problem reaches the browser
+  as a code, and the app words it (`src/i18n/streams.ts`). The server bundle carries no language
+  code at all.
+- **The tests guard it.** They check that:
+  - every message parses;
+  - every language has English's keys and arguments;
+  - no word on screen is written into the code, by scanning the source in `src/`;
+  - every key is used.
+- **`?lang=en-XA`** shows every message in brackets, so a word that bypasses the language file
+  stands out.
+
 ## History queries
 
-Insights that describe the past need days older than the window. Each page's rules declare what
+Insights that describe the past need days older than the window. Each page's cards declare what
 they need as queries (`src/pipeline/history.ts`): a measure from a fixed list of daily values, how
 to aggregate it (sum, count, mean, min, max, first, last), an optional grouping (month, ISO week,
 weekday, year) or rolling mean, and how far back to look (`back`, in days or `'all'`, and
@@ -175,6 +242,20 @@ tests answer the same queries from `MemoryStore`.
 Stored rows are *processed* data. When normalisation changes (`registry.ts`, `normalize.ts`, sleep
 parsing) or a stored shape changes, bump `PIPELINE_VERSION`: every user is rebuilt with a full
 sync, and their dashboard shows onboarding until it completes.
+
+## Demo mode
+
+Demo mode runs the real pipeline in the browser, on a demo person (`src/pipeline/demo.ts`): a year
+of made-up data from a watch and a scale.
+- **Made up:** a seeded generator invents every number, so the demo is the same on every device.
+- **Google-shaped:** its payloads are shaped like Google's, and the fixture server
+  (`fixtures.ts`) serves them.
+- **The server's steps:** `syncWithHistory` in `sync.ts` runs a first sync of the window, then the
+  history backfill, into `MemoryStore`, just as the server does for a new account.
+- **A pinned clock:** the clock and zone are pinned to the demo morning, so the cards are the
+  same whenever the demo is opened.
+
+`demo.test.ts` checks the demo stays useful: cards on every page, and something on every lab.
 
 ## Guarantees the tests hold
 
