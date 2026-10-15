@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Activity, Droplet, Heart, Wind } from 'lucide-react';
-import { formatCivilLong } from '../lib/date';
+import { formatCivilLong } from '../i18n/format';
 import {
   BASELINE_DAYS, BASELINE_MIN_READINGS, compareToBaseline, series, stats, values, windowShift, NOISE_FLOOR,
   type Comparison, type Point,

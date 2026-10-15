@@ -99,6 +99,3 @@ export function parseGoals(raw: unknown): Goals | null {
 
 export const sameGoals = (a: Goals, b: Goals) =>
   a.steps === b.steps && a.briskMinutes === b.briskMinutes && a.sleepNeed === b.sleepNeed;
-
-/** A step goal the short way, for chart gutters and labels: "10k", "7.5k". */
-export const stepsShort = (steps: number) => `${steps % 1000 === 0 ? steps / 1000 : (steps / 1000).toFixed(1)}k`;

@@ -1,5 +1,6 @@
 import React, { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { formatCivil, formatCivilRange, type CivilDate } from '../lib/date';
+import type { CivilDate } from '../lib/date';
+import { formatCivil, formatCivilRange } from '../i18n/format';
 import {
   DAY, HOUR, MINUTE, ZONE_NAMES, byDay, hourly, lowerBound, tickStep, visibleRuns, wallClock, wallDate, wallTimes,
   zoneOf, zoneStarts, zoneStops, type Pt,

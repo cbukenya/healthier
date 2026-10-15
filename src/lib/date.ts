@@ -168,40 +168,6 @@ export function isoWeekdayIndex(date: CivilDate): number {
   return (weekdayIndex(date) + 6) % 7;
 }
 
-const WD = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
-export const weekdayShort = (date: CivilDate) => WD[weekdayIndex(date)];
-export const weekdayLetter = (date: CivilDate) => WD[weekdayIndex(date)][0];
-
-/** "2026-08-18" → "18 Aug". */
-export function formatCivil(date: CivilDate): string {
-  const [, m, d] = date.split('-').map(Number);
-  return `${d} ${MON[m - 1]}`;
-}
-
-/** "2026-08-18" → "Tue 18 Aug". */
-export function formatCivilLong(date: CivilDate): string {
-  return `${weekdayShort(date)} ${formatCivil(date)}`;
-}
-
-/** "2026-10-12" → "Mon Oct 12 2026". */
-export function formatCivilDay(date: CivilDate): string {
-  const [y, m, d] = date.split('-').map(Number);
-  return `${weekdayShort(date)} ${MON[m - 1]} ${d} ${y}`;
-}
-
-/** "12–18 Aug", or "29 Jul – 4 Aug" across a month. */
-export function formatCivilRange(from: CivilDate, to: CivilDate): string {
-  return from.slice(0, 7) === to.slice(0, 7) ? `${Number(from.slice(8))}–${formatCivil(to)}` : `${formatCivil(from)} – ${formatCivil(to)}`;
-}
-
-/** Minutes past midnight → "01:57". Wraps past 24h so late bedtimes read correctly. */
-export function formatClock(minutesOfDay: number): string {
-  const m = ((Math.round(minutesOfDay) % 1440) + 1440) % 1440;
-  return `${pad(Math.floor(m / 60))}:${pad(m % 60)}`;
-}
-
 /** Google Health's own `{year, month, day}` payload shape, for request bodies. */
 export function ghDateFromCivil(date: CivilDate): Required<GHDate> {
   const [year, month, day] = date.split('-').map(Number);

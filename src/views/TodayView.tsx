@@ -1,6 +1,7 @@
 import React from 'react';
 import { Footprints, Heart, Moon, Wind } from 'lucide-react';
-import { formatCivilLong, formatClock, type CivilDate } from '../lib/date';
+import type { CivilDate } from '../lib/date';
+import { formatCivilLong, formatClock } from '../i18n/format';
 import {
   BASELINE_DAYS, BASELINE_MIN_READINGS, compareToBaseline, goal, isRecent, latestPoint, series, NOISE_FLOOR,
   type Comparison, type Point,

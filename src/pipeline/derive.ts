@@ -1,4 +1,5 @@
-import { addDays, daysBetween, formatCivil, weekdayIndex, type CivilDate } from '../lib/date';
+import { addDays, daysBetween, weekdayIndex, type CivilDate } from '../lib/date';
+import { formatCivil } from '../i18n/format';
 import type { DailyRecord, HealthDataset, SleepSession } from '../types/health';
 import { scoreSleep } from './sleep';
 

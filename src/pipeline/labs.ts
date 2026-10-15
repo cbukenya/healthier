@@ -1,6 +1,7 @@
 import type { DailyRecord, IntradaySample, SleepSession } from '../types/health';
 import { BASELINE_DAYS, BASELINE_MIN_READINGS, series, compareToBaseline, stats, values } from './derive';
-import { formatCivil, formatClock, addDays } from '../lib/date';
+import { addDays } from '../lib/date';
+import { formatCivil, formatClock } from '../i18n/format';
 import type { SyncResult } from './sync';
 
 export function calculateOffSignals(days: DailyRecord[], index: number): number {
