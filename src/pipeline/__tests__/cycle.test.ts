@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 
 import { addDays, daysBetween, type CivilDate } from '../../lib/date';
 import {
-  EMPTY_CYCLE_LOG, FIRST_SEEN_NIGHTS, MIN_SHIFT_SD, WEIGHT_FOUND, WEIGHT_LOGGED, byCycleDay, calibrateOffset, cycleAdjusted,
-  findShifts, findStarts, judgedDays, loggedPeriods, nightsFrom, parseCycleDay, parseCycleSettings, readCycleLog, secondHalf,
+  EMPTY_CYCLE_LOG, FIRST_SEEN_NIGHTS, SECOND_HALF_DAYS, WEIGHT_FOUND, WEIGHT_LOGGED, byCycleDay, calibrateOffset, cycleAdjusted,
+  findStarts, judgedDays, loggedPeriods, nightsFrom, parseCycleDay, parseCycleSettings, readCycleLog, secondHalf,
   summarizeCycles, typicalShifts, weightedMedian, withDay, withRejected,
   type CycleDay, type CycleLog, type Night,
 } from '../cycle';
@@ -44,7 +44,7 @@ function startsFor(lengths: number[]): CivilDate[] {
 }
 
 /**
- * Nights with a cycle's rhythm: low until the rise, 14 days before the next start, high until two
+ * Nights with a cycle's rhythm: low until the rise, 11 days before the next start, high until two
  * nights before it, low again from the night before (`fallBefore` moves that).
  */
 function cycleNights(
@@ -59,11 +59,11 @@ function cycleNights(
     let up = false;
     if (i >= 0 && starts[i + 1]) {
       const next = starts[i + 1];
-      const rise = addDays(next, -14);
+      const rise = addDays(next, -11);
       up = date >= rise && date < addDays(next, -fallBefore);
     } else if (i >= 0) {
-      // The cycle under way: risen 14 days before it would end at 28 days.
-      up = date >= addDays(starts[i], 14);
+      // The cycle under way: risen 11 days before it would end at 28 days.
+      up = date >= addDays(starts[i], 17);
     }
     const temp = (up ? high : low) + (r() - 0.5) * 2 * noise;
     // Heart rate a few beats up, HRV down and breathing a little quicker after the rise, each with its own wobble.
@@ -161,35 +161,40 @@ describe('cycles found in the nights', () => {
     assert.equal(s.current?.phase, 'after-rise');
   });
 
-  it('finds where each second half began, and the fall that ends it', () => {
-    const shifts = findShifts(nights);
-    const complete = shifts.filter((s) => s.fall !== null);
-    assert.equal(complete.length, lengths.length);
-    complete.forEach((s, k) => {
-      assert.equal(s.rise, addDays(starts[k + 1], -14), 'rose 14 days before the next start');
-      assert.equal(s.fall, addDays(starts[k + 1], -1), 'fell the night before it');
-      assert.ok(s.high - s.low >= MIN_SHIFT_SD);
-    });
-    assert.equal(shifts[shifts.length - 1].fall, null, 'this cycle is still up');
+  it('counts the second half of each ended cycle back from the next start', () => {
+    const s = summarizeCycles(nights, log(), today);
+    const ended = s.cycles.filter((c) => c.next !== null);
+    assert.ok(ended.length >= 5);
+    for (const c of ended) assert.equal(c.rise, addDays(c.next!, -SECOND_HALF_DAYS), c.start);
+
+    // Two periods logged closer than any cycle: no second half between them.
+    const close = summarizeCycles(nights, log({ days: [{ date: starts[3], flow: 'medium' }, { date: addDays(starts[3], 12), flow: 'medium' }] }), today);
+    assert.equal(close.cycles.find((c) => c.start === starts[3])?.rise, null);
   });
 
   it('gives the typical cycle and its range from the last six, and the next period as a range', () => {
     const s = summarizeCycles(nights, log(), today);
     assert.equal(s.length?.count, 6);
     assert.ok(Math.abs(s.length!.typical - 28.5) <= 1.5 && s.length!.min >= 26 && s.length!.max <= 32, JSON.stringify(s.length));
-    // Risen this cycle, and the days from the rise to the start have always been about the same: the range narrows to them.
-    assert.equal(s.next?.basis, 'rise');
-    assert.equal(s.next?.from, addDays(s.current!.rise!, s.afterRise!.min));
-    assert.equal(s.next?.to, addDays(s.current!.rise!, s.afterRise!.max));
+    assert.equal(s.next?.basis, 'cycles');
+    assert.equal(s.next?.from, addDays(s.current!.start, s.length!.min));
+    assert.equal(s.next?.to, addDays(s.current!.start, s.length!.max));
   });
 
-  it('keeps the rise right up to the period, and past it while the cycle runs long', () => {
+  it('puts the cycle under way in its second half from the likely next period, counted back, right up to the period', () => {
     const latest = starts[starts.length - 1];
-    for (let day = 18; day <= 32; day++) {
+    for (let day = 10; day <= 32; day++) {
       const until = addDays(latest, day - 1);
       const s = summarizeCycles(cycleNights(starts, until), log(), until);
-      assert.equal(s.current?.rise, addDays(latest, 14), `day ${day}`);
-      assert.equal(s.next?.basis, 'rise', `day ${day}`);
+      const c = s.current!;
+      const riseDay = daysBetween(c.start, s.next!.likely) - SECOND_HALF_DAYS + 1;
+      if (c.day < riseDay) {
+        assert.equal(c.phase, 'before-rise', `day ${day}`);
+        assert.equal(c.rise, null, `day ${day}`);
+      } else {
+        assert.equal(c.phase, 'after-rise', `day ${day}`);
+        assert.equal(c.riseDay, riseDay, `day ${day}`);
+      }
     }
   });
 
@@ -271,16 +276,16 @@ describe('logged and confirmed starts', () => {
   });
 
   it("carry the person's own gap between their nights and their period to starts found later", () => {
-    // These nights put each start a day before it: Healthier learns that from two logged starts.
+    // These nights put each start on its day. This person's bleeding comes a day later than the
+    // nights say: Healthier learns that from two logged starts.
     const plain = summarizeCycles(nights, log(), today);
     assert.equal(plain.offset, 1);
-    const early = plain.cycles.map((c) => daysBetween(c.start, starts[starts.indexOf(c.start) === -1 ? 0 : starts.indexOf(c.start)]));
-    assert.ok(plain.cycles.some((c) => !starts.includes(c.start)), `found a day off before any confirmation: ${early}`);
-    const s = summarizeCycles(nights, log({ days: started(starts[1], starts[2]) }), today);
+    assert.ok(plain.cycles.filter((c) => starts.includes(c.start)).length >= plain.cycles.length - 1, 'on their day before any confirmation');
+    const s = summarizeCycles(nights, log({ days: started(addDays(starts[1], 1), addDays(starts[2], 1)) }), today);
     assert.equal(s.offset, 2);
     assert.equal(s.offsetLearned, true);
     const found = s.cycles.filter((c) => c.source === 'found').map((c) => c.start);
-    assert.ok(found.filter((f) => starts.includes(f)).length >= found.length - 1, `most now land on their day: ${found.join(' ')}`);
+    assert.ok(found.filter((f) => starts.includes(addDays(f, -1))).length >= found.length - 1, `most now land a day later: ${found.join(' ')}`);
   });
 
   it('give an early guess at the next period from two cycles, two days wider either side', () => {
@@ -332,8 +337,8 @@ describe('logged and confirmed starts', () => {
 
   it('calibrate only from two confirmed starts or more', () => {
     const found = findStarts(cycleNights(starts, today)).starts;
-    assert.equal(calibrateOffset(found, [starts[1]]), 1);
-    assert.equal(calibrateOffset(found, [starts[1], starts[2]]), 2);
+    assert.equal(calibrateOffset(found, [addDays(starts[1], 1)]), 1);
+    assert.equal(calibrateOffset(found, [addDays(starts[1], 1), addDays(starts[2], 1)]), 2);
   });
 });
 
@@ -497,7 +502,7 @@ describe('cycle cards', () => {
       if (morning < next!.from) {
         soon++;
         assert.equal(c.title, 'Your period is likely in the next few days');
-        assert.match(c.text, /^Your second half began on day \d+ of this cycle\. In your last 6 cycles your period came /);
+        assert.match(c.text, /^Your last 6 cycles ran \d+ to \d+ days, so your next period is likely between /);
       } else {
         due++;
         assert.equal(c.title, 'Your period could start any day now');

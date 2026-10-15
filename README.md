@@ -85,7 +85,7 @@ place at a time: on Today while it matters, otherwise on its own page.
 
 <table>
   <tr>
-    <td width="50%" valign="top"><img src="docs/screenshots/cycle.png" alt="The Cycle page: day 18, the next period as a range, and how it was reached"></td>
+    <td width="50%" valign="top"><img src="docs/screenshots/cycle.png" alt="The Cycle page: day 22, the next period as a range, and how it was reached"></td>
     <td width="50%" valign="top"><b>Cycle.</b> For anyone who has periods, and off until it's turned on in Data. Healthier finds your cycles in your nightly heart rate, HRV, temperature and breathing, whether or not you log anything. It shows your body through the cycle and gives the next period as a range from your own cycles. Anything you log, kept encrypted on your own server, makes the cycles more certain. While it's on, the other pages allow for your cycle, so the usual rise in its second half isn't called unusual, unless you turn that off in Data.</td>
   </tr>
 </table>

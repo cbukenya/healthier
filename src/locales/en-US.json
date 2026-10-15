@@ -793,7 +793,7 @@
     "cycle": {
       "due": {
         "title": "{started, select, yes {Your period could start any day now} other {Your period is likely in the next few days}}",
-        "text": "{basis, select, early {Your two cycles so far ran {min} to {max} days, so your next period may come between {from} and {to}.} rise {Your second half began on day {rise} of this cycle. In {count, plural, one {your last cycle} other {your last # cycles}} your period came {same, select, yes {{min, plural, one {# day} other {# days}} after that, so the next one is likely on {from}.} other {{min} to {max} days after that, so the next one is likely between {from} and {to}.}}} other {{same, select, yes {{count, plural, one {Your last cycle} other {Your last # cycles each}} ran {min, plural, one {# day} other {# days}}, so your next period is likely on {from}.} other {{count, plural, one {Your last cycle} other {Your last # cycles}} ran {min} to {max} days, so your next period is likely between {from} and {to}.}}}}{started, select, yes { If it has started, you can log it on the {tab} page. If you don't, Healthier will find it in your nights a few days later.} other {}}"
+        "text": "{basis, select, early {Your two cycles so far ran {min} to {max} days, so your next period may come between {from} and {to}.} other {{same, select, yes {{count, plural, one {Your last cycle} other {Your last # cycles each}} ran {min, plural, one {# day} other {# days}}, so your next period is likely on {from}.} other {{count, plural, one {Your last cycle} other {Your last # cycles}} ran {min} to {max} days, so your next period is likely between {from} and {to}.}}}}{started, select, yes { If it has started, you can log it on the {tab} page. If you don't, Healthier will find it in your nights a few days later.} other {}}"
       },
       "newCycle": {
         "title": "A new cycle seems to have started",
@@ -1521,7 +1521,7 @@
     "next": {
       "range": "Your next period is likely between <b>{from}</b> and <b>{to}</b>.",
       "day": "Your next period is likely around <b>{date}</b>.",
-    "early": "Your next period may come between <b>{from}</b> and <b>{to}</b>, an early guess from your first two cycles.",
+      "early": "Your next period may come between <b>{from}</b> and <b>{to}</b>, an early guess from your first two cycles.",
       "past": "Your next period was likely by {date}. Cycles run long now and then: the new one shows a few days after it starts, or as soon as you log it.",
       "collecting": "After {count, plural, one {# more cycle} other {# more cycles}}, Healthier can say when your next period is likely."
     },
@@ -1530,7 +1530,7 @@
       "started": "My period started"
     },
     "strip": {
-      "label": "Day {day} of this cycle.{rise, select, yes { The second half began on day {riseDay}.} other {}}{next, select, yes { Your next period is likely from day {from} to day {to}.} other {}}",
+      "label": "Day {day} of this cycle.{rise, select, yes { The second half likely began around day {riseDay}.} other {}}{next, select, yes { Your next period is likely from day {from} to day {to}.} other {}}",
       "today": "Today",
       "period": "Period",
       "rise": "Second half",
@@ -1542,11 +1542,11 @@
       "startDetail": "{source, select, logged {You logged it. Today is day {day}.} other {Found in your nights, give or take a few days. Today is day {day}.}}",
       "cycles": "Your last {count} cycles ran {min} to {max} days",
       "cyclesDetail": "{logged, plural, =0 {} one {One began with a period you logged. } other {# began with a period you logged. }}{found, plural, =0 {} one {One was found in your nights. } other {# were found in your nights. }}Logged ones count twice as much, and the middle is {typical} days.",
-      "rise": "Your second half began on day {day}",
-      "riseDetail": "Your heart rate and temperature have stayed up since.",
+      "rise": "Your second half likely began around day {day}",
+      "riseDetail": "Counted back {days} days from your likely next period: the second half runs about that long, and changes little from one cycle to the next.",
       "early": "{same, select, yes {Your two cycles so far each ran {min} days} other {Your two cycles so far ran {min} to {max} days}}",
-    "earlyDetail": "An early guess, two days wider either side, until there are three cycles to go on.",
-    "next": "{basis, select, rise {So your next period is likely {min} to {max} days after the second half began} early {So your next period may come {min} to {max} days after this cycle began} other {So your next period is likely {min} to {max} days after this cycle began}}",
+      "earlyDetail": "An early guess, two days wider either side, until there are three cycles to go on.",
+      "next": "{basis, select, early {So your next period may come {min} to {max} days after this cycle began} other {So your next period is likely {min} to {max} days after this cycle began}}",
       "nextDetail": "That puts it between {from} and {to}."
     },
     "found": {
@@ -1570,11 +1570,11 @@
       "afterRise": {
         "eyebrow": "Second half",
         "of": "of about {days}",
-        "text": "Since day {day}, your heart rate has run faster and your HRV lower, often a little warmer too, the way nights go in the second half of a cycle."
+        "text": "Your second half likely began around day {day}, going by your past cycles. Since then, against the nights before it:"
       },
       "beforeRise": {
         "eyebrow": "First half",
-        "text": "In your last cycles, the second half began on day {days}.",
+        "text": "In your last cycles, the second half likely began on day {days}.",
         "unknown": "The second half begins after ovulation, around the middle of a cycle."
       },
       "rows": {

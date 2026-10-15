@@ -4,7 +4,7 @@ import { names, t, type MessageKey } from '../i18n';
 import { rich } from '../i18n/react';
 import { formatCivil, formatCivilLong, formatCivilRange, formatDayMonthLong, formatFixed, formatMonthYear, formatRounded } from '../i18n/format';
 import {
-  MAX_CYCLE, MIN_CYCLE, MIN_CYCLES, byCycleDay, loggedPeriods, sinceRise,
+  MAX_CYCLE, MIN_CYCLE, MIN_CYCLES, SECOND_HALF_DAYS, byCycleDay, loggedPeriods, sinceRise,
   type Cycle, type CycleLog, type CycleSummary, type Flow, type Night, type Symptom,
 } from '../pipeline/cycle';
 import { useCycle } from '../hooks/useCycle';
@@ -191,17 +191,14 @@ function CycleHero({
   if (c.riseDay) {
     reached.push({
       title: t('cycle.reached.rise', { day: c.riseDay }),
-      detail: t('cycle.reached.riseDetail'),
+      detail: t('cycle.reached.riseDetail', { days: SECOND_HALF_DAYS }),
       value: shifts?.temp !== null && shifts?.temp !== undefined ? t('cycle.signed', { sign: shifts.temp >= 0 ? 'up' : 'down', value: formatFixed(Math.abs(shifts.temp), 2), unit: t('units.celsius') }) : '',
       color: 'text-violet-300',
     });
   }
   if (next) {
-    const basis = next.basis === 'rise' ? summary.afterRise : next.basis === 'early' ? summary.early : summary.length;
-    // An early guess is as wide as the days it puts the period on.
-    const [min, max] = next.basis === 'early'
-      ? [daysBetween(c.start, next.from), daysBetween(c.start, next.to)]
-      : [basis?.min ?? 0, basis?.max ?? 0];
+    // The days from this cycle's start the range puts the period on.
+    const [min, max] = [daysBetween(c.start, next.from), daysBetween(c.start, next.to)];
     reached.push({
       title: t('cycle.reached.next', { basis: next.basis, min, max }),
       detail: t('cycle.reached.nextDetail', { from: formatDayMonthLong(next.from), to: formatDayMonthLong(next.to) }),
@@ -354,8 +351,8 @@ function NowCard({ summary, nights }: { summary: CycleSummary; nights: Night[] }
       </p>
       <p className="mt-2 font-display text-number-md text-zinc-50">
         {after ? t('cycle.day', { day: c.day - c.riseDay! + 1 }) : t('cycle.day', { day: c.day })}
-        {after && summary.afterRise && (
-          <span className="ml-2 font-sans text-body-sm font-medium text-zinc-400">{t('cycle.now.afterRise.of', { days: summary.afterRise.typical })}</span>
+        {after && (
+          <span className="ml-2 font-sans text-body-sm font-medium text-zinc-400">{t('cycle.now.afterRise.of', { days: SECOND_HALF_DAYS })}</span>
         )}
       </p>
       <p className="mt-2 text-detail leading-relaxed text-zinc-400">

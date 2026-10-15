@@ -199,12 +199,19 @@ Google Health lets apps add periods but not read them back, so cycles are found 
   score clears a bar set on simulated people without cycles. The simulation used the noise
   mcPHASES shows once its cycles are taken out, and the bar lets at most 1 in 20 such people see
   a cycle. A period logged within the nights shows there are cycles, and lifts the bar.
-- **The second half's start** is still where a run of 7 to 18 high nights in temperature, resting
-  heart rate and HRV began.
+- **The second half's start** is counted back 11 days from the next start, the usual length of
+  the second half in mcPHASES, which changes little from one cycle to the next. That lands within
+  3 days of the hormone-marked day more often than matching the nights' shapes does: in 81% of
+  mcPHASES's cycles against 77%, and 88% against 69% for the people held out. In the cycle under
+  way, it's counted back from the day the next period is likely, once that day has come.
+- **The next period** is a range from the last six cycles' lengths, once there are three. With two,
+  it's an early guess: their lengths, two days wider either side.
 - **How accurate.** On mcPHASES with nothing logged, cycles show for 73% of three-month stretches.
   59% of starts are found within 3 days and 65% within 5, and 76% of the starts shown are real.
-  With the first period logged, 72% of the later starts are within 3 days and 82% within 5. A
-  strong fever just after a period can pull that start a few days early.
+  With the first period logged, 72% of the later starts are within 3 days and 82% within 5. Of
+  the ended cycles shown, 74% have their second half within 3 days of the hormone-marked one (78%
+  with every period logged). A strong fever just after a period can pull that start a few days
+  early.
 - **Logs win.** A logged or confirmed start beats a found one nearby and counts twice as much in the
   typical cycle. Only logged periods have a length.
 - **Older nights** come from history queries grouped by day, 240 days back.

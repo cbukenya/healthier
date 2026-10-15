@@ -33,7 +33,7 @@ function due(ctx: InsightContext, add: Add): void {
   const c = summary.current;
   if (!next || !c || c.day < MIN_CYCLE) return;
   if (ctx.today < addDays(next.from, -2) || ctx.today > next.to) return;
-  const range = next.basis === 'rise' ? summary.afterRise : next.basis === 'early' ? summary.early : summary.length;
+  const range = next.basis === 'early' ? summary.early : summary.length;
   const started = ctx.today >= next.from ? 'yes' : 'no';
   add({
     ...base, id: 'cycle-due', kind: 'review', tone: 'neutral',
@@ -47,7 +47,6 @@ function due(ctx: InsightContext, add: Add): void {
       count: range?.count ?? 0,
       min: range?.min ?? 0,
       max: range?.max ?? 0,
-      rise: c.riseDay ?? 0,
       from: formatDayMonthLong(next.from),
       to: formatDayMonthLong(next.to),
       tab: t('app.nav.cycle'),

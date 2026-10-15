@@ -272,27 +272,14 @@ const EVIDENCE_FEW = 1.76;
 export const evidenceBar = (starts: number) => Math.max(EVIDENCE_FLOOR, EVIDENCE_BASE + EVIDENCE_FEW / Math.sqrt(Math.max(2, starts)));
 
 /**
- * How far a run of high nights has to stand above the nights on both sides of it, in spreads of
- * the nightly signal (nightlySignal), for the night the second half began on. In the second half
- * temperature rises by 0.28 to 0.56 °C, about one spread of a watch's nightly skin temperature,
- * and resting heart rate by a few beats (Goodale et al. 2019).
+ * The second half of a cycle, from the end of the fertile days to the next period, runs about the
+ * same length from one cycle to the next: in mcPHASES, a median of 11 days to the next start, and
+ * within a day of that for the same person. So it's counted back from the next start rather than
+ * looked for in the nights. With the next start known, that put it within three days of the
+ * hormone-marked day in 81% of cycles (88% for the people held out), where the best night-shape
+ * search managed 77% (69%).
  */
-export const MIN_SHIFT_SD = 0.9;
-/** The low nights compared on each side of a run of high ones: about a week either side. */
-const SIDE = 6;
-/** Nights in a row that, low inside a run of high ones, break it: a fever between two lows, say. */
-const DIP_NIGHTS = 4;
-/** An average needs this share of its nights. */
-const COVERAGE = 0.6;
-/** A change is the biggest within this many nights either side; which of two changes counts is settled later. */
-const NEARBY = 3;
-/**
- * How long the high nights last, from the rise to the fall. The second half of a cycle runs about
- * 7 to 17 days (the 95% range in 612,613 cycles; Bull et al., npj Digital Medicine 2019), so a fall
- * without a rise 7 to 18 nights before it is a fever or a warm room, not a cycle.
- */
-const HIGH_MIN = 7;
-const HIGH_MAX = 18;
+export const SECOND_HALF_DAYS = 11;
 /**
  * From where the nights' shape puts a start to the first day of bleeding. In mcPHASES the shapes
  * line up with the hormone-marked start, which people's own bleeding followed by a day. The
@@ -329,73 +316,10 @@ const median = (xs: number[]) => {
   return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
 };
 
-/** One shift: where the nights rose, where they fell back (null while still up), and its levels. */
-export interface Shift {
-  rise: CivilDate;
-  fall: CivilDate | null;
-  /** The nightly signal on either side of the run, and through it, in spreads. */
-  low: number;
-  high: number;
-}
-
-/** Where a score peaks: at least `min`, and the biggest within NEARBY nights either side. */
-function peaks(score: (number | null)[], min: number): number[] {
-  const out: number[] = [];
-  score.forEach((v, i) => {
-    if (!isNum(v) || v < min) return;
-    for (let j = Math.max(0, i - NEARBY); j <= Math.min(score.length - 1, i + NEARBY); j++) {
-      const w = score[j];
-      // Ties go to the earlier night.
-      if (j !== i && isNum(w) && (w > v || (w === v && j < i))) return;
-    }
-    out.push(i);
-  });
-  return out;
-}
-
-/**
- * Every rise in the nights, each with the fall that ended it, oldest first; the last may still be
- * up. Where the second half of each cycle began (a run of high nights), from temperature, resting
- * heart rate and HRV.
- */
-export function findShifts(nights: Night[]): Shift[] {
-  return shiftsIn(nights, nightlySignal(nights), MIN_SHIFT_SD);
-}
-
-/** The signals that move together through a cycle, each with the way it moves and how much it counts. */
-const SIGNALS: { field: 'temp' | 'restingHr' | 'hrv'; sign: 1 | -1; weight: number }[] = [
-  { field: 'temp', sign: 1, weight: 1 },
-  { field: 'restingHr', sign: 1, weight: 1 },
-  { field: 'hrv', sign: -1, weight: 0.5 },
-];
 /** Each night is read against the 61 nights around it, so a slow drift over the seasons isn't a cycle. */
 const AROUND = 30;
 /** A night further out than this, in spreads, counts as this far: a fever can't swamp the rest. */
 const CLAMP_SD = 3;
-
-/**
- * One number a night for how far into the second half of a cycle the body looks: skin temperature
- * and resting heart rate up, HRV down (Goodale et al. 2019 found all three in the second half).
- * Each is measured in its own spreads (standard deviations) from its own average over the nights
- * around, so a degree and a beat count alike, then averaged, HRV counting half. A night needs its
- * temperature or its resting heart rate.
- */
-export function nightlySignal(nights: Night[]): (number | null)[] {
-  const scored = SIGNALS.map(({ field, sign }) => standardized(nights.map((n) => n[field])).map((z) => (z === null ? null : sign * z)));
-  return nights.map((_, i) => {
-    if (scored[0][i] === null && scored[1][i] === null) return null;
-    let sum = 0;
-    let weight = 0;
-    SIGNALS.forEach(({ weight: w }, k) => {
-      const z = scored[k][i];
-      if (z !== null) {
-        sum += w * z;
-        weight += w;
-      }
-    });
-    return sum / weight;
-  });
-}
 
 /**
  * One measure's nights, each in spreads from its own average over the 61 nights around it, clamped
@@ -565,85 +489,6 @@ export function findStarts(nights: Night[]): { starts: CivilDate[]; evidence: nu
 }
 
 /**
- * The shifts in one nightly series. A shift is a run of 7 to 18 high nights: the nights from the
- * rise to the fall, compared with the SIDE nights before the rise and the SIDE nights from the
- * fall. Both sides have to be lower by at least `min`. Comparing a whole run with both its sides
- * lets a cycle show through noise that would hide any single night's change, and a slow drift,
- * which leaves one side as high as the run, never passes.
- */
-export function shiftsIn(nights: Night[], t: (number | null)[], min: number): Shift[] {
-  const n = t.length;
-  // Running sums and counts, for the average of any run of nights in one step.
-  const sum = [0];
-  const count = [0];
-  for (const v of t) {
-    sum.push(sum[sum.length - 1] + (isNum(v) ? v : 0));
-    count.push(count[count.length - 1] + (isNum(v) ? 1 : 0));
-  }
-  const avg = (a: number, b: number): number | null => {
-    if (a < 0 || b >= n || b < a) return null;
-    const k = count[b + 1] - count[a];
-    return k >= Math.ceil((b - a + 1) * COVERAGE) ? (sum[b + 1] - sum[a]) / k : null;
-  };
-
-  // A run is high throughout: never DIP_NIGHTS in a row nearer its sides than its own level.
-  const steady = (r: number, f: number, high: number, low: number) => {
-    const mid = (high + low) / 2;
-    let below = 0;
-    for (let k = r; k < f; k++) {
-      const v = t[k];
-      below = isNum(v) && v < mid ? below + 1 : 0;
-      if (below >= DIP_NIGHTS) return false;
-    }
-    return true;
-  };
-
-  // For each night as the fall, the rise 7 to 18 nights before it that stands out most from both
-  // sides. Each side has to be lower by `min`; the score is how far the run sits above them both.
-  const best = t.map((_, f) => {
-    let top: { r: number; score: number; low: number; high: number } | null = null;
-    for (let r = f - HIGH_MAX; r <= f - HIGH_MIN; r++) {
-      const high = avg(r, f - 1);
-      const before = avg(r - SIDE, r - 1);
-      const after = avg(f, f + SIDE - 1);
-      if (high === null || before === null || after === null) continue;
-      if (high - before < min || high - after < min) continue;
-      const low = (before + after) / 2;
-      const score = high - low;
-      if ((!top || score > top.score) && steady(r, f, high, low)) top = { r, score, low, high };
-    }
-    return top;
-  });
-
-  const out: (Shift & { at: number; size: number })[] = [];
-  for (const f of peaks(best.map((b) => b?.score ?? null), min)) {
-    const b = best[f]!;
-    const prev = out[out.length - 1];
-    // Two falls closer than the shortest cycle: the one that stands out more.
-    if (prev && f - prev.at < MIN_CYCLE) {
-      if (b.score <= prev.size) continue;
-      out.pop();
-    }
-    out.push({ rise: nights[b.r].date, fall: nights[f].date, low: b.low, high: b.high, at: f, size: b.score });
-  }
-
-  // The cycle under way: a rise since the last fall whose nights have stayed up to the latest one.
-  const from = out.length ? out[out.length - 1].at + HIGH_MIN : SIDE;
-  let current: { r: number; score: number; low: number; high: number } | null = null;
-  // The run from the rise to the latest night is HIGH_MAX nights at most: the rise is looked for
-  // that far back, however long ago the last fall was.
-  for (let r = Math.max(from, SIDE, n - HIGH_MAX); r <= n - 4; r++) {
-    const high = avg(r, n - 1);
-    const before = avg(r - SIDE, r - 1);
-    if (high === null || before === null) continue;
-    const score = high - before;
-    if (score >= min && (!current || score > current.score) && steady(r, n, high, before)) current = { r, score, low: before, high };
-  }
-  if (current) out.push({ rise: nights[current.r].date, fall: null, low: current.low, high: current.high, at: n, size: 0 });
-  return out.map(({ rise, fall, low, high }) => ({ rise, fall, low, high }));
-}
-
-/**
  * Days from where the nights put a start to the first day of bleeding, from the person's own
  * confirmed starts: the median of each against the found start nearest it, once there are two.
  * Until then, DEFAULT_OFFSET.
@@ -684,7 +529,10 @@ export interface Cycle {
   next: CivilDate | null;
   /** Days, start to next start; null for the cycle under way. */
   length: number | null;
-  /** The night the temperature rose, when it did. */
+  /**
+   * The first night of the second half, counted back SECOND_HALF_DAYS from the next start: for the
+   * cycle under way, from the likely one, once that night has come. Null for a cycle too short to have one.
+   */
   rise: CivilDate | null;
   /** Days of the period as logged; null when only its start was logged, or it was found. */
   periodDays: number | null;
@@ -712,19 +560,17 @@ export interface CycleSummary {
   current: (Cycle & { day: number; riseDay: number | null; phase: 'before-rise' | 'after-rise' }) | null;
   /** The last six complete cycles inside MIN_CYCLE to MAX_CYCLE, once there are three; how many began with a logged period and how many were found. */
   length: (Range & { logged: number; found: number }) | null;
-  /** Days from the rise to the next start, in cycles that have both. */
-  afterRise: Range | null;
   /** Logged periods with an end. */
   period: Range | null;
-  /** When the next period is likely, and what the range rests on: an `early` guess from two cycles is wider. */
-  next: { from: CivilDate; to: CivilDate; likely: CivilDate; basis: 'cycles' | 'rise' | 'early' } | null;
+  /** When the next period is likely, from the person's cycle lengths: an `early` guess from two cycles is wider. */
+  next: { from: CivilDate; to: CivilDate; likely: CivilDate; basis: 'cycles' | 'early' } | null;
   /** The two cycles an early guess rests on, before there are three for `length`. */
   early: Range | null;
   /** Days from where the nights put a start to the first day of bleeding, for this person. */
   offset: number;
   /** The offset comes from the person's own confirmed starts, not the default. */
   offsetLearned: boolean;
-  /** The cycle day the temperature rose on, in complete cycles that have one. */
+  /** The cycle day the second half began on, in complete cycles that have one. */
   riseDay: Range | null;
   /** Found starts, before any confirmation: for the page to offer to confirm. Empty when they don't stand out enough to show. */
   found: CivilDate[];
@@ -792,14 +638,10 @@ export function summarizeCycles(nights: Night[], log: CycleLog, today: CivilDate
     .map((d) => addDays(d, offset))
     .filter((d) => d <= today && !log.rejected.some((r) => Math.abs(daysBetween(r, d)) <= 2));
   const starts = cycleStarts(found, log, today);
-  // Where each cycle's second half began: the runs of high nights.
-  const shifts = shiftsIn(upToToday, nightlySignal(upToToday), MIN_SHIFT_SD);
-
   const cycles: Cycle[] = starts.map((s, i) => {
     const next = starts[i + 1]?.date ?? null;
-    const end = next ?? addDays(today, 1);
-    // The rise inside this cycle: a few days after it starts, and before it ends.
-    const rise = shifts.find((sh) => sh.rise >= addDays(s.date, 4) && sh.rise <= addDays(end, -3))?.rise ?? null;
+    // Its second half, counted back from the next start.
+    const rise = next && daysBetween(s.date, next) >= MIN_CYCLE ? addDays(next, -SECOND_HALF_DAYS) : null;
     const period = periods.find((p) => p.start === s.date);
     return {
       start: s.date,
@@ -815,13 +657,6 @@ export function summarizeCycles(nights: Night[], log: CycleLog, today: CivilDate
   const complete = cycles.filter((c): c is Cycle & { length: number } => c.length !== null && c.length >= MIN_CYCLE && c.length <= MAX_CYCLE);
   const recent = complete.slice(-CYCLES_FOR_RANGE);
   const lengthRange = rangeOf(recent.map((c) => ({ value: c.length, weight: c.weight })));
-  const afterRise = rangeOf(
-    complete
-      .filter((c) => c.rise !== null)
-      .map((c) => ({ value: daysBetween(c.rise!, c.next!), weight: c.weight }))
-      .filter((x) => x.value >= 7 && x.value <= 17)
-      .slice(-CYCLES_FOR_RANGE),
-  );
   const period = rangeOf(
     periods.filter((p) => p.length !== null).slice(-CYCLES_FOR_RANGE).map((p) => ({ value: p.length!, weight: WEIGHT_LOGGED })),
   );
@@ -832,18 +667,24 @@ export function summarizeCycles(nights: Night[], log: CycleLog, today: CivilDate
       .map((c) => ({ value: daysBetween(c.start, c.rise!) + 1, weight: c.weight })),
   );
 
-  const last = cycles[cycles.length - 1];
-  // A cycle that began more than two longest cycles ago isn't under way any more: something was missed.
-  const current = last && last.next === null && daysBetween(last.start, today) < 2 * MAX_CYCLE
-    ? (() => {
-      const day = daysBetween(last.start, today) + 1;
-      const riseDay = last.rise ? daysBetween(last.start, last.rise) + 1 : null;
-      return { ...last, day, riseDay, phase: riseDay ? ('after-rise' as const) : ('before-rise' as const) };
-    })()
-    : null;
-
   const early = !lengthRange && recent.length >= EARLY_CYCLES
     ? { min: Math.min(...recent.map((c) => c.length)), max: Math.max(...recent.map((c) => c.length)), typical: Math.round(mean(recent.map((c) => c.length))), count: recent.length }
+    : null;
+
+  // A cycle that began more than two longest cycles ago isn't under way any more: something was missed.
+  const last = cycles[cycles.length - 1];
+  const underWay = last && last.next === null && daysBetween(last.start, today) < 2 * MAX_CYCLE ? last : null;
+  // Its second half, counted back from the day its period is likely, once that night has come.
+  const typical = lengthRange?.typical ?? early?.typical ?? null;
+  if (underWay && typical !== null && addDays(underWay.start, typical - SECOND_HALF_DAYS) <= today) {
+    underWay.rise = addDays(underWay.start, typical - SECOND_HALF_DAYS);
+  }
+  const current = underWay
+    ? (() => {
+      const day = daysBetween(underWay.start, today) + 1;
+      const riseDay = underWay.rise ? daysBetween(underWay.start, underWay.rise) + 1 : null;
+      return { ...underWay, day, riseDay, phase: riseDay ? ('after-rise' as const) : ('before-rise' as const) };
+    })()
     : null;
 
   let next: CycleSummary['next'] = null;
@@ -862,15 +703,6 @@ export function summarizeCycles(nights: Night[], log: CycleLog, today: CivilDate
       likely: addDays(current.start, lengthRange.typical),
       basis: 'cycles',
     };
-    // Once the temperature has risen, the days left are steadier than the days before the rise.
-    if (current.rise && afterRise && afterRise.max - afterRise.min < lengthRange.max - lengthRange.min) {
-      next = {
-        from: addDays(current.rise, afterRise.min),
-        to: addDays(current.rise, afterRise.max),
-        likely: addDays(current.rise, afterRise.typical),
-        basis: 'rise',
-      };
-    }
   }
 
   // No rhythm: most of the last four months recorded, and no cycle shown in them.
@@ -889,7 +721,6 @@ export function summarizeCycles(nights: Night[], log: CycleLog, today: CivilDate
     length: lengthRange
       ? { ...lengthRange, logged: recent.filter((c) => c.source === 'logged').length, found: recent.filter((c) => c.source === 'found').length }
       : null,
-    afterRise,
     period,
     next,
     early,
