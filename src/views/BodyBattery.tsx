@@ -1,5 +1,7 @@
 import React, { useId, useState } from 'react';
-import { BASELINE_DAYS, BATTERY_TIERS, batteryTier, type Readiness, type ReadinessPart } from '../pipeline/derive';
+import { BASELINE_DAYS, BATTERY_TIERS, batteryTier, type Readiness, type ReadinessPart, type ReadinessSignal } from '../pipeline/derive';
+import { t, type MessageKey } from '../i18n';
+import { formatFixed, formatList } from '../i18n/format';
 
 interface BodyBatteryProps {
   /** Null when readiness can't be computed yet (too little history). */
@@ -7,21 +9,41 @@ interface BodyBatteryProps {
   parts: Readiness['parts'];
   confidence: Readiness['confidence'];
   label: string;
-  missing: string[];
-  calibrating: string[];
+  missing: Readiness['missing'];
+  calibrating: Readiness['calibrating'];
   className?: string;
 }
 
-/** One colour per tier; the thresholds themselves live in BATTERY_TIERS. */
-export const TIER_STYLE: Record<(typeof BATTERY_TIERS)[number]['tag'], { text: string; hex: string; name: string }> = {
-  CHARGED: { text: 'text-emerald-500', hex: '#10b981', name: 'Charged' },
-  BALANCED: { text: 'text-lime-300', hex: '#bef264', name: 'Balanced' },
-  LOW: { text: 'text-amber-500', hex: '#f59e0b', name: 'Low' },
-  DRAINED: { text: 'text-rose-500', hex: '#f43f5e', name: 'Drained' },
+/**
+ * One colour per tier, with its name, its badge and the figure's label for a screen reader (a whole
+ * sentence per tier, so a language can inflect the name in it); the thresholds themselves live in BATTERY_TIERS.
+ */
+export const TIER_STYLE: Record<(typeof BATTERY_TIERS)[number]['tag'], { text: string; hex: string; name: MessageKey; badge: MessageKey; figure: MessageKey }> = {
+  CHARGED: { text: 'text-emerald-500', hex: '#10b981', name: 'today.battery.tiers.charged.name', badge: 'today.battery.tiers.charged.tag', figure: 'today.battery.tiers.charged.figure' },
+  BALANCED: { text: 'text-lime-300', hex: '#bef264', name: 'today.battery.tiers.balanced.name', badge: 'today.battery.tiers.balanced.tag', figure: 'today.battery.tiers.balanced.figure' },
+  LOW: { text: 'text-amber-500', hex: '#f59e0b', name: 'today.battery.tiers.low.name', badge: 'today.battery.tiers.low.tag', figure: 'today.battery.tiers.low.figure' },
+  DRAINED: { text: 'text-rose-500', hex: '#f43f5e', name: 'today.battery.tiers.drained.name', badge: 'today.battery.tiers.drained.tag', figure: 'today.battery.tiers.drained.figure' },
 };
 
-const list = (items: string[], joiner: string) =>
-  items.length <= 1 ? items.join('') : `${items.slice(0, -1).join(', ')} ${joiner} ${items[items.length - 1]}`;
+/** What the line under the score says about its confidence. */
+const CONFIDENCE = {
+  low: 'today.battery.confidence.low',
+  medium: 'today.battery.confidence.medium',
+  high: 'today.battery.confidence.high',
+} as const satisfies Record<Readiness['confidence'], MessageKey>;
+
+/** What it calls each core signal with no reading: "no HRV or sleep last night". */
+const MISSING_SIGNALS = {
+  hrv: 'today.battery.missingSignals.hrv',
+  restingHr: 'today.battery.missingSignals.restingHr',
+  sleep: 'today.battery.missingSignals.sleep',
+} as const satisfies Record<ReadinessSignal, MessageKey>;
+
+/** What it calls each one calibrating to a new device: names of their own, so a language can fit them to this sentence. */
+const CALIBRATING_SIGNALS = {
+  hrv: 'today.battery.calibratingSignals.hrv',
+  restingHr: 'today.battery.calibratingSignals.restingHr',
+} as const satisfies Record<Readiness['calibrating'][number], MessageKey>;
 
 /** A tier's top score: the next tier's floor less one. */
 const tierMax = (i: number) => (i === 0 ? 100 : BATTERY_TIERS[i - 1].min - 1);
@@ -31,13 +53,17 @@ function batteryText({ score, confidence, missing, calibrating }: Pick<BodyBatte
   // Too little data is not the same as being drained.
   const tier = score === null ? null : batteryTier(score);
   const basis = [
-    score !== null ? `${confidence[0].toUpperCase()}${confidence.slice(1)} confidence` : null,
-    missing.length && score !== null ? `no ${list(missing, 'or')} last night` : null,
-    calibrating.length ? `${list(calibrating, 'and')} calibrating to a new device` : null,
+    score !== null ? t(CONFIDENCE[confidence]) : null,
+    missing.length && score !== null
+      ? t('today.battery.missing', { count: missing.length, signals: formatList(missing.map((s) => t(MISSING_SIGNALS[s])), 'or') })
+      : null,
+    calibrating.length
+      ? t('today.battery.calibrating', { count: calibrating.length, signals: formatList(calibrating.map((s) => t(CALIBRATING_SIGNALS[s]))) })
+      : null,
   ].filter(Boolean).join(' · ');
   return {
     tier,
-    tag: tier ? `[${tier.tag}]` : '[NO DATA]',
+    tag: t(tier ? TIER_STYLE[tier.tag].badge : 'today.battery.noData'),
     color: tier ? TIER_STYLE[tier.tag].text : 'text-zinc-500',
     basis,
   };
@@ -76,9 +102,9 @@ function BatteryFigure({ score, labelled, className }: { score: number | null; l
   const fillY = yOf(level);
   const fillHeight = (level / 100) * (BOTTOM - TOP);
   // The figure's gradient: each stage's colour at the middle of its band, blending across the thresholds.
-  const gradientStops = BATTERY_TIERS.map((t, i) => ({
-    tag: t.tag,
-    offset: (t.min + (i === 0 ? 100 : BATTERY_TIERS[i - 1].min)) / 200,
+  const gradientStops = BATTERY_TIERS.map((stage, i) => ({
+    tag: stage.tag,
+    offset: (stage.min + (i === 0 ? 100 : BATTERY_TIERS[i - 1].min)) / 200,
   })).reverse();
   const rail = labelled ? { x: 240, width: 8, tickX: 235, tickWidth: 18, tickHeight: 3 } : { x: 236, width: 12, tickX: 229, tickWidth: 26, tickHeight: 5 };
 
@@ -86,7 +112,7 @@ function BatteryFigure({ score, labelled, className }: { score: number | null; l
     <svg
       viewBox={labelled ? '0 0 470 480' : '16 0 250 480'}
       role="img"
-      aria-label={tier ? `Body battery at ${score}, in the ${TIER_STYLE[tier.tag].name} stage` : 'Body battery, no score yet'}
+      aria-label={tier ? t(TIER_STYLE[tier.tag].figure, { score }) : t('today.battery.figure.empty')}
       className={className}
     >
       <defs>
@@ -128,25 +154,25 @@ function BatteryFigure({ score, labelled, className }: { score: number | null; l
         <rect x="20" y={fillY - 1} width="200" height="2" fill="#ffffff" opacity={level > 0 && level < 100 ? 0.35 : 0}/>
       </g>
 
-      {BATTERY_TIERS.map((t, i) => {
+      {BATTERY_TIERS.map((stage, i) => {
         const max = i === 0 ? 100 : BATTERY_TIERS[i - 1].min;
         const top = yOf(max);
-        const bottom = yOf(t.min);
+        const bottom = yOf(stage.min);
         const centre = (top + bottom) / 2;
-        const style = TIER_STYLE[t.tag];
-        const on = tier?.tag === t.tag;
+        const style = TIER_STYLE[stage.tag];
+        const on = tier?.tag === stage.tag;
         return (
-          <g key={t.tag}>
+          <g key={stage.tag}>
             <rect
               x={rail.x} width={rail.width} rx={rail.width / 2} fill={style.hex} opacity={on ? 1 : 0.22}
               y={top + (max === 100 ? 0 : 0.75)}
-              height={bottom - top - (max === 100 ? 0 : 0.75) - (t.min === 0 ? 0 : 0.75)}
+              height={bottom - top - (max === 100 ? 0 : 0.75) - (stage.min === 0 ? 0 : 0.75)}
             />
             {labelled && (
               <>
-                <text fontSize={18} fontWeight={700} x="264" y={centre - 2} fill={on ? style.hex : '#71717a'}>{style.name}</text>
+                <text fontSize={18} fontWeight={700} x="264" y={centre - 2} fill={on ? style.hex : '#71717a'}>{t(style.name)}</text>
                 <text className="tabular-nums" fontSize={13.5} x="264" y={centre + 17} fill={on ? '#9ca0a8' : '#52525b'}>
-                  {t.min} – {tierMax(i)}
+                  {t('today.battery.range', { min: stage.min, max: tierMax(i) })}
                 </text>
               </>
             )}
@@ -189,7 +215,7 @@ function ContributorRow({ part, maxAbs, large = false }: { part: ReadinessPart; 
         />
       </div>
       <span className={`${large ? 'text-body-lg' : 'text-body'} font-semibold text-right tabular-nums ${pos ? 'text-[#22c55e]' : 'text-[#f43f5e]'}`}>
-        {pos ? '+' : '−'}{Math.abs(part.contribution).toFixed(1)}
+        {pos ? '+' : '−'}{formatFixed(Math.abs(part.contribution), 1)}
       </span>
     </div>
   );
@@ -206,10 +232,10 @@ export function BodyBattery({ score, parts, confidence, label, missing, calibrat
       <div className="grid grid-cols-1 md:grid-cols-[minmax(280px,1fr)_minmax(300px,440px)] gap-3 items-start">
         <div>
           <h1 className="font-display text-display-lg flex items-baseline gap-3 flex-wrap text-[#f4f4f5]">
-            Body battery <span className={`font-sans text-tag-lg ${z.color}`}>{z.tag}</span>
+            {t('today.battery.title')} <span className={`font-sans text-tag-lg ${z.color}`}>{z.tag}</span>
           </h1>
           <p className="mt-[18px] text-lead text-[#9ca0a8] max-w-[30ch]">
-            Composed from HRV, resting heart rate, holistic sleep score & architecture against your personal {BASELINE_DAYS}-day baselines, and multi-day ACWR training load.
+            {t('today.battery.composition', { days: BASELINE_DAYS })}
           </p>
           <div className="mt-[30px] inline-block bg-[#17171a] rounded-[20px] px-[30px] pt-[10px] pb-[14px]">
             <div className="flex items-baseline gap-1">
@@ -217,7 +243,7 @@ export function BodyBattery({ score, parts, confidence, label, missing, calibrat
                 {score ?? '—'}
               </span>
               <span className="text-body-lg text-[#9ca0a8]">
-                / 100
+                {t('today.battery.outOf')}
               </span>
             </div>
           </div>
@@ -235,14 +261,14 @@ export function BodyBattery({ score, parts, confidence, label, missing, calibrat
       {parts.length > 0 && (
         <div className="mt-[26px]">
           <div className="text-eyebrow-lg uppercase text-[#6b6f78] mb-2">
-            How it was reached
+            {t('today.battery.reached')}
           </div>
-          {byImpact(parts).map((p) => <ContributorRow key={p.label} part={p} maxAbs={maxAbs} large />)}
+          {byImpact(parts).map((p) => <ContributorRow key={p.id} part={p} maxAbs={maxAbs} large />)}
         </div>
       )}
 
       {cautions.map((p) => (
-        <p key={p.label} className="mt-4 text-body text-amber-300/80">{p.note}</p>
+        <p key={p.id} className="mt-4 text-body text-amber-300/80">{p.note}</p>
       ))}
     </div>
   );
@@ -261,9 +287,9 @@ export function BodyBatteryCompact({ score, parts, confidence, label, missing, c
   const maxAbs = Math.max(...parts.map((p) => Math.abs(p.contribution)), 1);
 
   return (
-    <section aria-label="Body battery" className={`bg-[#0c0c0e] border border-[#1e1e22] rounded-[24px] p-5 flex flex-col gap-4 ${className}`}>
+    <section aria-label={t('today.battery.title')} className={`bg-[#0c0c0e] border border-[#1e1e22] rounded-[24px] p-5 flex flex-col gap-4 ${className}`}>
       <h1 className="flex items-baseline gap-2.5 flex-wrap font-display text-display text-[#f4f4f5]">
-        Body battery <span className={`font-sans text-tag ${z.color}`}>{z.tag}</span>
+        {t('today.battery.title')} <span className={`font-sans text-tag ${z.color}`}>{z.tag}</span>
       </h1>
 
       {/* Side by side from 360px; the narrowest phones stack the figure under the score instead of shrinking it. */}
@@ -276,7 +302,7 @@ export function BodyBatteryCompact({ score, parts, confidence, label, missing, c
             >
               {score ?? '—'}
             </span>
-            <span className="text-body-sm text-[#9ca0a8] whitespace-nowrap">/ 100</span>
+            <span className="text-body-sm text-[#9ca0a8] whitespace-nowrap">{t('today.battery.outOf')}</span>
           </div>
           <div className="mt-2.5 font-display text-headline-sm min-[380px]:text-headline text-[#f4f4f5]">{label}</div>
           {z.basis && <p className="mt-1.5 text-detail text-[#6b6f78]">{z.basis}</p>}
@@ -285,14 +311,16 @@ export function BodyBatteryCompact({ score, parts, confidence, label, missing, c
         <div className="flex items-stretch gap-1 justify-self-center min-[360px]:justify-self-auto">
           <BatteryFigure score={score} labelled={false} className="w-[104px] h-auto shrink-0 block" />
           <div aria-hidden="true" className="relative w-[56px]">
-            {BATTERY_TIERS.map((t, i) => {
-              const centre = (yOf(i === 0 ? 100 : BATTERY_TIERS[i - 1].min) + yOf(t.min)) / 2;
-              const style = TIER_STYLE[t.tag];
-              const on = z.tier?.tag === t.tag;
+            {BATTERY_TIERS.map((stage, i) => {
+              const centre = (yOf(i === 0 ? 100 : BATTERY_TIERS[i - 1].min) + yOf(stage.min)) / 2;
+              const style = TIER_STYLE[stage.tag];
+              const on = z.tier?.tag === stage.tag;
               return (
-                <div key={t.tag} className="absolute left-0 -translate-y-1/2 leading-tight" style={{ top: `${(centre / 480) * 100}%` }}>
-                  <div className="text-detail leading-tight font-bold" style={{ color: on ? style.hex : '#71717a' }}>{style.name}</div>
-                  <div className="text-note leading-tight tabular-nums" style={{ color: on ? '#9ca0a8' : '#52525b' }}>{t.min}–{tierMax(i)}</div>
+                <div key={stage.tag} className="absolute left-0 -translate-y-1/2 leading-tight" style={{ top: `${(centre / 480) * 100}%` }}>
+                  <div className="text-detail leading-tight font-bold" style={{ color: on ? style.hex : '#71717a' }}>{t(style.name)}</div>
+                  <div className="text-note leading-tight tabular-nums" style={{ color: on ? '#9ca0a8' : '#52525b' }}>
+                    {t('today.battery.rangeNarrow', { min: stage.min, max: tierMax(i) })}
+                  </div>
                 </div>
               );
             })}
@@ -302,8 +330,8 @@ export function BodyBatteryCompact({ score, parts, confidence, label, missing, c
 
       {parts.length > 0 && (
         <div>
-          <div className="text-eyebrow uppercase text-[#6b6f78] mb-1">How it was reached</div>
-          {shown.map((p) => <ContributorRow key={p.label} part={p} maxAbs={maxAbs} />)}
+          <div className="text-eyebrow uppercase text-[#6b6f78] mb-1">{t('today.battery.reached')}</div>
+          {shown.map((p) => <ContributorRow key={p.id} part={p} maxAbs={maxAbs} />)}
           {parts.length > TOP_CONTRIBUTORS && (
             <button
               type="button"
@@ -311,14 +339,14 @@ export function BodyBatteryCompact({ score, parts, confidence, label, missing, c
               aria-expanded={showAll}
               className="mt-1.5 w-full min-h-11 rounded-xl border border-[#27272a] text-body-sm text-[#a1a1aa] hover:text-zinc-100 hover:bg-zinc-900 transition-colors"
             >
-              {showAll ? `Show the top ${TOP_CONTRIBUTORS}` : `Show all ${parts.length} contributors`}
+              {showAll ? t('today.battery.showTop', { count: TOP_CONTRIBUTORS }) : t('today.battery.showAll', { count: parts.length })}
             </button>
           )}
         </div>
       )}
 
       {cautions.map((p) => (
-        <p key={p.label} className="text-detail text-amber-300/80">{p.note}</p>
+        <p key={p.id} className="text-detail text-amber-300/80">{p.note}</p>
       ))}
     </section>
   );

@@ -1,5 +1,7 @@
 import React, { useMemo, useState } from 'react';
-import { formatCivilLong, formatThousands } from '../i18n/format';
+import { t } from '../i18n';
+import { rich } from '../i18n/react';
+import { formatCivilLong, formatInteger, formatThousands } from '../i18n/format';
 import {
   byWeekday, completedDays, loadRatio, periodShift, series, stats, values, windowShift, type Point,
 } from '../pipeline/derive';
@@ -61,8 +63,8 @@ export function ActivityView({ data, clock, intraday }: { data: SyncResult; cloc
     return (
       <Card>
         <EmptyState
-          title="No movement data in this window"
-          detail="Steps, distance and active minutes come from the activity_and_fitness scope. The Data tab shows exactly what each stream returned."
+          title={t('activity.empty.title')}
+          detail={t('activity.empty.detail')}
         />
       </Card>
     );
@@ -84,20 +86,20 @@ export function ActivityView({ data, clock, intraday }: { data: SyncResult; cloc
     <Card>
       <CardHead
         domain="movement"
-        title="Daily steps"
-        hint={`Solid bars cleared your goal of ${fmtNum(goal, 0)}. Missing bars are days the tracker recorded nothing — they're excluded from every average on this page.`}
+        title={t('activity.steps.title')}
+        hint={t('activity.steps.hint', { goal: fmtNum(goal, 0) })}
         right={<CardSummary data={stepsWin} color={DOMAIN.movement.hex} format={(v) => fmtNum(v, 0)} />}
       />
       <div className="px-2 pb-3">
-        <BarSeries series={groupSeries(stepsWin, bucket)} bucket={bucket} color={DOMAIN.movement.hex} goal={goal} unit="steps" height={210} />
+        <BarSeries series={groupSeries(stepsWin, bucket)} bucket={bucket} color={DOMAIN.movement.hex} goal={goal} unit={t('units.steps')} height={210} />
       </div>
     </Card>
   );
   const energyCard = (
     <Card>
-      <CardHead domain="movement" title="Active energy" hint="Above your basal rate — the part you moved for." right={<CardSummary data={kcalWin} color="#fbbf24" unit="kcal" format={(v) => fmtNum(v, 0)} />} />
+      <CardHead domain="movement" title={t('activity.energy.title')} hint={t('activity.energy.hint')} right={<CardSummary data={kcalWin} color="#fbbf24" unit={t('units.kcal')} format={(v) => fmtNum(v, 0)} />} />
       <div className="px-2 pb-3">
-        <BarSeries series={groupSeries(kcalWin, bucket)} bucket={bucket} color="#fbbf24" unit="kcal" height={200} />
+        <BarSeries series={groupSeries(kcalWin, bucket)} bucket={bucket} color="#fbbf24" unit={t('units.kcal')} height={200} />
       </div>
     </Card>
   );
@@ -105,10 +107,15 @@ export function ActivityView({ data, clock, intraday }: { data: SyncResult; cloc
     <Card>
       <CardHead
         domain="movement"
-        title="Intensity mix"
+        title={t('activity.mix.title')}
         hint={
           <span>
-            <span className="font-medium" style={{ color: EFFORT.light }}>Light</span> minutes accumulate from daily life; <span className="font-medium" style={{ color: EFFORT.moderate }}>Moderate</span> and <span className="font-medium" style={{ color: EFFORT.vigorous }}>Vigorous</span> are the ones guidelines count. {WHO_WEEK} brisk minutes a week is the usual target.
+            {rich('activity.mix.note', {
+              target: WHO_WEEK,
+              light: (w) => <span className="font-medium" style={{ color: EFFORT.light }}>{w}</span>,
+              moderate: (w) => <span className="font-medium" style={{ color: EFFORT.moderate }}>{w}</span>,
+              vigorous: (w) => <span className="font-medium" style={{ color: EFFORT.vigorous }}>{w}</span>,
+            })}
           </span>
         }
         right={
@@ -118,10 +125,10 @@ export function ActivityView({ data, clock, intraday }: { data: SyncResult; cloc
             const vigMean = stats(values(series(window, d => d.activeMinutes?.vigorous ?? null)))?.mean ?? 0;
             return (
               <div className="flex items-center gap-2.5 text-caption font-medium text-zinc-300">
-                <span className="text-zinc-500">{latestMixRow.date === today ? 'avg vs today so far (min):' : 'avg vs latest (min):'}</span>
-                <span className="flex items-center gap-1.5" title="Light minutes"><i className="w-2 h-2 rounded-full" style={{ background: EFFORT.light }} /> {fmtNum(lightMean, 0)}/{fmtNum(latestMixRow.activeMinutes.light, 0)}</span>
-                <span className="flex items-center gap-1.5" title="Moderate minutes"><i className="w-2 h-2 rounded-full" style={{ background: EFFORT.moderate }} /> {fmtNum(modMean, 0)}/{fmtNum(latestMixRow.activeMinutes.moderate, 0)}</span>
-                <span className="flex items-center gap-1.5" title="Vigorous minutes"><i className="w-2 h-2 rounded-full" style={{ background: EFFORT.vigorous }} /> {fmtNum(vigMean, 0)}/{fmtNum(latestMixRow.activeMinutes.vigorous, 0)}</span>
+                <span className="text-zinc-500">{t(latestMixRow.date === today ? 'activity.mix.vsToday' : 'activity.mix.vsLatest')}</span>
+                <span className="flex items-center gap-1.5" title={t('activity.mix.lightMinutes')}><i className="w-2 h-2 rounded-full" style={{ background: EFFORT.light }} /> {t('activity.mix.pair', { average: fmtNum(lightMean, 0), latest: fmtNum(latestMixRow.activeMinutes.light, 0) })}</span>
+                <span className="flex items-center gap-1.5" title={t('activity.mix.moderateMinutes')}><i className="w-2 h-2 rounded-full" style={{ background: EFFORT.moderate }} /> {t('activity.mix.pair', { average: fmtNum(modMean, 0), latest: fmtNum(latestMixRow.activeMinutes.moderate, 0) })}</span>
+                <span className="flex items-center gap-1.5" title={t('activity.mix.vigorousMinutes')}><i className="w-2 h-2 rounded-full" style={{ background: EFFORT.vigorous }} /> {t('activity.mix.pair', { average: fmtNum(vigMean, 0), latest: fmtNum(latestMixRow.activeMinutes.vigorous, 0) })}</span>
               </div>
             );
           })() : null
@@ -130,11 +137,11 @@ export function ActivityView({ data, clock, intraday }: { data: SyncResult; cloc
       <StackedBars
         days={mixDays}
         bucket={bucket}
-        unit="min"
+        unit={t('units.minutes')}
         keys={[
-          { key: 'light', label: 'Light', color: EFFORT.light, get: (d) => d.activeMinutes?.light ?? null },
-          { key: 'moderate', label: 'Moderate', color: EFFORT.moderate, get: (d) => d.activeMinutes?.moderate ?? null },
-          { key: 'vigorous', label: 'Vigorous', color: EFFORT.vigorous, get: (d) => d.activeMinutes?.vigorous ?? null },
+          { key: 'light', label: t('activity.mix.light'), color: EFFORT.light, get: (d) => d.activeMinutes?.light ?? null },
+          { key: 'moderate', label: t('activity.mix.moderate'), color: EFFORT.moderate, get: (d) => d.activeMinutes?.moderate ?? null },
+          { key: 'vigorous', label: t('activity.mix.vigorous'), color: EFFORT.vigorous, get: (d) => d.activeMinutes?.vigorous ?? null },
         ]}
         height={200}
       />
@@ -142,41 +149,57 @@ export function ActivityView({ data, clock, intraday }: { data: SyncResult; cloc
   );
   const distanceCard = (
     <Card>
-      <CardHead domain="movement" title="Distance" hint="From the reported distance stream, not estimated from step count." right={<CardSummary data={distWin} color="#2dd4bf" unit="km" format={(v) => fmtNum(v, 2)} />} />
+      <CardHead domain="movement" title={t('activity.distance.title')} hint={t('activity.distance.hint')} right={<CardSummary data={distWin} color="#2dd4bf" unit={t('units.km')} format={(v) => fmtNum(v, 2)} />} />
       <div className="px-2 pb-3">
-        <TrendChart series={groupSeries(distWin, bucket)} bucket={bucket} color="#2dd4bf" unit="km" height={150} format={(v) => fmtNum(v, 2)} />
+        <TrendChart series={groupSeries(distWin, bucket)} bucket={bucket} color="#2dd4bf" unit={t('units.km')} height={150} format={(v) => fmtNum(v, 2)} />
       </div>
     </Card>
   );
   const weeklyCard = weeks.length > 0 && <WeeklyTotals weeks={weeks} />;
   // The span in numbers: totals count today so far; the typical and best days are finished ones.
   const spanSteps = values(stepsSpanDone);
+  const typical = stats(spanSteps)?.median;
   const best = spanDone.reduce<DailyRecord | null>((a, d) => (d.steps !== null && (!a || d.steps > (a.steps ?? 0)) ? d : a), null);
   const briskPerDay = stats(values(series(spanDone, briskOf)));
+  const firstToLast = windowShift(stepsSpanDone, 7).delta;
   const total = (s: Point[]) => stats(values(s))?.sum;
   const summaryCard = (
     <Card>
       <CardHead domain="movement" title={spanSummaryTitle(spanState)} />
       <div className="px-5 pb-4 md:pb-5">
-        <Row dense={!wide} label="Typical day">{fmtNum(stats(spanSteps)?.median, 0)} steps</Row>
+        <Row dense={!wide} label={t('activity.summary.typicalDay')}>
+          {t('activity.summary.typicalSteps', { count: Math.round(typical ?? 0), steps: fmtNum(typical, 0) })}
+        </Row>
         {best && (
-          <Row dense={!wide} label="Best day">
-            {fmtNum(best.steps, 0)}
-            <span className="text-zinc-500"> · {formatCivilLong(best.date)}</span>
+          <Row dense={!wide} label={t('activity.summary.bestDay')}>
+            {rich('activity.summary.bestDayValue', {
+              steps: fmtNum(best.steps, 0),
+              date: formatCivilLong(best.date),
+              muted: (w) => <span className="text-zinc-500">{w}</span>,
+            })}
           </Row>
         )}
-        <Row dense={!wide} label={`Days over ${formatThousands(goal)}`}>{values(stepsWin).filter((v) => v >= goal).length}</Row>
-        <Row dense={!wide} label="Distance">{fmtNum(total(distWin), 1)} km</Row>
-        <Row dense={!wide} label="Active energy">{fmtNum(total(kcalWin), 0)} kcal</Row>
+        <Row dense={!wide} label={t('activity.summary.daysOver', { goal: formatThousands(goal) })}>{formatInteger(values(stepsWin).filter((v) => v >= goal).length)}</Row>
+        <Row dense={!wide} label={t('activity.summary.distance')}>{fmtNum(total(distWin), 1)} {t('units.km')}</Row>
+        <Row dense={!wide} label={t('activity.summary.energy')}>{fmtNum(total(kcalWin), 0)} {t('units.kcal')}</Row>
         {briskPerDay && (
-          <Row dense={!wide} label="Brisk minutes">
-            {fmtNum(briskPerDay.mean * 7, 0)} a week
-            <span className="text-zinc-500"> · target {WHO_WEEK}</span>
+          <Row dense={!wide} label={t('activity.summary.brisk')}>
+            {rich('activity.summary.briskWeek', {
+              minutes: fmtNum(briskPerDay.mean * 7, 0),
+              target: WHO_WEEK,
+              muted: (w) => <span className="text-zinc-500">{w}</span>,
+            })}
           </Row>
         )}
         {spanSteps.length >= 14 && (
-          <Row dense={!wide} label="First week to last">
-            <Delta value={windowShift(stepsSpanDone, 7).delta} goodWhen="up" digits={0} suffix="steps a day" />
+          <Row dense={!wide} label={t('activity.summary.firstToLast')}>
+            <Delta
+              value={firstToLast}
+              goodWhen="up"
+              digits={0}
+              phrase="activity.summary.stepsADay"
+              values={{ count: Math.round(Math.abs(firstToLast ?? 0)) }}
+            />
           </Row>
         )}
       </div>
@@ -184,7 +207,7 @@ export function ActivityView({ data, clock, intraday }: { data: SyncResult; cloc
   );
   const weekdayCard = (
     <Card className="flex flex-col">
-      <CardHead domain="movement" title="Which days you move" hint="Average steps on each day of the week." />
+      <CardHead domain="movement" title={t('activity.weekdays.title')} hint={t('activity.weekdays.hint')} />
       {/* Wider screens stretch the chart to the summary beside it; a phone shows it alone, at a fixed height. */}
       {wide ? (
         <div className="flex-1 flex flex-col min-h-[170px]">
@@ -196,12 +219,12 @@ export function ActivityView({ data, clock, intraday }: { data: SyncResult; cloc
     </Card>
   );
   const charts: { key: ActivityChart; label: string; card: React.ReactNode }[] = [
-    { key: 'steps', label: 'Steps', card: stepsCard },
-    { key: 'energy', label: 'Energy', card: energyCard },
-    { key: 'intensity', label: 'Intensity', card: intensityCard },
-    { key: 'distance', label: 'Distance', card: distanceCard },
-    { key: 'weekdays', label: 'Weekdays', card: weekdayCard },
-    ...(weeklyCard ? [{ key: 'weekly' as const, label: 'Weekly totals', card: weeklyCard }] : []),
+    { key: 'steps', label: t('activity.chips.steps'), card: stepsCard },
+    { key: 'energy', label: t('activity.chips.energy'), card: energyCard },
+    { key: 'intensity', label: t('activity.chips.intensity'), card: intensityCard },
+    { key: 'distance', label: t('activity.chips.distance'), card: distanceCard },
+    { key: 'weekdays', label: t('activity.chips.weekdays'), card: weekdayCard },
+    ...(weeklyCard ? [{ key: 'weekly' as const, label: t('activity.chips.weekly'), card: weeklyCard }] : []),
   ];
   const shownChart = charts.find((c) => c.key === chart) ?? charts[0];
 
@@ -216,7 +239,7 @@ export function ActivityView({ data, clock, intraday }: { data: SyncResult; cloc
 
       <div className="flex items-center justify-between px-1">
         <h2 className="text-section uppercase text-zinc-500">
-          Your movement over time
+          {t('activity.overTime.title')}
         </h2>
         <SpanSelector state={spanState} />
       </div>
@@ -240,7 +263,7 @@ export function ActivityView({ data, clock, intraday }: { data: SyncResult; cloc
       ) : (
         <>
           {summaryCard}
-          <ChartChips label="Chart" options={charts} value={shownChart.key} onChange={setChart} />
+          <ChartChips label={t('activity.chips.label')} options={charts} value={shownChart.key} onChange={setChart} />
           {shownChart.card}
         </>
       )}

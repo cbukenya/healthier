@@ -1,8 +1,9 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { formatCivil, formatCivilRange, weekdayLetter, weekdayShort } from '../i18n/format';
+import { t } from '../i18n';
+import { formatCivilLong, formatCivilRange, formatHours, formatInteger, weekdayLetter, weekdayShort } from '../i18n/format';
 import { batteryTier } from '../pipeline/derive';
 import { WHO_WEEK } from '../pipeline/goals';
-import { monthSummary, needLabel, type PeriodSummary } from '../pipeline/insights';
+import { monthSummary, type PeriodSummary } from '../pipeline/insights';
 import type { DailyRecord } from '../types/health';
 import { useGoals } from '../hooks/useGoals';
 import { DayRuler } from '../ui/DayRuler';
@@ -17,7 +18,7 @@ const MONTH_MAX_PX = 100;
 const GUTTER = 'right-[26px]';
 
 /** A gap as "48 min" or "1h 12m". */
-const gap = (mins: number) => (Math.round(mins) < 60 ? `${Math.round(mins)} min` : fmtDuration(mins));
+const gap = (mins: number) => (Math.round(mins) < 60 ? `${Math.round(mins)} ${t('units.minutes')}` : fmtDuration(mins));
 
 type View = 'week' | 'month';
 
@@ -53,35 +54,40 @@ export function ThisWeek({ week, days, needMin, className = '' }: {
   const first = p.battery[0].date;
   const today = p.battery[p.battery.length - 1].date;
   // An estimate from your nights reads "about"; a need you set is exact.
-  const need = `${goals.sleepNeed === null ? '~' : ''}${needLabel(needMin)}`;
-  const span = isMonth ? 'in the last 30 days' : 'this week';
+  const need = goals.sleepNeed === null ? t('today.week.sleep.needApprox', { need: formatHours(needMin) }) : formatHours(needMin);
+  const period = isMonth ? 'month' : 'week';
 
   const sleep = p.sleep;
   const short = sleep ? needMin - sleep.avgMin : 0;
+  // The nights recorded, when some are missing.
+  const coverage = { coverage: sleep && sleep.nights < p.length ? 'partial' : 'full', nights: sleep?.nights ?? 0, count: p.length };
   const sleepNote = !sleep
-    ? `No nights recorded ${span}`
-    : `${
-      Math.abs(short) < 10 ? `About your ${need} need` : short > 0 ? `${gap(short)} under your ${need} need` : `${gap(-short)} over your ${need} need`
-    }, on average${sleep.nights < p.length ? ` · ${sleep.nights} of ${p.length} nights recorded` : ''}`;
+    ? t('today.week.sleep.none', { period })
+    : Math.abs(short) < 10
+      ? t('today.week.sleep.about', { need, ...coverage })
+      : short > 0
+        ? t('today.week.sleep.under', { gap: gap(short), need, ...coverage })
+        : t('today.week.sleep.over', { gap: gap(-short), need, ...coverage });
 
   // The WHO's bar is weekly, so a month reads as its average week against it.
   const active = p.activeMinutes;
   const perWeek = active ? (isMonth ? (active.total / p.length) * 7 : active.total) : null;
-  const doubled = active?.unit === 'brisk' ? 'vigorous minutes count double' : 'harder minutes count double';
+  // Brisk minutes count vigorous ones double; zone minutes count harder ones double.
+  const unit = active?.unit ?? null;
   const activeNote = perWeek === null
-    ? `No activity minutes recorded ${span}`
+    ? t('today.week.active.none', { period })
     : isMonth
       ? perWeek >= WHO_WEEK
-        ? `Past the WHO's weekly bar on average; ${doubled}`
-        : `${Math.ceil(WHO_WEEK - perWeek)} a week short of the WHO's bar on average; ${doubled}`
+        ? t('today.week.active.pastMonth', { unit })
+        : t('today.week.active.shortMonth', { unit, minutes: Math.ceil(WHO_WEEK - perWeek) })
       : perWeek >= WHO_WEEK
-        ? `Past the WHO's weekly bar; ${doubled}`
-        : `${Math.ceil(WHO_WEEK - perWeek)} to go for the WHO's weekly bar; ${doubled}`;
+        ? t('today.week.active.pastWeek', { unit })
+        : t('today.week.active.toGo', { unit, minutes: Math.ceil(WHO_WEEK - perWeek) });
 
   const steps = p.steps;
   const stepsNote = !steps
-    ? `No finished days with steps ${span}`
-    : `${goals.steps.toLocaleString('en-GB')} or more on ${steps.atGoal} of ${steps.days} full day${steps.days === 1 ? '' : 's'}`;
+    ? t('today.week.steps.none', { period })
+    : t('today.week.steps.reached', { goal: formatInteger(goals.steps), days: steps.atGoal, count: steps.days });
 
   const n = p.battery.length;
   const focus = picked === null ? n - 1 : Math.min(picked, n - 1);
@@ -102,15 +108,17 @@ export function ThisWeek({ week, days, needMin, className = '' }: {
     ? { avg: Math.round(scores.reduce((a, b) => a + b, 0) / scores.length), min: Math.min(...scores), max: Math.max(...scores) }
     : null;
 
+  const title = t(isMonth ? 'today.week.title.month' : 'today.week.title.week');
+
   return (
-    <section aria-label={isMonth ? 'This month' : 'This week'} className={`bg-[#0c0c0e] border border-[#1e1e22] rounded-[20px] px-4 pt-[18px] pb-4 md:px-5 md:pt-5 ${className}`}>
+    <section aria-label={title} className={`bg-[#0c0c0e] border border-[#1e1e22] rounded-[20px] px-4 pt-[18px] pb-4 md:px-5 md:pt-5 ${className}`}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h2 className="font-display text-title text-zinc-50">{isMonth ? 'This month' : 'This week'}</h2>
+          <h2 className="font-display text-title text-zinc-50">{title}</h2>
           <p className="text-detail text-zinc-500">{formatCivilRange(first, today)}</p>
         </div>
         {/* Tall enough to tap, pulled back so the header keeps its height. */}
-        <div role="tablist" aria-label="Period" className="flex shrink-0 -mt-2.5 -mr-2">
+        <div role="tablist" aria-label={t('today.week.period')} className="flex shrink-0 -mt-2.5 -mr-2">
           {(['week', 'month'] as const).map((v) => (
             <button
               key={v}
@@ -120,13 +128,15 @@ export function ThisWeek({ week, days, needMin, className = '' }: {
               onClick={() => { setView(v); setPicked(null); }}
               className={`min-h-11 px-2 text-body-sm transition-colors ${view === v ? 'font-semibold text-zinc-50' : 'font-medium text-zinc-500 hover:text-zinc-300'}`}
             >
-              <span className={`inline-block pb-1 border-b-2 ${view === v ? 'border-zinc-50' : 'border-transparent'}`}>{v === 'week' ? 'Week' : 'Month'}</span>
+              <span className={`inline-block pb-1 border-b-2 ${view === v ? 'border-zinc-50' : 'border-transparent'}`}>
+                {t(v === 'week' ? 'today.week.tabs.week' : 'today.week.tabs.month')}
+              </span>
             </button>
           ))}
         </div>
       </div>
 
-      <div className="mt-3.5 text-eyebrow uppercase text-[#6b6f78]">Body battery</div>
+      <div className="mt-3.5 text-eyebrow uppercase text-[#6b6f78]">{t('today.week.battery')}</div>
       {isMonth ? (
         <>
           <div className="mt-2 relative h-[116px]">
@@ -138,11 +148,13 @@ export function ThisWeek({ week, days, needMin, className = '' }: {
               ref={plotRef}
               role="slider"
               tabIndex={0}
-              aria-label={`Body battery each morning over the last 30 days${range ? `, averaged ${range.avg}, between ${range.min} and ${range.max}` : ''}`}
+              aria-label={range ? t('today.week.monthChartRange', range) : t('today.week.monthChart')}
               aria-valuemin={1}
               aria-valuemax={n}
               aria-valuenow={focus + 1}
-              aria-valuetext={`${weekdayShort(focusDay.date)} ${formatCivil(focusDay.date)}: ${focusDay.score ?? 'no score'}`}
+              aria-valuetext={focusDay.score === null
+                ? t('today.week.monthDayEmpty', { date: formatCivilLong(focusDay.date) })
+                : t('today.week.monthDay', { date: formatCivilLong(focusDay.date), score: focusDay.score })}
               onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); pickAt(e.clientX); }}
               onPointerMove={(e) => { if (e.pointerType === 'mouse' || e.buttons) pickAt(e.clientX); }}
               onPointerLeave={(e) => { if (e.pointerType === 'mouse') setPicked(null); }}
@@ -160,12 +172,18 @@ export function ThisWeek({ week, days, needMin, className = '' }: {
           </div>
           {/* Thirty bars are too narrow to date one by one, so a ruler marks the days. */}
           <DayRuler dates={p.battery.map((b) => b.date)} gapPx={2} active={focus} className="mr-[26px]" />
-          {range && <p className="mt-1.5 text-caption text-zinc-500">Averaged {range.avg}, between {range.min} and {range.max}</p>}
+          {range && <p className="mt-1.5 text-caption text-zinc-500">{t('today.week.average', range)}</p>}
         </>
       ) : (
         <div
           role="img"
-          aria-label={`Body battery each morning: ${p.battery.map((b) => `${weekdayShort(b.date)} ${b.score ?? 'no score'}`).join(', ')}`}
+          aria-label={t('today.week.weekChart', {
+            days: p.battery
+              .map((b) => (b.score === null
+                ? t('today.week.weekDayEmpty', { day: weekdayShort(b.date) })
+                : t('today.week.weekDay', { day: weekdayShort(b.date), score: b.score })))
+              .reduceRight((rest, first) => t('today.week.weekDays', { first, rest })),
+          })}
           className="mt-2 h-[112px] grid grid-cols-7 gap-1.5 items-end"
         >
           {p.battery.map((b) => {
@@ -183,25 +201,25 @@ export function ThisWeek({ week, days, needMin, className = '' }: {
 
       <div className="mt-4">
         <WeekRow
-          label="Sleep"
+          label={t('today.week.sleep.label')}
           value={sleep ? fmtDuration(sleep.avgMin) : '—'}
-          unit={sleep ? 'a night' : undefined}
+          unit={sleep ? t('today.week.sleep.unit') : undefined}
           pct={sleep ? (sleep.avgMin / needMin) * 100 : null}
           color={DOMAIN.sleep.hex}
           note={sleepNote}
         />
         <WeekRow
-          label={active?.unit === 'brisk' ? 'Brisk minutes' : 'Active zone minutes'}
-          value={perWeek === null ? '—' : Math.round(perWeek).toLocaleString('en-GB')}
-          unit={isMonth ? 'a week' : `of ${WHO_WEEK}`}
+          label={t(active?.unit === 'brisk' ? 'today.week.active.brisk' : 'today.week.active.zone')}
+          value={perWeek === null ? '—' : formatInteger(perWeek)}
+          unit={isMonth ? t('today.week.active.perWeek') : t('today.week.active.ofWho', { target: WHO_WEEK })}
           pct={perWeek === null ? null : (perWeek / WHO_WEEK) * 100}
           color="#10b981"
           note={activeNote}
         />
         <WeekRow
-          label="Steps"
-          value={steps ? Math.round(steps.avg).toLocaleString('en-GB') : '—'}
-          unit={steps ? 'a day' : undefined}
+          label={t('today.week.steps.label')}
+          value={steps ? formatInteger(steps.avg) : '—'}
+          unit={steps ? t('today.week.steps.unit') : undefined}
           pct={steps ? (steps.avg / goals.steps) * 100 : null}
           color={DOMAIN.movement.hex}
           note={stepsNote}

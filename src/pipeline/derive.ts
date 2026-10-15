@@ -1,5 +1,6 @@
 import { addDays, daysBetween, weekdayIndex, type CivilDate } from '../lib/date';
-import { formatCivil } from '../i18n/format';
+import { t, type MessageKey } from '../i18n';
+import { formatCivil, formatDuration, formatFixed, formatRounded } from '../i18n/format';
 import type { DailyRecord, HealthDataset, SleepSession } from '../types/health';
 import { scoreSleep } from './sleep';
 
@@ -386,7 +387,17 @@ export const sleepNeedFor = (days: DailyRecord[], set?: number | null): number =
 
 // ─────────────────────────────────────────────────────────────── readiness
 
+/** The battery's components. Code tells them apart by id: the label and detail are in the person's language. */
+export type ReadinessPartId = 'hrv' | 'restingHr' | 'sleep' | 'sleepDebt' | 'breathing' | 'skinTemp' | 'strain';
+
+/** The core signals: HRV, resting heart rate and sleep. */
+export type ReadinessSignal = 'hrv' | 'restingHr' | 'sleep';
+
+/** Cross-signal patterns: several overnight signals off at once. */
+export type ReadinessFlag = 'illness';
+
 export interface ReadinessPart {
+  id: ReadinessPartId;
   label: string;
   contribution: number;
   detail: string;
@@ -402,11 +413,11 @@ export interface Readiness {
   /** How much of the score rests on real data. */
   confidence: 'low' | 'medium' | 'high';
   /** Core signals (HRV, resting heart rate, sleep) with nothing current to score. */
-  missing: string[];
-  /** Core signals waiting for enough nights from a new device. */
-  calibrating: string[];
+  missing: ReadinessSignal[];
+  /** Core signals waiting for enough nights from a new device: HRV and resting heart rate, the two judged per device. */
+  calibrating: Exclude<ReadinessSignal, 'sleep'>[];
   /** Cross-signal patterns worth surfacing, e.g. an illness-like deviation. */
-  flags: string[];
+  flags: ReadinessFlag[];
 }
 
 /**
@@ -415,13 +426,13 @@ export interface Readiness {
  * Drained sits where Google's readiness draws "low" (under 30).
  */
 export const BATTERY_TIERS = [
-  { min: 80, tag: 'CHARGED', label: "You're fully charged" },
-  { min: 55, tag: 'BALANCED', label: "You've got plenty in the tank" },
-  { min: 30, tag: 'LOW', label: 'Go a little easier today' },
-  { min: 0, tag: 'DRAINED', label: 'Your body wants a breather' },
-] as const;
+  { min: 80, tag: 'CHARGED', label: 'today.battery.tiers.charged.label' },
+  { min: 55, tag: 'BALANCED', label: 'today.battery.tiers.balanced.label' },
+  { min: 30, tag: 'LOW', label: 'today.battery.tiers.low.label' },
+  { min: 0, tag: 'DRAINED', label: 'today.battery.tiers.drained.label' },
+] as const satisfies readonly { min: number; tag: string; label: MessageKey }[];
 
-export const batteryTier = (score: number) => BATTERY_TIERS.find((t) => score >= t.min) ?? BATTERY_TIERS[3];
+export const batteryTier = (score: number) => BATTERY_TIERS.find((tier) => score >= tier.min) ?? BATTERY_TIERS[3];
 
 /**
  * Readiness v2 — grounded in the published literature rather than intuition.
@@ -470,7 +481,7 @@ export const batteryTier = (score: number) => BATTERY_TIERS.find((t) => score >=
  */
 export function readiness(days: DailyRecord[], needSet?: number | null): Readiness {
   const parts: ReadinessPart[] = [];
-  const flags: string[] = [];
+  const flags: ReadinessFlag[] = [];
   let score = 70;
   // Only last night counts. The window ends on the user's today, and a reading from before yesterday is
   // history: with the watch on its charger for three days the honest answer is no score, not a confident
@@ -506,14 +517,19 @@ export function readiness(days: DailyRecord[], needSet?: number | null): Readine
       // read "fully charged".
       hrvSpike = true;
       c = Math.min(c, 8);
-      note =
-        'Your HRV is unusually far above your baseline. Higher is usually better, but a sudden spike can also follow heavy training overload, so treat this peak with mild suspicion.';
+      note = t('today.battery.parts.hrv.note');
     }
     score += c;
     parts.push({
-      label: 'HRV vs baseline',
+      id: 'hrv',
+      label: t('today.battery.parts.hrv.label'),
       contribution: c,
-      detail: `${fmt(Math.exp(hrv.lastLn))} ms last night · 7-day ${fmt(Math.exp(hrv.mean7Ln))} vs ${fmt(Math.exp(hrv.baselineLn))} ms typical${useDeep ? ' (deep-sleep RMSSD)' : ' (overnight RMSSD)'}`,
+      detail: t('today.battery.parts.hrv.detail', {
+        last: fmt(Math.exp(hrv.lastLn)),
+        week: fmt(Math.exp(hrv.mean7Ln)),
+        typical: fmt(Math.exp(hrv.baselineLn)),
+        source: useDeep ? 'deep' : 'overnight',
+      }),
       note,
     });
   }
@@ -528,9 +544,10 @@ export function readiness(days: DailyRecord[], needSet?: number | null): Readine
     const c = z <= 0 ? Math.min(-z, 1.5) * 4 : -Math.min(z, 2.5) * 6;
     score += c;
     parts.push({
-      label: 'Resting HR vs baseline',
+      id: 'restingHr',
+      label: t('today.battery.parts.restingHr.label'),
       contribution: c,
-      detail: `${fmt(rhr.value)} bpm vs ${fmt(rhr.baseline)} bpm typical`,
+      detail: t('today.battery.parts.restingHr.detail', { value: fmt(rhr.value), typical: fmt(rhr.baseline) }),
     });
   }
 
@@ -563,14 +580,17 @@ export function readiness(days: DailyRecord[], needSet?: number | null): Readine
     const c = clamp(durationC + qualityBonus, -15, 9);
     score += c;
 
-    const qualityDetail = sc.restorativePct !== null 
-      ? ` (${sc.restorativePct}% deep+REM · ${lastNight.efficiency}% eff)`
-      : '';
+    // A need the person set is exact; the estimate from their nights reads "~".
+    const slept = formatDuration(lastNight.minutesAsleep);
+    const needText = needSet == null ? t('today.battery.parts.sleep.needApprox', { need: formatDuration(need) }) : formatDuration(need);
 
     parts.push({
-      label: 'Last night’s sleep',
+      id: 'sleep',
+      label: t('today.battery.parts.sleep.label'),
       contribution: c,
-      detail: `${hm(lastNight.minutesAsleep)} vs ${needSet == null ? '~' : ''}${hm(need)} need${qualityDetail}`,
+      detail: sc.restorativePct !== null
+        ? t('today.battery.parts.sleep.detailStages', { slept, need: needText, restorative: sc.restorativePct, efficiency: lastNight.efficiency })
+        : t('today.battery.parts.sleep.detail', { slept, need: needText }),
     });
   }
 
@@ -582,12 +602,13 @@ export function readiness(days: DailyRecord[], needSet?: number | null): Readine
     if (Math.abs(c) >= 0.5) {
       score += c;
       parts.push({
-        label: 'Recent sleep debt',
+        id: 'sleepDebt',
+        label: t('today.battery.parts.sleepDebt.label'),
         contribution: c,
         detail:
           debtH > 0
-            ? `${debtH.toFixed(1)}h short of need across the prior ${debt.nightsKnown} nights`
-            : `${(-debtH).toFixed(1)}h banked across the prior ${debt.nightsKnown} nights`,
+            ? t('today.battery.parts.sleepDebt.short', { hours: formatFixed(debtH, 1), count: debt.nightsKnown })
+            : t('today.battery.parts.sleepDebt.banked', { hours: formatFixed(-debtH, 1), count: debt.nightsKnown }),
       });
     }
   }
@@ -599,9 +620,10 @@ export function readiness(days: DailyRecord[], needSet?: number | null): Readine
     const c = -Math.min((resp.z! - 1.25) * 4, 8);
     score += c;
     parts.push({
-      label: 'Breathing rate',
+      id: 'breathing',
+      label: t('today.battery.parts.breathing.label'),
       contribution: c,
-      detail: `${fmt(resp.value)}/min vs ${fmt(resp.baseline)} typical — elevated`,
+      detail: t('today.battery.parts.breathing.detail', { value: fmt(resp.value), typical: fmt(resp.baseline) }),
     });
   }
 
@@ -612,9 +634,10 @@ export function readiness(days: DailyRecord[], needSet?: number | null): Readine
     const c = -Math.min((tempDev - 0.3) * 10, 8);
     score += c;
     parts.push({
-      label: 'Skin temperature',
+      id: 'skinTemp',
+      label: t('today.battery.parts.skinTemp.label'),
       contribution: c,
-      detail: `+${tempDev.toFixed(2)} °C above your baseline`,
+      detail: t('today.battery.parts.skinTemp.detail', { value: formatFixed(tempDev, 2) }),
     });
   }
 
@@ -638,11 +661,10 @@ export function readiness(days: DailyRecord[], needSet?: number | null): Readine
       const c = -Math.min((acuteZ - 1.25) * 3.5, 7);
       score += c;
       parts.push({
-        label: 'Recent strain',
+        id: 'strain',
+        label: t('today.battery.parts.strain.label'),
         contribution: c,
-        detail: acuteZ > 2.0
-          ? 'multi-day training load significantly above your 28-day baseline'
-          : 'recent physical activity above your 28-day usual',
+        detail: t(acuteZ > 2.0 ? 'today.battery.parts.strain.high' : 'today.battery.parts.strain.raised'),
       });
     }
   }
@@ -654,25 +676,21 @@ export function readiness(days: DailyRecord[], needSet?: number | null): Readine
     tempDev !== null && tempDev >= 0.5,
     hrv !== null && hrv.zAcute <= -1.5,
   ].filter(Boolean).length;
-  if (offSignals >= 2) {
-    flags.push(
-      'Several overnight signals are outside your usual ranges at once. Hard training, short sleep, alcohol, heat, travel or a cold coming on can all do this. An easy day costs little.',
-    );
-  }
+  if (offSignals >= 2) flags.push('illness');
 
   // A signal that has readings from another device in the window, but not yet
   // enough nights from the current one, is calibrating rather than missing.
   const newDevice = (all: Point[], current: Point[]) =>
     values(current).length < values(all).length && recent(latestPoint(current)?.date);
   const calibrating = [
-    !hrvOk && newDevice(overnightAll, overnight) ? 'HRV' : null,
-    !rhrOk && newDevice(rhrAll, sameDevice(days, RHR, (d) => d.restingHr)) ? 'resting heart rate' : null,
-  ].filter((s): s is string => s !== null);
+    !hrvOk && newDevice(overnightAll, overnight) ? 'hrv' : null,
+    !rhrOk && newDevice(rhrAll, sameDevice(days, RHR, (d) => d.restingHr)) ? 'restingHr' : null,
+  ].filter((s): s is Readiness['calibrating'][number] => s !== null);
   const missing = [
-    !hrvOk && !calibrating.includes('HRV') ? 'HRV' : null,
-    !rhrOk && !calibrating.includes('resting heart rate') ? 'resting heart rate' : null,
+    !hrvOk && !calibrating.includes('hrv') ? 'hrv' : null,
+    !rhrOk && !calibrating.includes('restingHr') ? 'restingHr' : null,
     !sleepOk ? 'sleep' : null,
-  ].filter((s): s is string => s !== null);
+  ].filter((s): s is ReadinessSignal => s !== null);
 
   const coreSignals = (hrvOk ? 1 : 0) + (rhrOk ? 1 : 0) + (sleepOk ? 1 : 0);
   if (coreSignals === 0) {
@@ -684,7 +702,7 @@ export function readiness(days: DailyRecord[], needSet?: number | null): Readine
     return {
       score: null,
       parts: [],
-      label: newest && !recent(newest) ? `No readings since ${formatCivil(newest)}` : 'Not enough data',
+      label: newest && !recent(newest) ? t('today.battery.noReadingsSince', { date: formatCivil(newest) }) : t('today.battery.notEnoughData'),
       confidence: 'low',
       missing,
       calibrating,
@@ -697,7 +715,7 @@ export function readiness(days: DailyRecord[], needSet?: number | null): Readine
   return {
     score: final,
     parts,
-    label: batteryTier(final).label,
+    label: t(batteryTier(final).label),
     confidence: coreSignals >= 3 ? 'high' : coreSignals === 2 ? 'medium' : 'low',
     missing,
     calibrating,
@@ -746,8 +764,6 @@ function lnComparison(lnSeries: Point[]): {
   };
 }
 
-const hm = (mins: number) => `${Math.floor(mins / 60)}h ${String(Math.round(mins) % 60).padStart(2, '0')}m`;
-
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
 /**
@@ -767,7 +783,7 @@ export const NOISE_FLOOR = {
   spo2: 0.2,         // percentage points
   generic: 0,
 } as const;
-const fmt = (v: number | null) => (v === null ? '—' : Math.round(v * 10) / 10);
+const fmt = (v: number | null) => (v === null ? '—' : formatRounded(v, 1));
 
 // ─────────────────────────────────────── typical sleep window (circular)
 

@@ -1,15 +1,17 @@
 import React, { useState } from 'react';
-import { formatCivilLong, formatCivilRange, formatClock, weekdayLetter, weekdayShort } from '../i18n/format';
+import { t, type MessageKey, type Values } from '../i18n';
+import { rich } from '../i18n/react';
+import { formatCivilLong, formatCivilRange, formatClock, formatFixed, formatHours, weekdayLetter, weekdayShort } from '../i18n/format';
 import { bedtimeConsistency, type PeriodShift, type SleepDebt } from '../pipeline/derive';
 import { scoreSleep } from '../pipeline/sleep';
 import { Card, CardHead, DURATION_UNIT, Delta, Row, fmtDuration, withUnits } from '../ui/primitives';
 import type { DailyRecord, SleepSession } from '../types/health';
-import { Stat } from './ActivityCards';
+import { Stat, statUnit } from './ActivityCards';
 
 export function getScoreTier(total: number) {
   if (total >= 85) {
     return {
-      name: "Excellent",
+      name: t('sleep.night.score.tiers.excellent'),
       color: "#10b981",
       dotColor: "#22c55e",
       bg: "bg-emerald-500/10",
@@ -20,7 +22,7 @@ export function getScoreTier(total: number) {
   }
   if (total >= 70) {
     return {
-      name: "Good",
+      name: t('sleep.night.score.tiers.good'),
       color: "#818cf8",
       dotColor: "#818cf8",
       bg: "bg-indigo-500/10",
@@ -31,7 +33,7 @@ export function getScoreTier(total: number) {
   }
   if (total >= 50) {
     return {
-      name: "Fair",
+      name: t('sleep.night.score.tiers.fair'),
       color: "#f59e0b",
       dotColor: "#fbbf24",
       bg: "bg-amber-500/10",
@@ -41,7 +43,7 @@ export function getScoreTier(total: number) {
     };
   }
   return {
-    name: "Poor",
+    name: t('sleep.night.score.tiers.poor'),
     color: "#f43f5e",
     dotColor: "#ef4444",
     bg: "bg-rose-500/10",
@@ -53,24 +55,28 @@ export function getScoreTier(total: number) {
 
 /** The stages a night's bar stacks, bottom up, in the hypnogram's colours. */
 const STAGES = [
-  { key: 'deep', label: 'Deep', color: '#4338ca' },
-  { key: 'light', label: 'Light', color: '#818cf8' },
-  { key: 'rem', label: 'REM', color: '#a78bfa' },
+  { key: 'deep', label: 'sleep.stages.deep', color: '#4338ca' },
+  { key: 'light', label: 'sleep.stages.light', color: '#818cf8' },
+  { key: 'rem', label: 'sleep.stages.rem', color: '#a78bfa' },
 ] as const;
 
 /** A need as a short label: "7h", or "~7h" when it isn't a whole hour. */
-const needShort = (min: number) => (min % 60 === 0 ? `${min / 60}h` : `~${Math.round(min / 60)}h`);
+const needShort = (min: number) =>
+  min % 60 === 0 ? formatHours(min) : t('sleep.lastSeven.needAbout', { hours: formatHours(Math.round(min / 60) * 60) });
 
-/** One of the week's facts: a figure, its unit, and a word on it. */
+/**
+ * One of the week's facts: a figure and the rest of its phrase as one message, whose <muted> words
+ * are the unit (or the "of 6" in "1 of 6") and may end in a <note>, a word on the figure.
+ */
 interface Fact {
+  id: 'atNeed' | 'debt' | 'spread';
   label: string;
-  value: string;
-  unit: string;
+  value: MessageKey;
+  values: Values;
   tone?: string;
-  note?: string;
 }
 
-/** How far bedtime strays, in a word. */
+/** How far bedtime strays, for the spread's message to put in a word. */
 const spreadWord = (sd: number) => (sd <= 30 ? 'steady' : sd <= 60 ? 'variable' : 'irregular');
 
 /**
@@ -92,44 +98,58 @@ export function LastSevenNights({ days, shift, needMin, debt, wide }: {
   const atNeed = nights.filter((s) => s.minutesAsleep >= needMin).length;
   const spread = bedtimeConsistency(days);
   const need = needShort(needMin);
-  const facts: Fact[] = [{ label: `Nights at your ${need} need`, value: `${atNeed}`, unit: `of ${nights.length}` }];
+  const facts: Fact[] = [
+    { id: 'atNeed', label: t('sleep.lastSeven.atNeed.label', { need }), value: 'sleep.lastSeven.atNeed.value', values: { count: atNeed, total: nights.length } },
+  ];
   if (debt) {
     facts.push({
-      label: 'Sleep debt',
-      value: (Math.abs(debt.netMin) / 60).toFixed(1),
-      unit: debt.netMin > 0 ? 'h short' : 'h banked',
+      id: 'debt',
+      label: t('sleep.lastSeven.debt.label'),
+      value: debt.netMin > 0 ? 'sleep.lastSeven.debt.owed' : 'sleep.lastSeven.debt.banked',
+      values: { hours: formatFixed(Math.abs(debt.netMin) / 60, 1) },
       tone: debt.netMin > 0 ? 'text-amber-400' : 'text-emerald-400',
     });
   }
-  if (spread) facts.push({ label: 'Bedtime spread', value: `${Math.round(spread.sdMin)}`, unit: 'min', note: spreadWord(spread.sdMin) });
+  if (spread) {
+    facts.push({
+      id: 'spread',
+      label: t('sleep.lastSeven.spread.label'),
+      value: 'sleep.lastSeven.spread.value',
+      values: { minutes: Math.round(spread.sdMin), spread: spreadWord(spread.sdMin) },
+    });
+  }
 
   return (
     <Card className="px-[18px] pt-4 pb-3.5 md:px-5 md:py-[18px] flex flex-col gap-3 md:gap-3.5">
       <div className="flex items-baseline justify-between gap-2">
-        <h2 className="font-display text-title text-zinc-50">Last 7 nights</h2>
+        <h2 className="font-display text-title text-zinc-50">{t('sleep.lastSeven.title')}</h2>
         <span className="text-detail text-zinc-500">{formatCivilRange(days[0].date, days[days.length - 1].date)}</span>
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-[220px_minmax(0,1fr)_230px] gap-3 lg:gap-7 items-center">
         <div>
           <div className="whitespace-nowrap">
-            <span className="font-display text-number-md md:text-number-lg text-zinc-50 tabular-nums">{withUnits(fmtDuration(shift.current), DURATION_UNIT)}</span>
-            <span className="text-detail md:text-body-sm text-zinc-500"> a night</span>
+            {rich('sleep.lastSeven.average', {
+              duration: <span className="font-display text-number-md md:text-number-lg text-zinc-50 tabular-nums">{withUnits(fmtDuration(shift.current), DURATION_UNIT)}</span>,
+              unit: (words) => <span className="text-detail md:text-body-sm text-zinc-500">{words}</span>,
+            })}
           </div>
           <div className="mt-1 md:mt-1.5">
-            <Delta value={shift.delta} goodWhen="up" digits={0} suffix="min vs the 7 before" />
+            <Delta value={shift.delta} goodWhen="up" digits={0} phrase="sleep.lastSeven.change" />
           </div>
         </div>
         <NightBars days={days} needMin={needMin} need={need} wide={wide} />
         {wide ? (
           <div className="grid grid-cols-3 lg:grid-cols-1 gap-3 lg:gap-3.5">
-            {facts.map((f) => <Stat key={f.label} label={f.label} value={f.value} unit={f.note ? `${f.unit} · ${f.note}` : f.unit} tone={f.tone} />)}
+            {facts.map((f) => <Stat key={f.id} label={f.label} value={rich(f.value, { ...f.values, muted: statUnit })} tone={f.tone} />)}
           </div>
         ) : (
           <div>
             {facts.map((f) => (
-              <Row key={f.label} dense label={f.label}>
-                <span className={f.tone}>{f.value} {f.unit}</span>
-                {f.note && <span className="text-zinc-500"> · {f.note}</span>}
+              <Row key={f.id} dense label={f.label}>
+                {/* On a phone the unit takes the figure's tone, and only the note is set apart. */}
+                <span className={f.tone}>
+                  {rich(f.value, { ...f.values, muted: (words) => words, note: (words) => <span className="text-zinc-500">{words}</span> })}
+                </span>
               </Row>
             ))}
           </div>
@@ -151,9 +171,14 @@ function NightBars({ days, needMin, need, wide }: { days: DailyRecord[]; needMin
   return (
     <div
       role="img"
-      aria-label={`Time asleep each night against your ${need} need: ${scored
-        .map((n) => `${formatCivilLong(n.date)}, ${n.sleep ? `${fmtDuration(n.sleep.minutesAsleep)}, score ${n.score}` : 'not recorded'}`)
-        .join('; ')}.`}
+      aria-label={t('sleep.lastSeven.bars.label', {
+        need,
+        nights: scored
+          .map((n) => (n.sleep
+            ? t('sleep.lastSeven.bars.night', { date: formatCivilLong(n.date), duration: fmtDuration(n.sleep.minutesAsleep), score: n.score })
+            : t('sleep.lastSeven.bars.missing', { date: formatCivilLong(n.date) })))
+          .join(t('sleep.lastSeven.bars.separator')),
+      })}
     >
       <div className="relative">
         <div className={`${columns} items-end border-b border-zinc-800`} style={{ height: plot }}>
@@ -188,13 +213,13 @@ function NightBars({ days, needMin, need, wide }: { days: DailyRecord[]; needMin
             {n.score ?? '–'}
           </span>
         ))}
-        <span className="absolute right-0 top-0.5 text-micro font-medium text-zinc-500">score</span>
+        <span className="absolute right-0 top-0.5 text-micro font-medium text-zinc-500">{t('sleep.lastSeven.bars.score')}</span>
       </div>
       <div className="mt-2.5 flex gap-3.5 text-note text-zinc-500">
         {STAGES.map((s) => (
           <span key={s.key} className="flex items-center gap-1.5">
             <span className="size-2 rounded-[2px]" style={{ background: s.color }} />
-            {s.label}
+            {t(s.label)}
           </span>
         ))}
       </div>
@@ -203,7 +228,7 @@ function NightBars({ days, needMin, need, wide }: { days: DailyRecord[]; needMin
 }
 
 /** A nap's length: "25 min" under an hour, else "1h 19m". */
-const napLength = (min: number) => (Math.round(min) < 60 ? `${Math.round(min)} min` : fmtDuration(min));
+const napLength = (min: number) => (Math.round(min) < 60 ? `${Math.round(min)} ${t('units.minutes')}` : fmtDuration(min));
 
 /** Naps listed before "Show all". */
 const NAPS_SHOWN = 8;
@@ -217,20 +242,24 @@ export function Naps({ naps, spanDays, wide }: { naps: SleepSession[]; spanDays:
     <Card>
       <CardHead
         domain="sleep"
-        title="Naps"
-        hint="Sleep outside your main night."
+        title={t('sleep.naps.title')}
+        hint={t('sleep.naps.hint')}
         right={naps.length > 0 && (
           <span>
-            <span className="text-indigo-400">{naps.length}</span> {naps.length === 1 ? 'nap' : 'naps'} · <span className="text-indigo-400">{napLength(total)}</span>
+            {rich('sleep.naps.total', {
+              count: naps.length,
+              length: napLength(total),
+              value: (words) => <span className="text-indigo-400">{words}</span>,
+            })}
           </span>
         )}
       />
       <div className="px-5 pb-4 md:pb-5">
-        {naps.length === 0 && <p className="text-caption text-zinc-500">No naps in these {spanDays} days.</p>}
+        {naps.length === 0 && <p className="text-caption text-zinc-500">{t('sleep.naps.none', { count: spanDays })}</p>}
         {shown.map((n) => (
           <Row key={n.bedtimeIso} dense={!wide} label={formatCivilLong(n.date)}>
             {napLength(n.minutesAsleep)}
-            <span className="ml-2 text-zinc-500">{formatClock(n.bedtimeMin)} → {formatClock(n.wakeMin)}</span>
+            <span className="ml-2 text-zinc-500">{t('sleep.naps.times', { from: formatClock(n.bedtimeMin), to: formatClock(n.wakeMin) })}</span>
           </Row>
         ))}
         {naps.length > NAPS_SHOWN && (
@@ -240,7 +269,7 @@ export function Naps({ naps, spanDays, wide }: { naps: SleepSession[]; spanDays:
             aria-expanded={showAll}
             className="mt-2 w-full min-h-11 rounded-xl border border-[#27272a] text-body-sm text-[#a1a1aa] hover:text-zinc-100 hover:bg-zinc-900 transition-colors"
           >
-            {showAll ? `Show the latest ${NAPS_SHOWN}` : `Show all ${naps.length} naps`}
+            {showAll ? t('sleep.naps.showLatest', { count: NAPS_SHOWN }) : t('sleep.naps.showAll', { count: naps.length })}
           </button>
         )}
       </div>
