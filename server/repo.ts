@@ -3,6 +3,7 @@ import type { CivilDate } from '../src/lib/date';
 import type { StreamDay, StreamState, StreamWrite, SyncOutput, SyncRun } from '../src/pipeline/incremental';
 import type { IntradayDay } from '../src/pipeline/intraday';
 import type { Goals } from '../src/pipeline/goals';
+import { EMPTY_CYCLE_LOG, readCycleLog, type CycleLog } from '../src/pipeline/cycle';
 import type { Gender, ProfileFacts } from '../src/pipeline/registry';
 import type { ApiUser } from '../src/types/api';
 import { decrypt, encrypt, randomToken, sha256 } from './crypto';
@@ -56,6 +57,38 @@ export async function setGoals(db: Db, userId: string, goals: Goals): Promise<vo
 /** Cascades to tokens, sessions and data. */
 export async function deleteUser(db: Db, userId: string): Promise<void> {
   await db.query('DELETE FROM users WHERE id = $1', [userId]);
+}
+
+// ──────────────────────────────────────────────────────────── cycle logs
+
+const openCycleLog = (key: Buffer, data: Buffer): CycleLog => readCycleLog(JSON.parse(decrypt(key, data)));
+
+/** The person's cycle settings and log; tracking off and nothing logged until they've set any. */
+export async function getCycleLog(db: Db, key: Buffer, userId: string): Promise<CycleLog> {
+  const { rows } = await db.query<{ data: Buffer }>('SELECT data FROM cycle_logs WHERE user_id = $1', [userId]);
+  return rows[0] ? openCycleLog(key, rows[0].data) : EMPTY_CYCLE_LOG;
+}
+
+/**
+ * Change the log in one transaction, with its row locked, so two changes at once (two tabs, a
+ * quick run of taps) can't overwrite each other.
+ */
+export async function updateCycleLog(db: Db, key: Buffer, userId: string, change: (log: CycleLog) => CycleLog): Promise<CycleLog> {
+  return withTransaction(db, async (client) => {
+    await client.query('INSERT INTO cycle_logs (user_id, data) VALUES ($1, $2) ON CONFLICT (user_id) DO NOTHING', [
+      userId,
+      encrypt(key, JSON.stringify(EMPTY_CYCLE_LOG)),
+    ]);
+    const { rows } = await client.query<{ data: Buffer }>('SELECT data FROM cycle_logs WHERE user_id = $1 FOR UPDATE', [userId]);
+    const next = change(openCycleLog(key, rows[0].data));
+    await client.query('UPDATE cycle_logs SET data = $2, updated_at = now() WHERE user_id = $1', [userId, encrypt(key, JSON.stringify(next))]);
+    return next;
+  });
+}
+
+/** Forget the settings and every logged day. */
+export async function deleteCycleLog(db: Db, userId: string): Promise<void> {
+  await db.query('DELETE FROM cycle_logs WHERE user_id = $1', [userId]);
 }
 
 // ───────────────────────────────────────────────────────── google tokens

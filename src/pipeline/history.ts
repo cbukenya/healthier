@@ -48,8 +48,8 @@ export const MEASURES = {
 
 export type Measure = keyof typeof MEASURES;
 export type Aggregate = 'sum' | 'count' | 'mean' | 'min' | 'max' | 'first' | 'last';
-/** Calendar months, ISO weeks (keyed by their Monday), weekdays (0 = Monday) or years. */
-export type Grouping = 'month' | 'week' | 'weekday' | 'year';
+/** Single days, calendar months, ISO weeks (keyed by their Monday), weekdays (0 = Monday) or years. */
+export type Grouping = 'day' | 'month' | 'week' | 'weekday' | 'year';
 
 export interface HistoryQuery {
   measure: Measure;
@@ -69,7 +69,7 @@ export interface Reading {
 }
 
 export interface AnswerRow {
-  /** The group: 'YYYY-MM', a week's Monday, '0'–'6' from Monday, or 'YYYY'. Null when ungrouped. */
+  /** The group: the day, 'YYYY-MM', a week's Monday, '0'–'6' from Monday, or 'YYYY'. Null when ungrouped. */
   key: string | null;
   sum?: number;
   count?: number;
@@ -91,7 +91,7 @@ export type HistoryQueries = Record<string, HistoryQuery>;
 export type HistoryAnswers = Record<string, Answer | null>;
 
 const AGGREGATES: Aggregate[] = ['sum', 'count', 'mean', 'min', 'max', 'first', 'last'];
-const GROUPINGS: Grouping[] = ['month', 'week', 'weekday', 'year'];
+const GROUPINGS: Grouping[] = ['day', 'month', 'week', 'weekday', 'year'];
 const MAX_QUERIES = 40;
 const MAX_DAYS_BACK = 3650;
 
@@ -156,6 +156,7 @@ export function queriesSpan(
 
 const groupKey = (date: CivilDate, group: Grouping | undefined): string | null => {
   if (!group) return null;
+  if (group === 'day') return date;
   if (group === 'month') return date.slice(0, 7);
   if (group === 'year') return date.slice(0, 4);
   if (group === 'weekday') return String(isoWeekdayIndex(date));

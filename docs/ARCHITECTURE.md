@@ -66,6 +66,7 @@ browser (React)  ──/api──▶  Express server  ──▶  Postgres
 | `intraday_heart_rate (user_id, date)` | one civil day of minute-level heart rate, column-wise. Kept for the 62-day window |
 | `stream_state (user_id, data_type)` | per-stream coverage and the outcome of its last fetch (shown on the Data tab) |
 | `sync_state (user_id)` | pipeline version, last sync and last full sync, profile facts (height, age) |
+| `cycle_logs (user_id)` | cycle tracking: the settings, the periods and symptoms the person logged, and found starts they said weren't a period. AES-256-GCM ciphertext under `ENCRYPTION_KEY`, read and changed whole, in a transaction |
 
 Deleting a user cascades to every table.
 
@@ -177,6 +178,31 @@ and its figures.
   (`cards/today.ts`).
 - No lab names a condition. CONTRIBUTING.md has the rules for its words.
 
+## Cycles
+
+Google Health lets apps add periods but not read them back, so cycles are found in the nights
+(`src/pipeline/cycle.ts`), and what the person logs makes them certain.
+
+- **A nightly signal.** Skin temperature, resting heart rate and HRV (inverted, counting half) are
+  each put in their own standard deviations from their average over the 61 nights around, then
+  averaged. All three shift in the second half of a cycle.
+- **Runs of high nights.** A cycle's second half is a run of 7 to 18 nights that stands above the
+  week before it and the week after it, both. Comparing whole runs lets a cycle show through
+  night-to-night noise, and a slow drift, which leaves one side as high as the run, never passes.
+  The night after a run's fall is a found start, moved by the person's own gap between fall and
+  period once two starts are confirmed.
+- **Only in a rhythm.** Found starts count when two cycles in a row run 21 to 38 days, or next to a
+  logged start. Where a rhythm is established, a start the first look missed is looked for again
+  where the rhythm expects it, with a lower bar.
+- **Logs win.** A logged or confirmed start beats a found one nearby and counts twice as much in the
+  typical cycle. Only logged periods have a length.
+- **Older nights** come from history queries grouped by day, 240 days back.
+- **Private by default.** With tracking off, the log stays on the server and nothing cycle-aware
+  runs; the dataset carries only the setting.
+
+`cycle.test.ts` holds it to both kinds of error on noisy nights: most starts found in people who
+have cycles, and almost no cycle shown to people who don't.
+
 ## Goals
 
 The step goal, the daily brisk minutes and the sleep need are the person's own, set on the Data
@@ -221,7 +247,7 @@ MessageFormat (`src/i18n/`). Numbers, dates, durations and lists are formatted b
 
 Insights that describe the past need days older than the window. Each page's cards declare what
 they need as queries (`src/pipeline/history.ts`): a measure from a fixed list of daily values, how
-to aggregate it (sum, count, mean, min, max, first, last), an optional grouping (month, ISO week,
+to aggregate it (sum, count, mean, min, max, first, last), an optional grouping (day, month, ISO week,
 weekday, year) or rolling mean, and how far back to look (`back`, in days or `'all'`, and
 optionally `until`). The browser sends them with `POST /api/dataset`; the server reads the stored
 days once for the span they need together and answers each over its own range. Demo mode and the
