@@ -1,4 +1,6 @@
 import type { CivilDate } from '../lib/date';
+import type { MessageKey } from '../i18n';
+import { formatClock } from '../i18n/format';
 import type { HeartRateZones, IntradaySample } from '../types/health';
 
 /**
@@ -16,13 +18,19 @@ export const DAY = 24 * HOUR;
 export const wallTime = (s: Pick<IntradaySample, 'date' | 'minutesOfDay'>) =>
   Date.parse(`${s.date}T00:00:00Z`) + s.minutesOfDay * MINUTE;
 export const wallDate = (t: number): CivilDate => new Date(t).toISOString().slice(0, 10);
-export const wallClock = (t: number) => new Date(t).toISOString().slice(11, 16);
+/** The hour and minute, the way the language writes a time: "23:46". */
+export const wallClock = (t: number) => formatClock(Math.floor((t % DAY) / MINUTE));
 
 /**
- * The zones, by what they're called. Google's Light zone starts at a floor of 30 bpm, so in
- * practice Light is everything below Moderate, rest and sleep included.
+ * The zones' names, as keys in the language file, Light to Peak. Google's Light zone starts at a
+ * floor of 30 bpm, so in practice Light is everything below Moderate, rest and sleep included.
  */
-export const ZONE_NAMES = ['Light', 'Moderate', 'Vigorous', 'Peak'] as const;
+export const ZONE_NAMES = [
+  'vitals.heartRate.zones.light',
+  'vitals.heartRate.zones.moderate',
+  'vitals.heartRate.zones.vigorous',
+  'vitals.heartRate.zones.peak',
+] as const satisfies readonly MessageKey[];
 
 /** Where each zone above Light starts, in bpm, lowest first. */
 export const zoneStarts = (z: HeartRateZones) => [z.moderate, z.vigorous, z.peak];

@@ -66,7 +66,6 @@ const english = leaves(enUS);
 
 /** Files whose words haven't moved to the language file yet. */
 const PENDING = new Set<string>([
-  'src/charts/heartRate.ts',
   'src/hooks/useHealth.ts',
   'src/lib/api.ts',
   'src/pipeline/incremental.ts',
@@ -79,13 +78,8 @@ const PENDING = new Set<string>([
   'src/pipeline/insights/rules/today.ts',
   'src/pipeline/insights/rules/vitals.ts',
   'src/pipeline/intraday.ts',
-  'src/pipeline/labs.ts',
   'src/pipeline/normalize.ts',
   'src/pipeline/transport.ts',
-  'src/views/BodyView.tsx',
-  'src/views/HeartRateCard.tsx',
-  'src/views/LabsView.tsx',
-  'src/views/VitalsView.tsx',
 ]);
 
 /** Files whose words are never the app's own: data, and notes for developers. */

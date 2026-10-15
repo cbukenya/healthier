@@ -48,6 +48,7 @@
   "units": {
     "bpm": "bpm",
     "ms": "ms",
+    "kg": "kg",
     "km": "km",
     "kcal": "kcal",
     "percent": "%",
@@ -55,6 +56,7 @@
     "minutes": "min",
     "steps": "steps",
     "celsius": "°C",
+    "cm": "cm",
     "perHour": "/h"
   },
   "app": {
@@ -694,6 +696,542 @@
       "title": "Deep sleep",
       "hint": "Usually about 15–20% of a night, most of it early."
     }
+  },
+  "vitals": {
+    "empty": {
+      "title": "No vitals data in this window",
+      "detail": "Metrics come from the health_metrics_and_measurements scope."
+    },
+    "latest": {
+      "title": "Latest readings",
+      "baseline": "against your last 4 weeks",
+      "hrv": {
+        "label": "HRV",
+        "empty": "No HRV readings yet"
+      },
+      "restingHr": {
+        "label": "Resting HR"
+      },
+      "breathing": {
+        "label": "Breathing",
+        "empty": "No breathing readings yet"
+      },
+      "bloodOxygen": {
+        "label": "Blood oxygen",
+        "empty": "No blood oxygen readings yet"
+      },
+      "usual": "Usual",
+      "from": "From {date}"
+    },
+    "heartRate": {
+      "title": "Heart rate",
+      "subtitle": "{view, select, now {{count, plural, =0 {{dates} · no readings} one {{dates} · # reading · latest {time}} other {{dates} · # readings · latest {time}}}} other {{count, plural, =0 {{dates} · no readings} one {{dates} · # reading} other {{dates} · # readings}}}}",
+      "stats": {
+        "lowest": "Lowest",
+        "average": "Average",
+        "highest": "Highest"
+      },
+      "zoom": {
+        "label": "Zoom",
+        "threeDays": "3d",
+        "twentyFourHours": "24h",
+        "sixHours": "6h",
+        "twoHours": "2h",
+        "thirtyMinutes": "30m"
+      },
+      "backToNow": "Back to now",
+      "chart": "{count, plural, =0 {Heart rate, {summary}: lowest none, average none, highest none bpm. The arrow keys move through the days; plus and minus zoom.} other {Heart rate, {summary}: lowest {lowest}, average {average}, highest {highest} bpm. The arrow keys move through the days; plus and minus zoom.}}",
+      "tooltip": "{span, select, days {{zoned, select, yes {{date} {time} · {bpm} bpm · {zone}} other {{date} {time} · {bpm} bpm}}} other {{zoned, select, yes {{time} · {bpm} bpm · {zone}} other {{time} · {bpm} bpm}}}}",
+      "zones": {
+        "light": "Light",
+        "moderate": "Moderate",
+        "vigorous": "Vigorous",
+        "peak": "Peak"
+      },
+      "zonesSource": "Your zones, updated daily by Google Health."
+    },
+    "trends": {
+      "title": "Your vitals over time",
+      "chips": {
+        "label": "Metric"
+      },
+      "hrv": {
+        "chip": "HRV",
+        "title": "HRV",
+        "hint": "A night outside your usual range is unusual for you, in either direction."
+      },
+      "restingHr": {
+        "chip": "Resting HR",
+        "title": "Resting heart rate",
+        "hint": "Nights above your usual range often follow hard training, alcohol, heat, short sleep or a cold coming on."
+      },
+      "breathing": {
+        "chip": "Breathing",
+        "title": "Breathing rate",
+        "hint": "Breaths per minute, averaged over the night."
+      },
+      "bloodOxygen": {
+        "chip": "Blood oxygen",
+        "title": "Blood oxygen",
+        "hint": "Each night’s average, inside its low-to-high range. Most wearables treat 95% and up as normal."
+      },
+      "skinTemp": {
+        "chip": "Skin temp",
+        "title": "Skin temperature",
+        "hint": "Change from your own baseline, in °C. Only the shift matters, not the reading itself."
+      },
+      "vo2Max": {
+        "chip": "VO₂ max",
+        "title": "Cardio fitness",
+        "hint": "Your watch’s VO₂ max estimate. It moves slowly, over weeks."
+      },
+      "latest": "latest {value}",
+      "average": "{days}-day average {value}",
+      "change": "{change}<muted> from the first week to the last</muted>"
+    }
+  },
+  "body": {
+    "profile": {
+      "title": "Profile",
+      "age": "Age",
+      "ageSource": "From your Google Health profile",
+      "gender": "Gender",
+      "genders": {
+        "unset": "Not set",
+        "female": "Female",
+        "male": "Male",
+        "other": "Other"
+      },
+      "height": "Height"
+    },
+    "empty": {
+      "loading": "Loading history…",
+      "title": "No weigh-ins yet",
+      "detail": "Weight and body fat come from manual entries or smart scales."
+    },
+    "latest": {
+      "title": "Latest readings",
+      "from": "from {date} · <age>{ago}</age>",
+      "ago": {
+        "today": "today",
+        "yesterday": "yesterday",
+        "days": "{count, plural, one {# day ago} other {# days ago}}",
+        "weeks": "{count, plural, one {# week ago} other {# weeks ago}}",
+        "months": "{count, plural, one {# month ago} other {# months ago}}"
+      },
+      "weight": {
+        "label": "Weight",
+        "fromPrevious": "From previous"
+      },
+      "bmi": {
+        "label": "BMI",
+        "fromPrevious": "From previous",
+        "needsHeight": "Needs your height, which comes from Google Health."
+      }
+    },
+    "composition": {
+      "title": "Body composition",
+      "lean": "Lean mass",
+      "fat": "Body fat",
+      "bar": "{lean} lean mass, {leanShare} percent; {fat} body fat, {fatShare} percent",
+      "fromPrevious": "{change} from previous"
+    },
+    "overTime": {
+      "title": "Your body over time"
+    },
+    "summary": {
+      "weighIns": "Weigh-ins",
+      "loading": "Loading…",
+      "none": "{count, plural, one {None in this # day} other {None in these # days}}",
+      "trend": "Trend",
+      "trendValue": "{change} kg a week",
+      "highest": "Highest",
+      "lowest": "Lowest",
+      "firstToLast": "First to last"
+    },
+    "chips": {
+      "label": "Chart",
+      "weight": "Weight",
+      "fat": "Body fat",
+      "composition": "Composition"
+    },
+    "weightChart": {
+      "title": "Weight",
+      "hint": "Each dot is a weigh-in; dashed lines join readings with a gap between them.",
+      "latest": "latest <value>{weight}</value>"
+    },
+    "fatChart": {
+      "title": "Body fat",
+      "latest": "latest <value>{fat}</value>"
+    },
+    "compositionTrend": {
+      "title": "Composition trend",
+      "hint": "{skipped, plural, =0 {From weigh-ins where the scale also measured body fat.} other {From weigh-ins where the scale also measured body fat. # skipped for mixing devices.}}",
+      "needsMore": "Needs four of them across at least four weeks of this span.",
+      "readings": "{pairs, plural, one {# paired reading} other {# paired readings}} · {days, plural, one {# day} other {# days}}",
+      "weight": "Weight trend",
+      "weightValue": "{change} <unit>kg a week</unit>",
+      "shareBar": "Lean mass is {lean} percent of the change, fat {fat} percent",
+      "lean": "Lean <b>{change}</b> kg a week",
+      "fat": "Fat <b>{change}</b> kg a week",
+      "note": "Scale body fat is approximate, so its trend on the same scale says more than any one reading."
+    }
+  },
+  "labs": {
+    "intro": {
+      "lead": "Experimental views of <b>multi-week patterns in your wearable data</b>, each against your own usual range.",
+      "disclaimer": "Healthier is not a medical device: these cards don't detect, screen for or rule out any condition, and a quiet card isn't an all-clear. If you have symptoms or concerns, talk to a clinician."
+    },
+    "overview": {
+      "label": "Labs at a glance"
+    },
+    "list": {
+      "label": "Labs",
+      "count": "{count, plural, one {# lab} other {# labs}}",
+      "hint": "tap one to open it"
+    },
+    "legend": {
+      "quiet": "nothing found",
+      "collecting": "collecting or waiting",
+      "reported": "from your device",
+      "found": "pattern found"
+    },
+    "sdb": {
+      "title": "Sleep-disordered breathing patterns",
+      "gloss": "breathing during sleep",
+      "collecting": {
+        "chip": "Collecting",
+        "glance": "Collecting · {done} of {total, plural, one {# night} other {# nights}}",
+        "text": "Learning your usual range",
+        "progress": "{done} of {total, plural, one {# night} other {# nights}}",
+        "note": "Needs about four weeks of nights: 14 to learn your usual range, then 7 recent ones to compare with it."
+      },
+      "pattern": {
+        "chip": "{count, plural, one {# night} other {# nights}} · last 14",
+        "text": "{count} of the last 14 nights had two or more off together",
+        "signalsOff": "{signals, select, oxygenBreathing {Oxygen, breathing} oxygenAwake {Oxygen, time awake} breathingAwake {Breathing, time awake} other {All three}}",
+        "callout": "<b>On {count} of the last 14 nights, two or more of these were outside your usual range together.</b> A cold, alcohol, a stuffy or hot room, altitude or a late meal can all do this. If you also snore heavily, wake unrefreshed or feel very sleepy during the day, that's worth raising with a clinician."
+      },
+      "quiet": {
+        "chip": "No pattern",
+        "glance": "No pattern · last 14 nights",
+        "text": "No pattern in the last 14 nights",
+        "fired": "{count, plural, one {# night} other {# nights}} had two or more off together; it takes 3 in 14 nights to count.",
+        "single": "{signal, select, oxygen {On {date} only oxygen was off.} breathing {On {date} only breathing was off.} other {On {date} only time awake was off.}} One signal on its own doesn't count.",
+        "singles": "{count, plural, one {# night} other {# nights}} had one signal off. One signal on its own doesn't count.",
+        "none": "Every measured night stayed inside your usual range."
+      },
+      "signals": {
+        "oxygen": "Oxygen",
+        "breathing": "Breathing",
+        "awake": "Time awake"
+      },
+      "grid": {
+        "judged": "The last {count, plural, one {# night} other {# nights}}: {fired, plural, =0 {no night with two signals off together} one {# night with two or more signals off together} other {# nights with two or more signals off together}}",
+        "unjudged": "{measured} of the last {count, plural, one {# night} other {# nights}} measured so far, none judged yet",
+        "keys": {
+          "off": "off for you",
+          "together": "two or more off on one night",
+          "unjudged": "measured, not judged yet",
+          "unmeasured": "not measured yet"
+        }
+      },
+      "stats": {
+        "nights": "Nights measured",
+        "window": "last 6 weeks",
+        "arousals": "Usual arousals",
+        "perHour": "{value}/h"
+      },
+      "watch": "<b>Watches</b> each night's oxygen, breathing rate and time awake against your usual range.",
+      "light": "<b>Lights up</b> when 3 or more of the last 14 nights have two of them off together.",
+      "how": {
+        "explainer": "Compares each night's average oxygen, breathing rate and time awake with your own usual range. A night counts when <b>two of them are off together</b>, and a pattern needs several such nights in the last two weeks — never one bad night.",
+        "footer": "Uses nightly average oxygen saturation, breathing rate and time awake as your device reports them. Wrist sensors miss a lot during sleep, so a quiet card doesn't rule anything out."
+      }
+    },
+    "strain": {
+      "title": "System Strain Radar",
+      "gloss": "physiological deviations",
+      "collecting": {
+        "chip": "Collecting",
+        "glance": "Collecting · learning your ranges",
+        "text": "Learning your usual ranges",
+        "sub": "Needs about four weeks of readings before today can be compared with them."
+      },
+      "waiting": {
+        "chip": "Waiting",
+        "text": "Waiting for today's readings",
+        "none": "Your usual ranges are ready. None of today's four readings has arrived yet.",
+        "some": "Your usual ranges are ready. It compares once two of today's readings are in."
+      },
+      "high": {
+        "chip": "High · {count, plural, one {# signal off} other {# signals off}}",
+        "text": "{count} of 4 signals off today",
+        "callout": "<b>{signals} were all outside your usual range today.</b> Several at once often follows hard training, short sleep, alcohol, heat or travel, or feeling under the weather."
+      },
+      "elevated": {
+        "chip": "Elevated · 2 signals off",
+        "text": "2 of 4 signals off today",
+        "sub": "{signals} are outside your usual range. Several at once often follows hard training, short sleep, alcohol, heat or travel."
+      },
+      "baseline": {
+        "chip": "Baseline",
+        "glance": "Baseline · {count} of 4 off",
+        "text": "Baseline today",
+        "one": "{signal, select, restingHr {Only resting HR is above usual.} breathing {Only breathing rate is above usual.} hrv {Only HRV is below usual.} other {Only skin temperature is above usual.}} One on its own doesn't count.",
+        "allIn": "All four are inside your usual range.",
+        "someIn": "{count, plural, one {Today's # reading so far is inside your usual range.} other {Today's # readings so far are inside your usual range.}}"
+      },
+      "signals": {
+        "restingHr": {
+          "name": "Resting HR",
+          "inText": "resting HR"
+        },
+        "breathing": {
+          "name": "Breathing rate",
+          "inText": "breathing rate"
+        },
+        "hrv": {
+          "name": "HRV",
+          "inText": "HRV"
+        },
+        "skinTemp": {
+          "name": "Skin temp",
+          "inText": "skin temperature"
+        }
+      },
+      "tiles": {
+        "aria": "Today: {restingHr}, {breathing}, {hrv}, {skinTemp}",
+        "status": "{status, select, off {{signal} off} in {{signal} normal} other {{signal} no data}}",
+        "off": "{direction, select, below {Below usual today} other {Above usual today}}",
+        "in": "Normal",
+        "none": "No data"
+      },
+      "scale": {
+        "aria": "{level, select, baseline {Today sits at baseline.} elevated {Today sits at elevated.} other {Today sits at high.}} Baseline is 0 or 1 signals off, Elevated 2, High 3 or 4",
+        "ariaEmpty": "Baseline is 0 or 1 signals off, Elevated 2, High 3 or 4; no position until today's readings arrive",
+        "today": "TODAY",
+        "baseline": "Baseline",
+        "elevated": "Elevated",
+        "high": "High",
+        "baselineRange": "Baseline · 0–1 off",
+        "elevatedRange": "Elevated · 2 off",
+        "highRange": "High · 3–4 off"
+      },
+      "watch": "<b>Watches</b> resting HR, breathing rate, HRV and skin temperature on the latest day.",
+      "light": "<b>Lights up</b> when 2 are off together (Elevated) or 3–4 (High), marking which ones.",
+      "how": {
+        "explainer": "One metric can move because of a late meal or a warm room. When <b>several move at once</b>, it's a clearer sign that something changed: often recovery, sometimes a cold coming on.",
+        "extra": "Each signal counts as off when it leaves your usual range in the direction that matters: resting HR and breathing rate above it, HRV below it, and skin temperature 0.5 °C or more above.",
+        "footer": "Counts how many of resting heart rate, breathing rate, skin temperature and HRV are outside your usual range on the latest day. Several at once often follows hard training, short sleep, alcohol, heat or travel, or feeling under the weather."
+      }
+    },
+    "irn": {
+      "title": "Irregular rhythm notifications",
+      "gloss": "reported by your device",
+      "reported": {
+        "chip": "Reported",
+        "text": "{count, plural, one {# day} other {# days}} with notifications",
+        "count": "{count, plural, one {# notification} other {# notifications}}",
+        "note": "<b>As your device reported them.</b> Healthier doesn't analyse heart rhythm: for anything your device flags, follow its maker's guidance and talk to a clinician."
+      },
+      "unsynced": {
+        "chip": "Not synced",
+        "text": "Not shared with Healthier",
+        "sub": "Its permission wasn't granted, or the last sync couldn't read it."
+      },
+      "none": {
+        "chip": "None synced",
+        "text": "No notifications synced",
+        "sub": "Nothing in the last {count, plural, one {# day} other {# days}}."
+      },
+      "strip": {
+        "marked": "The last {count, plural, one {# day} other {# days}}, with notifications on {dates}",
+        "none": "The last {count, plural, one {# day} other {# days}}, with no notifications synced",
+        "ghost": "Not synced, so there are no days to show",
+        "notSynced": "not synced",
+        "today": "today"
+      },
+      "watch": "<b>Shows</b> irregular rhythm notifications your device synced to Google Health, by day.",
+      "light": "<b>No notifications</b> doesn't mean your rhythm was checked: many devices look only occasionally, or not at all.",
+      "how": {
+        "explainer": "Some devices can notify you about an irregular heart rhythm. Any notifications they synced appear here with their dates.",
+        "footer": "Shows notifications your device reported to Google Health. This app does not analyse heart rhythm. For anything your device flags, follow its maker's guidance and talk to a clinician."
+      }
+    },
+    "dip": {
+      "title": "Nocturnal HR dipping",
+      "gloss": "day-to-night heart rate",
+      "collecting": {
+        "chip": "Collecting",
+        "glance": "Collecting · {done} of {total, plural, one {# day} other {# days}}",
+        "text": "Collecting daytime heart rate",
+        "progress": "{done} of {total, plural, one {# day} other {# days}}",
+        "noteTracking": "The night side is already tracking. Each daily sync adds a day by itself; no action needed.",
+        "note": "Each daily sync adds a day by itself; no action needed."
+      },
+      "pattern": {
+        "higher": "Higher at night",
+        "smaller": "Smaller drop",
+        "glance": "Smaller drop · {median}%",
+        "callout": "<b>{under} of the last {measured, plural, one {# measured night} other {# measured nights}} dropped less than 10%.</b> {excluded, plural, =0 {} one {# night with several signals off at once was left out. } other {# nights with several signals off at once were left out. }}Single nights never count on their own. Late meals, alcohol, heat, evening exercise and a busy schedule all reduce the drop. If it persists for weeks alongside symptoms, you could mention it to a clinician."
+      },
+      "quiet": {
+        "glance": "{label} · {median}%",
+        "sub": "{band, select, large {In the large band, over 20%.} other {In the typical 10–20% band.}} {under} of {measured, plural, one {# measured night} other {# measured nights}} dropped less than 10%."
+      },
+      "drop": {
+        "typical": "Typical drop",
+        "large": "Large drop",
+        "small": "Small drop",
+        "higher": "Higher at night",
+        "none": "No pattern"
+      },
+      "answer": {
+        "higher": "Heart rate is {value}% higher at night",
+        "flat": "Heart rate doesn't drop at night",
+        "drops": "Heart rate drops {value}% at night"
+      },
+      "corridor": {
+        "ariaEmpty": "The bands your median drop will be placed on: rise below 0%, small 0 to 10%, typical 10 to 20%, large over 20%",
+        "aria": "Your median drop, {median}%, on the bands: rise below 0%, small 0 to 10%, typical 10 to 20%, large over 20%",
+        "empty": "Your median drop will be marked on these bands",
+        "you": "YOU · {median}%",
+        "rise": "Rise < 0%",
+        "small": "Small 0–10%",
+        "typical": "Typical 10–20%",
+        "large": "Large > 20%"
+      },
+      "stats": {
+        "daytime": "Daytime HR",
+        "daytimeWindow": "7 days",
+        "sleeping": "Sleeping HR",
+        "nonRem": "non-REM",
+        "resting": "Resting HR",
+        "bpm": "{value} bpm",
+        "median": "Median drop",
+        "medianValue": "{value}%",
+        "medianWindow": "30 days",
+        "medianPending": "after 7 days",
+        "under": "Nights under 10%",
+        "underValue": "{count} of {total}"
+      },
+      "watch": "<b>Watches</b> how far your heart rate falls from daytime to non-REM sleep over 30 days.",
+      "light": "<b>Lights up</b> when half or more of the measured nights drop less than 10%.",
+      "how": {
+        "explainer": "Heart rate usually drops during sleep compared with the daytime, often by <b>10–20%</b>. This tracks your own drop over the last 30 days. Late meals, alcohol, heat, evening exercise and illness all shift it from night to night, so only a multi-week change is shown.",
+        "footer": "Daytime is the 08:00–20:00 average of your minute-level heart rate; night is your non-REM sleeping heart rate. A 10% drop is a night/day ratio of 0.90. The 10% and 20% lines come from overnight blood-pressure research and are only a rough guide for heart rate."
+      }
+    },
+    "entropy": {
+      "title": "HRV entropy",
+      "gloss": "a nightly HRV metric from your device",
+      "collecting": {
+        "chip": "Collecting",
+        "glance": "Collecting · needs about 3 weeks",
+        "text": "Learning your usual range",
+        "sub": "Needs about 3 weeks of nights before it can judge a change."
+      },
+      "shift": {
+        "chip": "Shift · {count, plural, one {# night} other {# nights}}",
+        "text": "{side, select, below {Below your usual range {count, plural, one {# night} other {# nights}} in a row} other {Above your usual range {count, plural, one {# night} other {# nights}} in a row}}",
+        "callout": "<b>Outside your usual range on {count, plural, one {# recent night} other {# recent nights}}.</b> This metric moves with everyday things: a cold, alcohol, poor sleep, hard training, stress. It doesn't indicate any condition on its own."
+      },
+      "steady": {
+        "chip": "Steady",
+        "glance": "Steady · {count, plural, one {# night} other {# nights}}",
+        "text": "Steady for {count, plural, one {# night} other {# nights}}",
+        "sub": "{count, plural, one {# night fell outside on its own; it takes 3 in a row to count.} other {# nights fell outside on their own; it takes 3 in a row to count.}}"
+      },
+      "plot": {
+        "empty": "No nights with HRV entropy synced yet.",
+        "aria": "The last {count, plural, one {# night} other {# nights}} against your usual range of {low} to {high}",
+        "ariaCollecting": "{count, plural, one {# night} other {# nights}} so far, with no usual range yet",
+        "keys": {
+          "range": "your usual range",
+          "latest": "latest night",
+          "alone": "outside, on its own",
+          "row": "outside, nights in a row",
+          "soFar": "nights so far",
+          "pending": "usual range: after about 3 weeks"
+        }
+      },
+      "stats": {
+        "latest": "Latest night",
+        "baseline": "Your baseline",
+        "range": "Usual range",
+        "rangeValue": "{low}–{high}",
+        "shifted": "Shifted for",
+        "shiftedValue": "{count, plural, one {# night} other {# nights}}"
+      },
+      "watch": "<b>Watches</b> your device's nightly HRV entropy against your usual range.",
+      "light": "<b>Lights up</b> when 3 or more nights in a row, up to the latest, fall outside it on the same side.",
+      "how": {
+        "explainer": "Each night your device summarises how variable the spacing between heartbeats was as a single number. Its absolute value has no standard meaning, so this tracks one thing only: a <b>sustained change against your own baseline</b>.",
+        "footer": "A number your device computes each night from the intervals between heartbeats. It has no standard scale and is not a measure of heart rhythm, so only changes against your own baseline are shown."
+      }
+    },
+    "tachy": {
+      "title": "Nocturnal tachycardia",
+      "gloss": "high heart rate during sleep",
+      "collecting": {
+        "chip": "Collecting",
+        "glance": "Collecting · {done} of 7 days",
+        "text": "Collecting whole-night heart rate",
+        "progress": "{done} of {total, plural, one {# day} other {# days}}",
+        "waiting": "No night has had enough heart-rate readings yet; each sync adds more by itself.",
+        "note": "Minute-level detail collects by itself with each sync; no action needed."
+      },
+      "events": {
+        "chip": "{count, plural, one {# stretch} other {# stretches}} · {nights, plural, one {# night} other {# nights}}",
+        "text": "{count, plural, one {# stretch} other {# stretches}} above 100 bpm in {nights, plural, one {# night} other {# nights}}",
+        "time": "{from} → {to} · {minutes} min",
+        "window": "{kind, select, nap {Nap ({from} – {to})} other {Night sleep ({from} – {to})}}",
+        "stages": {
+          "deep": "Deep sleep",
+          "rem": "REM sleep",
+          "light": "Light sleep"
+        },
+        "peak": "peak {bpm} bpm",
+        "callout": "<b>{count, plural, =1 {One stretch.} other {# stretches in {nights, plural, one {# night} other {# nights}}.}}</b> Occasional ones are common. If you notice palpitations, chest pain, dizziness or breathlessness, seek medical care."
+      },
+      "none": {
+        "chip": "None found",
+        "glance": "None found · {count, plural, one {# night} other {# nights}}",
+        "text": "No stretches above 100 bpm",
+        "sub": "In {count, plural, one {# night} other {# nights}} with enough heart-rate data."
+      },
+      "trace": {
+        "aria": "{kind, select, nap {Heart rate through the nap filed under {date}} other {Heart rate through the night filed under {date}}}{count, plural, =0 {, with no stretch above 100 bpm while asleep} one {, above 100 bpm for # stretch} other {, above 100 bpm for # stretches}}",
+        "mid": "{kind, select, nap {Nap · {date}} other {Night · {date}}}",
+        "keys": {
+          "line": "100 bpm",
+          "hr": "heart rate",
+          "above": "10+ minutes above"
+        }
+      },
+      "empty": {
+        "aria": "One night of sleep with the 100 bpm line; stretches of ten minutes or more above it would show here",
+        "line": "100 bpm",
+        "hint": "10+ minutes above the line would show here",
+        "asleep": "fell asleep",
+        "woke": "woke up"
+      },
+      "stats": {
+        "nights": "Nights scanned",
+        "stretches": "Stretches",
+        "longest": "Longest",
+        "longestValue": "{minutes} min",
+        "peak": "peak {bpm}"
+      },
+      "watch": "<b>Watches</b> minute-level heart rate through recorded sleep and naps, skipping minutes awake.",
+      "light": "<b>Lights up</b> for any stretch above 100 bpm lasting 10 minutes or more, listed with its peak.",
+      "how": {
+        "explainer": "Lists stretches of recorded sleep where your heart rate stayed <b>above 100 bpm for ten minutes or more</b>. Fever, alcohol, vivid dreams, waking and movement can all do this.",
+        "footer": "Uses the one-minute heart-rate averages synced from your watch. Wrist readings during sleep can be noisy, and movement or waking raises them."
+      }
+    },
+    "howItWorks": "How it works"
   },
   "data": {
     "coverage": {

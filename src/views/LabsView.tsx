@@ -3,18 +3,23 @@ import { Bell, BellOff, ChevronDown, ChevronRight, CircleCheck, CircleDashed, Cl
 import type { SyncResult } from '../pipeline/sync';
 import {
   completedIntradayDays, dipping, entropyShift, nocturnalTachycardia, sdbScreen, strainToday,
-  type EntropyShift, type IntradayDays, type NightTrace, type SdbNight, type StrainKey, type StrainSignal, type StrainToday, type TachycardiaEvent,
+  type DipCategory, type EntropyShift, type IntradayDays, type NightTrace, type SdbNight, type StrainKey, type StrainSignal, type StrainToday,
+  type TachycardiaEvent,
 } from '../pipeline/labs';
 import { useMediaQuery } from '../hooks/useMediaQuery';
+import { t, type MessageKey } from '../i18n';
+import { rich, type Wrap } from '../i18n/react';
+import { capitalize, formatCivil, formatCivilLong, formatClock, formatFixed, formatList, formatRounded } from '../i18n/format';
 
 /**
  * 🧪 Labs: experimental views of multi-week patterns in wearable data.
  *
- * Wording rule for this file: describe what was observed, against the person's
- * own usual range, with everyday explanations. Never name a condition, never
- * present a card as screening, detection or an all-clear, and suggest a
- * clinician only alongside symptoms. Healthier is a wellness tool, not a
- * medical device (see the README's intended-purpose statement).
+ * Wording rule for this file's words (under `labs` in src/locales/en-US.json):
+ * describe what was observed, against the person's own usual range, with
+ * everyday explanations. Never name a condition, never present a card as
+ * screening, detection or an all-clear, and suggest a clinician only alongside
+ * symptoms. Healthier is a wellness tool, not a medical device (see the
+ * README's intended-purpose statement).
  *
  * Every card answers first, with a status and one line, then draws the data it
  * watches even when quiet, so a card with nothing to report still shows what it
@@ -49,70 +54,26 @@ interface Lab {
 // SVG fills, matching the Tailwind colours around them.
 const HEX = { zinc800: '#27272a', zinc500: '#71717a', zinc400: '#a1a1aa', zinc50: '#fafafa', amber: '#fbbf24', rose: '#fb7185', emerald: '#34d399' };
 
-const fmtClock = (m: number) => `${String(Math.floor(((m % 1440) + 1440) % 1440 / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
-const fmtDate = (d: string) => new Date(`${d}T12:00:00`).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
-const fmtDay = (d: string) => new Date(`${d}T12:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
-const plural = (n: number, word: string, many = `${word}s`) => `${n} ${n === 1 ? word : many}`;
-const listOf = (items: string[]) => (items.length < 2 ? items.join('') : `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`);
-const sentence = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
-
 // ── what each card watches, and how it works ──────────────────────────────
 
 /** In the pipeline's own terms (src/pipeline/labs.ts). */
-const SPEC: Record<LabKey, { watch: [string, string]; light: [string, string] }> = {
-  sdb: {
-    watch: ['Watches', "each night's oxygen, breathing rate and time awake against your usual range."],
-    light: ['Lights up', 'when 3 or more of the last 14 nights have two of them off together.'],
-  },
-  strain: {
-    watch: ['Watches', 'resting HR, breathing rate, HRV and skin temperature on the latest day.'],
-    light: ['Lights up', 'when 2 are off together (Elevated) or 3–4 (High), marking which ones.'],
-  },
-  irn: {
-    watch: ['Shows', 'irregular rhythm notifications your device synced to Google Health, by day.'],
-    light: ['No notifications', "doesn't mean your rhythm was checked: many devices look only occasionally, or not at all."],
-  },
-  dip: {
-    watch: ['Watches', 'how far your heart rate falls from daytime to non-REM sleep over 30 days.'],
-    light: ['Lights up', 'when half or more of the measured nights drop less than 10%.'],
-  },
-  entropy: {
-    watch: ['Watches', "your device's nightly HRV entropy against your usual range."],
-    light: ['Lights up', 'when 3 or more nights in a row, up to the latest, fall outside it on the same side.'],
-  },
-  tachy: {
-    watch: ['Watches', 'minute-level heart rate through recorded sleep and naps, skipping minutes awake.'],
-    light: ['Lights up', 'for any stretch above 100 bpm lasting 10 minutes or more, listed with its peak.'],
-  },
+const SPEC: Record<LabKey, { watch: MessageKey; light: MessageKey }> = {
+  sdb: { watch: 'labs.sdb.watch', light: 'labs.sdb.light' },
+  strain: { watch: 'labs.strain.watch', light: 'labs.strain.light' },
+  irn: { watch: 'labs.irn.watch', light: 'labs.irn.light' },
+  dip: { watch: 'labs.dip.watch', light: 'labs.dip.light' },
+  entropy: { watch: 'labs.entropy.watch', light: 'labs.entropy.light' },
+  tachy: { watch: 'labs.tachy.watch', light: 'labs.tachy.light' },
 };
 
-const em = (t: string) => <b className="text-zinc-300 font-semibold">{t}</b>;
-const HOW: Record<LabKey, { explainer: React.ReactNode; extra?: string; footer: string }> = {
-  sdb: {
-    explainer: <>Compares each night's average oxygen, breathing rate and time awake with your own usual range. A night counts when {em('two of them are off together')}, and a pattern needs several such nights in the last two weeks — never one bad night.</>,
-    footer: "Uses nightly average oxygen saturation, breathing rate and time awake as your device reports them. Wrist sensors miss a lot during sleep, so a quiet card doesn't rule anything out.",
-  },
-  strain: {
-    explainer: <>One metric can move because of a late meal or a warm room. When {em('several move at once')}, it's a clearer sign that something changed: often recovery, sometimes a cold coming on.</>,
-    extra: 'Each signal counts as off when it leaves your usual range in the direction that matters: resting HR and breathing rate above it, HRV below it, and skin temperature 0.5 °C or more above.',
-    footer: 'Counts how many of resting heart rate, breathing rate, skin temperature and HRV are outside your usual range on the latest day. Several at once often follows hard training, short sleep, alcohol, heat or travel, or feeling under the weather.',
-  },
-  irn: {
-    explainer: 'Some devices can notify you about an irregular heart rhythm. Any notifications they synced appear here with their dates.',
-    footer: "Shows notifications your device reported to Google Health. This app does not analyse heart rhythm. For anything your device flags, follow its maker's guidance and talk to a clinician.",
-  },
-  dip: {
-    explainer: <>Heart rate usually drops during sleep compared with the daytime, often by {em('10–20%')}. This tracks your own drop over the last 30 days. Late meals, alcohol, heat, evening exercise and illness all shift it from night to night, so only a multi-week change is shown.</>,
-    footer: 'Daytime is the 08:00–20:00 average of your minute-level heart rate; night is your non-REM sleeping heart rate. A 10% drop is a night/day ratio of 0.90. The 10% and 20% lines come from overnight blood-pressure research and are only a rough guide for heart rate.',
-  },
-  entropy: {
-    explainer: <>Each night your device summarises how variable the spacing between heartbeats was as a single number. Its absolute value has no standard meaning, so this tracks one thing only: a {em('sustained change against your own baseline')}.</>,
-    footer: 'A number your device computes each night from the intervals between heartbeats. It has no standard scale and is not a measure of heart rhythm, so only changes against your own baseline are shown.',
-  },
-  tachy: {
-    explainer: <>Lists stretches of recorded sleep where your heart rate stayed {em('above 100 bpm for ten minutes or more')}. Fever, alcohol, vivid dreams, waking and movement can all do this.</>,
-    footer: 'Uses the one-minute heart-rate averages synced from your watch. Wrist readings during sleep can be noisy, and movement or waking raises them.',
-  },
+const em: Wrap = (w) => <b className="text-zinc-300 font-semibold">{w}</b>;
+const HOW: Record<LabKey, { explainer: MessageKey; extra?: MessageKey; footer: MessageKey }> = {
+  sdb: { explainer: 'labs.sdb.how.explainer', footer: 'labs.sdb.how.footer' },
+  strain: { explainer: 'labs.strain.how.explainer', extra: 'labs.strain.how.extra', footer: 'labs.strain.how.footer' },
+  irn: { explainer: 'labs.irn.how.explainer', footer: 'labs.irn.how.footer' },
+  dip: { explainer: 'labs.dip.how.explainer', footer: 'labs.dip.how.footer' },
+  entropy: { explainer: 'labs.entropy.how.explainer', footer: 'labs.entropy.how.footer' },
+  tachy: { explainer: 'labs.tachy.how.explainer', footer: 'labs.tachy.how.footer' },
 };
 
 // ── shared chrome ─────────────────────────────────────────────────────────
@@ -161,25 +122,26 @@ function Answer({ text, sub }: { text: string; sub?: string }) {
   );
 }
 
-function Progress({ done, total, unit }: { done: number; total: number; unit: string }) {
+/** `label` says the progress in words, such as "3 of 21 nights". */
+function Progress({ done, total, label }: { done: number; total: number; label: string }) {
   return (
     <div className="flex items-center gap-2.5">
       <div
-        role="progressbar" aria-valuemin={0} aria-valuemax={total} aria-valuenow={done} aria-label={`${done} of ${total} ${unit}`}
+        role="progressbar" aria-valuemin={0} aria-valuemax={total} aria-valuenow={done} aria-label={label}
         className="flex-1 grid gap-[3px]" style={{ gridTemplateColumns: `repeat(${total}, minmax(0, 1fr))` }}
       >
         {Array.from({ length: total }, (_, i) => <span key={i} className={`h-1.5 rounded-full ${i < done ? 'bg-amber-400' : 'bg-zinc-800'}`} />)}
       </div>
-      <span className="text-caption text-amber-300 whitespace-nowrap tabular-nums">{done} of {total} {unit}</span>
+      <span className="text-caption text-amber-300 whitespace-nowrap tabular-nums">{label}</span>
     </div>
   );
 }
 
-function Collecting({ text, done, total, unit, note }: { text: string; done: number; total: number; unit: string; note: string }) {
+function Collecting({ text, done, total, progress, note }: { text: string; done: number; total: number; progress: string; note: string }) {
   return (
     <div>
       <p className="font-display text-headline leading-snug text-zinc-50">{text}</p>
-      <div className="mt-2"><Progress done={done} total={total} unit={unit} /></div>
+      <div className="mt-2"><Progress done={done} total={total} label={progress} /></div>
       <p className="mt-1.5 text-caption leading-normal text-zinc-500">{note}</p>
     </div>
   );
@@ -190,8 +152,8 @@ type Stat = [label: string, value: React.ReactNode, sub?: string];
 function Stats({ items }: { items: Stat[] }) {
   return (
     <div className="flex flex-wrap gap-x-[22px] gap-y-2">
-      {items.map(([k, v, sub]) => (
-        <div key={k}>
+      {items.map(([k, v, sub], i) => (
+        <div key={i}>
           <div className="text-eyebrow-sm leading-3 uppercase text-zinc-500">{k}</div>
           <div className="mt-0.5 text-body-sm leading-tight font-semibold text-zinc-200 tabular-nums">
             {v}
@@ -206,7 +168,7 @@ function Stats({ items }: { items: Stat[] }) {
 function Keys({ items }: { items: [React.ReactNode, string][] }) {
   return (
     <div className="flex flex-wrap gap-x-3.5 gap-y-1 text-note text-zinc-500">
-      {items.map(([swatch, label]) => <span key={label} className="flex items-center gap-1.5">{swatch}{label}</span>)}
+      {items.map(([swatch, label], i) => <span key={i} className="flex items-center gap-1.5">{swatch}{label}</span>)}
     </div>
   );
 }
@@ -238,8 +200,8 @@ function DayList({ rows, dot }: { rows: [string, string][]; dot: string }) {
   );
 }
 
-/** The one element that carries the alert treatment: what was seen. */
-function Callout({ lead, children }: { lead: string; children: React.ReactNode }) {
+/** The one element that carries the alert treatment: what was seen, its first sentence set bold by `lead`. */
+function Callout({ children }: { children: React.ReactNode }) {
   return (
     <div
       className="rounded-[10px] border px-3.5 py-3 text-caption leading-normal text-zinc-300"
@@ -249,32 +211,36 @@ function Callout({ lead, children }: { lead: string; children: React.ReactNode }
         backgroundImage: 'radial-gradient(140% 140% at 100% 100%, rgba(244,63,94,.30) 0%, rgba(244,63,94,.09) 45%, rgba(244,63,94,0) 72%)',
       }}
     >
-      <b className="text-rose-300 font-semibold">{lead}</b> {children}
+      {children}
     </div>
   );
 }
 
+/** A callout's lead: the sentence that says what was seen. */
+const lead: Wrap = (w) => <b className="text-rose-300 font-semibold">{w}</b>;
+
 function DeviceNote() {
   return (
     <p className="rounded-[10px] border border-zinc-800/80 bg-[#111114] px-3 py-2.5 text-caption leading-normal text-zinc-300">
-      <b className="font-semibold text-zinc-50">As your device reported them.</b> Healthier doesn't analyse heart rhythm: for anything your device flags, follow its maker's guidance and talk to a clinician.
+      {rich('labs.irn.reported.note', { b: (w) => <b className="font-semibold text-zinc-50">{w}</b> })}
     </p>
   );
 }
 
 function Spec({ k }: { k: LabKey }) {
   const { watch, light } = SPEC[k];
+  const b: Wrap = (w) => <b className="font-semibold text-zinc-100">{w}</b>;
   return (
     <div className="flex flex-col gap-2 px-3 py-[11px] rounded-xl border border-[#1c1c20] bg-[#111114]">
       <p className="flex gap-2 text-caption leading-normal text-zinc-400">
         <Eye size={13} aria-hidden className="shrink-0 mt-[3px]" />
-        <span><b className="font-semibold text-zinc-100">{watch[0]}</b> {watch[1]}</span>
+        <span>{rich(watch, { b })}</span>
       </p>
       <p className="flex gap-2 text-caption leading-normal text-zinc-400">
         <span className="shrink-0 w-[13px] h-[13px] mt-[3px] grid place-items-center">
           <span className={`w-[7px] h-[7px] rounded-full ${k === 'irn' ? 'bg-zinc-600' : 'bg-rose-400'}`} />
         </span>
-        <span><b className="font-semibold text-zinc-100">{light[0]}</b> {light[1]}</span>
+        <span>{rich(light, { b })}</span>
       </p>
     </div>
   );
@@ -285,12 +251,12 @@ function HowItWorks({ k }: { k: LabKey }) {
   return (
     <details className="group/how mt-auto border-t border-zinc-800/80">
       <summary className="list-none [&::-webkit-details-marker]:hidden cursor-pointer flex items-center justify-between min-h-11 text-detail font-medium text-zinc-400 hover:text-zinc-200 transition-colors">
-        How it works
+        {t('labs.howItWorks')}
         <ChevronDown size={14} aria-hidden className="transition-transform group-open/how:rotate-180" />
       </summary>
-      <p className="text-caption leading-relaxed text-zinc-400">{explainer}</p>
-      {extra && <p className="mt-2 text-caption leading-relaxed text-zinc-400">{extra}</p>}
-      <p className="mt-2 pb-1 text-note leading-relaxed text-zinc-500">{footer}</p>
+      <p className="text-caption leading-relaxed text-zinc-400">{rich(explainer, { b: em })}</p>
+      {extra && <p className="mt-2 text-caption leading-relaxed text-zinc-400">{t(extra)}</p>}
+      <p className="mt-2 pb-1 text-note leading-relaxed text-zinc-500">{t(footer)}</p>
     </details>
   );
 }
@@ -311,23 +277,24 @@ function useWidth<T extends HTMLElement>(): [React.RefObject<T | null>, number] 
 
 // ── card 1 · breathing during sleep ───────────────────────────────────────
 
-const SDB_SIGNALS = [['oxygen', 'Oxygen'], ['breathing', 'Breathing'], ['awake', 'Time awake']] as const;
+const SDB_SIGNALS = [['oxygen', 'labs.sdb.signals.oxygen'], ['breathing', 'labs.sdb.signals.breathing'], ['awake', 'labs.sdb.signals.awake']] as const;
 const offCount = (n: SdbNight) => Number(n.oxygen) + Number(n.breathing) + Number(n.awake);
-const offNames = (n: SdbNight) => SDB_SIGNALS.filter(([k]) => n[k]).map(([, label]) => label.toLowerCase());
+/** Which two signals a night had off together, or all three. */
+const offPair = (n: SdbNight) => (offCount(n) === 3 ? 'all' : !n.awake ? 'oxygenBreathing' : !n.breathing ? 'oxygenAwake' : 'breathingAwake');
 
 function SdbGrid({ nights, judged }: { nights: SdbNight[]; judged: boolean }) {
   if (!nights.length) return null;
   const fired = nights.filter((n) => offCount(n) >= 2).length;
   const aria = judged
-    ? `The last ${nights.length} nights: ${fired ? `${plural(fired, 'night')} with two or more signals off together` : 'no night with two signals off together'}`
-    : `${nights.filter((n) => n.measured).length} of the last ${nights.length} nights measured so far, none judged yet`;
+    ? t('labs.sdb.grid.judged', { count: nights.length, fired })
+    : t('labs.sdb.grid.unjudged', { measured: nights.filter((n) => n.measured).length, count: nights.length });
   const dashed = <Swatch className="border border-dashed border-zinc-700" />;
   return (
     <div role="img" aria-label={aria}>
       <div className="grid items-center gap-y-[7px]" style={{ gridTemplateColumns: `74px repeat(${nights.length}, minmax(0, 1fr))` }}>
         {SDB_SIGNALS.map(([k, label]) => (
           <React.Fragment key={k}>
-            <span className="text-caption leading-tight text-zinc-400">{label}</span>
+            <span className="text-caption leading-tight text-zinc-400">{t(label)}</span>
             {nights.map((n) => (
               <span
                 key={n.date}
@@ -340,11 +307,15 @@ function SdbGrid({ nights, judged }: { nights: SdbNight[]; judged: boolean }) {
           </React.Fragment>
         ))}
       </div>
-      <div className="pl-[74px]"><Ends left={fmtDay(nights[0].date)} right={fmtDay(nights[nights.length - 1].date)} /></div>
+      <div className="pl-[74px]"><Ends left={formatCivil(nights[0].date)} right={formatCivil(nights[nights.length - 1].date)} /></div>
       <div className="mt-2">
         <Keys items={judged
-          ? [[<Swatch className="bg-amber-400" />, 'off for you'], [<Swatch className="bg-rose-400" />, 'two or more off on one night'], [dashed, 'not measured yet']]
-          : [[<Swatch className="bg-zinc-800" />, 'measured, not judged yet'], [dashed, 'not measured yet']]}
+          ? [
+            [<Swatch className="bg-amber-400" />, t('labs.sdb.grid.keys.off')],
+            [<Swatch className="bg-rose-400" />, t('labs.sdb.grid.keys.together')],
+            [dashed, t('labs.sdb.grid.keys.unmeasured')],
+          ]
+          : [[<Swatch className="bg-zinc-800" />, t('labs.sdb.grid.keys.unjudged')], [dashed, t('labs.sdb.grid.keys.unmeasured')]]}
         />
       </div>
     </div>
@@ -366,32 +337,35 @@ function SdbBars({ nights }: { nights: SdbNight[] }) {
           />
         ))}
       </div>
-      <Ends compact left={fmtDay(nights[0].date)} right={fmtDay(nights[nights.length - 1].date)} />
+      <Ends compact left={formatCivil(nights[0].date)} right={formatCivil(nights[nights.length - 1].date)} />
     </div>
   );
 }
 
 function sdbLab(days: Days): Lab {
   const r = sdbScreen(days);
-  const base = { key: 'sdb' as const, title: 'Sleep-disordered breathing patterns', gloss: 'breathing during sleep', graph: <SdbBars nights={r.nights} /> };
+  const base = { key: 'sdb' as const, title: t('labs.sdb.title'), gloss: t('labs.sdb.gloss'), graph: <SdbBars nights={r.nights} /> };
   const fired = r.nights.filter((n) => offCount(n) >= 2);
   const singles = r.nights.filter((n) => offCount(n) === 1);
+  const arousals = r.stats.arousalsPerHourTypical;
   const stats = (
     <Stats items={[
-      ['Nights measured', r.nightsInWindow, 'last 6 weeks'],
-      ['Usual arousals', r.stats.arousalsPerHourTypical !== null ? `${r.stats.arousalsPerHourTypical}/h` : '—'],
+      [t('labs.sdb.stats.nights'), r.nightsInWindow, t('labs.sdb.stats.window')],
+      [t('labs.sdb.stats.arousals'), arousals !== null ? t('labs.sdb.stats.perHour', { value: formatRounded(arousals, 1) }) : '—'],
     ]} />
   );
 
   if (r.status === 'collecting') {
     const collected = Math.min(r.beforeNights, r.beforeWanted) + Math.min(r.testedNights, r.testedWanted);
     return {
-      ...base, tone: 'wait', mark: 'collecting', chip: 'Collecting', glance: `Collecting · ${collected} of ${r.nightsWanted} nights`, found: false,
+      ...base, tone: 'wait', mark: 'collecting', chip: t('labs.sdb.collecting.chip'),
+      glance: t('labs.sdb.collecting.glance', { done: collected, total: r.nightsWanted }), found: false,
       parts: (
         <>
           <Collecting
-            text="Learning your usual range" done={collected} total={r.nightsWanted} unit="nights"
-            note="Needs about four weeks of nights: 14 to learn your usual range, then 7 recent ones to compare with it."
+            text={t('labs.sdb.collecting.text')} done={collected} total={r.nightsWanted}
+            progress={t('labs.sdb.collecting.progress', { done: collected, total: r.nightsWanted })}
+            note={t('labs.sdb.collecting.note')}
           />
           <SdbGrid nights={r.nights} judged={false} />
           {stats}
@@ -401,19 +375,15 @@ function sdbLab(days: Days): Lab {
   }
 
   if (r.status === 'pattern') {
-    const chip = `${r.firedCount} nights · last 14`;
+    const chip = t('labs.sdb.pattern.chip', { count: r.firedCount });
     return {
       ...base, tone: 'found', mark: 'found', chip, glance: chip, found: true,
       parts: (
         <>
-          <Answer text={`${r.firedCount} of the last 14 nights had two or more off together`} />
+          <Answer text={t('labs.sdb.pattern.text', { count: r.firedCount })} />
           <SdbGrid nights={r.nights} judged />
-          <DayList dot="bg-rose-400" rows={fired.map((n) => [fmtDate(n.date), offCount(n) === 3 ? 'All three' : sentence(offNames(n).join(', '))])} />
-          <Callout lead={`On ${r.firedCount} of the last 14 nights, two or more of these were outside your usual range together.`}>
-            A cold, alcohol, a stuffy or hot room, altitude or a late meal can all do this. If you also
-            snore heavily, wake unrefreshed or feel very sleepy during the day, that's worth raising
-            with a clinician.
-          </Callout>
+          <DayList dot="bg-rose-400" rows={fired.map((n) => [formatCivilLong(n.date), t('labs.sdb.pattern.signalsOff', { signals: offPair(n) })])} />
+          <Callout>{rich('labs.sdb.pattern.callout', { count: r.firedCount, b: lead })}</Callout>
           {stats}
         </>
       ),
@@ -421,17 +391,17 @@ function sdbLab(days: Days): Lab {
   }
 
   const sub = fired.length
-    ? `${plural(fired.length, 'night')} had two or more off together; it takes 3 in 14 nights to count.`
+    ? t('labs.sdb.quiet.fired', { count: fired.length })
     : singles.length === 1
-      ? `On ${fmtDay(singles[0].date)} only ${offNames(singles[0])[0]} was off. One signal on its own doesn't count.`
+      ? t('labs.sdb.quiet.single', { signal: SDB_SIGNALS.find(([k]) => singles[0][k])![0], date: formatCivil(singles[0].date) })
       : singles.length > 1
-        ? `${singles.length} nights had one signal off. One signal on its own doesn't count.`
-        : 'Every measured night stayed inside your usual range.';
+        ? t('labs.sdb.quiet.singles', { count: singles.length })
+        : t('labs.sdb.quiet.none');
   return {
-    ...base, tone: 'quiet', mark: 'quiet', chip: 'No pattern', glance: 'No pattern · last 14 nights', found: false,
+    ...base, tone: 'quiet', mark: 'quiet', chip: t('labs.sdb.quiet.chip'), glance: t('labs.sdb.quiet.glance'), found: false,
     parts: (
       <>
-        <Answer text="No pattern in the last 14 nights" sub={sub} />
+        <Answer text={t('labs.sdb.quiet.text')} sub={sub} />
         <SdbGrid nights={r.nights} judged />
         {stats}
       </>
@@ -441,27 +411,34 @@ function sdbLab(days: Days): Lab {
 
 // ── card 2 · system strain ────────────────────────────────────────────────
 
-const STRAIN_NAME: Record<StrainKey, string> = { restingHr: 'Resting HR', breathing: 'Breathing rate', hrv: 'HRV', skinTemp: 'Skin temp' };
-const STRAIN_WORDS: Record<StrainKey, string> = { restingHr: 'resting HR', breathing: 'breathing rate', hrv: 'HRV', skinTemp: 'skin temperature' };
+const STRAIN_NAME: Record<StrainKey, MessageKey> = {
+  restingHr: 'labs.strain.signals.restingHr.name', breathing: 'labs.strain.signals.breathing.name',
+  hrv: 'labs.strain.signals.hrv.name', skinTemp: 'labs.strain.signals.skinTemp.name',
+};
+const STRAIN_WORDS: Record<StrainKey, MessageKey> = {
+  restingHr: 'labs.strain.signals.restingHr.inText', breathing: 'labs.strain.signals.breathing.inText',
+  hrv: 'labs.strain.signals.hrv.inText', skinTemp: 'labs.strain.signals.skinTemp.inText',
+};
 const STRAIN_DIR: Record<StrainKey, 'above' | 'below'> = { restingHr: 'above', breathing: 'above', hrv: 'below', skinTemp: 'above' };
 
 /** Each tile says only how its signal stands today; which way counts as off is in "How it works". */
 function StrainTiles({ signals, rose }: { signals: StrainSignal[]; rose: boolean }) {
-  const word = (s: StrainSignal) => (s.status === 'off' ? 'off' : s.status === 'in' ? 'normal' : 'no data');
+  // The label names all four in order, each as "resting HR off" or the like.
+  const today = Object.fromEntries(signals.map((s) => [s.key, t('labs.strain.tiles.status', { signal: t(STRAIN_WORDS[s.key]), status: s.status })]));
   return (
-    <div role="img" aria-label={`Today: ${signals.map((s) => `${STRAIN_WORDS[s.key]} ${word(s)}`).join(', ')}`} className="grid grid-cols-2 gap-2">
+    <div role="img" aria-label={t('labs.strain.tiles.aria', today)} className="grid grid-cols-2 gap-2">
       {signals.map((s) => {
         const off = s.status === 'off';
         return (
           <div key={s.key} className={`rounded-xl border px-[11px] py-[9px] ${off ? (rose ? 'border-rose-500/40' : 'border-amber-400/35') : 'border-zinc-800/80'}`}>
             <div className="flex items-center justify-between gap-1.5">
-              <span className="text-detail font-semibold text-zinc-200">{STRAIN_NAME[s.key]}</span>
+              <span className="text-detail font-semibold text-zinc-200">{t(STRAIN_NAME[s.key])}</span>
               <span className={`shrink-0 w-2 h-2 rounded-full ${
                 s.status === 'none' ? 'border-[1.5px] border-zinc-600' : off ? (rose ? 'bg-rose-400' : 'bg-amber-400') : 'bg-emerald-400/70'}`}
               />
             </div>
             <div className={`mt-0.5 text-note ${off ? (rose ? 'text-rose-300' : 'text-amber-300') : 'text-zinc-500'}`}>
-              {off ? `${sentence(STRAIN_DIR[s.key])} usual today` : s.status === 'in' ? 'Normal' : 'No data'}
+              {off ? t('labs.strain.tiles.off', { direction: STRAIN_DIR[s.key] }) : s.status === 'in' ? t('labs.strain.tiles.in') : t('labs.strain.tiles.none')}
             </div>
           </div>
         );
@@ -471,9 +448,9 @@ function StrainTiles({ signals, rose }: { signals: StrainSignal[]; rose: boolean
 }
 
 const LEVELS = [
-  { key: 'baseline', name: 'Baseline', label: 'Baseline · 0–1 off', bar: 'bg-emerald-400 rounded-l', today: 'text-emerald-400 text-left', align: 'text-left' },
-  { key: 'elevated', name: 'Elevated', label: 'Elevated · 2 off', bar: 'bg-amber-400', today: 'text-amber-400 text-center', align: 'text-center' },
-  { key: 'high', name: 'High', label: 'High · 3–4 off', bar: 'bg-rose-500 rounded-r', today: 'text-rose-400 text-right', align: 'text-right' },
+  { key: 'baseline', name: 'labs.strain.scale.baseline', label: 'labs.strain.scale.baselineRange', bar: 'bg-emerald-400 rounded-l', today: 'text-emerald-400 text-left', align: 'text-left' },
+  { key: 'elevated', name: 'labs.strain.scale.elevated', label: 'labs.strain.scale.elevatedRange', bar: 'bg-amber-400', today: 'text-amber-400 text-center', align: 'text-center' },
+  { key: 'high', name: 'labs.strain.scale.high', label: 'labs.strain.scale.highRange', bar: 'bg-rose-500 rounded-r', today: 'text-rose-400 text-right', align: 'text-right' },
 ] as const;
 
 /** The stages; on a tile, just their names, with today's in bold. */
@@ -483,12 +460,12 @@ function StrainScale({ level, compact = false }: { level: StrainToday['level']; 
       role={compact ? undefined : 'img'}
       aria-hidden={compact || undefined}
       aria-label={compact ? undefined : level
-        ? `Today sits at ${level}. Baseline is 0 or 1 signals off, Elevated 2, High 3 or 4`
-        : "Baseline is 0 or 1 signals off, Elevated 2, High 3 or 4; no position until today's readings arrive"}
+        ? t('labs.strain.scale.aria', { level })
+        : t('labs.strain.scale.ariaEmpty')}
     >
       {level && !compact && (
         <div className="grid grid-cols-3 mb-1 text-eyebrow-sm font-bold">
-          {LEVELS.map((l) => <span key={l.key} className={l.today}>{l.key === level ? 'TODAY' : ''}</span>)}
+          {LEVELS.map((l) => <span key={l.key} className={l.today}>{l.key === level ? t('labs.strain.scale.today') : ''}</span>)}
         </div>
       )}
       <div className={`grid grid-cols-3 ${compact ? 'gap-[3px]' : 'gap-1'}`}>
@@ -496,7 +473,7 @@ function StrainScale({ level, compact = false }: { level: StrainToday['level']; 
       </div>
       <div className={`${compact ? 'mt-[5px] text-note leading-tight text-zinc-600' : 'mt-1.5 text-note text-zinc-500'} grid grid-cols-3`}>
         {LEVELS.map((l) => (
-          <span key={l.key} className={`${l.align} ${l.key === level ? 'font-semibold text-zinc-200' : ''}`}>{compact ? l.name : l.label}</span>
+          <span key={l.key} className={`${l.align} ${l.key === level ? 'font-semibold text-zinc-200' : ''}`}>{t(compact ? l.name : l.label)}</span>
         ))}
       </div>
     </div>
@@ -505,28 +482,26 @@ function StrainScale({ level, compact = false }: { level: StrainToday['level']; 
 
 function strainLab(days: Days): Lab {
   const r = strainToday(days);
-  const base = { key: 'strain' as const, title: 'System Strain Radar', gloss: 'physiological deviations', graph: <StrainScale level={r.level} compact /> };
+  const base = { key: 'strain' as const, title: t('labs.strain.title'), gloss: t('labs.strain.gloss'), graph: <StrainScale level={r.level} compact /> };
   const rose = r.level === 'high';
   const off = r.signals.filter((s) => s.status === 'off');
-  const offWords = listOf(off.map((s) => STRAIN_WORDS[s.key]));
+  const offWords = formatList(off.map((s) => t(STRAIN_WORDS[s.key])));
   const picture = <><StrainTiles signals={r.signals} rose={rose} /><StrainScale level={r.level} /></>;
 
   if (r.status === 'collecting') {
     return {
-      ...base, tone: 'wait', mark: 'collecting', chip: 'Collecting', glance: 'Collecting · learning your ranges', found: false,
-      parts: <><Answer text="Learning your usual ranges" sub="Needs about four weeks of readings before today can be compared with them." />{picture}</>,
+      ...base, tone: 'wait', mark: 'collecting', chip: t('labs.strain.collecting.chip'), glance: t('labs.strain.collecting.glance'), found: false,
+      parts: <><Answer text={t('labs.strain.collecting.text')} sub={t('labs.strain.collecting.sub')} />{picture}</>,
     };
   }
   if (r.status === 'waiting') {
     return {
-      ...base, tone: 'wait', mark: 'waiting', chip: 'Waiting', glance: "Waiting for today's readings", found: false,
+      ...base, tone: 'wait', mark: 'waiting', chip: t('labs.strain.waiting.chip'), glance: t('labs.strain.waiting.text'), found: false,
       parts: (
         <>
           <Answer
-            text="Waiting for today's readings"
-            sub={r.arrived === 0
-              ? "Your usual ranges are ready. None of today's four readings has arrived yet."
-              : "Your usual ranges are ready. It compares once two of today's readings are in."}
+            text={t('labs.strain.waiting.text')}
+            sub={r.arrived === 0 ? t('labs.strain.waiting.none') : t('labs.strain.waiting.some')}
           />
           {picture}
         </>
@@ -534,28 +509,26 @@ function strainLab(days: Days): Lab {
     };
   }
   if (r.level === 'high') {
-    const chip = `High · ${r.off} signals off`;
+    const chip = t('labs.strain.high.chip', { count: r.off });
     return {
       ...base, tone: 'found', mark: 'found', chip, glance: chip, found: true,
       parts: (
         <>
-          <Answer text={`${r.off} of 4 signals off today`} />
+          <Answer text={t('labs.strain.high.text', { count: r.off })} />
           {picture}
-          <Callout lead={`${sentence(offWords)} were all outside your usual range today.`}>
-            Several at once often follows hard training, short sleep, alcohol, heat or travel, or feeling under the weather.
-          </Callout>
+          <Callout>{rich('labs.strain.high.callout', { signals: capitalize(offWords), b: lead })}</Callout>
         </>
       ),
     };
   }
   if (r.level === 'elevated') {
     return {
-      ...base, tone: 'wait', mark: 'notice', chip: 'Elevated · 2 signals off', glance: 'Elevated · 2 signals off', found: true,
+      ...base, tone: 'wait', mark: 'notice', chip: t('labs.strain.elevated.chip'), glance: t('labs.strain.elevated.chip'), found: true,
       parts: (
         <>
           <Answer
-            text="2 of 4 signals off today"
-            sub={`${sentence(offWords)} are outside your usual range. Several at once often follows hard training, short sleep, alcohol, heat or travel.`}
+            text={t('labs.strain.elevated.text')}
+            sub={t('labs.strain.elevated.sub', { signals: capitalize(offWords) })}
           />
           {picture}
         </>
@@ -564,11 +537,11 @@ function strainLab(days: Days): Lab {
   }
   const judged = r.signals.filter((s) => s.status !== 'none').length;
   const sub = r.off === 1
-    ? `Only ${STRAIN_WORDS[off[0].key]} is ${STRAIN_DIR[off[0].key]} usual. One on its own doesn't count.`
-    : judged === 4 ? 'All four are inside your usual range.' : `Today's ${judged} readings so far are inside your usual range.`;
+    ? t('labs.strain.baseline.one', { signal: off[0].key })
+    : judged === 4 ? t('labs.strain.baseline.allIn') : t('labs.strain.baseline.someIn', { count: judged });
   return {
-    ...base, tone: 'quiet', mark: 'quiet', chip: 'Baseline', glance: `Baseline · ${r.off} of 4 off`, found: false,
-    parts: <><Answer text="Baseline today" sub={sub} />{picture}</>,
+    ...base, tone: 'quiet', mark: 'quiet', chip: t('labs.strain.baseline.chip'), glance: t('labs.strain.baseline.glance', { count: r.off }), found: false,
+    parts: <><Answer text={t('labs.strain.baseline.text')} sub={sub} />{picture}</>,
   };
 }
 
@@ -579,10 +552,10 @@ function IrnStrip({ days, ghost = false, compact = false }: { days: Days; ghost?
   const marked = days.filter((d) => d.irn && d.irn > 0);
   const h = compact ? 16 : 20;
   const aria = ghost
-    ? 'Not synced, so there are no days to show'
+    ? t('labs.irn.strip.ghost')
     : marked.length
-      ? `The last ${days.length} days, with notifications on ${listOf(marked.map((d) => fmtDay(d.date)))}`
-      : `The last ${days.length} days, with no notifications synced`;
+      ? t('labs.irn.strip.marked', { count: days.length, dates: formatList(marked.map((d) => formatCivil(d.date))) })
+      : t('labs.irn.strip.none', { count: days.length });
   return (
     <div role={compact ? undefined : 'img'} aria-hidden={compact || undefined} aria-label={compact ? undefined : aria}>
       <div className="relative">
@@ -591,9 +564,9 @@ function IrnStrip({ days, ghost = false, compact = false }: { days: Days; ghost?
             ? <rect key={d.date} x={i * 10} y={0} width={6.5} height={h} rx={1} fill={HEX.amber} />
             : <rect key={d.date} x={i * 10} y={h * 0.3} width={6.5} height={h * 0.4} rx={1} fill={HEX.zinc800} />))}
         </svg>
-        {ghost && <span className="absolute inset-0 flex items-center justify-center text-note text-zinc-400">not synced</span>}
+        {ghost && <span className="absolute inset-0 flex items-center justify-center text-note text-zinc-400">{t('labs.irn.strip.notSynced')}</span>}
       </div>
-      <Ends compact={compact} left={fmtDay(days[0].date)} right="today" />
+      <Ends compact={compact} left={formatCivil(days[0].date)} right={t('labs.irn.strip.today')} />
     </div>
   );
 }
@@ -603,17 +576,17 @@ function irnLab(data: SyncResult): Lab {
   const events = days.filter((d) => d.irn && d.irn > 0);
   const stream = data.meta.streams.find((s) => s.dataType === 'irregular-rhythm-notification');
   const synced = !!stream && stream.status !== 'skipped' && stream.status !== 'unauthorized' && stream.status !== 'error';
-  const base = { key: 'irn' as const, title: 'Irregular rhythm notifications', gloss: 'reported by your device' };
+  const base = { key: 'irn' as const, title: t('labs.irn.title'), gloss: t('labs.irn.gloss') };
 
   if (events.length) {
-    const text = `${plural(events.length, 'day')} with notifications`;
+    const text = t('labs.irn.reported.text', { count: events.length });
     return {
-      ...base, tone: 'wait', mark: 'reported', chip: 'Reported', glance: text, found: true, graph: <IrnStrip days={days} compact />,
+      ...base, tone: 'wait', mark: 'reported', chip: t('labs.irn.reported.chip'), glance: text, found: true, graph: <IrnStrip days={days} compact />,
       parts: (
         <>
           <Answer text={text} />
           <IrnStrip days={days} />
-          <DayList dot="bg-amber-400" rows={events.map((e) => [fmtDate(e.date), plural(e.irn!, 'notification')])} />
+          <DayList dot="bg-amber-400" rows={events.map((e) => [formatCivilLong(e.date), t('labs.irn.reported.count', { count: e.irn! })])} />
           <DeviceNote />
         </>
       ),
@@ -621,13 +594,14 @@ function irnLab(data: SyncResult): Lab {
   }
   if (!synced) {
     return {
-      ...base, tone: 'wait', mark: 'unsynced', chip: 'Not synced', glance: 'Not synced', found: false, graph: <IrnStrip days={days} ghost compact />,
-      parts: <><Answer text="Not shared with Healthier" sub="Its permission wasn't granted, or the last sync couldn't read it." /><IrnStrip days={days} ghost /></>,
+      ...base, tone: 'wait', mark: 'unsynced', chip: t('labs.irn.unsynced.chip'), glance: t('labs.irn.unsynced.chip'), found: false,
+      graph: <IrnStrip days={days} ghost compact />,
+      parts: <><Answer text={t('labs.irn.unsynced.text')} sub={t('labs.irn.unsynced.sub')} /><IrnStrip days={days} ghost /></>,
     };
   }
   return {
-    ...base, tone: 'neutral', mark: 'none', chip: 'None synced', glance: 'None synced', found: false, graph: <IrnStrip days={days} compact />,
-    parts: <><Answer text="No notifications synced" sub={`Nothing in the last ${days.length} days.`} /><IrnStrip days={days} /></>,
+    ...base, tone: 'neutral', mark: 'none', chip: t('labs.irn.none.chip'), glance: t('labs.irn.none.chip'), found: false, graph: <IrnStrip days={days} compact />,
+    parts: <><Answer text={t('labs.irn.none.text')} sub={t('labs.irn.none.sub', { count: days.length })} /><IrnStrip days={days} /></>,
   };
 }
 
@@ -643,11 +617,12 @@ function corridorLeft(dip: number): number {
 }
 
 /** Neutral names for where the median drop sits; the blood-pressure terms (dipper, riser…) don't transfer to heart rate. */
-const DROP_LABEL: Record<string, string> = {
-  dipper: 'Typical drop',
-  'extreme dipper': 'Large drop',
-  'non-dipper': 'Small drop',
-  riser: 'Higher at night',
+const DROP_LABEL: Record<DipCategory, MessageKey> = {
+  dipper: 'labs.dip.drop.typical',
+  'extreme-dipper': 'labs.dip.drop.large',
+  'non-dipper': 'labs.dip.drop.small',
+  riser: 'labs.dip.drop.higher',
+  none: 'labs.dip.drop.none',
 };
 
 function Corridor({ median, rose = false, compact = false }: { median: number | null; rose?: boolean; compact?: boolean }) {
@@ -657,17 +632,17 @@ function Corridor({ median, rose = false, compact = false }: { median: number | 
       role={compact ? undefined : 'img'}
       aria-hidden={compact || undefined}
       aria-label={compact ? undefined : median === null
-        ? 'The bands your median drop will be placed on: rise below 0%, small 0 to 10%, typical 10 to 20%, large over 20%'
-        : `Your median drop, ${median}%, on the bands: rise below 0%, small 0 to 10%, typical 10 to 20%, large over 20%`}
+        ? t('labs.dip.corridor.ariaEmpty')
+        : t('labs.dip.corridor.aria', { median })}
     >
-      {left === null && !compact && <p className="mb-1.5 text-note text-zinc-500">Your median drop will be marked on these bands</p>}
+      {left === null && !compact && <p className="mb-1.5 text-note text-zinc-500">{t('labs.dip.corridor.empty')}</p>}
       <div className={`relative ${left === null ? '' : compact ? 'pt-[15px]' : 'pt-[17px]'}`}>
         {left !== null && (
           <span
             className={`absolute top-0 -translate-x-1/2 text-micro ${compact ? '' : 'leading-3'} font-bold tracking-widest whitespace-nowrap ${rose ? 'text-rose-300' : 'text-zinc-50'}`}
             style={{ left: `${Math.min(Math.max(left, 9), 91)}%` }}
           >
-            YOU · {median}%
+            {t('labs.dip.corridor.you', { median })}
           </span>
         )}
         <div className={`${compact ? 'h-2 rounded' : 'h-2.5 rounded-md'} overflow-hidden flex ${left === null ? 'opacity-60' : ''}`}>
@@ -683,7 +658,8 @@ function Corridor({ median, rose = false, compact = false }: { median: number | 
           />
         )}
         <div className={`${compact ? 'mt-[5px] tracking-normal' : 'mt-1.5 tracking-wider'} text-micro flex justify-between uppercase text-zinc-600`}>
-          <span>Rise &lt; 0%</span><span>Small 0–10%</span><span>Typical 10–20%</span><span>Large &gt; 20%</span>
+          <span>{t('labs.dip.corridor.rise')}</span><span>{t('labs.dip.corridor.small')}</span>
+          <span>{t('labs.dip.corridor.typical')}</span><span>{t('labs.dip.corridor.large')}</span>
         </div>
       </div>
     </div>
@@ -693,56 +669,64 @@ function Corridor({ median, rose = false, compact = false }: { median: number | 
 function dipLab(days: Days, intraday: IntradayDays): Lab {
   // Leaves out nights with several signals off, exactly as the insight does.
   const r = dipping(days, intraday);
-  const base = { key: 'dip' as const, title: 'Nocturnal HR dipping', gloss: 'day-to-night heart rate' };
+  const base = { key: 'dip' as const, title: t('labs.dip.title'), gloss: t('labs.dip.gloss') };
   const latestNonRem = [...days].reverse().find((d) => d.nonRemHr !== null)?.nonRemHr ?? null;
   const latestRhr = [...days].reverse().find((d) => d.restingHr !== null)?.restingHr ?? null;
   const day7 = r.nights.slice(-7);
   const dayMean = day7.length ? Math.round(day7.reduce((a, n) => a + n.dayMean, 0) / day7.length) : null;
   const nightMean = day7.length ? Math.round(day7.reduce((a, n) => a + n.nightMean, 0) / day7.length) : null;
-  const daytime: Stat = ['Daytime HR', dayMean !== null ? `${dayMean} bpm` : '—', '7 days'];
+  const bpm = (value: number) => t('labs.dip.stats.bpm', { value });
+  const daytime: Stat = [t('labs.dip.stats.daytime'), dayMean !== null ? bpm(dayMean) : '—', t('labs.dip.stats.daytimeWindow')];
   const sleeping: Stat = nightMean !== null
-    ? ['Sleeping HR', `${nightMean} bpm`]
-    : ['Sleeping HR', latestNonRem !== null ? `${latestNonRem} bpm` : '—', latestNonRem !== null ? 'non-REM' : undefined];
+    ? [t('labs.dip.stats.sleeping'), bpm(nightMean)]
+    : [t('labs.dip.stats.sleeping'), latestNonRem !== null ? bpm(latestNonRem) : '—', latestNonRem !== null ? t('labs.dip.stats.nonRem') : undefined];
   const median = r.medianDipPct;
 
   if (r.status === 'collecting' || median === null) {
+    const done = Math.min(r.daysCollected, r.daysWanted);
     return {
-      ...base, tone: 'wait', mark: 'collecting', chip: 'Collecting', glance: `Collecting · ${r.daysCollected} of ${r.daysWanted} days`, found: false,
+      ...base, tone: 'wait', mark: 'collecting', chip: t('labs.dip.collecting.chip'),
+      glance: t('labs.dip.collecting.glance', { done: r.daysCollected, total: r.daysWanted }), found: false,
       graph: <Corridor median={null} compact />,
       parts: (
         <>
           <Collecting
-            text="Collecting daytime heart rate" done={Math.min(r.daysCollected, r.daysWanted)} total={r.daysWanted} unit="days"
-            note={`${latestNonRem !== null ? 'The night side is already tracking. ' : ''}Each daily sync adds a day by itself; no action needed.`}
+            text={t('labs.dip.collecting.text')} done={done} total={r.daysWanted}
+            progress={t('labs.dip.collecting.progress', { done, total: r.daysWanted })}
+            note={latestNonRem !== null ? t('labs.dip.collecting.noteTracking') : t('labs.dip.collecting.note')}
           />
           <Corridor median={null} />
-          <Stats items={[sleeping, ...(latestRhr !== null ? [['Resting HR', `${latestRhr} bpm`] as Stat] : []), daytime, ['Median drop', '—', 'after 7 days']]} />
+          <Stats items={[
+            sleeping, ...(latestRhr !== null ? [[t('labs.dip.stats.resting'), bpm(latestRhr)] as Stat] : []), daytime,
+            [t('labs.dip.stats.median'), '—', t('labs.dip.stats.medianPending')],
+          ]} />
         </>
       ),
     };
   }
 
   const stats = (
-    <Stats items={[daytime, sleeping, ['Median drop', `${median}%`, '30 days'], ['Nights under 10%', `${r.nightsUnder10} of ${r.measurableNights}`]]} />
+    <Stats items={[
+      daytime, sleeping,
+      [t('labs.dip.stats.median'), t('labs.dip.stats.medianValue', { value: median }), t('labs.dip.stats.medianWindow')],
+      [t('labs.dip.stats.under'), t('labs.dip.stats.underValue', { count: r.nightsUnder10, total: r.measurableNights })],
+    ]} />
   );
 
   if (r.status === 'pattern') {
-    const chip = r.riser ? 'Higher at night' : 'Smaller drop';
-    const text = median < 0 ? `Heart rate is ${-median}% higher at night` : median === 0 ? "Heart rate doesn't drop at night" : `Heart rate drops ${median}% at night`;
+    const chip = r.riser ? t('labs.dip.pattern.higher') : t('labs.dip.pattern.smaller');
+    const text = median < 0
+      ? t('labs.dip.answer.higher', { value: -median })
+      : median === 0 ? t('labs.dip.answer.flat') : t('labs.dip.answer.drops', { value: median });
     return {
-      ...base, tone: 'found', mark: 'found', chip, glance: r.riser ? chip : `${chip} · ${median}%`, found: true,
+      ...base, tone: 'found', mark: 'found', chip, glance: r.riser ? chip : t('labs.dip.pattern.glance', { median }), found: true,
       graph: <Corridor median={median} rose compact />,
       parts: (
         <>
           <Answer text={text} />
           <Corridor median={median} rose />
-          <Callout lead={`${r.nightsUnder10} of the last ${r.measurableNights} measured nights dropped less than 10%.`}>
-            {r.excludedIllnessNights > 0
-              ? `${plural(r.excludedIllnessNights, 'night')} with several signals off at once ${r.excludedIllnessNights > 1 ? 'were' : 'was'} left out. `
-              : ''}
-            Single nights never count on their own. Late meals, alcohol, heat, evening exercise and a
-            busy schedule all reduce the drop. If it persists for weeks alongside symptoms, you could
-            mention it to a clinician.
+          <Callout>
+            {rich('labs.dip.pattern.callout', { under: r.nightsUnder10, measured: r.measurableNights, excluded: r.excludedIllnessNights, b: lead })}
           </Callout>
           {stats}
         </>
@@ -750,14 +734,17 @@ function dipLab(days: Days, intraday: IntradayDays): Lab {
     };
   }
 
-  const label = DROP_LABEL[r.category] ?? 'No pattern';
-  const band = r.category === 'extreme dipper' ? 'In the large band, over 20%.' : 'In the typical 10–20% band.';
+  const label = t(DROP_LABEL[r.category]);
+  const band = r.category === 'extreme-dipper' ? 'large' : 'typical';
   return {
-    ...base, tone: 'quiet', mark: 'quiet', chip: label, glance: `${label} · ${median}%`, found: false,
+    ...base, tone: 'quiet', mark: 'quiet', chip: label, glance: t('labs.dip.quiet.glance', { label, median }), found: false,
     graph: <Corridor median={median} compact />,
     parts: (
       <>
-        <Answer text={`Heart rate drops ${median}% at night`} sub={`${band} ${r.nightsUnder10} of ${r.measurableNights} measured nights dropped less than 10%.`} />
+        <Answer
+          text={t('labs.dip.answer.drops', { value: median })}
+          sub={t('labs.dip.quiet.sub', { band, under: r.nightsUnder10, measured: r.measurableNights })}
+        />
         <Corridor median={median} />
         {stats}
       </>
@@ -789,7 +776,7 @@ function EntropyPlot({ r, compact = false }: { r: EntropyShift; compact?: boolea
   if (!pts.length) {
     return compact
       ? <div aria-hidden className="h-[28px] border-t border-dashed border-zinc-700 mt-3.5" />
-      : <p className="text-caption text-zinc-500">No nights with HRV entropy synced yet.</p>;
+      : <p className="text-caption text-zinc-500">{t('labs.entropy.plot.empty')}</p>;
   }
   const H = compact ? 28 : 66;
   const band = r.usualLow !== null && r.usualHigh !== null && r.baselineMedian !== null;
@@ -798,8 +785,8 @@ function EntropyPlot({ r, compact = false }: { r: EntropyShift; compact?: boolea
   const x = (i: number) => (pts.length === 1 ? W / 2 : inset + i * ((W - 2 * inset) / (pts.length - 1)));
   const alone = pts.some((_, i) => entropyFill(r, i) === HEX.amber);
   const aria = band
-    ? `The last ${plural(pts.length, 'night')} against your usual range of ${r.usualLow!.toFixed(2)} to ${r.usualHigh!.toFixed(2)}`
-    : `${plural(pts.length, 'night')} so far, with no usual range yet`;
+    ? t('labs.entropy.plot.aria', { count: pts.length, low: formatFixed(r.usualLow!, 2), high: formatFixed(r.usualHigh!, 2) })
+    : t('labs.entropy.plot.ariaCollecting', { count: pts.length });
   return (
     <div aria-hidden={compact || undefined}>
       <div ref={ref} style={{ height: H }}>
@@ -817,20 +804,20 @@ function EntropyPlot({ r, compact = false }: { r: EntropyShift; compact?: boolea
           </svg>
         )}
       </div>
-      <Ends compact={compact} left={fmtDay(pts[0].date)} right={fmtDay(pts[pts.length - 1].date)} />
+      <Ends compact={compact} left={formatCivil(pts[0].date)} right={formatCivil(pts[pts.length - 1].date)} />
       {!compact && (
         <div className="mt-1.5">
           <Keys items={band
             ? [
-              [<span className="w-3.5 h-2 rounded-[2px] bg-emerald-400/15" />, 'your usual range'],
-              [<Dot className="bg-zinc-50" />, 'latest night'],
-              ...(alone ? [[<Dot className="bg-amber-400" />, 'outside, on its own'] as [React.ReactNode, string]] : []),
-              ...(r.status === 'shift' ? [[<Dot className="bg-rose-400" />, 'outside, nights in a row'] as [React.ReactNode, string]] : []),
+              [<span className="w-3.5 h-2 rounded-[2px] bg-emerald-400/15" />, t('labs.entropy.plot.keys.range')],
+              [<Dot className="bg-zinc-50" />, t('labs.entropy.plot.keys.latest')],
+              ...(alone ? [[<Dot className="bg-amber-400" />, t('labs.entropy.plot.keys.alone')] as [React.ReactNode, string]] : []),
+              ...(r.status === 'shift' ? [[<Dot className="bg-rose-400" />, t('labs.entropy.plot.keys.row')] as [React.ReactNode, string]] : []),
             ]
             : [
-              [<Dot className="bg-zinc-400" />, 'nights so far'],
-              [<Dot className="bg-zinc-50" />, 'latest night'],
-              [<span className="w-3.5 h-2 rounded-[2px] border border-dashed border-zinc-700" />, 'usual range: after about 3 weeks'],
+              [<Dot className="bg-zinc-400" />, t('labs.entropy.plot.keys.soFar')],
+              [<Dot className="bg-zinc-50" />, t('labs.entropy.plot.keys.latest')],
+              [<span className="w-3.5 h-2 rounded-[2px] border border-dashed border-zinc-700" />, t('labs.entropy.plot.keys.pending')],
             ]}
           />
         </div>
@@ -841,46 +828,52 @@ function EntropyPlot({ r, compact = false }: { r: EntropyShift; compact?: boolea
 
 function entropyLab(days: Days): Lab {
   const r = entropyShift(days);
-  const base = { key: 'entropy' as const, title: 'HRV entropy', gloss: 'a nightly HRV metric from your device', graph: <EntropyPlot r={r} compact /> };
-  const fmt = (v: number | null) => (v === null ? '—' : v.toFixed(2));
+  const base = { key: 'entropy' as const, title: t('labs.entropy.title'), gloss: t('labs.entropy.gloss'), graph: <EntropyPlot r={r} compact /> };
+  const fmt = (v: number | null) => (v === null ? '—' : formatFixed(v, 2));
   const stats: Stat[] = [
-    ['Latest night', fmt(r.lastNight)],
-    ['Your baseline', fmt(r.baselineMedian)],
-    ['Usual range', r.usualLow !== null && r.usualHigh !== null ? `${r.usualLow.toFixed(2)}–${r.usualHigh.toFixed(2)}` : '—'],
+    [t('labs.entropy.stats.latest'), fmt(r.lastNight)],
+    [t('labs.entropy.stats.baseline'), fmt(r.baselineMedian)],
+    [
+      t('labs.entropy.stats.range'),
+      r.usualLow !== null && r.usualHigh !== null ? t('labs.entropy.stats.rangeValue', { low: fmt(r.usualLow), high: fmt(r.usualHigh) }) : '—',
+    ],
   ];
 
   if (r.status === 'collecting') {
     return {
-      ...base, tone: 'wait', mark: 'collecting', chip: 'Collecting', glance: 'Collecting · needs about 3 weeks', found: false,
-      parts: <><Answer text="Learning your usual range" sub="Needs about 3 weeks of nights before it can judge a change." /><EntropyPlot r={r} /><Stats items={stats} /></>,
+      ...base, tone: 'wait', mark: 'collecting', chip: t('labs.entropy.collecting.chip'), glance: t('labs.entropy.collecting.glance'), found: false,
+      parts: (
+        <>
+          <Answer text={t('labs.entropy.collecting.text')} sub={t('labs.entropy.collecting.sub')} />
+          <EntropyPlot r={r} />
+          <Stats items={stats} />
+        </>
+      ),
     };
   }
   if (r.status === 'shift') {
-    const chip = `Shift · ${r.shiftNights} nights`;
+    const chip = t('labs.entropy.shift.chip', { count: r.shiftNights });
     const below = r.recent[r.recent.length - 1].side < 0;
     return {
       ...base, tone: 'found', mark: 'found', chip, glance: chip, found: true,
       parts: (
         <>
-          <Answer text={`${below ? 'Below' : 'Above'} your usual range ${r.shiftNights} nights in a row`} />
+          <Answer text={t('labs.entropy.shift.text', { side: below ? 'below' : 'above', count: r.shiftNights })} />
           <EntropyPlot r={r} />
-          <Callout lead={`Outside your usual range on ${r.shiftNights} recent nights.`}>
-            This metric moves with everyday things: a cold, alcohol, poor sleep, hard training, stress.
-            It doesn't indicate any condition on its own.
-          </Callout>
-          <Stats items={[...stats, ['Shifted for', plural(r.shiftNights, 'night')]]} />
+          <Callout>{rich('labs.entropy.shift.callout', { count: r.shiftNights, b: lead })}</Callout>
+          <Stats items={[...stats, [t('labs.entropy.stats.shifted'), t('labs.entropy.stats.shiftedValue', { count: r.shiftNights })]]} />
         </>
       ),
     };
   }
   const alone = r.recent.filter((p) => p.shifted).length;
   return {
-    ...base, tone: 'quiet', mark: 'quiet', chip: 'Steady', glance: `Steady · ${plural(r.steadyNights, 'night')}`, found: false,
+    ...base, tone: 'quiet', mark: 'quiet', chip: t('labs.entropy.steady.chip'), glance: t('labs.entropy.steady.glance', { count: r.steadyNights }), found: false,
     parts: (
       <>
         <Answer
-          text={`Steady for ${plural(r.steadyNights, 'night')}`}
-          sub={alone ? `${plural(alone, 'night')} fell outside on ${alone === 1 ? 'its' : 'their'} own; it takes 3 in a row to count.` : undefined}
+          text={t('labs.entropy.steady.text', { count: r.steadyNights })}
+          sub={alone ? t('labs.entropy.steady.sub', { count: alone }) : undefined}
         />
         <EntropyPlot r={r} />
         <Stats items={stats} />
@@ -922,9 +915,7 @@ function NightTraceChart({ trace, compact = false }: { trace: NightTrace; compac
       <svg
         viewBox={`0 0 1000 ${H}`} preserveAspectRatio="none" width="100%" height={H} className={`block ${compact ? 'rounded' : 'rounded-md'} bg-[#17171b]`}
         role={compact ? undefined : 'img'}
-        aria-label={compact ? undefined : `Heart rate through the ${what} filed under ${fmtDate(trace.date)}${trace.stretches.length
-          ? `, above 100 bpm for ${plural(trace.stretches.length, 'stretch', 'stretches')}`
-          : ', with no stretch above 100 bpm while asleep'}`}
+        aria-label={compact ? undefined : t('labs.tachy.trace.aria', { kind: what, date: formatCivilLong(trace.date), count: trace.stretches.length })}
       >
         {trace.stretches.map((s, i) => (
           <rect key={i} x={X(s.from)} y={0} width={Math.max(X(s.to) - X(s.from), 3)} height={H} fill={HEX.rose} opacity={0.14} />
@@ -937,13 +928,18 @@ function NightTraceChart({ trace, compact = false }: { trace: NightTrace; compac
           <polyline key={`${i}-${j}`} points={pts} fill="none" stroke={HEX.rose} strokeWidth={compact ? 1.6 : 2} strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
         )))}
       </svg>
-      <Ends compact={compact} left={fmtClock(trace.bedtimeMin)} mid={`${trace.isNap ? 'Nap' : 'Night'} · ${fmtDate(trace.date)}`} right={fmtClock(trace.wakeMin)} />
+      <Ends
+        compact={compact} left={formatClock(trace.bedtimeMin)}
+        mid={t('labs.tachy.trace.mid', { kind: what, date: formatCivilLong(trace.date) })} right={formatClock(trace.wakeMin)}
+      />
       {!compact && (
         <div className="mt-2">
           <Keys items={[
-            [<span className="w-3.5 border-t border-dashed border-rose-400/60" />, '100 bpm'],
-            [<span className="w-3.5 h-0.5 rounded-full bg-zinc-500" />, 'heart rate'],
-            ...(trace.stretches.length ? [[<span className="w-3.5 h-0.5 rounded-full bg-rose-400" />, '10+ minutes above'] as [React.ReactNode, string]] : []),
+            [<span className="w-3.5 border-t border-dashed border-rose-400/60" />, t('labs.tachy.trace.keys.line')],
+            [<span className="w-3.5 h-0.5 rounded-full bg-zinc-500" />, t('labs.tachy.trace.keys.hr')],
+            ...(trace.stretches.length
+              ? [[<span className="w-3.5 h-0.5 rounded-full bg-rose-400" />, t('labs.tachy.trace.keys.above')] as [React.ReactNode, string]]
+              : []),
           ]} />
         </div>
       )}
@@ -956,21 +952,27 @@ function EmptyNight({ compact = false }: { compact?: boolean }) {
     <div
       role={compact ? undefined : 'img'}
       aria-hidden={compact || undefined}
-      aria-label={compact ? undefined : 'One night of sleep with the 100 bpm line; stretches of ten minutes or more above it would show here'}
+      aria-label={compact ? undefined : t('labs.tachy.empty.aria')}
     >
       <div className={`relative ${compact ? 'h-[22px] rounded' : 'h-10 rounded-md'} bg-[#17171b]`}>
         <span className={`absolute inset-x-0 ${compact ? 'top-1.5' : 'top-[10px]'} border-t border-dashed border-rose-400/45`} />
         {!compact && (
           <>
-            <span className="absolute right-1.5 top-0 text-micro leading-none text-zinc-400">100 bpm</span>
-            <span className="absolute inset-x-0 top-[17px] text-center text-note text-zinc-600">10+ minutes above the line would show here</span>
+            <span className="absolute right-1.5 top-0 text-micro leading-none text-zinc-400">{t('labs.tachy.empty.line')}</span>
+            <span className="absolute inset-x-0 top-[17px] text-center text-note text-zinc-600">{t('labs.tachy.empty.hint')}</span>
           </>
         )}
       </div>
-      <Ends compact={compact} left="fell asleep" right="woke up" />
+      <Ends compact={compact} left={t('labs.tachy.empty.asleep')} right={t('labs.tachy.empty.woke')} />
     </div>
   );
 }
+
+const STAGE_NAME: Record<NonNullable<TachycardiaEvent['stage']>, MessageKey> = {
+  deep: 'labs.tachy.events.stages.deep',
+  rem: 'labs.tachy.events.stages.rem',
+  light: 'labs.tachy.events.stages.light',
+};
 
 function EventRows({ events }: { events: TachycardiaEvent[] }) {
   return (
@@ -978,14 +980,16 @@ function EventRows({ events }: { events: TachycardiaEvent[] }) {
       {events.map((e) => (
         <div key={`${e.date}-${e.startMin}-${e.peakBpm}`} className="flex flex-wrap items-center justify-between gap-y-1.5 gap-x-3 py-2 border-t border-zinc-800/60 text-caption">
           <div className="flex items-center gap-2 flex-wrap min-w-0">
-            <span className="text-zinc-200 font-semibold min-w-[76px]">{fmtDate(e.date)}</span>
-            <span className="text-zinc-400 tabular-nums">{fmtClock(e.startMin)} → {fmtClock(e.endMin)} · {e.durationMin} min</span>
+            <span className="text-zinc-200 font-semibold min-w-[76px]">{formatCivilLong(e.date)}</span>
+            <span className="text-zinc-400 tabular-nums">
+              {t('labs.tachy.events.time', { from: formatClock(e.startMin), to: formatClock(e.endMin), minutes: e.durationMin })}
+            </span>
             {e.sleepWindow && (
               <span className="text-note px-1.5 py-0.5 rounded bg-zinc-800/90 text-zinc-300 border border-zinc-700/60 font-medium">{e.sleepWindow}</span>
             )}
-            {e.stage && !['Night sleep', 'Sleep', 'Nap'].includes(e.stage) && <span className="text-note text-zinc-400">{e.stage}</span>}
+            {e.stage && <span className="text-note text-zinc-400">{t(STAGE_NAME[e.stage])}</span>}
           </div>
-          <span className="text-rose-300 font-semibold tabular-nums whitespace-nowrap ml-auto">peak {e.peakBpm} bpm</span>
+          <span className="text-rose-300 font-semibold tabular-nums whitespace-nowrap ml-auto">{t('labs.tachy.events.peak', { bpm: e.peakBpm })}</span>
         </div>
       ))}
     </div>
@@ -994,24 +998,23 @@ function EventRows({ events }: { events: TachycardiaEvent[] }) {
 
 function tachyLab(days: Days, intraday: IntradayDays): Lab {
   const r = nocturnalTachycardia(days, intraday);
-  const base = { key: 'tachy' as const, title: 'Nocturnal tachycardia', gloss: 'high heart rate during sleep' };
+  const base = { key: 'tachy' as const, title: t('labs.tachy.title'), gloss: t('labs.tachy.gloss') };
   const trace = r.trace;
 
   if (r.status === 'collecting' || !trace) {
     const collected = Math.min(completedIntradayDays(intraday).length, 7);
     return {
-      ...base, tone: 'wait', mark: 'collecting', chip: 'Collecting', glance: `Collecting · ${collected} of 7 days`, found: false,
+      ...base, tone: 'wait', mark: 'collecting', chip: t('labs.tachy.collecting.chip'), glance: t('labs.tachy.collecting.glance', { done: collected }), found: false,
       graph: <EmptyNight compact />,
       parts: (
         <>
           <Collecting
-            text="Collecting whole-night heart rate" done={collected} total={7} unit="days"
-            note={collected >= 7
-              ? 'No night has had enough heart-rate readings yet; each sync adds more by itself.'
-              : 'Minute-level detail collects by itself with each sync; no action needed.'}
+            text={t('labs.tachy.collecting.text')} done={collected} total={7}
+            progress={t('labs.tachy.collecting.progress', { done: collected, total: 7 })}
+            note={collected >= 7 ? t('labs.tachy.collecting.waiting') : t('labs.tachy.collecting.note')}
           />
           <EmptyNight />
-          <Stats items={[['Nights scanned', r.nightsScanned], ['Stretches', r.events.length]]} />
+          <Stats items={[[t('labs.tachy.stats.nights'), r.nightsScanned], [t('labs.tachy.stats.stretches'), r.events.length]]} />
         </>
       ),
     };
@@ -1022,30 +1025,30 @@ function tachyLab(days: Days, intraday: IntradayDays): Lab {
     const n = r.events.length;
     const longest = r.events.reduce((a, e) => Math.max(a, e.durationMin), 0);
     const peak = Math.max(...r.events.map((e) => e.peakBpm));
-    const chip = `${plural(n, 'stretch', 'stretches')} · ${r.nightsScanned} nights`;
+    const chip = t('labs.tachy.events.chip', { count: n, nights: r.nightsScanned });
     return {
       ...base, tone: 'found', mark: 'found', chip, glance: chip, found: true, graph,
       parts: (
         <>
-          <Answer text={`${plural(n, 'stretch', 'stretches')} above 100 bpm in ${plural(r.nightsScanned, 'night')}`} />
+          <Answer text={t('labs.tachy.events.text', { count: n, nights: r.nightsScanned })} />
           <NightTraceChart trace={trace} />
           <EventRows events={r.events.slice(-6).reverse()} />
-          <Callout lead={n > 1 ? `${n} stretches in ${r.nightsScanned} nights.` : 'One stretch.'}>
-            Occasional ones are common. If you notice palpitations, chest pain, dizziness or
-            breathlessness, seek medical care.
-          </Callout>
-          <Stats items={[['Nights scanned', r.nightsScanned], ['Stretches', n], ['Longest', `${longest} min`, `peak ${peak}`]]} />
+          <Callout>{rich('labs.tachy.events.callout', { count: n, nights: r.nightsScanned, b: lead })}</Callout>
+          <Stats items={[
+            [t('labs.tachy.stats.nights'), r.nightsScanned], [t('labs.tachy.stats.stretches'), n],
+            [t('labs.tachy.stats.longest'), t('labs.tachy.stats.longestValue', { minutes: longest }), t('labs.tachy.stats.peak', { bpm: peak })],
+          ]} />
         </>
       ),
     };
   }
   return {
-    ...base, tone: 'quiet', mark: 'quiet', chip: 'None found', glance: `None found · ${plural(r.nightsScanned, 'night')}`, found: false, graph,
+    ...base, tone: 'quiet', mark: 'quiet', chip: t('labs.tachy.none.chip'), glance: t('labs.tachy.none.glance', { count: r.nightsScanned }), found: false, graph,
     parts: (
       <>
-        <Answer text="No stretches above 100 bpm" sub={`In ${plural(r.nightsScanned, 'night')} with enough heart-rate data.`} />
+        <Answer text={t('labs.tachy.none.text')} sub={t('labs.tachy.none.sub', { count: r.nightsScanned })} />
         <NightTraceChart trace={trace} />
-        <Stats items={[['Nights scanned', r.nightsScanned], ['Stretches', 0]]} />
+        <Stats items={[[t('labs.tachy.stats.nights'), r.nightsScanned], [t('labs.tachy.stats.stretches'), 0]]} />
       </>
     ),
   };
@@ -1057,25 +1060,23 @@ function Intro({ wide = false }: { wide?: boolean }) {
   return (
     <header className={`px-1 ${wide ? 'max-w-3xl' : ''}`}>
       <p className="text-body leading-normal text-zinc-400">
-        Experimental views of <b className="font-semibold text-zinc-50">multi-week patterns in your wearable data</b>, each
-        against your own usual range.
+        {rich('labs.intro.lead', { b: (w) => <b className="font-semibold text-zinc-50">{w}</b> })}
       </p>
       <p className="mt-2 flex gap-2 text-caption leading-relaxed text-zinc-500">
         <Info size={14} aria-hidden className="shrink-0 mt-px text-zinc-400" />
-        <span>
-          Healthier is not a medical device: these cards don't detect, screen for or rule out any condition, and a
-          quiet card isn't an all-clear. If you have symptoms or concerns, talk to a clinician.
-        </span>
+        <span>{t('labs.intro.disclaimer')}</span>
       </p>
     </header>
   );
 }
 
 function Legend() {
-  const items: [Mark, string][] = [['quiet', 'nothing found'], ['collecting', 'collecting or waiting'], ['reported', 'from your device'], ['found', 'pattern found']];
+  const items: [Mark, MessageKey][] = [
+    ['quiet', 'labs.legend.quiet'], ['collecting', 'labs.legend.collecting'], ['reported', 'labs.legend.reported'], ['found', 'labs.legend.found'],
+  ];
   return (
     <div className="flex flex-wrap gap-x-3.5 gap-y-1.5 py-2.5 text-note text-zinc-500">
-      {items.map(([mark, label]) => <span key={mark} className="flex items-center gap-1.5"><StatusIcon mark={mark} size={12} />{label}</span>)}
+      {items.map(([mark, label]) => <span key={mark} className="flex items-center gap-1.5"><StatusIcon mark={mark} size={12} />{t(label)}</span>)}
     </div>
   );
 }
@@ -1139,7 +1140,7 @@ function Overview({ labs }: { labs: Lab[] }) {
     document.getElementById(`lab-${key}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
   return (
-    <nav aria-label="Labs at a glance" className="grid grid-cols-3 gap-2.5">
+    <nav aria-label={t('labs.overview.label')} className="grid grid-cols-3 gap-2.5">
       {labs.map((lab) => (
         <a
           key={lab.key} href={`#lab-${lab.key}`} onClick={(e) => jump(e, lab.key)}
@@ -1164,10 +1165,10 @@ export function LabsView({ data, intraday = {} }: { data: SyncResult; intraday?:
     return (
       <div>
         <Intro />
-        <section aria-label="Labs" className="mt-4 flex flex-col gap-2">
+        <section aria-label={t('labs.list.label')} className="mt-4 flex flex-col gap-2">
           <div className="flex items-baseline justify-between px-1">
-            <span className="text-eyebrow-sm font-bold uppercase text-zinc-500">{labs.length} labs</span>
-            <span className="text-note text-zinc-600">tap one to open it</span>
+            <span className="text-eyebrow-sm font-bold uppercase text-zinc-500">{t('labs.list.count', { count: labs.length })}</span>
+            <span className="text-note text-zinc-600">{t('labs.list.hint')}</span>
           </div>
           {labs.map((lab) => <LabRow key={lab.key} lab={lab} />)}
           <div className="px-1"><Legend /></div>
