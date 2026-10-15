@@ -24,6 +24,7 @@ import { answerFromRows } from '../incremental';
 import { emptyRecord } from '../normalize';
 import type { SyncResult } from '../sync';
 import { formatCivilDay, formatCivilRange } from '../../i18n/format';
+import { t } from '../../i18n';
 
 /** Every test runs against a fixed "today" so the 62-day window is deterministic. */
 const NOW = new Date('2026-08-19T01:39:00+02:00');
@@ -711,8 +712,8 @@ function syntheticDays(
   return days;
 }
 
-const part = (r: ReturnType<typeof readiness>, label: string) =>
-  r.parts.find((p) => p.label === label);
+const part = (r: ReturnType<typeof readiness>, id: ReturnType<typeof readiness>['parts'][number]['id']) =>
+  r.parts.find((p) => p.id === id);
 
 describe('readiness v2', () => {
   it('scores a fully typical day near the 70-point neutral', () => {
@@ -728,8 +729,8 @@ describe('readiness v2', () => {
     // magnitude (before the deliberate cap on the upside).
     const up = readiness(syntheticDays(28, { hrv: 34 * 1.15 }));
     const down = readiness(syntheticDays(28, { hrv: 34 / 1.15 }));
-    const cUp = part(up, 'HRV vs baseline')!.contribution;
-    const cDown = part(down, 'HRV vs baseline')!.contribution;
+    const cUp = part(up, 'hrv')!.contribution;
+    const cDown = part(down, 'hrv')!.contribution;
     assert.ok(cUp > 0 && cDown < 0);
     // The downside is allowed to be *larger* (suppression matters more), never smaller.
     assert.ok(Math.abs(cDown) >= Math.abs(cUp) - 0.01, `${cDown} vs ${cUp}`);
@@ -738,8 +739,8 @@ describe('readiness v2', () => {
   it('caps the HRV upside and applies the saturation guard far above baseline', () => {
     const moderate = readiness(syntheticDays(28, { hrv: 38 }));
     const extreme = readiness(syntheticDays(28, { hrv: 80 }));
-    const cMod = part(moderate, 'HRV vs baseline')!.contribution;
-    const pExt = part(extreme, 'HRV vs baseline')!;
+    const cMod = part(moderate, 'hrv')!.contribution;
+    const pExt = part(extreme, 'hrv')!;
     // A wildly elevated night must not earn more than a solidly good one.
     assert.ok(pExt.contribution <= 14.01, `extreme HRV earned ${pExt.contribution}`);
     assert.ok(pExt.contribution <= Math.max(cMod, 8) + 0.01);
@@ -749,7 +750,7 @@ describe('readiness v2', () => {
 
   it('penalises suppressed HRV more than the same-sized elevation is rewarded', () => {
     const low = readiness(syntheticDays(28, { hrv: 20 }));
-    const c = part(low, 'HRV vs baseline')!.contribution;
+    const c = part(low, 'hrv')!.contribution;
     assert.ok(c <= -12, `deep suppression only cost ${c}`);
     assert.ok(c >= -20.01, 'floor respected');
   });
@@ -757,8 +758,8 @@ describe('readiness v2', () => {
   it('treats resting HR asymmetrically: elevation costs more than suppression earns', () => {
     const up = readiness(syntheticDays(28, { restingHr: 70 }));   // well above 62
     const down = readiness(syntheticDays(28, { restingHr: 54 })); // equally below
-    const cUp = part(up, 'Resting HR vs baseline')!.contribution;
-    const cDown = part(down, 'Resting HR vs baseline')!.contribution;
+    const cUp = part(up, 'restingHr')!.contribution;
+    const cDown = part(down, 'restingHr')!.contribution;
     assert.ok(cUp < 0 && cDown > 0);
     assert.ok(Math.abs(cUp) > Math.abs(cDown), `${cUp} vs +${cDown}`);
     assert.ok(cDown <= 6.01, 'suppression bonus is capped small');
@@ -768,7 +769,7 @@ describe('readiness v2', () => {
     // A chronic 5.5h sleeper: the need clamps to 420, so another 5.5h night
     // still reads as short — restriction must not redefine "enough".
     const short = readiness(syntheticDays(28, {}, { sleepMin: 330 }));
-    const p = part(short, 'Last night’s sleep')!;
+    const p = part(short, 'sleep')!;
     assert.ok(p.contribution < -5, `chronic short sleep scored ${p.contribution}`);
     assert.match(p.detail, /7h 00m need/);
   });
@@ -781,32 +782,32 @@ describe('readiness v2', () => {
     for (let i = 20; i < 27; i++) debtDays[i].sleep!.minutesAsleep = 330; // short prior week
     const indebted = readiness(debtDays);
     assert.ok(indebted.score! < rested.score!, 'a short prior week must lower the score');
-    const p = part(indebted, 'Recent sleep debt')!;
+    const p = part(indebted, 'sleepDebt')!;
     assert.ok(p.contribution <= -4, `debt contribution was ${p.contribution}`);
     assert.match(p.detail, /short of need/);
   });
 
   it('penalises elevated breathing but pays nothing for low breathing', () => {
     const high = readiness(syntheticDays(28, { resp: 17.5 }));
-    assert.ok(part(high, 'Breathing rate')!.contribution < 0);
+    assert.ok(part(high, 'breathing')!.contribution < 0);
     const low = readiness(syntheticDays(28, { resp: 11 }));
-    assert.equal(part(low, 'Breathing rate'), undefined, 'no bonus for a low rate');
+    assert.equal(part(low, 'breathing'), undefined, 'no bonus for a low rate');
   });
 
   it('penalises elevated skin temperature but ignores cool nights', () => {
     const warm = readiness(syntheticDays(28, { tempDev: 0.9 }));
-    const p = part(warm, 'Skin temperature')!;
+    const p = part(warm, 'skinTemp')!;
     assert.ok(p.contribution < -3);
     assert.match(p.detail, /\+0\.90/);
     const cool = readiness(syntheticDays(28, { tempDev: -0.6 }));
-    assert.equal(part(cool, 'Skin temperature'), undefined);
+    assert.equal(part(cool, 'skinTemp'), undefined);
   });
 
   it('drags the score slightly for unusually hard recent activity', () => {
     const days = syntheticDays(28);
     days[25].steps = 24000; // two hard finished days
     days[26].steps = 24000;
-    const p = part(readiness(days), 'Recent strain')!;
+    const p = part(readiness(days), 'strain')!;
     assert.ok(p.contribution < 0 && p.contribution >= -7.01);
   });
 
@@ -814,10 +815,7 @@ describe('readiness v2', () => {
     const oneOff = readiness(syntheticDays(28, { restingHr: 70 }));
     assert.equal(oneOff.flags.length, 0, 'one deviating signal is noise, not a pattern');
     const pattern = readiness(syntheticDays(28, { restingHr: 70, resp: 17.5, tempDev: 0.8, hrv: 24 }));
-    assert.equal(pattern.flags.length, 1);
-    // A deviation pattern with everyday explanations, never a prediction of illness.
-    assert.match(pattern.flags[0], /several overnight signals/i);
-    assert.doesNotMatch(pattern.flags[0], /precedes illness|diagnos/i);
+    assert.deepEqual(pattern.flags, ['illness']);
     assert.ok(pattern.score! < 50, `illness-like morning scored ${pattern.score}`);
   });
 
@@ -828,7 +826,7 @@ describe('readiness v2', () => {
     days.forEach((d, i) => { d.hrvDeepSleep = 33 + [1, -0.5, 0, 0.5, -1][i % 5] * 4; });
     days[days.length - 1].hrv = 90;
     const r = readiness(days);
-    const p = part(r, 'HRV vs baseline')!;
+    const p = part(r, 'hrv')!;
     assert.ok(Math.abs(p.contribution) < 6, `deep-sleep series should dominate, got ${p.contribution}`);
     assert.match(p.detail, /deep-sleep RMSSD/);
   });
@@ -840,8 +838,8 @@ describe('readiness v2', () => {
     const badWeek = syntheticDays(28, { hrv: 24 });
     for (let i = 21; i < 27; i++) badWeek[i].hrv = 25 + (i % 2);
     const sustained = readiness(badWeek);
-    const cNight = part(oneBadNight, 'HRV vs baseline')!.contribution;
-    const cWeek = part(sustained, 'HRV vs baseline')!.contribution;
+    const cNight = part(oneBadNight, 'hrv')!.contribution;
+    const cWeek = part(sustained, 'hrv')!.contribution;
     assert.ok(cWeek < cNight, `sustained suppression (${cWeek}) must outweigh one night (${cNight})`);
   });
 
@@ -856,13 +854,13 @@ describe('readiness v2', () => {
     }
     // The fixture's final morning: HRV high vs baseline, RHR at baseline,
     // 5h32m sleep against a 7h-clamped need → sleep drags, HRV lifts.
-    assert.ok(part(r, 'Last night’s sleep')!.contribution < 0);
-    assert.ok(part(r, 'HRV vs baseline')!.contribution > 0);
+    assert.ok(part(r, 'sleep')!.contribution < 0);
+    assert.ok(part(r, 'hrv')!.contribution > 0);
   });
 });
 
 describe('battery arithmetic', () => {
-  const hrvPart = (r: ReturnType<typeof readiness>) => part(r, 'HRV vs baseline')?.contribution ?? null;
+  const hrvPart = (r: ReturnType<typeof readiness>) => part(r, 'hrv')?.contribution ?? null;
 
   it("doesn't fall as today's steps climb", () => {
     const morning = syntheticDays(28, { steps: 500 });
@@ -873,14 +871,14 @@ describe('battery arithmetic', () => {
   it('gives a new account no strain verdict instead of a baseline of zero', () => {
     const days = syntheticDays(8);
     days[6].steps = 20000; // a big yesterday, but too little history to judge it by
-    assert.equal(part(readiness(days), 'Recent strain'), undefined);
+    assert.equal(part(readiness(days), 'strain'), undefined);
   });
 
   it('never mixes zone minutes and steps in one series', () => {
     // Zone minutes for three weeks, then a week without: steps must not be judged against minutes.
     const days = syntheticDays(28);
     days.forEach((d, i) => { d.zoneMinutes = i < 20 ? { fatBurn: 20, cardio: 5, peak: 0 } : null; });
-    assert.equal(part(readiness(days), 'Recent strain'), undefined);
+    assert.equal(part(readiness(days), 'strain'), undefined);
   });
 
   it('pays no more for an HRV spike than its own blend, so there is no cliff at the guard', () => {
@@ -889,7 +887,7 @@ describe('battery arithmetic', () => {
     const night = (hrv: number) => {
       const days = syntheticDays(28, { hrv });
       for (let i = 21; i < 27; i++) days[i].hrv = 20;
-      return part(readiness(days), 'HRV vs baseline')!;
+      return part(readiness(days), 'hrv')!;
     };
     let prev: number | null = null;
     let guarded = false;
@@ -915,8 +913,8 @@ describe('battery arithmetic', () => {
     const clean = syntheticDays(28, { restingHr: 66 });
     const withOutlier = syntheticDays(28, { restingHr: 66 });
     withOutlier[10].restingHr = 85;
-    const a = part(readiness(clean), 'Resting HR vs baseline')!.contribution;
-    const b = part(readiness(withOutlier), 'Resting HR vs baseline')!.contribution;
+    const a = part(readiness(clean), 'restingHr')!.contribution;
+    const b = part(readiness(withOutlier), 'restingHr')!.contribution;
     assert.ok(Math.abs(a - b) < 2, `${a} without the outlier, ${b} with it`);
   });
 
@@ -924,7 +922,7 @@ describe('battery arithmetic', () => {
     // A near-flat baseline must not turn a tenth of a breath into a big penalty.
     const days = syntheticDays(28, { resp: 14.35 });
     days.forEach((d, i) => { if (i < 27) d.respiratoryRate = 14 + (i % 2) * 0.05; });
-    const p = part(readiness(days), 'Breathing rate');
+    const p = part(readiness(days), 'breathing');
     assert.ok(!p || p.contribution > -1.5, `penalty ${p?.contribution}`);
   });
 
@@ -936,15 +934,15 @@ describe('battery arithmetic', () => {
     night.efficiency = 99;
     plain[27].sleep!.efficiency = 99;
     night.stages = { deep: 40, rem: 50, light: night.minutesAsleep - 90, awake: 10 };
-    const withStages = part(readiness(staged), 'Last night’s sleep')!.contribution;
-    const without = part(readiness(plain), 'Last night’s sleep')!.contribution;
+    const withStages = part(readiness(staged), 'sleep')!.contribution;
+    const without = part(readiness(plain), 'sleep')!.contribution;
     assert.ok(withStages <= without, `${withStages} > ${without}`);
   });
 
   it('falls back to the overnight HRV when deep-sleep RMSSD is too new for a baseline', () => {
     const days = syntheticDays(28);
     for (let i = 13; i < 28; i++) days[i].hrvDeepSleep = 30;
-    const p = part(readiness(days), 'HRV vs baseline');
+    const p = part(readiness(days), 'hrv');
     assert.ok(p, 'HRV must not drop out');
     assert.match(p!.detail, /overnight RMSSD/);
   });
@@ -961,9 +959,9 @@ describe('battery arithmetic', () => {
       }
     });
     const r = readiness(days);
-    assert.equal(part(r, 'HRV vs baseline'), undefined);
-    assert.equal(part(r, 'Resting HR vs baseline'), undefined);
-    assert.deepEqual(r.calibrating, ['HRV', 'resting heart rate']);
+    assert.equal(part(r, 'hrv'), undefined);
+    assert.equal(part(r, 'restingHr'), undefined);
+    assert.deepEqual(r.calibrating, ['hrv', 'restingHr']);
     assert.equal(r.confidence, 'low');
   });
 
@@ -974,7 +972,7 @@ describe('battery arithmetic', () => {
     assert.equal(batteryTier(54).tag, 'LOW');
     assert.equal(batteryTier(30).tag, 'LOW');
     assert.equal(batteryTier(29).tag, 'DRAINED');
-    assert.equal(readiness(syntheticDays(28)).label, batteryTier(readiness(syntheticDays(28)).score!).label);
+    assert.equal(readiness(syntheticDays(28)).label, t(batteryTier(readiness(syntheticDays(28)).score!).label));
   });
 });
 
@@ -2378,8 +2376,8 @@ describe('one today: freshness, partial days, the demo clock', () => {
     const days = syntheticDays(28);
     for (let i = 25; i < 28; i++) days[i].sleep = null;
     const r = readiness(days);
-    assert.equal(part(r, 'Last night’s sleep'), undefined);
-    assert.equal(part(r, 'Recent sleep debt'), undefined);
+    assert.equal(part(r, 'sleep'), undefined);
+    assert.equal(part(r, 'sleepDebt'), undefined);
     assert.equal(r.confidence, 'medium');
   });
 
@@ -2594,8 +2592,8 @@ describe('goals', () => {
     assert.deepEqual(readiness(days, null), readiness(days), 'automatic is the estimate');
     const nine = readiness(days, 540);
     assert.ok(nine.score! < readiness(days).score!, 'a 9-hour need makes a 7.5-hour night short');
-    assert.match(part(nine, 'Last night’s sleep')!.detail, /vs 9h 00m need/, 'a need that is set is exact, not "~"');
-    assert.match(part(readiness(days), 'Last night’s sleep')!.detail, /vs ~7h 30m need/);
+    assert.match(part(nine, 'sleep')!.detail, /vs 9h 00m need/, 'a need that is set is exact, not "~"');
+    assert.match(part(readiness(days), 'sleep')!.detail, /vs ~7h 30m need/);
     assert.equal(cardWith(days, 'sleep-need', withGoals({ sleepNeed: 480 }))?.text,
       'Your sleep cards measure each night against the 8h you set on the Data tab. Your nights are usually about 7h 30m.');
     assert.equal(todaySummary(dsOf(days), MORNING, { goals: withGoals({ sleepNeed: 480 }) }).sleepTargetMin, 480);

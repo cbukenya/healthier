@@ -1,5 +1,6 @@
 import React, { useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { bucketLabel, formatCivil, formatClock } from '../i18n/format';
+import { t, type MessageKey } from '../i18n';
+import { bucketLabel, formatCivil, formatClock, formatDuration, formatMinutes } from '../i18n/format';
 import { sleepRegularity, typicalSleepWindow } from '../pipeline/derive';
 import { groupNights, type Bucket } from '../pipeline/aggregate';
 import { emptyRecord } from '../pipeline/normalize';
@@ -45,22 +46,27 @@ const STAGE_FILL: [key: 'deep' | 'rem' | 'light' | 'awake', color: string][] = [
   ['awake', '#d8b48a'],
 ];
 
-const REG_COPY: Record<string, { label: string; color: string; text: string }> = {
-  excellent: { label: 'VERY REGULAR', color: '#22c55e', text: 'You fall asleep and wake at nearly the same times every day.' },
-  good: { label: 'REGULAR', color: '#6ee7b7', text: 'Your timing holds fairly steady from night to night.' },
-  bad: { label: 'IRREGULAR', color: '#eab308', text: 'Your timing shifts by hours from night to night. Regular timing predicts how you feel better than total hours do.' },
-  critical: { label: 'VERY IRREGULAR', color: '#f43f5e', text: 'No steady schedule in these nights: your body clock rarely gets the same day twice.' },
+/** The stages' names, the same set the hypnogram and every sleep card use. */
+const STAGE_LABELS = {
+  deep: 'sleep.stages.deep',
+  rem: 'sleep.stages.rem',
+  light: 'sleep.stages.light',
+  awake: 'sleep.stages.awake',
+} as const satisfies Record<(typeof STAGE_FILL)[number][0], MessageKey>;
+
+const REG_COPY: Record<string, { label: MessageKey; color: string; text: MessageKey }> = {
+  excellent: { label: 'sleep.window.regularity.bands.excellent.label', color: '#22c55e', text: 'sleep.window.regularity.bands.excellent.text' },
+  good: { label: 'sleep.window.regularity.bands.good.label', color: '#6ee7b7', text: 'sleep.window.regularity.bands.good.text' },
+  bad: { label: 'sleep.window.regularity.bands.bad.label', color: '#eab308', text: 'sleep.window.regularity.bands.bad.text' },
+  critical: { label: 'sleep.window.regularity.bands.critical.label', color: '#f43f5e', text: 'sleep.window.regularity.bands.critical.text' },
 };
 
 /** Fold a minutes-of-day onto an 18:00-anchored evening→next-noon line. */
 const EVENING = 18 * 60;
 const fold = (m: number) => (m >= EVENING ? m : m + 1440);
 
-const signed = (mins: number) => {
-  const a = Math.abs(Math.round(mins));
-  const body = a >= 60 ? `${Math.floor(a / 60)}h ${String(a % 60).padStart(2, '0')}m` : `${a}m`;
-  return `${mins < 0 ? '−' : '+'}${body}`;
-};
+const signed = (mins: number) =>
+  Math.abs(Math.round(mins)) >= 60 ? formatDuration(mins, { signed: true }) : formatMinutes(mins, { signed: true });
 
 export function SleepWindowChart({
   days,
@@ -97,7 +103,6 @@ export function SleepWindowChart({
   // Rows render newest-first, matching the nights list beside this chart.
   const rows = useMemo(() => (bucket === 'day' ? [...days].reverse() : bucketRows(days, bucket)), [days, bucket]);
   const rowLabel = (date: string) => (bucket === 'day' ? formatCivil(date) : bucketLabel(date, bucket));
-  const unitName = bucket === 'day' ? 'night' : bucket;
   const nights = rows.filter((d) => d.sleep);
 
   // ── adaptive geometry
@@ -145,7 +150,7 @@ export function SleepWindowChart({
   if (!nights.length) {
     return (
       <Card>
-        <CardHead domain="sleep" title="Sleep window" hint="No recorded nights in this span." />
+        <CardHead domain="sleep" title={t('sleep.window.title')} hint={t('sleep.window.empty')} />
       </Card>
     );
   }
@@ -156,29 +161,25 @@ export function SleepWindowChart({
         <div className="min-w-0">
           <h3 className="font-display text-title-sm text-zinc-100 flex items-center gap-2">
             <span className="w-1.5 h-1.5 rounded-full bg-indigo-500/10 ring-2 ring-indigo-500/25" />
-            Sleep window
+            {t('sleep.window.title')}
           </h3>
           <p className="text-caption text-zinc-500 mt-1 leading-relaxed max-w-none sm:max-w-md">
-            {bucket === 'day'
-              ? 'One bar per night, bed to wake, coloured by stage.'
-              : `One bar per ${unitName}: its typical bedtime and time in bed, coloured by average stage.`}{' '}
-            {typical
-              ? `The dashed lines are your average bedtime and wake time over these ${typical.nights} nights, shaded by how much they vary.`
-              : 'Your average bedtime and wake time appear once there are three nights.'}{' '}
-            Empty rows are {unitName}s with no record.
+            {t('sleep.window.bars', { bucket })}{' '}
+            {typical ? t('sleep.window.lines', { count: typical.nights }) : t('sleep.window.noLines')}{' '}
+            {t('sleep.window.emptyRows', { bucket })}
           </p>
         </div>
 
         {/* ── Sleep Regularity Index, computed over exactly these days ── */}
         <div className="text-left sm:text-right shrink-0 w-full sm:w-auto sm:max-w-[280px] pt-3 sm:pt-0 border-t border-zinc-800/60 sm:border-t-0">
           <div className="text-eyebrow uppercase text-zinc-500">
-            Sleep regularity
+            {t('sleep.window.regularity.title')}
           </div>
           {reg ? (
             <>
               <div className="flex sm:block items-baseline gap-2.5 sm:gap-0 mt-0.5 sm:mt-0">
                 <div className="text-tag sm:text-tag-lg" style={{ color: REG_COPY[reg.band].color }}>
-                  {REG_COPY[reg.band].label}
+                  {t(REG_COPY[reg.band].label)}
                 </div>
                 <div className="font-display text-number-sm sm:text-number-md text-zinc-50 tabular-nums leading-tight">
                   {reg.score}
@@ -186,13 +187,12 @@ export function SleepWindowChart({
                 </div>
               </div>
               <p className="text-note text-zinc-500 mt-1.5 leading-relaxed">
-                {REG_COPY[reg.band].text} Scored from how often you're asleep or awake at the same clock
-                times on back-to-back days ({reg.pairs} pairs of nights).
+                {t(REG_COPY[reg.band].text)} {t('sleep.window.regularity.basis', { count: reg.pairs })}
               </p>
             </>
           ) : (
             <p className="text-note text-zinc-500 mt-1.5 leading-relaxed">
-              Needs five back-to-back recorded nights in this span.
+              {t('sleep.window.regularity.needsNights')}
             </p>
           )}
         </div>
@@ -200,7 +200,7 @@ export function SleepWindowChart({
 
       <div ref={box} className="mx-3 mb-2">
         <svg viewBox={`0 0 ${W} ${H}`} className="w-full block" style={{ height: 'auto' }} role="img"
-          aria-label={typical ? 'Sleep sessions against your average sleep window' : 'Sleep sessions'}>
+          aria-label={typical ? t('sleep.window.chart') : t('sleep.window.chartNoAverage')}>
           {typical && winA !== null && winB !== null && (
             <>
               {/* window band between the two lines */}
@@ -214,12 +214,12 @@ export function SleepWindowChart({
                 height={H - PT - PB + 16} fill={lineColor} opacity={0.06} />
 
               {([
-                [winA, `${narrow ? 'bed' : 'avg bed'} ${formatClock(typical.bedMean)}`, 'before'],
-                [winB, `${narrow ? 'wake' : 'avg wake'} ${formatClock(typical.wakeMean)}`, 'after'],
+                [winA, t(narrow ? 'sleep.window.averageBedNarrow' : 'sleep.window.averageBed', { time: formatClock(typical.bedMean) }), 'before'],
+                [winB, t(narrow ? 'sleep.window.averageWakeNarrow' : 'sleep.window.averageWake', { time: formatClock(typical.wakeMean) }), 'after'],
               ] as const).map(([m, lbl, side]) => {
                 const at = lineLabel(m, lbl, side);
                 return (
-                  <g key={lbl}>
+                  <g key={side}>
                     <line x1={x(m)} x2={x(m)} y1={PT - 8} y2={H - PB + 8}
                       stroke={lineColor} strokeWidth={1.2} strokeDasharray="4 4" opacity={0.85} />
                     <text x={at.x} y={PT - 12} textAnchor={at.anchor} fontSize={10} fill={lineColor} opacity={0.95}>
@@ -237,7 +237,7 @@ export function SleepWindowChart({
               <line x1={x(m)} x2={x(m)} y1={PT - 4} y2={H - PB + 4}
                 stroke={m % 1440 === 0 ? '#2c2c32' : '#1c1c20'} strokeWidth={m % 1440 === 0 ? 1.2 : 1} />
               <text x={x(m)} y={H - PB + 16} textAnchor="middle" fontSize={9.5} fill="#52525b">
-                {String(Math.floor((m % 1440) / 60)).padStart(2, '0')}:00
+                {formatClock(m)}
               </text>
             </g>
           ))}
@@ -293,7 +293,14 @@ export function SleepWindowChart({
                           if (wpx <= 0) return null;
                           const el = (
                             <rect key={k} x={cursor} y={y} width={wpx + 0.5} height={BAR} fill={color}>
-                              <title>{`${bucket === 'day' ? formatCivil(d.date) : bucketLabel(d.date, bucket, 'full')} · ${k} ${s.stages![k]} min${bucket === 'day' ? '' : ' a night'}`}</title>
+                              <title>
+                                {t('sleep.window.stage', {
+                                  bucket,
+                                  date: bucket === 'day' ? formatCivil(d.date) : bucketLabel(d.date, bucket, 'full'),
+                                  stage: t(STAGE_LABELS[k]),
+                                  minutes: s.stages![k],
+                                })}
+                              </title>
                             </rect>
                           );
                           cursor += wpx;
@@ -320,7 +327,7 @@ export function SleepWindowChart({
                   if (Math.abs(dev) >= 10) {
                     rowEls.push(
                       <text key="dev" x={W - PR + 66} y={cy + 3.5} fontSize={9} fill="#6b6f78">
-                        {signed(dev)} bed
+                        {t('sleep.window.bedOffset', { offset: signed(dev) })}
                       </text>,
                     );
                   }
@@ -337,13 +344,13 @@ export function SleepWindowChart({
         {STAGE_FILL.map(([k, color]) => (
           <span key={k} className="flex items-center gap-1.5 text-note uppercase tracking-wider text-zinc-500">
             <i className="w-2.5 h-2.5 rounded-sm" style={{ background: color }} />
-            {k}
+            {t(STAGE_LABELS[k])}
           </span>
         ))}
         {typical && (
           <span className="flex items-center gap-1.5 text-note uppercase tracking-wider text-zinc-500">
             <i className="w-3 h-2.5 rounded-[2px] border border-dashed" style={{ borderColor: '#818cf8aa' }} />
-            {`avg window ${formatClock(typical.bedMean)}–${formatClock(typical.wakeMean)}`}
+            {t('sleep.window.averageWindow', { bed: formatClock(typical.bedMean), wake: formatClock(typical.wakeMean) })}
           </span>
         )}
       </div>

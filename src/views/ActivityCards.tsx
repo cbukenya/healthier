@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { Footprints } from 'lucide-react';
 import type { CivilDate } from '../lib/date';
-import { formatCivilLong, formatCivilRange, formatThousands, weekdayLetter, weekdayShort } from '../i18n/format';
+import { t } from '../i18n';
+import { rich } from '../i18n/react';
+import { formatCivilLong, formatCivilRange, formatInteger, formatThousands, weekdayLetter, weekdayShort } from '../i18n/format';
 import type { PeriodShift } from '../pipeline/derive';
 import { Card, CardHead, CardSummary, DOMAIN, Delta, Meter, Row, fmtNum } from '../ui/primitives';
 import type { DailyRecord } from '../types/health';
@@ -23,12 +25,12 @@ export function TodaySoFar({ day, isToday, wide }: { day: DailyRecord; isToday: 
   const brisk = briskOf(day);
   const reached = [steps >= goals.steps, ...(brisk === null ? [] : [brisk >= goals.briskMinutes])];
   const met = reached.filter(Boolean).length;
-  const goalNote = reached.length === 2 ? `${met} of 2 goals met` : met ? 'Step goal met' : null;
+  const goalNote = reached.length === 2 ? t('activity.day.goalsMet', { met }) : met ? t('activity.day.stepGoalMet') : null;
 
   return (
     <Card className="px-[18px] pt-4 pb-[18px] md:px-5 flex flex-col gap-3.5">
       <div className="flex items-baseline justify-between gap-2">
-        <h2 className="font-display text-title text-zinc-50">{isToday ? 'Today so far' : `Latest day, ${formatCivilLong(day.date)}`}</h2>
+        <h2 className="font-display text-title text-zinc-50">{isToday ? t('activity.day.title') : t('activity.day.latest', { date: formatCivilLong(day.date) })}</h2>
         {goalNote && <span className="text-detail text-zinc-400 whitespace-nowrap">{goalNote}</span>}
       </div>
       {/* Distance sits under the rings and energy under the two goals, so the four figures wrap the rings at every width. */}
@@ -39,14 +41,18 @@ export function TodaySoFar({ day, isToday, wide }: { day: DailyRecord; isToday: 
             { value: steps, goal: goals.steps, color: DOMAIN.movement.hex },
             { value: brisk, goal: goals.briskMinutes, color: BRISK_HEX },
           ]}
-          label={`Steps: ${fmtNum(steps, 0)} of ${fmtNum(goals.steps, 0)}. Brisk minutes: ${brisk === null ? 'not recorded' : `${brisk} of ${goals.briskMinutes}`}.`}
+          label={
+            brisk === null
+              ? t('activity.day.ringsNoBrisk', { steps: fmtNum(steps, 0), stepGoal: fmtNum(goals.steps, 0) })
+              : t('activity.day.rings', { steps: fmtNum(steps, 0), stepGoal: fmtNum(goals.steps, 0), brisk, briskGoal: goals.briskMinutes })
+          }
         />
         <div className="flex flex-col gap-3.5 md:gap-4 min-w-0">
-          <GoalValue color={DOMAIN.movement.hex} label="Steps" value={fmtNum(steps, 0)} goal={`/ ${fmtNum(goals.steps, 0)}`} />
-          <GoalValue color={BRISK_HEX} label="Brisk minutes" value={brisk === null ? '—' : fmtNum(brisk, 0)} goal={`/ ${goals.briskMinutes} min`} />
+          <GoalValue color={DOMAIN.movement.hex} label={t('activity.day.steps')} value={fmtNum(steps, 0)} goal={t('activity.day.stepGoal', { goal: fmtNum(goals.steps, 0) })} />
+          <GoalValue color={BRISK_HEX} label={t('activity.day.brisk')} value={brisk === null ? '—' : fmtNum(brisk, 0)} goal={t('activity.day.briskGoal', { goal: goals.briskMinutes })} />
         </div>
-        <Stat label="Distance" value={fmtNum(day.distanceKm, 2)} unit={day.distanceKm === null ? undefined : 'km'} />
-        <Stat label="Active energy" value={fmtNum(day.activeKcal, 0)} unit={day.activeKcal === null ? undefined : 'kcal'} />
+        <Stat label={t('activity.day.distance')} value={fmtNum(day.distanceKm, 2)} unit={day.distanceKm === null ? undefined : t('units.km')} />
+        <Stat label={t('activity.day.energy')} value={fmtNum(day.activeKcal, 0)} unit={day.activeKcal === null ? undefined : t('units.kcal')} />
       </div>
     </Card>
   );
@@ -68,7 +74,7 @@ export function LastSevenDays({ days, shift, ratio, wide }: {
   const goal = useGoals().steps;
   const steps = days.map((d) => d.steps).filter((s): s is number => s !== null);
   const over = steps.filter((s) => s >= goal).length;
-  const overLabel = `Days over ${formatThousands(goal)}`;
+  const overLabel = t('activity.lastSevenDays.daysOver', { goal: formatThousands(goal) });
   const briskDays = days.map(briskOf).filter((m): m is number => m !== null);
   const brisk = briskDays.length ? briskDays.reduce((a, b) => a + b, 0) : null;
   const ramp = rampOf(ratio);
@@ -76,11 +82,14 @@ export function LastSevenDays({ days, shift, ratio, wide }: {
   const headline = (
     <div>
       <div className="whitespace-nowrap">
-        <span className="font-display text-number-md md:text-number-lg text-zinc-50 tabular-nums">{fmtNum(shift.current, 0)}</span>
-        <span className="text-detail md:text-body-sm text-zinc-500"> steps a day</span>
+        {rich('activity.lastSevenDays.perDay', {
+          count: Math.round(shift.current ?? 0),
+          steps: <span className="font-display text-number-md md:text-number-lg text-zinc-50 tabular-nums">{fmtNum(shift.current, 0)}</span>,
+          muted: (w) => <span className="text-detail md:text-body-sm text-zinc-500">{w}</span>,
+        })}
       </div>
       <div className="mt-1 md:mt-1.5">
-        <Delta value={shift.delta} goodWhen="up" digits={0} suffix="vs the week before" />
+        <Delta value={shift.delta} goodWhen="up" digits={0} phrase="activity.lastSevenDays.vsWeekBefore" />
       </div>
     </div>
   );
@@ -89,7 +98,7 @@ export function LastSevenDays({ days, shift, ratio, wide }: {
   return (
     <Card className="px-[18px] pt-4 pb-3.5 md:px-5 md:pb-[18px] flex flex-col gap-3 md:gap-3.5">
       <div className="flex items-baseline justify-between gap-2">
-        <h2 className="font-display text-title text-zinc-50">Last 7 days</h2>
+        <h2 className="font-display text-title text-zinc-50">{t('activity.lastSevenDays.title')}</h2>
         <span className="text-detail text-zinc-500">{formatCivilRange(days[0].date, days[days.length - 1].date)}</span>
       </div>
       {wide ? (
@@ -105,21 +114,39 @@ export function LastSevenDays({ days, shift, ratio, wide }: {
       )}
       {wide ? (
         <div className="grid grid-cols-3 gap-3">
-          <Stat label={overLabel} value={`${over}`} unit={`of ${steps.length}`} />
-          {brisk !== null && <Stat label="Brisk minutes" value={fmtNum(brisk, 0)} unit={`of ${WHO_WEEK}`} />}
-          {ramp && <Stat label="vs 3 weeks before" value={ramp.change} unit={`· ${ramp.verdict}`} />}
+          <Stat label={overLabel} value={rich('activity.lastSevenDays.daysOverCount', { over, total: steps.length, muted: statUnit })} />
+          {brisk !== null && (
+            <Stat
+              label={t('activity.lastSevenDays.brisk')}
+              value={rich('activity.lastSevenDays.briskTotal', { minutes: fmtNum(brisk, 0), target: WHO_WEEK, muted: statUnit })}
+            />
+          )}
+          {ramp && (
+            <Stat
+              label={t('activity.lastSevenDays.vsThreeWeeks')}
+              value={rich('activity.lastSevenDays.ramp.value', { change: ramp.change, verdict: ramp.verdict, muted: statUnit })}
+            />
+          )}
         </div>
       ) : (
         <div>
-          <Row dense label={overLabel}>{over} of {steps.length}</Row>
+          <Row dense label={overLabel}>{t('activity.lastSevenDays.daysOverCount', { over, total: steps.length })}</Row>
           {brisk !== null && (
-            <Row dense label="Brisk minutes">
-              {fmtNum(brisk, 0)} <span className="text-zinc-500">of {WHO_WEEK}</span>
+            <Row dense label={t('activity.lastSevenDays.brisk')}>
+              {rich('activity.lastSevenDays.briskTotal', {
+                minutes: fmtNum(brisk, 0),
+                target: WHO_WEEK,
+                muted: (w) => <span className="text-zinc-500">{w}</span>,
+              })}
             </Row>
           )}
           {ramp && (
-            <Row dense label="vs the 3 weeks before">
-              {ramp.change} <span className="text-zinc-500">· {ramp.verdict}</span>
+            <Row dense label={t('activity.lastSevenDays.vsThreeWeeksLong')}>
+              {rich('activity.lastSevenDays.ramp.value', {
+                change: ramp.change,
+                verdict: ramp.verdict,
+                muted: (w) => <span className="text-zinc-500">{w}</span>,
+              })}
             </Row>
           )}
         </div>
@@ -150,8 +177,8 @@ export function WeeklyTotals({ weeks }: { weeks: WeekTotal[] }) {
     <Card>
       <CardHead
         domain="movement"
-        title="Weekly totals"
-        hint="Monday to Sunday, finished weeks only. Weeks with fewer than four recorded days are left out."
+        title={t('activity.weekly.title')}
+        hint={t('activity.weekly.hint')}
         right={<CardSummary vals={weeks.map((w) => w.total).reverse()} color={DOMAIN.movement.hex} format={(v) => fmtNum(v, 0)} />}
       />
       <div className="px-5 pb-5 space-y-2">
@@ -162,7 +189,7 @@ export function WeeklyTotals({ weeks }: { weeks: WeekTotal[] }) {
               <Meter pct={(w.total / (goal * 7)) * 100} color={DOMAIN.movement.hex} />
             </div>
             <span className="w-[64px] shrink-0 text-right text-detail text-zinc-200 tabular-nums">{fmtNum(w.total, 0)}</span>
-            <span className="w-[54px] shrink-0 text-right text-note text-zinc-600">{w.days}/7 days</span>
+            <span className="w-[54px] shrink-0 text-right text-note text-zinc-600">{t('activity.weekly.days', { days: w.days })}</span>
           </div>
         ))}
         {weeks.length > WEEKS_SHOWN && (
@@ -172,7 +199,7 @@ export function WeeklyTotals({ weeks }: { weeks: WeekTotal[] }) {
             aria-expanded={showAll}
             className="mt-1.5 w-full min-h-11 rounded-xl border border-[#27272a] text-body-sm text-[#a1a1aa] hover:text-zinc-100 hover:bg-zinc-900 transition-colors"
           >
-            {showAll ? `Show the latest ${WEEKS_SHOWN}` : `Show all ${weeks.length} weeks`}
+            {showAll ? t('activity.weekly.showLatest', { count: WEEKS_SHOWN }) : t('activity.weekly.showAll', { count: weeks.length })}
           </button>
         )}
       </div>
@@ -188,8 +215,13 @@ function rampOf(ratio: number | null): { change: string; verdict: string } | nul
   if (ratio === null || !Number.isFinite(ratio)) return null;
   const pct = Math.round((ratio - 1) * 100);
   return {
-    change: pct === 0 ? 'about the same' : pct < 0 ? `${-pct}% less` : `${pct}% more`,
-    verdict: ratio > 1.5 ? 'a fast ramp' : ratio < 0.8 ? 'easing off' : 'steady',
+    change:
+      pct === 0
+        ? t('activity.lastSevenDays.ramp.same')
+        : pct < 0
+          ? t('activity.lastSevenDays.ramp.less', { percent: formatInteger(-pct) })
+          : t('activity.lastSevenDays.ramp.more', { percent: formatInteger(pct) }),
+    verdict: t(ratio > 1.5 ? 'activity.lastSevenDays.ramp.fast' : ratio < 0.8 ? 'activity.lastSevenDays.ramp.easing' : 'activity.lastSevenDays.ramp.steady'),
   };
 }
 
@@ -243,14 +275,20 @@ function GoalValue({ color, label, value, goal }: { color: string; label: string
   );
 }
 
+/** How a Stat sets the words after its figure: its unit, or the rest of its phrase (the "of 7" in "2 of 7"). */
+const STAT_UNIT = 'font-sans text-caption font-medium text-zinc-500';
+
+/** Sets a message's <muted> words as a Stat's unit, so a phrase like "2 of 7" stays one message. */
+export const statUnit = (words: React.ReactNode[]) => <span className={STAT_UNIT}>{words}</span>;
+
 /** A small figure under an uppercase label, for a card's row of stats. */
-export function Stat({ label, value, unit, tone }: { label: string; value: string; unit?: string; tone?: string }) {
+export function Stat({ label, value, unit, tone }: { label: string; value: React.ReactNode; unit?: string; tone?: string }) {
   return (
     <div className="flex flex-col gap-0.5 min-w-0">
       <span className="text-eyebrow-sm uppercase text-zinc-500">{label}</span>
       <span className={`font-display text-number-xs leading-tight tabular-nums ${tone ?? 'text-zinc-50'}`}>
         {value}
-        {unit && <span className="font-sans text-caption font-medium text-zinc-500"> {unit}</span>}
+        {unit && <span className={STAT_UNIT}> {unit}</span>}
       </span>
     </div>
   );
@@ -267,7 +305,15 @@ function WeekBars({ days, goal, long }: { days: DailyRecord[]; goal: number; lon
   return (
     <div
       role="img"
-      aria-label={`Steps each day: ${days.map((d) => `${formatCivilLong(d.date)}, ${d.steps === null ? 'no data' : fmtNum(d.steps, 0)}`).join('; ')}.`}
+      aria-label={t('activity.lastSevenDays.bars.label', {
+        days: days
+          .map((d) =>
+            d.steps === null
+              ? t('activity.lastSevenDays.bars.noData', { date: formatCivilLong(d.date) })
+              : t('activity.lastSevenDays.bars.day', { date: formatCivilLong(d.date), steps: fmtNum(d.steps, 0) }),
+          )
+          .join(t('activity.lastSevenDays.bars.separator')),
+      })}
     >
       <div className="relative pr-7">
         <div className={`${columns} items-end border-b border-zinc-800`} style={{ height: plot }}>

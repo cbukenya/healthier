@@ -66,12 +66,9 @@ const english = leaves(enUS);
 
 /** Files whose words haven't moved to the language file yet. */
 const PENDING = new Set<string>([
-  'src/charts/SleepWindowChart.tsx',
   'src/charts/heartRate.ts',
-  'src/charts/index.tsx',
   'src/hooks/useHealth.ts',
   'src/lib/api.ts',
-  'src/pipeline/derive.ts',
   'src/pipeline/incremental.ts',
   'src/pipeline/insights/floors.ts',
   'src/pipeline/insights/helpers.ts',
@@ -85,16 +82,9 @@ const PENDING = new Set<string>([
   'src/pipeline/labs.ts',
   'src/pipeline/normalize.ts',
   'src/pipeline/transport.ts',
-  'src/views/ActivityCards.tsx',
-  'src/views/ActivityView.tsx',
-  'src/views/BodyBattery.tsx',
   'src/views/BodyView.tsx',
   'src/views/HeartRateCard.tsx',
   'src/views/LabsView.tsx',
-  'src/views/SleepCards.tsx',
-  'src/views/SleepView.tsx',
-  'src/views/ThisWeek.tsx',
-  'src/views/TodayView.tsx',
   'src/views/VitalsView.tsx',
 ]);
 

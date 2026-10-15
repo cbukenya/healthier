@@ -45,6 +45,18 @@
     "thousands": "{value}k",
     "mean": "{unit, select, week {{count}-week mean} other {{count}-day mean}}"
   },
+  "units": {
+    "bpm": "bpm",
+    "ms": "ms",
+    "km": "km",
+    "kcal": "kcal",
+    "percent": "%",
+    "perMinute": "/min",
+    "minutes": "min",
+    "steps": "steps",
+    "celsius": "°C",
+    "perHour": "/h"
+  },
   "app": {
     "name": "Healthier",
     "signIn": {
@@ -168,6 +180,519 @@
         "data": "Data",
         "movement": "Activity"
       }
+    }
+  },
+  "today": {
+    "battery": {
+      "title": "Body battery",
+      "tiers": {
+        "charged": {
+          "tag": "[CHARGED]",
+          "label": "You're fully charged",
+          "name": "Charged",
+          "figure": "Body battery at {score}, in the Charged stage"
+        },
+        "balanced": {
+          "tag": "[BALANCED]",
+          "label": "You've got plenty in the tank",
+          "name": "Balanced",
+          "figure": "Body battery at {score}, in the Balanced stage"
+        },
+        "low": {
+          "tag": "[LOW]",
+          "label": "Go a little easier today",
+          "name": "Low",
+          "figure": "Body battery at {score}, in the Low stage"
+        },
+        "drained": {
+          "tag": "[DRAINED]",
+          "label": "Your body wants a breather",
+          "name": "Drained",
+          "figure": "Body battery at {score}, in the Drained stage"
+        }
+      },
+      "noData": "[NO DATA]",
+      "composition": "Composed from HRV, resting heart rate, holistic sleep score & architecture against your personal {days}-day baselines, and multi-day ACWR training load.",
+      "outOf": "/ 100",
+      "noReadingsSince": "No readings since {date}",
+      "notEnoughData": "Not enough data",
+      "confidence": {
+        "low": "Low confidence",
+        "medium": "Medium confidence",
+        "high": "High confidence"
+      },
+      "missing": "{count, plural, one {no {signals} last night} other {no {signals} last night}}",
+      "missingSignals": {
+        "hrv": "HRV",
+        "restingHr": "resting heart rate",
+        "sleep": "sleep"
+      },
+      "calibrating": "{count, plural, one {{signals} calibrating to a new device} other {{signals} calibrating to a new device}}",
+      "calibratingSignals": {
+        "hrv": "HRV",
+        "restingHr": "resting heart rate"
+      },
+      "figure": {
+        "empty": "Body battery, no score yet"
+      },
+      "range": "{min} – {max}",
+      "rangeNarrow": "{min}–{max}",
+      "reached": "How it was reached",
+      "parts": {
+        "hrv": {
+          "label": "HRV vs baseline",
+          "detail": "{source, select, deep {{last} ms last night · 7-day {week} vs {typical} ms typical (deep-sleep RMSSD)} other {{last} ms last night · 7-day {week} vs {typical} ms typical (overnight RMSSD)}}",
+          "note": "Your HRV is unusually far above your baseline. Higher is usually better, but a sudden spike can also follow heavy training overload, so treat this peak with mild suspicion."
+        },
+        "restingHr": {
+          "label": "Resting HR vs baseline",
+          "detail": "{value} bpm vs {typical} bpm typical"
+        },
+        "sleep": {
+          "label": "Last night’s sleep",
+          "detail": "{slept} vs {need} need",
+          "detailStages": "{slept} vs {need} need ({restorative}% deep+REM · {efficiency}% eff)",
+          "needApprox": "~{need}"
+        },
+        "sleepDebt": {
+          "label": "Recent sleep debt",
+          "short": "{hours}h short of need across the prior {count, plural, one {# night} other {# nights}}",
+          "banked": "{hours}h banked across the prior {count, plural, one {# night} other {# nights}}"
+        },
+        "breathing": {
+          "label": "Breathing rate",
+          "detail": "{value}/min vs {typical} typical — elevated"
+        },
+        "skinTemp": {
+          "label": "Skin temperature",
+          "detail": "+{value} °C above your baseline"
+        },
+        "strain": {
+          "label": "Recent strain",
+          "high": "multi-day training load significantly above your 28-day baseline",
+          "raised": "recent physical activity above your 28-day usual"
+        }
+      },
+      "showTop": "Show the top {count}",
+      "showAll": "Show all {count, plural, one {# contributor} other {# contributors}}"
+    },
+    "from": "From {date}",
+    "sleep": {
+      "tile": "Last night",
+      "title": "Last night sleep",
+      "score": "Score",
+      "scoreOutOf": "{score} / 100",
+      "restorativeShort": "Deep+REM",
+      "restorative": "Deep + REM",
+      "window": "Window",
+      "asleep": "Asleep",
+      "span": "{from} → {to}",
+      "tileEmpty": "Nothing synced for last night or the night before",
+      "latest": "Most recent night on record: {date}",
+      "emptyTitle": "No sleep recorded",
+      "emptyDetail": "Nothing has synced for last night or the night before."
+    },
+    "activity": {
+      "today": "Activity today",
+      "latest": "Latest activity",
+      "ofGoal": "{percent}% of {goal}",
+      "distance": "Distance",
+      "active": "Active",
+      "brisk": "{minutes} min brisk",
+      "energy": "Energy",
+      "activeKcal": "{kcal} active kcal",
+      "tileEmpty": "No steps synced today or yesterday",
+      "notSynced": "{date} · today hasn't synced yet",
+      "emptyTitle": "No movement data",
+      "emptyDetail": "No steps have synced today or yesterday."
+    },
+    "heart": {
+      "label": "Resting HR",
+      "hrv": "HRV",
+      "usualHrv": "Usual HRV",
+      "empty": "No reading for last night or the night before"
+    },
+    "breathing": {
+      "label": "Breathing",
+      "usual": "Usual",
+      "bloodOxygen": "Blood oxygen",
+      "empty": "No reading for last night or the night before"
+    },
+    "vitals": {
+      "title": "Overnight vitals",
+      "hrv": "HRV",
+      "hrvValue": "{value} <muted>(usual {usual})</muted>",
+      "breathing": "Breathing",
+      "bloodOxygen": "Blood oxygen",
+      "latest": "Most recent vitals on record: {date}",
+      "emptyTitle": "No vitals recorded",
+      "emptyDetail": "No overnight vitals have synced for last night or the night before."
+    },
+    "week": {
+      "title": {
+        "week": "This week",
+        "month": "This month"
+      },
+      "period": "Period",
+      "tabs": {
+        "week": "Week",
+        "month": "Month"
+      },
+      "battery": "Body battery",
+      "monthChart": "Body battery each morning over the last 30 days",
+      "monthChartRange": "Body battery each morning over the last 30 days, averaged {avg}, between {min} and {max}",
+      "monthDay": "{date}: {score}",
+      "monthDayEmpty": "{date}: no score",
+      "average": "Averaged {avg}, between {min} and {max}",
+      "weekChart": "Body battery each morning: {days}",
+      "weekDay": "{day} {score}",
+      "weekDayEmpty": "{day} no score",
+      "weekDays": "{first}, {rest}",
+      "sleep": {
+        "label": "Sleep",
+        "unit": "a night",
+        "none": "{period, select, month {No nights recorded in the last 30 days} other {No nights recorded this week}}",
+        "needApprox": "~{need}",
+        "about": "{coverage, select, partial {About your {need} need, on average · {nights} of {count, plural, one {# night} other {# nights}} recorded} other {About your {need} need, on average}}",
+        "under": "{coverage, select, partial {{gap} under your {need} need, on average · {nights} of {count, plural, one {# night} other {# nights}} recorded} other {{gap} under your {need} need, on average}}",
+        "over": "{coverage, select, partial {{gap} over your {need} need, on average · {nights} of {count, plural, one {# night} other {# nights}} recorded} other {{gap} over your {need} need, on average}}"
+      },
+      "active": {
+        "brisk": "Brisk minutes",
+        "zone": "Active zone minutes",
+        "perWeek": "a week",
+        "ofWho": "of {target}",
+        "none": "{period, select, month {No activity minutes recorded in the last 30 days} other {No activity minutes recorded this week}}",
+        "pastMonth": "{unit, select, brisk {Past the WHO's weekly bar on average; vigorous minutes count double} other {Past the WHO's weekly bar on average; harder minutes count double}}",
+        "shortMonth": "{unit, select, brisk {{minutes} a week short of the WHO's bar on average; vigorous minutes count double} other {{minutes} a week short of the WHO's bar on average; harder minutes count double}}",
+        "pastWeek": "{unit, select, brisk {Past the WHO's weekly bar; vigorous minutes count double} other {Past the WHO's weekly bar; harder minutes count double}}",
+        "toGo": "{unit, select, brisk {{minutes} to go for the WHO's weekly bar; vigorous minutes count double} other {{minutes} to go for the WHO's weekly bar; harder minutes count double}}"
+      },
+      "steps": {
+        "label": "Steps",
+        "unit": "a day",
+        "none": "{period, select, month {No finished days with steps in the last 30 days} other {No finished days with steps this week}}",
+        "reached": "{goal} or more on {days} of {count, plural, one {# full day} other {# full days}}"
+      }
+    }
+  },
+  "activity": {
+    "empty": {
+      "title": "No movement data in this window",
+      "detail": "Steps, distance and active minutes come from the activity_and_fitness scope. The Data tab shows exactly what each stream returned."
+    },
+    "day": {
+      "title": "Today so far",
+      "latest": "Latest day, {date}",
+      "goalsMet": "{met} of 2 goals met",
+      "stepGoalMet": "Step goal met",
+      "rings": "Steps: {steps} of {stepGoal}. Brisk minutes: {brisk} of {briskGoal}.",
+      "ringsNoBrisk": "Steps: {steps} of {stepGoal}. Brisk minutes: not recorded.",
+      "steps": "Steps",
+      "stepGoal": "/ {goal}",
+      "brisk": "Brisk minutes",
+      "briskGoal": "/ {goal} min",
+      "distance": "Distance",
+      "energy": "Active energy"
+    },
+    "lastSevenDays": {
+      "title": "Last 7 days",
+      "perDay": "{count, plural, one {{steps}<muted> step a day</muted>} other {{steps}<muted> steps a day</muted>}}",
+      "vsWeekBefore": "{change}<muted> vs the week before</muted>",
+      "bars": {
+        "label": "Steps each day: {days}.",
+        "day": "{date}, {steps}",
+        "noData": "{date}, no data",
+        "separator": "; "
+      },
+      "daysOver": "Days over {goal}",
+      "daysOverCount": "{over}<muted> of {total}</muted>",
+      "brisk": "Brisk minutes",
+      "briskTotal": "{minutes}<muted> of {target}</muted>",
+      "vsThreeWeeks": "vs 3 weeks before",
+      "vsThreeWeeksLong": "vs the 3 weeks before",
+      "ramp": {
+        "value": "{change}<muted> · {verdict}</muted>",
+        "same": "about the same",
+        "less": "{percent}% less",
+        "more": "{percent}% more",
+        "fast": "a fast ramp",
+        "easing": "easing off",
+        "steady": "steady"
+      }
+    },
+    "overTime": {
+      "title": "Your movement over time"
+    },
+    "summary": {
+      "typicalDay": "Typical day",
+      "typicalSteps": "{count, plural, one {{steps} step} other {{steps} steps}}",
+      "bestDay": "Best day",
+      "bestDayValue": "{steps}<muted> · {date}</muted>",
+      "daysOver": "Days over {goal}",
+      "distance": "Distance",
+      "energy": "Active energy",
+      "brisk": "Brisk minutes",
+      "briskWeek": "{minutes} a week<muted> · target {target}</muted>",
+      "firstToLast": "First week to last",
+      "stepsADay": "{count, plural, one {{change}<muted> step a day</muted>} other {{change}<muted> steps a day</muted>}}"
+    },
+    "chips": {
+      "label": "Chart",
+      "steps": "Steps",
+      "energy": "Energy",
+      "intensity": "Intensity",
+      "distance": "Distance",
+      "weekdays": "Weekdays",
+      "weekly": "Weekly totals"
+    },
+    "weekdays": {
+      "title": "Which days you move",
+      "hint": "Average steps on each day of the week."
+    },
+    "steps": {
+      "title": "Daily steps",
+      "hint": "Solid bars cleared your goal of {goal}. Missing bars are days the tracker recorded nothing — they're excluded from every average on this page."
+    },
+    "energy": {
+      "title": "Active energy",
+      "hint": "Above your basal rate — the part you moved for."
+    },
+    "mix": {
+      "title": "Intensity mix",
+      "vsToday": "avg vs today so far (min):",
+      "vsLatest": "avg vs latest (min):",
+      "lightMinutes": "Light minutes",
+      "moderateMinutes": "Moderate minutes",
+      "vigorousMinutes": "Vigorous minutes",
+      "pair": "{average}/{latest}",
+      "note": "<light>Light</light> minutes accumulate from daily life; <moderate>Moderate</moderate> and <vigorous>Vigorous</vigorous> are the ones guidelines count. {target, plural, one {# brisk minute a week is the usual target.} other {# brisk minutes a week is the usual target.}}",
+      "light": "Light",
+      "moderate": "Moderate",
+      "vigorous": "Vigorous"
+    },
+    "distance": {
+      "title": "Distance",
+      "hint": "From the reported distance stream, not estimated from step count."
+    },
+    "weekly": {
+      "title": "Weekly totals",
+      "hint": "Monday to Sunday, finished weeks only. Weeks with fewer than four recorded days are left out.",
+      "days": "{days}/7 days",
+      "showLatest": "Show the latest {count}",
+      "showAll": "{count, plural, one {Show all # week} other {Show all # weeks}}"
+    }
+  },
+  "sleep": {
+    "stages": {
+      "deep": "Deep",
+      "light": "Light",
+      "rem": "REM",
+      "awake": "Awake"
+    },
+    "empty": {
+      "title": "No sleep data in this window",
+      "detail": "Sleep sessions come from the sleep scope."
+    },
+    "night": {
+      "last": "Last night",
+      "latest": "Latest night",
+      "score": {
+        "title": "Sleep score",
+        "tiers": {
+          "excellent": "Excellent",
+          "good": "Good",
+          "fair": "Fair",
+          "poor": "Poor"
+        },
+        "contributors": "Contributors",
+        "duration": {
+          "label": "Duration",
+          "detail": "{duration} asleep · full marks at 7–9h"
+        },
+        "restoration": {
+          "label": "Restoration",
+          "detail": "{percent}% deep + REM · full marks at 45%",
+          "noStages": "no stage data · scored at the midpoint"
+        },
+        "efficiency": {
+          "label": "Efficiency",
+          "detail": "{percent}% of time in bed asleep · full marks at 100%"
+        }
+      }
+    },
+    "architecture": {
+      "title": "Sleep architecture",
+      "window": {
+        "label": "Window",
+        "short": "Window",
+        "value": "{bed} → {wake}",
+        "shortValue": "{bed}–{wake}",
+        "hint": "asleep to awake",
+        "more": "From falling asleep at {bed} to waking at {wake}."
+      },
+      "efficiency": {
+        "label": "Efficiency",
+        "short": "Efficiency",
+        "hint": "of time in bed spent asleep; 90%+ is good",
+        "more": "{percent}% of your time in bed was spent asleep. 90% or more is good."
+      },
+      "cycles": {
+        "label": "Cycles",
+        "short": "Cycles",
+        "each": "~{minutes} min each",
+        "hint": "light → deep → REM loops, usually 90–110 min",
+        "more": "{count, plural, one {# light → deep → REM loop; 90–110 min is usual. Wrist staging can merge bouts, so cycles can look fewer and longer.} other {# light → deep → REM loops; 90–110 min is usual. Wrist staging can merge bouts, so cycles can look fewer and longer.}}",
+        "moreWithLength": "{count, plural, one {# light → deep → REM loop of about {minutes} min each; 90–110 min is usual. Wrist staging can merge bouts, so cycles can look fewer and longer.} other {# light → deep → REM loops of about {minutes} min each; 90–110 min is usual. Wrist staging can merge bouts, so cycles can look fewer and longer.}}"
+      },
+      "remLatency": {
+        "label": "REM latency",
+        "short": "REM latency",
+        "hint": "to your first REM; usually 60–120 min",
+        "more": "{minutes} min from falling asleep to your first REM; 60–120 min is usual. Unusually early REM is the shift to watch.",
+        "moreUnknown": "Time from falling asleep to your first REM; 60–120 min is usual. Unusually early REM is the shift to watch."
+      },
+      "deepEarly": {
+        "label": "Deep, first third",
+        "short": "Deep early",
+        "hint": "of deep sleep came early; a high share is normal",
+        "more": "{percent}% of the night’s deep sleep came in its first third. A high share is normal; a falling share over weeks matters more.",
+        "moreUnknown": "How much of the night’s deep sleep came in its first third. A high share is normal; a falling share over weeks matters more."
+      },
+      "transitions": {
+        "label": "Transitions",
+        "short": "Transitions",
+        "hint": "stage changes per hour asleep",
+        "more": "{count, plural, one {# stage change per hour asleep.} other {# stage changes per hour asleep.}}",
+        "moreUnknown": "How often you switched stages, per hour asleep."
+      },
+      "awakenings": {
+        "label": "Awakenings, 5 min+",
+        "short": "Awakenings",
+        "hint": "wake-ups long enough to be staged",
+        "more": "{count, plural, =0 {No wake-ups of 5 min or more that the watch staged.} one {# wake-up of 5 min or more that the watch staged.} other {# wake-ups of 5 min or more that the watch staged.}}"
+      },
+      "onset": {
+        "label": "Fell asleep in",
+        "short": "Asleep in",
+        "hint": "near zero night after night can mean sleep debt",
+        "more": "{minutes} min to fall asleep. Near zero night after night can be a sign of sleep debt."
+      },
+      "awakeAfterOnset": {
+        "label": "Awake after onset",
+        "short": "Awake after",
+        "hint": "all wake time, including the ticks above the chart",
+        "more": "{minutes} min awake after first falling asleep, including the brief restless wake-ups marked as ticks above the chart."
+      },
+      "pick": "Tap a measure to see what it means.",
+      "caveat": "Wrist staging is an estimate and can merge bouts, so the trend against your own history says more than any one night.",
+      "empty": "No sleep session available to draw."
+    },
+    "lastSeven": {
+      "title": "Last 7 nights",
+      "average": "{duration}<unit> a night</unit>",
+      "change": "{change}<muted> min vs the 7 before</muted>",
+      "needAbout": "~{hours}",
+      "bars": {
+        "label": "Time asleep each night against your {need} need: {nights}.",
+        "night": "{date}, {duration}, score {score}",
+        "missing": "{date}, not recorded",
+        "separator": "; ",
+        "score": "score"
+      },
+      "atNeed": {
+        "label": "Nights at your {need} need",
+        "value": "{count}<muted> of {total}</muted>"
+      },
+      "debt": {
+        "label": "Sleep debt",
+        "owed": "{hours}<muted> h short</muted>",
+        "banked": "{hours}<muted> h banked</muted>"
+      },
+      "spread": {
+        "label": "Bedtime spread",
+        "value": "{spread, select, steady {{minutes}<muted> min<note> · steady</note></muted>} variable {{minutes}<muted> min<note> · variable</note></muted>} other {{minutes}<muted> min<note> · irregular</note></muted>}}"
+      }
+    },
+    "overTime": {
+      "title": "Your sleep over time",
+      "chips": {
+        "label": "Chart",
+        "window": "Window",
+        "duration": "Duration",
+        "rem": "REM",
+        "deep": "Deep",
+        "naps": "Naps"
+      }
+    },
+    "summary": {
+      "typicalNight": "Typical night",
+      "typicalEfficiency": "Typical efficiency",
+      "typicalRestingHr": "Typical resting HR",
+      "longestNight": "Longest night",
+      "firstToLast": "First week to last",
+      "change": "{change}<muted> min a night</muted>"
+    },
+    "naps": {
+      "title": "Naps",
+      "hint": "Sleep outside your main night.",
+      "total": "{count, plural, one {<value>#</value> nap · <value>{length}</value>} other {<value>#</value> naps · <value>{length}</value>}}",
+      "none": "{count, plural, one {No naps in this # day.} other {No naps in these # days.}}",
+      "times": "{from} → {to}",
+      "showLatest": "Show the latest {count}",
+      "showAll": "{count, plural, one {Show all # nap} other {Show all # naps}}"
+    },
+    "window": {
+      "title": "Sleep window",
+      "empty": "No recorded nights in this span.",
+      "bars": "{bucket, select, day {One bar per night, bed to wake, coloured by stage.} week {One bar per week: its typical bedtime and time in bed, coloured by average stage.} other {One bar per month: its typical bedtime and time in bed, coloured by average stage.}}",
+      "lines": "{count, plural, one {The dashed lines are your average bedtime and wake time over this # night, shaded by how much they vary.} other {The dashed lines are your average bedtime and wake time over these # nights, shaded by how much they vary.}}",
+      "noLines": "Your average bedtime and wake time appear once there are three nights.",
+      "emptyRows": "{bucket, select, day {Empty rows are nights with no record.} week {Empty rows are weeks with no record.} other {Empty rows are months with no record.}}",
+      "regularity": {
+        "title": "Sleep regularity",
+        "bands": {
+          "excellent": {
+            "label": "VERY REGULAR",
+            "text": "You fall asleep and wake at nearly the same times every day."
+          },
+          "good": {
+            "label": "REGULAR",
+            "text": "Your timing holds fairly steady from night to night."
+          },
+          "bad": {
+            "label": "IRREGULAR",
+            "text": "Your timing shifts by hours from night to night. Regular timing predicts how you feel better than total hours do."
+          },
+          "critical": {
+            "label": "VERY IRREGULAR",
+            "text": "No steady schedule in these nights: your body clock rarely gets the same day twice."
+          }
+        },
+        "basis": "{count, plural, one {Scored from how often you're asleep or awake at the same clock times on back-to-back days (# pair of nights).} other {Scored from how often you're asleep or awake at the same clock times on back-to-back days (# pairs of nights).}}",
+        "needsNights": "Needs five back-to-back recorded nights in this span."
+      },
+      "chart": "Sleep sessions against your average sleep window",
+      "chartNoAverage": "Sleep sessions",
+      "averageBed": "avg bed {time}",
+      "averageBedNarrow": "bed {time}",
+      "averageWake": "avg wake {time}",
+      "averageWakeNarrow": "wake {time}",
+      "stage": "{bucket, select, day {{date} · {stage} {minutes} min} other {{date} · {stage} {minutes} min a night}}",
+      "bedOffset": "{offset} bed",
+      "averageWindow": "avg window {bed}–{wake}"
+    },
+    "duration": {
+      "title": "Sleep duration",
+      "hint": "Time asleep each night, not counting time awake in bed."
+    },
+    "rem": {
+      "title": "REM sleep",
+      "hint": "Usually about 20–25% of a night."
+    },
+    "deep": {
+      "title": "Deep sleep",
+      "hint": "Usually about 15–20% of a night, most of it early."
     }
   },
   "data": {
@@ -337,6 +862,60 @@
         "wellbeing": "Wellbeing"
       }
     }
+  },
+  "charts": {
+    "tooltip": {
+      "notRecorded": "not recorded",
+      "value": "{value} {unit}",
+      "valueSymbol": "{value}{unit}",
+      "range": "{low}–{high}{unit}"
+    },
+    "trend": {
+      "series": "{bucket, select, day {reading} week {weekly average} other {monthly average}}",
+      "legend": {
+        "each": "{bucket, select, day {Each day} week {Each week} other {Each month}}",
+        "average": "{bucket, select, week {{count}-week average} other {{count}-day average}}",
+        "usualRange": "Your usual range"
+      }
+    },
+    "bars": {
+      "averagePerDay": "average per day"
+    },
+    "range": {
+      "band": "{bucket, select, day {nightly range} week {week's range} other {month's range}}",
+      "average": "average",
+      "low": "{bucket, select, day {nightly low} week {week's low} other {month's low}}",
+      "high": "{bucket, select, day {nightly high} week {week's high} other {month's high}}"
+    },
+    "diverging": {
+      "series": "{bucket, select, day {vs baseline} week {weekly average vs baseline} other {monthly average vs baseline}}"
+    },
+    "hypnogram": {
+      "noTimeline": "This night has stage totals but no segment timeline, so there's no hypnogram to draw.",
+      "label": "Sleep stages, {duration} asleep",
+      "block": "{stage} · {minutes} min · from {time}",
+      "awakening": "Brief awakening at {time}"
+    },
+    "stageLegend": {
+      "briefAwakening": "brief awakening"
+    },
+    "stageBar": {
+      "title": "{stage} {minutes} min"
+    },
+    "coverage": {
+      "dayRecorded": "{date} · {stream} · recorded",
+      "dayMissing": "{date} · {stream} · no data",
+      "bucket": "{total, plural, one {{date} · {stream} · {recorded}/# day recorded} other {{date} · {stream} · {recorded}/# days recorded}}",
+      "count": "{observed}/{total}"
+    },
+    "weekday": {
+      "tooltip": "{count, plural, one {{weekday} · {value} · # day} other {{weekday} · {value} · # days}}",
+      "noData": "{count, plural, one {{weekday} · no data · # day} other {{weekday} · no data · # days}}"
+    },
+    "spark": {
+      "usualRange": "Shaded: your usual range"
+    },
+    "empty": "Nothing recorded in this window"
   },
   "streams": {
     "steps": "Steps",

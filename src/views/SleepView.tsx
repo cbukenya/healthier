@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
-import { formatCivilLong, formatClock } from '../i18n/format';
+import { t } from '../i18n';
+import { formatCivilLong, formatClock, formatRounded } from '../i18n/format';
 import {
   compareToBaseline, isRecent, periodShift, series, sleepArchitecture, sleepDebt, sleepNeedFor, stats, values, windowShift,
 } from '../pipeline/derive';
@@ -45,7 +46,7 @@ export function SleepView({ data, clock, intraday }: { data: SyncResult; clock?:
   if (!recorded) {
     return (
       <Card>
-        <EmptyState title="No sleep data in this window" detail="Sleep sessions come from the sleep scope." />
+        <EmptyState title={t('sleep.empty.title')} detail={t('sleep.empty.detail')} />
       </Card>
     );
   }
@@ -60,8 +61,8 @@ export function SleepView({ data, clock, intraday }: { data: SyncResult; clock?:
     <Card>
       <CardHead
         domain="sleep"
-        title="Sleep duration"
-        hint="Time asleep each night, not counting time awake in bed."
+        title={t('sleep.duration.title')}
+        hint={t('sleep.duration.hint')}
         right={<CardSummary isSleep data={sleepWin} color={DOMAIN.sleep.hex} format={(v) => fmtDuration(v)} />}
       />
       <div className="px-2 pb-3">
@@ -75,17 +76,17 @@ export function SleepView({ data, clock, intraday }: { data: SyncResult; clock?:
   );
   const remCard = (
     <Card>
-      <CardHead domain="sleep" title="REM sleep" hint="Usually about 20–25% of a night." right={<CardSummary isSleep data={remWin} color="#a78bfa" format={(v) => fmtDuration(v)} />} />
+      <CardHead domain="sleep" title={t('sleep.rem.title')} hint={t('sleep.rem.hint')} right={<CardSummary isSleep data={remWin} color="#a78bfa" format={(v) => fmtDuration(v)} />} />
       <div className="px-2 pb-3">
-        <BarSeries series={groupSeries(remWin, bucket)} bucket={bucket} color="#a78bfa" unit="min" height={150} />
+        <BarSeries series={groupSeries(remWin, bucket)} bucket={bucket} color="#a78bfa" unit={t('units.minutes')} height={150} />
       </div>
     </Card>
   );
   const deepCard = (
     <Card>
-      <CardHead domain="sleep" title="Deep sleep" hint="Usually about 15–20% of a night, most of it early." right={<CardSummary isSleep data={deepWin} color="#4338ca" format={(v) => fmtDuration(v)} />} />
+      <CardHead domain="sleep" title={t('sleep.deep.title')} hint={t('sleep.deep.hint')} right={<CardSummary isSleep data={deepWin} color="#4338ca" format={(v) => fmtDuration(v)} />} />
       <div className="px-2 pb-3">
-        <BarSeries series={groupSeries(deepWin, bucket)} bucket={bucket} color="#4338ca" unit="min" height={150} />
+        <BarSeries series={groupSeries(deepWin, bucket)} bucket={bucket} color="#4338ca" unit={t('units.minutes')} height={150} />
       </div>
     </Card>
   );
@@ -99,18 +100,18 @@ export function SleepView({ data, clock, intraday }: { data: SyncResult; clock?:
     <Card>
       <CardHead domain="sleep" title={spanSummaryTitle(spanState)} />
       <div className="px-5 pb-4 md:pb-5">
-        <Row dense={!wide} label="Typical night">{fmtDuration(typical((d) => d.sleep?.minutesAsleep ?? null))}</Row>
-        <Row dense={!wide} label="Typical efficiency">{efficiency === undefined ? '—' : `${Math.round(efficiency)}%`}</Row>
-        <Row dense={!wide} label="Typical resting HR">{restingHr === undefined ? '—' : `${Math.round(restingHr)} bpm`}</Row>
+        <Row dense={!wide} label={t('sleep.summary.typicalNight')}>{fmtDuration(typical((d) => d.sleep?.minutesAsleep ?? null))}</Row>
+        <Row dense={!wide} label={t('sleep.summary.typicalEfficiency')}>{efficiency === undefined ? '—' : `${Math.round(efficiency)}${t('units.percent')}`}</Row>
+        <Row dense={!wide} label={t('sleep.summary.typicalRestingHr')}>{restingHr === undefined ? '—' : `${Math.round(restingHr)} ${t('units.bpm')}`}</Row>
         {longest?.sleep && (
-          <Row dense={!wide} label="Longest night">
+          <Row dense={!wide} label={t('sleep.summary.longestNight')}>
             {fmtDuration(longest.sleep.minutesAsleep)}
             <span className="text-zinc-500"> · {formatCivilLong(longest.date)}</span>
           </Row>
         )}
         {values(sleepSpan).length >= 14 && (
-          <Row dense={!wide} label="First week to last">
-            <Delta value={windowShift(sleepSpan, 7).delta} goodWhen="up" digits={0} suffix="min a night" />
+          <Row dense={!wide} label={t('sleep.summary.firstToLast')}>
+            <Delta value={windowShift(sleepSpan, 7).delta} goodWhen="up" digits={0} phrase="sleep.summary.change" />
           </Row>
         )}
       </div>
@@ -120,11 +121,11 @@ export function SleepView({ data, clock, intraday }: { data: SyncResult; clock?:
     <Naps naps={window.flatMap((d) => d.naps).sort((a, b) => b.bedtimeIso.localeCompare(a.bedtimeIso))} spanDays={window.length} wide={wide} />
   );
   const charts: { key: SleepChart; label: string; card: React.ReactNode }[] = [
-    { key: 'window', label: 'Window', card: windowCard },
-    { key: 'duration', label: 'Duration', card: durationCard },
-    { key: 'rem', label: 'REM', card: remCard },
-    { key: 'deep', label: 'Deep', card: deepCard },
-    { key: 'naps', label: 'Naps', card: napsCard },
+    { key: 'window', label: t('sleep.overTime.chips.window'), card: windowCard },
+    { key: 'duration', label: t('sleep.overTime.chips.duration'), card: durationCard },
+    { key: 'rem', label: t('sleep.overTime.chips.rem'), card: remCard },
+    { key: 'deep', label: t('sleep.overTime.chips.deep'), card: deepCard },
+    { key: 'naps', label: t('sleep.overTime.chips.naps'), card: napsCard },
   ];
   const shownChart = charts.find((c) => c.key === chart) ?? charts[0];
 
@@ -135,7 +136,7 @@ export function SleepView({ data, clock, intraday }: { data: SyncResult; clock?:
         <Card className="lg:col-span-4 flex flex-col">
           {/* Older than yesterday, it's the latest night on record, not last night. */}
           <CardHead
-            title={latestRow && isRecent(latestRow.date, days.at(-1)?.date) ? 'Last night' : 'Latest night'}
+            title={t(latestRow && isRecent(latestRow.date, days.at(-1)?.date) ? 'sleep.night.last' : 'sleep.night.latest')}
             hint={latestRow ? formatCivilLong(latestRow.date) : ''}
             domain="sleep"
           />
@@ -149,28 +150,30 @@ export function SleepView({ data, clock, intraday }: { data: SyncResult; clock?:
               const currentTier = getScoreTier(score.total);
               const contributors = [
                 {
-                  label: "Duration",
+                  label: t('sleep.night.score.duration.label'),
                   pct: Math.min(100, Math.max(0, Math.round((score.duration / 50) * 100))),
                   points: score.duration,
                   max: 50,
                   color: "#818cf8", // Light Indigo
-                  detail: latest ? `${fmtDuration(latest.minutesAsleep)} asleep · full marks at 7–9h` : "",
+                  detail: latest ? t('sleep.night.score.duration.detail', { duration: fmtDuration(latest.minutesAsleep) }) : "",
                 },
                 {
-                  label: "Restoration",
+                  label: t('sleep.night.score.restoration.label'),
                   pct: Math.min(100, Math.max(0, Math.round((score.restoration / 25) * 100))),
                   points: score.restoration,
                   max: 25,
                   color: "#6366f1", // Indigo / Purple
-                  detail: score.restorativePct !== null ? `${score.restorativePct}% deep + REM · full marks at 45%` : "no stage data · scored at the midpoint",
+                  detail: score.restorativePct !== null
+                    ? t('sleep.night.score.restoration.detail', { percent: score.restorativePct })
+                    : t('sleep.night.score.restoration.noStages'),
                 },
                 {
-                  label: "Efficiency",
+                  label: t('sleep.night.score.efficiency.label'),
                   pct: Math.min(100, Math.max(0, Math.round((score.efficiency / 25) * 100))),
                   points: score.efficiency,
                   max: 25,
                   color: "#10b981", // Emerald
-                  detail: latest ? `${Math.round(latest.efficiency)}% of time in bed asleep · full marks at 100%` : "",
+                  detail: latest ? t('sleep.night.score.efficiency.detail', { percent: Math.round(latest.efficiency) }) : "",
                 },
               ];
 
@@ -179,7 +182,7 @@ export function SleepView({ data, clock, intraday }: { data: SyncResult; clock?:
                   {/* 1. Score and Tier pill with glossy dot */}
                   <div>
                     <div className="text-eyebrow uppercase text-zinc-500 mb-1">
-                      Sleep score
+                      {t('sleep.night.score.title')}
                     </div>
                     <div className="flex items-baseline justify-between">
                       <div className="flex items-baseline gap-1.5">
@@ -206,7 +209,7 @@ export function SleepView({ data, clock, intraday }: { data: SyncResult; clock?:
                   {/* 2. Contributors */}
                   <div>
                     <div className="text-eyebrow uppercase text-zinc-500 mb-2.5">
-                      Contributors
+                      {t('sleep.night.score.contributors')}
                     </div>
                     <div className="space-y-2.5">
                       {contributors.map((c, i) => (
@@ -242,7 +245,7 @@ export function SleepView({ data, clock, intraday }: { data: SyncResult; clock?:
         {latest ? (
           <Card className="lg:col-span-8 flex flex-col">
             <CardHead
-              title="Sleep architecture"
+              title={t('sleep.architecture.title')}
             />
             <div className="flex-1 flex flex-col pt-2">
               <ArchitectureMeasures session={latest} />
@@ -253,13 +256,13 @@ export function SleepView({ data, clock, intraday }: { data: SyncResult; clock?:
               <StageLegend />
               
               <p className="px-5 pb-5 mt-3 text-caption leading-relaxed text-zinc-500">
-                Wrist staging is an estimate and can merge bouts, so the trend against your own history says more than any one night.
+                {t('sleep.architecture.caveat')}
               </p>
             </div>
           </Card>
         ) : (
           <Card className="lg:col-span-8 flex flex-col justify-center items-center h-full">
-            <span className="text-caption text-zinc-500">No sleep session available to draw.</span>
+            <span className="text-caption text-zinc-500">{t('sleep.architecture.empty')}</span>
           </Card>
         )}
       </div>
@@ -270,7 +273,7 @@ export function SleepView({ data, clock, intraday }: { data: SyncResult; clock?:
       {/* ── 3. Over time, following the span ─────────────────────────── */}
       <div className="flex items-center justify-between px-1">
         <h2 className="text-section uppercase text-zinc-500">
-          Your sleep over time
+          {t('sleep.overTime.title')}
         </h2>
         <SpanSelector state={spanState} />
       </div>
@@ -291,7 +294,7 @@ export function SleepView({ data, clock, intraday }: { data: SyncResult; clock?:
       ) : (
         <>
           {summaryCard}
-          <ChartChips label="Chart" options={charts} value={shownChart.key} onChange={setChart} />
+          <ChartChips label={t('sleep.overTime.chips.label')} options={charts} value={shownChart.key} onChange={setChart} />
           {shownChart.card}
         </>
       )}
@@ -314,6 +317,8 @@ function ScoreBar({ val, max, color, label }: { val: number; max: number; color:
 
 /** One architecture measure: its value, a line on what it means, and the fuller account a phone shows on tap. */
 interface Measure {
+  /** Which measure, named as its messages are: React's key, where a translated label could repeat. */
+  id: 'window' | 'efficiency' | 'cycles' | 'remLatency' | 'deepEarly' | 'transitions' | 'awakenings' | 'onset' | 'awakeAfterOnset';
   label: string;
   /** The label on a phone's narrower tile. */
   short: string;
@@ -335,66 +340,71 @@ function ArchitectureMeasures({ session }: { session: SleepSession }) {
   const arch = sleepArchitecture(session);
   const bed = formatClock(session.bedtimeMin);
   const wake = formatClock(session.wakeMin);
-  const plural = (n: number, one: string, many: string) => (n === 1 ? one : many);
 
   const measures: Measure[] = [
     {
-      label: 'Window', short: 'Window', value: `${bed} → ${wake}`, shortValue: `${bed}–${wake}`,
-      hint: 'asleep to awake',
-      more: `From falling asleep at ${bed} to waking at ${wake}.`,
+      id: 'window', label: t('sleep.architecture.window.label'), short: t('sleep.architecture.window.short'),
+      value: t('sleep.architecture.window.value', { bed, wake }), shortValue: t('sleep.architecture.window.shortValue', { bed, wake }),
+      hint: t('sleep.architecture.window.hint'),
+      more: t('sleep.architecture.window.more', { bed, wake }),
     },
     {
-      label: 'Efficiency', short: 'Efficiency', value: `${session.efficiency}%`,
-      hint: 'of time in bed spent asleep; 90%+ is good',
-      more: `${session.efficiency}% of your time in bed was spent asleep. 90% or more is good.`,
+      id: 'efficiency', label: t('sleep.architecture.efficiency.label'), short: t('sleep.architecture.efficiency.short'), value: `${session.efficiency}${t('units.percent')}`,
+      hint: t('sleep.architecture.efficiency.hint'),
+      more: t('sleep.architecture.efficiency.more', { percent: session.efficiency }),
     },
   ];
   if (arch) {
     const perCycle = arch.minutesPerCycleApprox;
-    const rem = arch.remLatencyMin;
+    // Timed from the stages' own timestamps, so it can fall between whole minutes.
+    const rem = arch.remLatencyMin === null ? null : formatRounded(arch.remLatencyMin, 1);
     const early = arch.deepFirstThirdPct;
     const tph = arch.transitionsPerHour;
     measures.push(
       {
-        label: 'Cycles', short: 'Cycles', value: `${arch.cycles}`, sub: perCycle ? `~${perCycle} min each` : undefined,
-        hint: 'light → deep → REM loops, usually 90–110 min',
-        more: `${arch.cycles} light → deep → REM ${plural(arch.cycles, 'loop', 'loops')}${perCycle ? ` of about ${perCycle} min each` : ''}; 90–110 min is usual. Wrist staging can merge bouts, so cycles can look fewer and longer.`,
+        id: 'cycles', label: t('sleep.architecture.cycles.label'), short: t('sleep.architecture.cycles.short'), value: `${arch.cycles}`,
+        sub: perCycle ? t('sleep.architecture.cycles.each', { minutes: perCycle }) : undefined,
+        hint: t('sleep.architecture.cycles.hint'),
+        more: perCycle
+          ? t('sleep.architecture.cycles.moreWithLength', { count: arch.cycles, minutes: perCycle })
+          : t('sleep.architecture.cycles.more', { count: arch.cycles }),
       },
       {
-        label: 'REM latency', short: 'REM latency', value: rem !== null ? `${rem} min` : '—',
-        hint: 'to your first REM; usually 60–120 min',
-        more: `${rem !== null ? `${rem} min from falling asleep to your first REM` : 'Time from falling asleep to your first REM'}; 60–120 min is usual. Unusually early REM is the shift to watch.`,
+        id: 'remLatency', label: t('sleep.architecture.remLatency.label'), short: t('sleep.architecture.remLatency.short'),
+        value: rem !== null ? `${rem} ${t('units.minutes')}` : '—',
+        hint: t('sleep.architecture.remLatency.hint'),
+        more: rem !== null ? t('sleep.architecture.remLatency.more', { minutes: rem }) : t('sleep.architecture.remLatency.moreUnknown'),
       },
       {
-        label: 'Deep, first third', short: 'Deep early', value: early !== null ? `${early}%` : '—',
-        hint: 'of deep sleep came early; a high share is normal',
-        more: `${early !== null ? `${early}% of the night’s deep sleep came in its first third` : 'How much of the night’s deep sleep came in its first third'}. A high share is normal; a falling share over weeks matters more.`,
+        id: 'deepEarly', label: t('sleep.architecture.deepEarly.label'), short: t('sleep.architecture.deepEarly.short'),
+        value: early !== null ? `${early}${t('units.percent')}` : '—',
+        hint: t('sleep.architecture.deepEarly.hint'),
+        more: early !== null ? t('sleep.architecture.deepEarly.more', { percent: early }) : t('sleep.architecture.deepEarly.moreUnknown'),
       },
       {
-        label: 'Transitions', short: 'Transitions', value: tph !== null ? `${tph}/h` : '—',
-        hint: 'stage changes per hour asleep',
-        more: tph !== null ? `${tph} stage changes per hour asleep.` : 'How often you switched stages, per hour asleep.',
+        id: 'transitions', label: t('sleep.architecture.transitions.label'), short: t('sleep.architecture.transitions.short'),
+        value: tph !== null ? `${formatRounded(tph, 1)}${t('units.perHour')}` : '—',
+        hint: t('sleep.architecture.transitions.hint'),
+        more: tph !== null ? t('sleep.architecture.transitions.more', { count: tph }) : t('sleep.architecture.transitions.moreUnknown'),
       },
       {
-        label: 'Awakenings, 5 min+', short: 'Awakenings', value: `${arch.awakenings}`,
-        hint: 'wake-ups long enough to be staged',
-        more: arch.awakenings
-          ? `${arch.awakenings} ${plural(arch.awakenings, 'wake-up', 'wake-ups')} of 5 min or more that the watch staged.`
-          : 'No wake-ups of 5 min or more that the watch staged.',
+        id: 'awakenings', label: t('sleep.architecture.awakenings.label'), short: t('sleep.architecture.awakenings.short'), value: `${arch.awakenings}`,
+        hint: t('sleep.architecture.awakenings.hint'),
+        more: t('sleep.architecture.awakenings.more', { count: arch.awakenings }),
       },
     );
   }
   if (session.onsetLatencyMin != null) {
     measures.push({
-      label: 'Fell asleep in', short: 'Asleep in', value: `${session.onsetLatencyMin} min`,
-      hint: 'near zero night after night can mean sleep debt',
-      more: `${session.onsetLatencyMin} min to fall asleep. Near zero night after night can be a sign of sleep debt.`,
+      id: 'onset', label: t('sleep.architecture.onset.label'), short: t('sleep.architecture.onset.short'), value: `${session.onsetLatencyMin} ${t('units.minutes')}`,
+      hint: t('sleep.architecture.onset.hint'),
+      more: t('sleep.architecture.onset.more', { minutes: session.onsetLatencyMin }),
     });
   }
   measures.push({
-    label: 'Awake after onset', short: 'Awake after', value: `${session.minutesAwake} min`,
-    hint: 'all wake time, including the ticks above the chart',
-    more: `${session.minutesAwake} min awake after first falling asleep, including the brief restless wake-ups marked as ticks above the chart.`,
+    id: 'awakeAfterOnset', label: t('sleep.architecture.awakeAfterOnset.label'), short: t('sleep.architecture.awakeAfterOnset.short'), value: `${session.minutesAwake} ${t('units.minutes')}`,
+    hint: t('sleep.architecture.awakeAfterOnset.hint'),
+    more: t('sleep.architecture.awakeAfterOnset.more', { minutes: session.minutesAwake }),
   });
   const shown = picked !== null && picked < measures.length ? measures[picked] : null;
 
@@ -403,7 +413,7 @@ function ArchitectureMeasures({ session }: { session: SleepSession }) {
       {/* Desktop: every measure says what it means. */}
       <div className="hidden md:grid grid-cols-3 gap-x-5 gap-y-3.5 px-4 py-3.5 rounded-xl bg-[#111114] border border-zinc-800/60">
         {measures.map((m) => (
-          <div key={m.label} className="flex flex-col gap-0.5 min-w-0">
+          <div key={m.id} className="flex flex-col gap-0.5 min-w-0">
             <span className="text-eyebrow-sm uppercase text-zinc-500">{m.label}</span>
             <span className="text-body-sm font-semibold text-zinc-200 tabular-nums">
               {m.value}
@@ -419,7 +429,7 @@ function ArchitectureMeasures({ session }: { session: SleepSession }) {
         <div className="grid grid-cols-3 gap-2">
           {measures.map((m, i) => (
             <button
-              key={m.label}
+              key={m.id}
               type="button"
               onClick={() => setPicked(picked === i ? null : i)}
               aria-pressed={picked === i}
@@ -439,7 +449,7 @@ function ArchitectureMeasures({ session }: { session: SleepSession }) {
               <p className="mt-1 text-detail leading-relaxed text-zinc-400">{shown.more}</p>
             </>
           ) : (
-            <p className="text-detail text-zinc-500">Tap a measure to see what it means.</p>
+            <p className="text-detail text-zinc-500">{t('sleep.architecture.pick')}</p>
           )}
         </div>
       </div>
