@@ -1,5 +1,7 @@
 import { Router } from 'express';
-import type { DatasetResponse, GoalsResponse, HistoryResponse, MeResponse, ProfileResponse, SyncResponse } from '../src/types/api';
+import type {
+  DatasetResponse, GoalsResponse, HistoryResponse, InstanceResponse, MeResponse, ProfileResponse, SyncResponse,
+} from '../src/types/api';
 import { parseGoals } from '../src/pipeline/goals';
 import type { Gender } from '../src/pipeline/registry';
 import { parseQueries } from '../src/pipeline/history';
@@ -9,9 +11,16 @@ import { asyncHandler, type Deps } from './http';
 import { deleteUser, getTokens, getUser, hasTokens, setGender, setGoals, setTimeZone } from './repo';
 import { historyInfo, loadDataset, loadHistory, startSync, syncStatus } from './sync';
 
-/** The browser's API. Every route acts on the signed-in user only. */
+/** The browser's API. Every route after /instance acts on the signed-in user only. */
 export function apiRoutes(deps: Deps): Router {
   const router = Router();
+
+  /** What this install offers, for the sign-in screen: it's read before anyone has signed in. */
+  router.get('/instance', (req, res) => {
+    const body: InstanceResponse = { demo: deps.config.demoMode };
+    res.json(body);
+  });
+
   router.use(requireUser(deps));
 
   router.get(

@@ -32,6 +32,8 @@ export interface Config {
   historyDays: number;
   /** Who may sign up; null lets anyone through Google's consent screen. */
   allowedEmails: AccessList | null;
+  /** Whether the sign-in screen offers demo mode. */
+  demoMode: boolean;
 }
 
 export class ConfigError extends Error {
@@ -57,6 +59,14 @@ export function loadConfig(env: Env = process.env): Config {
     const value = optional(name);
     if (!value) missing.push(name);
     return value ?? '';
+  };
+  const flag = (name: string, fallback: boolean) => {
+    const raw = optional(name);
+    if (raw === undefined) return fallback;
+    if (/^true$/i.test(raw)) return true;
+    if (/^false$/i.test(raw)) return false;
+    invalid.push(`${name} must be true or false, got "${raw}"`);
+    return fallback;
   };
   const integer = (name: string, fallback: number, min: number, max: number) => {
     const raw = optional(name);
@@ -101,6 +111,7 @@ export function loadConfig(env: Env = process.env): Config {
     syncIntervalMinutes: integer('SYNC_INTERVAL_MINUTES', 60, 0, 24 * 60),
     historyDays: integer('HISTORY_DAYS', DEFAULT_HISTORY_DAYS, DASHBOARD_WINDOW_DAYS, 3650),
     allowedEmails,
+    demoMode: flag('DEMO_MODE', true),
   };
 
   if (missing.length || invalid.length) throw new ConfigError(missing, invalid);

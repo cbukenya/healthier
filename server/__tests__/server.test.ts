@@ -1,9 +1,15 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
+import type { AddressInfo } from 'node:net';
+import type { Server } from 'node:http';
+import express from 'express';
+import cookieParser from 'cookie-parser';
 
 import { isAllowed, parseAccessList } from '../access';
 import { ConfigError, loadConfig } from '../config';
+import { apiRoutes } from '../api';
+import type { Db } from '../db';
 import { decrypt, encrypt } from '../crypto';
 import { authorizationUrl, identityFromIdToken } from '../google';
 import { failedStatus, GoogleRejected, ReconnectRequired } from '../sync';
@@ -35,6 +41,7 @@ describe('config', () => {
     assert.equal(config.syncIntervalMinutes, 60);
     assert.equal(config.historyDays, 730);
     assert.equal(config.encryptionKey.length, 32);
+    assert.equal(config.demoMode, true);
   });
 
   it('strips a trailing slash from APP_URL so redirect URIs match exactly', () => {
@@ -56,11 +63,41 @@ describe('config', () => {
     assert.equal(loadConfig({ ...VALID_ENV, HISTORY_DAYS: '3650' }).historyDays, 3650);
   });
 
+  it('hides demo mode with DEMO_MODE=false, and accepts only true or false', () => {
+    assert.equal(loadConfig({ ...VALID_ENV, DEMO_MODE: 'false' }).demoMode, false);
+    assert.equal(loadConfig({ ...VALID_ENV, DEMO_MODE: 'TRUE' }).demoMode, true);
+    assert.throws(
+      () => loadConfig({ ...VALID_ENV, DEMO_MODE: 'no' }),
+      (err: unknown) => err instanceof ConfigError && err.invalid.some((m) => m.startsWith('DEMO_MODE')),
+    );
+  });
+
   it('rejects malformed numbers and URLs', () => {
     assert.throws(
       () => loadConfig({ ...VALID_ENV, PORT: 'abc', APP_URL: 'localhost:3000', SYNC_INTERVAL_MINUTES: '-5' }),
       (err: unknown) => err instanceof ConfigError && err.invalid.length === 3,
     );
+  });
+});
+
+describe('instance', () => {
+  it('tells the sign-in screen whether demo mode is offered, before anyone signs in', async () => {
+    const app = express();
+    app.use(cookieParser());
+    // No route here may reach the database without a session, so it isn't given one.
+    app.use('/api', apiRoutes({ config: loadConfig({ ...VALID_ENV, DEMO_MODE: 'false' }), db: {} as Db }));
+    const server = await new Promise<Server>((resolve) => {
+      const s = app.listen(0, () => resolve(s));
+    });
+    try {
+      const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}/api`;
+      const instance = await fetch(`${base}/instance`);
+      assert.equal(instance.status, 200);
+      assert.deepEqual(await instance.json(), { demo: false });
+      assert.equal((await fetch(`${base}/me`)).status, 401, 'everything else still needs a session');
+    } finally {
+      server.close();
+    }
   });
 });
 

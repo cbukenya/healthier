@@ -96,8 +96,8 @@ npm install
 npm run demo
 ```
 
-Open the address it prints and choose **Demo mode**. Every install has the same button on its
-sign-in screen.
+Open the address it prints and choose **Demo mode**. Installs show the same button on their
+sign-in screen, unless the owner turns it off with `DEMO_MODE=false`.
 
 ## Getting your data in
 
@@ -207,6 +207,7 @@ reference.
 | `APP_URL` | no | Public URL users open. Default `http://localhost:$PORT`. |
 | `SYNC_INTERVAL_MINUTES` | no | Background sync interval per user. Default `60`; `0` turns it off. |
 | `HISTORY_DAYS` | no | Days of daily history kept and imported per user. Default `730` (62–3650). |
+| `DEMO_MODE` | no | Offer **Demo mode** on the sign-in screen. Default `true`; `false` hides it. |
 
 ## Running behind a domain
 

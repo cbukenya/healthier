@@ -18,8 +18,9 @@ twice.
 
 The app follows the browser's language, falling back to English. `?lang=sv-SE` in the address
 forces one. To read a translation in place without setting anything up, run `npm run demo`, open
-the address it prints with `?lang=sv-SE` added, and choose **Demo mode**. `?lang=en-XA` shows English with every message in ⟦brackets⟧, so any word on screen
-outside brackets is one that doesn't come from this folder yet.
+the address it prints with `?lang=sv-SE` added, and choose **Demo mode**. `?lang=en-XA` shows
+English with every message in ⟦brackets⟧, so any word on screen outside brackets is one that
+doesn't come from this folder yet.
 
 ## How messages work
 
