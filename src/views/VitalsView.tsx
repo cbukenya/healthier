@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Activity, Droplet, Heart, Wind } from 'lucide-react';
 import { formatCivilLong } from '../i18n/format';
+import { t } from '../i18n';
+import { rich } from '../i18n/react';
 import {
   BASELINE_DAYS, BASELINE_MIN_READINGS, compareToBaseline, series, stats, values, windowShift, NOISE_FLOOR,
   type Comparison, type Point,
@@ -79,13 +81,13 @@ export function VitalsView({ data, clock, intraday }: { data: SyncResult; clock?
   if (!values(rhrAll).length) {
     return (
       <Card>
-        <EmptyState title="No vitals data in this window" detail="Metrics come from the health_metrics_and_measurements scope." />
+        <EmptyState title={t('vitals.empty.title')} detail={t('vitals.empty.detail')} />
       </Card>
     );
   }
 
   // A tile's date note, when its reading isn't today's.
-  const from = (date?: string) => (date && date !== today ? `From ${formatCivilLong(date)}` : null);
+  const from = (date?: string) => (date && date !== today ? t('vitals.latest.from', { date: formatCivilLong(date) }) : null);
 
   // ── The trends: everything follows the span selector.
   const hrvWin = series(window, (d) => d.hrv);
@@ -95,64 +97,64 @@ export function VitalsView({ data, clock, intraday }: { data: SyncResult; clock?
   const tempWin = series(window, (d) => d.skinTempDeviationC);
   const vo2Win = series(window, (d) => d.vo2Max);
   const unit = (v: number | null, u: string, digits = 1) => (v === null ? null : `${fmtNum(v, digits)}${u}`);
-  const signedC = (v: number | null) => (v === null ? null : `${v > 0 ? '+' : ''}${fmtNum(v, 2)} °C`);
+  const signedC = (v: number | null) => (v === null ? null : `${v > 0 ? '+' : ''}${fmtNum(v, 2)} ${t('units.celsius')}`);
   const rhrChange = spanChange(rhrWin);
   const vo2Change = spanChange(vo2Win);
 
   const metrics: Metric[] = [
     {
-      key: 'hrv', chip: 'HRV', title: 'HRV', color: DOMAIN.cardio.hex,
-      latest: unit(latestOf(hrvWin), ' ms'), average: unit(meanOf(hrvWin), ' ms'),
-      hint: 'A night outside your usual range is unusual for you, in either direction.',
+      key: 'hrv', chip: t('vitals.trends.hrv.chip'), title: t('vitals.trends.hrv.title'), color: DOMAIN.cardio.hex,
+      latest: unit(latestOf(hrvWin), ` ${t('units.ms')}`), average: unit(meanOf(hrvWin), ` ${t('units.ms')}`),
+      hint: t('vitals.trends.hrv.hint'),
       chart: (
         <TrendChart
-          series={groupSeries(hrvWin, bucket)} bucket={bucket} color={DOMAIN.cardio.hex} height={200} unit="ms" area={false}
+          series={groupSeries(hrvWin, bucket)} bucket={bucket} color={DOMAIN.cardio.hex} height={200} unit={t('units.ms')} area={false}
           baseline={usual(hrvCmp)}
         />
       ),
     },
     {
-      key: 'rhr', chip: 'Resting HR', title: 'Resting heart rate', color: DOMAIN.cardio.hex,
-      latest: unit(latestOf(rhrWin), ' bpm', 0), average: unit(meanOf(rhrWin), ' bpm'),
+      key: 'rhr', chip: t('vitals.trends.restingHr.chip'), title: t('vitals.trends.restingHr.title'), color: DOMAIN.cardio.hex,
+      latest: unit(latestOf(rhrWin), ` ${t('units.bpm')}`, 0), average: unit(meanOf(rhrWin), ` ${t('units.bpm')}`),
       change: rhrChange !== null && (
-        <Delta value={rhrChange} goodWhen="down" digits={1} unit=" bpm" suffix="from the first week to the last" />
+        <Delta value={rhrChange} goodWhen="down" digits={1} unit={` ${t('units.bpm')}`} phrase="vitals.trends.change" />
       ),
-      hint: 'Nights above your usual range often follow hard training, alcohol, heat, short sleep or a cold coming on.',
+      hint: t('vitals.trends.restingHr.hint'),
       chart: (
         <TrendChart
-          series={groupSeries(rhrWin, bucket)} bucket={bucket} color={DOMAIN.cardio.hex} height={200} unit="bpm" area={false}
+          series={groupSeries(rhrWin, bucket)} bucket={bucket} color={DOMAIN.cardio.hex} height={200} unit={t('units.bpm')} area={false}
           baseline={usual(rhrCmp)}
         />
       ),
     },
     {
-      key: 'resp', chip: 'Breathing', title: 'Breathing rate', color: BREATHING_HEX,
-      latest: unit(latestOf(respWin), ' /min'), average: unit(meanOf(respWin), ' /min'),
-      hint: 'Breaths per minute, averaged over the night.',
+      key: 'resp', chip: t('vitals.trends.breathing.chip'), title: t('vitals.trends.breathing.title'), color: BREATHING_HEX,
+      latest: unit(latestOf(respWin), ` ${t('units.perMinute')}`), average: unit(meanOf(respWin), ` ${t('units.perMinute')}`),
+      hint: t('vitals.trends.breathing.hint'),
       chart: (
         <TrendChart
-          series={groupSeries(respWin, bucket)} bucket={bucket} color={BREATHING_HEX} unit="/min" height={180} area={false}
+          series={groupSeries(respWin, bucket)} bucket={bucket} color={BREATHING_HEX} unit={t('units.perMinute')} height={180} area={false}
           format={(v) => fmtNum(v, 1)} baseline={usual(respCmp)}
         />
       ),
     },
     {
-      key: 'spo2', chip: 'Blood oxygen', title: 'Blood oxygen', color: SPO2_HEX,
-      latest: unit(latestOf(spo2Win), '%'), average: unit(meanOf(spo2Win), '%'),
-      hint: 'Each night’s average, inside its low-to-high range. Most wearables treat 95% and up as normal.',
+      key: 'spo2', chip: t('vitals.trends.bloodOxygen.chip'), title: t('vitals.trends.bloodOxygen.title'), color: SPO2_HEX,
+      latest: unit(latestOf(spo2Win), t('units.percent')), average: unit(meanOf(spo2Win), t('units.percent')),
+      hint: t('vitals.trends.bloodOxygen.hint'),
       chart: <RangeBandChart days={spo2Days} bucket={bucket} get={spo2Of} color={SPO2_HEX} height={180} domain={[85, 100]} />,
     },
     {
-      key: 'temp', chip: 'Skin temp', title: 'Skin temperature', color: DOMAIN.cardio.hex,
+      key: 'temp', chip: t('vitals.trends.skinTemp.chip'), title: t('vitals.trends.skinTemp.title'), color: DOMAIN.cardio.hex,
       latest: signedC(latestOf(tempWin)), average: signedC(meanOf(tempWin)),
-      hint: 'Change from your own baseline, in °C. Only the shift matters, not the reading itself.',
+      hint: t('vitals.trends.skinTemp.hint'),
       chart: <div className="pt-2"><DivergingBars series={groupSeries(tempWin, bucket)} bucket={bucket} /></div>,
     },
     {
-      key: 'vo2', chip: 'VO₂ max', title: 'Cardio fitness', color: VO2_HEX,
+      key: 'vo2', chip: t('vitals.trends.vo2Max.chip'), title: t('vitals.trends.vo2Max.title'), color: VO2_HEX,
       latest: unit(latestOf(vo2Win), ''), average: unit(meanOf(vo2Win), ''),
-      change: vo2Change !== null && <Delta value={vo2Change} goodWhen="up" digits={1} suffix="from the first week to the last" />,
-      hint: 'Your watch’s VO₂ max estimate. It moves slowly, over weeks.',
+      change: vo2Change !== null && <Delta value={vo2Change} goodWhen="up" digits={1} phrase="vitals.trends.change" />,
+      hint: t('vitals.trends.vo2Max.hint'),
       // The estimate changes in steps; a rolling average would draw a gradual climb that never happened.
       chart: <TrendChart series={groupSeries(vo2Win, bucket)} bucket={bucket} color={VO2_HEX} height={180} meanWindow={null} format={(v) => fmtNum(v, 1)} />,
     },
@@ -165,47 +167,47 @@ export function VitalsView({ data, clock, intraday }: { data: SyncResult; clock?
         {/* Desktop leads with the tiles; a phone leads with today's heart rate. */}
         <div className="order-2 md:order-1 space-y-2.5">
           <div className="flex items-baseline justify-between gap-2 px-1">
-            <h2 className="text-section uppercase text-zinc-500">Latest readings</h2>
-            <span className="text-caption text-zinc-500">against your last 4 weeks</span>
+            <h2 className="text-section uppercase text-zinc-500">{t('vitals.latest.title')}</h2>
+            <span className="text-caption text-zinc-500">{t('vitals.latest.baseline')}</span>
           </div>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 md:gap-3">
             <Tile
-              label="HRV"
+              label={t('vitals.latest.hrv.label')}
               icon={<Activity size={14} className={DOMAIN.cardio.text} />}
-              value={<Value value={hrvCmp.value} size="md" unit="ms" />}
+              value={<Value value={hrvCmp.value} size="md" unit={t('units.ms')} />}
               pill={hrvCmp.value !== null && <BandPill c={hrvCmp} />}
               chart={hrvCmp.value !== null && <Spark series={hrvAll.slice(-28)} color={DOMAIN.cardio.hex} height={28} baseline={usual(hrvCmp)} />}
-              rows={[['Usual', hrvCmp.baseline !== null && `${fmtNum(hrvCmp.baseline, 0)} ms`]]}
-              empty={hrvCmp.value === null ? 'No HRV readings yet' : null}
+              rows={[[t('vitals.latest.usual'), hrvCmp.baseline !== null && `${fmtNum(hrvCmp.baseline, 0)} ${t('units.ms')}`]]}
+              empty={hrvCmp.value === null ? t('vitals.latest.hrv.empty') : null}
               note={from(hrvCmp.date)}
             />
             <Tile
-              label="Resting HR"
+              label={t('vitals.latest.restingHr.label')}
               icon={<Heart size={14} className={DOMAIN.cardio.text} />}
-              value={<Value value={rhrCmp.value} size="md" unit="bpm" />}
+              value={<Value value={rhrCmp.value} size="md" unit={t('units.bpm')} />}
               pill={rhrCmp.value !== null && <BandPill c={rhrCmp} />}
               chart={rhrCmp.value !== null && <Spark series={rhrAll.slice(-28)} color={DOMAIN.cardio.hex} height={28} baseline={usual(rhrCmp)} />}
-              rows={[['Usual', rhrCmp.baseline !== null && `${fmtNum(rhrCmp.baseline, 0)} bpm`]]}
+              rows={[[t('vitals.latest.usual'), rhrCmp.baseline !== null && `${fmtNum(rhrCmp.baseline, 0)} ${t('units.bpm')}`]]}
               note={from(rhrCmp.date)}
             />
             <Tile
-              label="Breathing"
+              label={t('vitals.latest.breathing.label')}
               icon={<Wind size={14} style={{ color: BREATHING_HEX }} />}
-              value={<Value value={respCmp.value} size="md" digits={1} unit="/min" />}
+              value={<Value value={respCmp.value} size="md" digits={1} unit={t('units.perMinute')} />}
               pill={respCmp.value !== null && <BandPill c={respCmp} />}
               chart={respCmp.value !== null && <Spark series={respAll.slice(-28)} color={BREATHING_HEX} height={28} baseline={usual(respCmp)} />}
-              rows={[['Usual', respCmp.baseline !== null && `${fmtNum(respCmp.baseline)} /min`]]}
-              empty={respCmp.value === null ? 'No breathing readings yet' : null}
+              rows={[[t('vitals.latest.usual'), respCmp.baseline !== null && `${fmtNum(respCmp.baseline)} ${t('units.perMinute')}`]]}
+              empty={respCmp.value === null ? t('vitals.latest.breathing.empty') : null}
               note={from(respCmp.date)}
             />
             <Tile
-              label="Blood oxygen"
+              label={t('vitals.latest.bloodOxygen.label')}
               icon={<Droplet size={14} style={{ color: SPO2_HEX }} />}
-              value={<Value value={spo2Cmp.value} size="md" digits={1} unit="%" />}
+              value={<Value value={spo2Cmp.value} size="md" digits={1} unit={t('units.percent')} />}
               pill={spo2Cmp.value !== null && <BandPill c={spo2Cmp} />}
               chart={spo2Cmp.value !== null && <Spark series={spo2All.slice(-28)} color={SPO2_HEX} height={28} baseline={usual(spo2Cmp)} />}
-              rows={[['Usual', spo2Cmp.baseline !== null && `${fmtNum(spo2Cmp.baseline)}%`]]}
-              empty={spo2Cmp.value === null ? 'No blood oxygen readings yet' : null}
+              rows={[[t('vitals.latest.usual'), spo2Cmp.baseline !== null && `${fmtNum(spo2Cmp.baseline)}${t('units.percent')}`]]}
+              empty={spo2Cmp.value === null ? t('vitals.latest.bloodOxygen.empty') : null}
               note={from(spo2Cmp.date)}
             />
           </div>
@@ -218,13 +220,13 @@ export function VitalsView({ data, clock, intraday }: { data: SyncResult; clock?
 
       <div className="flex items-center justify-between px-1">
         <h2 className="text-section uppercase text-zinc-500">
-          Your vitals over time
+          {t('vitals.trends.title')}
         </h2>
         <SpanSelector state={spanState} />
       </div>
 
       {!wide && (
-        <ChartChips label="Metric" options={metrics.map((m) => ({ key: m.key, label: m.chip }))} value={picked} onChange={setPicked} />
+        <ChartChips label={t('vitals.trends.chips.label')} options={metrics.map((m) => ({ key: m.key, label: m.chip }))} value={picked} onChange={setPicked} />
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
@@ -233,12 +235,12 @@ export function VitalsView({ data, clock, intraday }: { data: SyncResult; clock?
             <CardHead
               domain="cardio"
               title={m.title}
-              right={m.latest && <span>latest <span className="font-medium" style={{ color: m.color }}>{m.latest}</span></span>}
+              right={m.latest && <span>{rich('vitals.trends.latest', { value: <span className="font-medium" style={{ color: m.color }}>{m.latest}</span> })}</span>}
               hint={
                 <>
                   {(m.average || m.change) && (
                     <span className="block text-zinc-400">
-                      {m.average && `${window.length}-day average ${m.average}`}
+                      {m.average && t('vitals.trends.average', { days: window.length, value: m.average })}
                       {m.average && m.change && ' · '}
                       {m.change}
                     </span>
