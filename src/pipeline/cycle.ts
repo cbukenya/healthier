@@ -418,7 +418,9 @@ export function shiftsIn(nights: Night[], t: (number | null)[], min: number): Sh
   // The cycle under way: a rise since the last fall whose nights have stayed up to the latest one.
   const from = out.length ? out[out.length - 1].at + HIGH_MIN : SIDE;
   let current: { r: number; score: number; low: number; high: number } | null = null;
-  for (let r = Math.max(from, SIDE); r <= n - 4 && n - r <= HIGH_MAX; r++) {
+  // The run from the rise to the latest night is HIGH_MAX nights at most: the rise is looked for
+  // that far back, however long ago the last fall was.
+  for (let r = Math.max(from, SIDE, n - HIGH_MAX); r <= n - 4; r++) {
     const high = avg(r, n - 1);
     const before = avg(r - SIDE, r - 1);
     if (high === null || before === null) continue;
