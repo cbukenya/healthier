@@ -28,6 +28,11 @@ body:
       placeholder: 0.1.0
     validations:
       required: true
+  - type: input
+    id: devices
+    attributes:
+      label: Devices and apps
+      description: What feeds your Google Health account, such as a Pixel Watch on Android, or an Apple Watch through Apple Health on an iPhone.
   - type: dropdown
     id: setup
     attributes:

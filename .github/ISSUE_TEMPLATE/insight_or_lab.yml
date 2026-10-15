@@ -1,0 +1,46 @@
+name: Insight or lab idea
+description: A new insight card or lab, or a change to how one works out its result.
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Healthier's insights and labs are plain arithmetic on a person's own data, out in the open. Ideas are welcome, rough ones included.
+        **Never paste health data.** Describe the pattern in words, or with made-up numbers.
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What kind of idea is it?
+      options:
+        - A new insight card
+        - A new lab
+        - A change to an existing card or lab
+    validations:
+      required: true
+  - type: textarea
+    id: pattern
+    attributes:
+      label: What would it notice?
+      description: The pattern in the data, and why it would matter to the person seeing it.
+    validations:
+      required: true
+  - type: textarea
+    id: data
+    attributes:
+      label: Which data does it need?
+      description: Streams such as steps, sleep stages, HRV, minute heart rate or weight, and how many days of them.
+  - type: textarea
+    id: arithmetic
+    attributes:
+      label: How would it work it out?
+      description: The arithmetic step by step, what it compares against, and when it should stay quiet.
+  - type: textarea
+    id: words
+    attributes:
+      label: What would it say?
+      description: An example of its words, with made-up numbers. Plain sentences that describe what was observed, without naming a condition.
+  - type: textarea
+    id: evidence
+    attributes:
+      label: What is it based on?
+      description: Papers, guidelines or other evidence. For a lab, also say what's uncertain about it.

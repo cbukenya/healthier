@@ -6,6 +6,9 @@ then the card, then the string (`sleep.debt.title`).
 
 ## Adding a language
 
+Open an issue with the **Translation** template first, so nobody translates the same language
+twice.
+
 1. Copy `en-US.json` to a file named by the language's tag, such as `sv-SE.json`.
 2. Translate the values. Keep the keys, and keep every `{argument}` and `<tag>` as it is: translate
    the words around them, in whatever order your language needs.
@@ -14,7 +17,8 @@ then the card, then the string (`sleep.debt.title`).
    message takes the same arguments, and that it parses.
 
 The app follows the browser's language, falling back to English. `?lang=sv-SE` in the address
-forces one. `?lang=en-XA` shows English with every message in ⟦brackets⟧, so any word on screen
+forces one. To read a translation in place without setting anything up, run `npm run demo`, open
+the address it prints with `?lang=sv-SE` added, and choose **Demo mode**. `?lang=en-XA` shows English with every message in ⟦brackets⟧, so any word on screen
 outside brackets is one that doesn't come from this folder yet.
 
 ## How messages work
