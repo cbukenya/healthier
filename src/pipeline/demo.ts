@@ -3,6 +3,7 @@ import {
   buildFixturePayloads, iso, listPoint, newestFirst, rollupPoint, sampleTime, type FixtureDay, type FixturePayloads,
   type MinuteSeries,
 } from './fixtures';
+import type { CycleDay, CycleLog, Flow } from './cycle';
 
 /**
  * The demo person: a year of made-up data from a watch and a scale, built so demo mode shows what
@@ -19,7 +20,8 @@ import {
  *   - a few nights with oxygen, breathing and time awake off together, which the Labs breathing
  *     card watches for, and stretches of fast heart rate in some of them;
  *   - minute heart rate for the whole 62-day window: commutes, runs, hikes, nights asleep, and a
- *     run yesterday evening, so the last 24 hours climb through the zones.
+ *     run yesterday evening, so the last 24 hours climb through the zones;
+ *   - cycles all year, in their nights, three periods logged, and the demo morning on day 18.
  *
  * It goes through buildFixturePayloads and the fixture server like the test data, so demo mode
  * runs the real pipeline on it, end to end, history backfill included.
@@ -91,6 +93,48 @@ interface DemoDay extends FixtureDay {
   bodyFat: number | null;
 }
 
+/**
+ * The demo person's cycles: a start every 26 to 31 days, the latest on 25 September, so the
+ * demo morning is day 18. Their nights follow them, the way the Cycle page finds them.
+ */
+export const DEMO_CYCLE_STARTS: CivilDate[] = (() => {
+  const r = seeded(20260925);
+  const out: CivilDate[] = ['2026-09-25'];
+  const first = addDays(TODAY, -(DEMO_DAYS - 1));
+  while (out[0] > addDays(first, -40)) out.unshift(addDays(out[0], -(26 + Math.floor(r.next() * 6))));
+  return out;
+})();
+
+/** The second half of each cycle runs from the rise to the night before the next start. */
+const AFTER_RISE_DAYS = 14;
+
+/** Whether a night is in the second half of a cycle: warmer, a faster resting heart rate, a lower HRV. */
+function secondHalf(date: CivilDate): boolean {
+  const k = DEMO_CYCLE_STARTS.findIndex((s, j) => s <= date && (DEMO_CYCLE_STARTS[j + 1] === undefined || date < DEMO_CYCLE_STARTS[j + 1]));
+  if (k < 0) return false;
+  // The cycle under way runs as if for 28 days.
+  const next = DEMO_CYCLE_STARTS[k + 1] ?? addDays(DEMO_CYCLE_STARTS[k], 28);
+  return date >= addDays(next, -AFTER_RISE_DAYS) && date < addDays(next, -1);
+}
+
+/**
+ * What the demo person logged: three periods and how some days felt. The other cycles are left
+ * for the Cycle page to find in the nights, as most people's would be.
+ */
+export const DEMO_CYCLE_LOG: CycleLog = (() => {
+  const n = DEMO_CYCLE_STARTS.length;
+  const days: CycleDay[] = [];
+  const period = (start: CivilDate, flows: Flow[]) => flows.forEach((flow, i) => days.push({ date: addDays(start, i), flow }));
+  period(DEMO_CYCLE_STARTS[n - 5], ['medium', 'heavy', 'medium', 'light']);
+  period(DEMO_CYCLE_STARTS[n - 3], ['heavy', 'heavy', 'medium', 'light', 'light']);
+  period(DEMO_CYCLE_STARTS[n - 1], ['heavy', 'heavy', 'medium', 'light', 'light']);
+  days[days.length - 5].symptoms = ['cramps', 'tired'];
+  days[days.length - 4].symptoms = ['cramps'];
+  days.push({ date: addDays(TODAY, -2), symptoms: ['headache'] });
+  days.push({ date: TODAY, symptoms: ['bloating', 'tired'] });
+  return { settings: { tracking: true, todayCards: true }, days: days.sort((a, b) => (a.date < b.date ? -1 : 1)), rejected: [] };
+})();
+
 /** Every day of the demo, oldest first, ending today with the morning so far. */
 function demoDays(): DemoDay[] {
   const r = seeded(20261012);
@@ -138,13 +182,16 @@ function demoDays(): DemoDay[] {
     const wake = bed + asleep + awake - 24 * 60;
     const slept = !charging.has(date);
 
-    // ── overnight vitals: fitter over the year, a dip in HRV in the short week.
-    const rhr = round(62.5 - 4.5 * progress + (ago >= 1 && ago <= 7 ? 1.4 : 0) + r.normal(1.1));
-    let hrv = 43 + 6 * progress + r.normal(3.2);
+    // ── overnight vitals: fitter over the year, a dip in HRV in the short week, and the cycle's
+    // second half warmer, with a faster resting heart rate and a lower HRV.
+    const half = secondHalf(date) ? 1 : 0;
+    const rhr = round(62.5 - 4.5 * progress + (ago >= 1 && ago <= 7 ? 1.4 : 0) + 2.4 * half + r.normal(1.1));
+    let hrv = (43 + 6 * progress + r.normal(3.2)) * (half ? 0.9 : 1);
     if (ago >= 1 && ago <= 6) hrv *= 0.86;
     const breathing = round(14.4 + r.normal(0.35) + (rough.has(date) ? 1.5 : 0), 1);
     const spo2avg = round((rough.has(date) ? 93.6 : 95.6) + r.normal(0.35), 1);
-    const temp = round(r.normal(0.14), 2);
+    let temp = round(0.34 * half - 0.15 + r.normal(0.14), 2);
+    if (ago === 0) temp = 0.23; // last night, plainly in the second half
 
     // ── the scale: most mornings, slowly down, body fat on the days it reads it.
     const weighs = (wd === 0 || wd === 2 || wd === 4 || wd === 6) && r.chance(0.82) && !(ago >= 30 && ago < 36);

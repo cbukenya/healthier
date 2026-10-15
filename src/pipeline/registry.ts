@@ -649,6 +649,8 @@ export interface ProfileFacts {
   goals?: Goals;
   /** Cycle tracking and the person's cycle log: Google Health doesn't let other apps read periods. */
   cycle?: CycleLog;
+  /** With tracking off the log isn't sent; this says whether one is kept, so it can still be deleted. */
+  cycleKept?: boolean;
 }
 
 export function extractProfile(heightPoints: any[]): ProfileFacts {

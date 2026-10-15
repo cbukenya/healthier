@@ -1,6 +1,6 @@
 import type { PackedDataset } from '../pipeline/incremental';
 import type { Goals } from '../pipeline/goals';
-import type { CycleDay, CycleSettings } from '../pipeline/cycle';
+import type { CycleDay, CycleLog, CycleSettings } from '../pipeline/cycle';
 import type { Gender } from '../pipeline/registry';
 import type { DailyRecord, StreamErrorCode } from './health';
 
@@ -89,6 +89,11 @@ export interface ProfileResponse {
 /** PUT /api/goals, both ways. */
 export interface GoalsResponse {
   goals: Goals;
+}
+
+/** GET /api/cycle: the whole log, read when tracking is turned back on. */
+export interface CycleLogResponse {
+  cycle: CycleLog;
 }
 
 /** PUT /api/cycle/settings, both ways. */

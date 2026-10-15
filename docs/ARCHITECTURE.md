@@ -198,7 +198,10 @@ Google Health lets apps add periods but not read them back, so cycles are found 
   typical cycle. Only logged periods have a length.
 - **Older nights** come from history queries grouped by day, 240 days back.
 - **Private by default.** With tracking off, the log stays on the server and nothing cycle-aware
-  runs; the dataset carries only the setting.
+  runs; the dataset carries only the setting, and whether a log is kept, so it can be deleted.
+- **The page** (`src/views/CycleView.tsx`) shows only while tracking is on, which is a switch on
+  the Data page for anyone, whatever gender is set. `useCycle` holds the log for every screen: a
+  change shows at once, is saved straight away, and is undone if the save fails.
 
 `cycle.test.ts` holds it to both kinds of error on noisy nights: most starts found in people who
 have cycles, and almost no cycle shown to people who don't.

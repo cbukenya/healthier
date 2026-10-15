@@ -1,0 +1,1012 @@
+import React, { useId, useMemo, useState } from 'react';
+import { addDays, daysBetween, isoWeekdayIndex, type CivilDate } from '../lib/date';
+import { names, t, type MessageKey } from '../i18n';
+import { rich } from '../i18n/react';
+import { formatCivil, formatCivilLong, formatCivilRange, formatDayMonthLong, formatFixed, formatMonthYear, formatRounded } from '../i18n/format';
+import {
+  MAX_CYCLE, MIN_CYCLE, MIN_CYCLES, byCycleDay, loggedPeriods, sinceRise,
+  type Cycle, type CycleLog, type CycleSummary, type Flow, type Night, type Symptom,
+} from '../pipeline/cycle';
+import { useCycle } from '../hooks/useCycle';
+import { Card, CardHead, DOMAIN } from '../ui/primitives';
+import { Chips, Sheet } from '../ui/Sheet';
+
+/**
+ * The Cycle page: where today sits in the cycle, how the body moves through it, and the cycles so
+ * far. Cycles are found in the nights whether or not anything is logged; what's logged makes them
+ * certain (src/pipeline/cycle.ts).
+ */
+
+const PINK = DOMAIN.cycle.hex;
+const VIOLET = '#a78bfa';
+
+const FLOW_LABEL: Record<Flow | 'none', MessageKey> = {
+  none: 'cycle.flow.none',
+  spotting: 'cycle.flow.spotting',
+  light: 'cycle.flow.light',
+  medium: 'cycle.flow.medium',
+  heavy: 'cycle.flow.heavy',
+  unspecified: 'cycle.flow.unspecified',
+};
+/** Flows a person picks; `unspecified` is what "My period started" logs. */
+const PICKED_FLOWS = ['none', 'spotting', 'light', 'medium', 'heavy'] as const;
+const HEAVINESS: Flow[] = ['spotting', 'light', 'medium', 'heavy'];
+
+const SYMPTOM_LABEL: Record<Symptom, MessageKey> = {
+  cramps: 'cycle.symptoms.cramps',
+  headache: 'cycle.symptoms.headache',
+  bloating: 'cycle.symptoms.bloating',
+  breasts: 'cycle.symptoms.breasts',
+  back: 'cycle.symptoms.back',
+  acne: 'cycle.symptoms.acne',
+  tired: 'cycle.symptoms.tired',
+  'low-mood': 'cycle.symptoms.lowMood',
+  irritable: 'cycle.symptoms.irritable',
+  cravings: 'cycle.symptoms.cravings',
+  sleep: 'cycle.symptoms.sleep',
+};
+
+type SheetState = { kind: 'day'; date: CivilDate } | { kind: 'start'; suggest: CivilDate | null } | null;
+
+export function CycleView() {
+  const { summary, log, nights, today, failed } = useCycle();
+  const [sheet, setSheet] = useState<SheetState>(null);
+  if (!summary || !today) return null;
+  const close = () => setSheet(null);
+
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-start">
+        <CycleHero
+          className="lg:col-span-8"
+          summary={summary}
+          log={log}
+          nights={nights}
+          today={today}
+          onLog={() => setSheet({ kind: 'day', date: today })}
+          onStarted={(suggest) => setSheet({ kind: 'start', suggest })}
+        />
+        <div className="lg:col-span-4 space-y-3">
+          <NowCard summary={summary} nights={nights} />
+          <LastPeriodCard summary={summary} log={log} today={today} />
+          <LoggedDayCard log={log} today={today} onLog={() => setSheet({ kind: 'day', date: today })} />
+        </div>
+      </div>
+
+      {failed && (
+        <p role="alert" className="px-1 text-caption text-rose-400">
+          {t('cycle.failed')}
+        </p>
+      )}
+
+      <BodyThroughCycle summary={summary} nights={nights} />
+
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-start">
+        <CycleHistory className="lg:col-span-7" summary={summary} log={log} today={today} />
+        <CycleCalendar className="lg:col-span-5" summary={summary} log={log} today={today} onPick={(date) => setSheet({ kind: 'day', date })} />
+      </div>
+
+      <p className="px-4 pt-2 text-center text-caption leading-relaxed text-zinc-500 max-w-2xl mx-auto">{t('cycle.disclaimer')}</p>
+
+      {sheet?.kind === 'day' && <DaySheet date={sheet.date} onClose={close} />}
+      {sheet?.kind === 'start' && <StartSheet suggest={sheet.suggest} onClose={close} />}
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────── today
+
+/** The logged period this cycle began with, when there is one. */
+const periodOf = (log: CycleLog, start: CivilDate) => loggedPeriods(log.days).find((p) => p.start === start) ?? null;
+
+const span = (min: number, max: number) => (min === max ? formatRounded(min, 0) : t('cycle.span', { min, max }));
+
+function CycleHero({
+  summary, log, nights, today, onLog, onStarted, className = '',
+}: {
+  summary: CycleSummary;
+  log: CycleLog;
+  nights: Night[];
+  today: CivilDate;
+  onLog: () => void;
+  onStarted: (suggest: CivilDate | null) => void;
+  className?: string;
+}) {
+  const { setDay, setRejected } = useCycle();
+  const c = summary.current;
+  const actions = (
+    <div className="flex flex-wrap gap-2">
+      <button type="button" onClick={onLog} className="min-h-11 px-4 rounded-xl bg-zinc-50 text-zinc-950 text-body-sm font-semibold hover:bg-white transition-colors">
+        {t('cycle.actions.logToday')}
+      </button>
+      <button type="button" onClick={() => onStarted(null)} className="min-h-11 px-4 rounded-xl border border-pink-400 text-pink-200 text-body-sm font-medium hover:bg-pink-500/10 transition-colors">
+        {t('cycle.actions.started')}
+      </button>
+    </div>
+  );
+
+  if (!c) {
+    const none = summary.status === 'no-rhythm';
+    return (
+      <section aria-labelledby="cycle-hero" className={`bg-[#0c0c0e] border border-[#1e1e22] rounded-[28px] p-6 md:p-10 ${className}`}>
+        <p className="text-eyebrow uppercase text-pink-300">{t('cycle.eyebrow')}</p>
+        <h1 id="cycle-hero" className="mt-2 font-display text-display-lg text-zinc-50">
+          {none ? t('cycle.noRhythm.title') : t('cycle.collecting.title')}
+        </h1>
+        <p className="mt-3 text-body-lg text-zinc-300 max-w-[52ch] leading-relaxed">{none ? t('cycle.noRhythm.text') : t('cycle.collecting.text')}</p>
+        {none && <p className="mt-2 text-body text-zinc-400 max-w-[52ch]">{t('cycle.noRhythm.logged')}</p>}
+        <div className="mt-6">{actions}</div>
+      </section>
+    );
+  }
+
+  const period = periodOf(log, c.start);
+  const inPeriod = !!period && today <= period.end;
+  const shifts = sinceRise(nights, summary);
+  const next = summary.next;
+  const complete = summary.cycles.filter((x) => x.length !== null && x.length >= MIN_CYCLE && x.length <= MAX_CYCLE).length;
+  const b = (w: React.ReactNode) => <strong className="font-semibold text-zinc-50">{w}</strong>;
+  const nextLine = !next
+    ? t('cycle.next.collecting', { count: Math.max(1, MIN_CYCLES - complete) })
+    : today > next.to
+      ? t('cycle.next.past', { date: formatDayMonthLong(next.to) })
+      : next.from === next.to
+        ? rich('cycle.next.day', { date: formatDayMonthLong(next.from), b })
+        : rich('cycle.next.range', { from: formatDayMonthLong(next.from), to: formatDayMonthLong(next.to), b });
+  const pending = c.source === 'found' && c.day <= 10;
+  const existing = log.days.find((d) => d.date === c.start);
+
+  const reached: { title: string; detail: string; value: string; color: string }[] = [
+    {
+      title: t('cycle.reached.start', { source: c.source, date: formatDayMonthLong(c.start) }),
+      detail: t('cycle.reached.startDetail', { source: c.source, day: c.day }),
+      value: t('cycle.day', { day: c.day }),
+      color: 'text-zinc-50',
+    },
+  ];
+  if (summary.length) {
+    reached.push({
+      title: t('cycle.reached.cycles', { count: summary.length.count, min: summary.length.min, max: summary.length.max }),
+      detail: t('cycle.reached.cyclesDetail', { logged: summary.length.logged, found: summary.length.found, typical: summary.length.typical }),
+      value: span(summary.length.min, summary.length.max),
+      color: 'text-zinc-50',
+    });
+  }
+  if (c.riseDay) {
+    reached.push({
+      title: t('cycle.reached.rise', { day: c.riseDay }),
+      detail: t('cycle.reached.riseDetail'),
+      value: shifts?.temp !== null && shifts?.temp !== undefined ? t('cycle.signed', { sign: shifts.temp >= 0 ? 'up' : 'down', value: formatFixed(Math.abs(shifts.temp), 2), unit: t('units.celsius') }) : '',
+      color: 'text-violet-300',
+    });
+  }
+  if (next) {
+    const basis = next.basis === 'rise' ? summary.afterRise : summary.length;
+    reached.push({
+      title: t('cycle.reached.next', { basis: next.basis, min: basis?.min ?? 0, max: basis?.max ?? 0 }),
+      detail: t('cycle.reached.nextDetail', { from: formatDayMonthLong(next.from), to: formatDayMonthLong(next.to) }),
+      value: next.from === next.to ? formatCivil(next.from) : formatCivilRange(next.from, next.to),
+      color: 'text-pink-300',
+    });
+  }
+
+  return (
+    <section aria-labelledby="cycle-hero" className={`bg-[#0c0c0e] border border-[#1e1e22] rounded-[28px] p-6 md:p-10 flex flex-col gap-6 ${className}`}>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="min-w-0">
+          <p className="text-eyebrow uppercase text-pink-300">{t('cycle.eyebrow')}</p>
+          <h1 id="cycle-hero" className="mt-1.5 font-display text-number-2xl text-zinc-50">{t('cycle.day', { day: c.day })}</h1>
+          <p className={`mt-2 font-display text-headline ${inPeriod ? 'text-pink-200' : c.phase === 'after-rise' ? 'text-violet-300' : 'text-zinc-300'}`}>
+            {inPeriod ? t('cycle.phase.period') : c.phase === 'after-rise' ? t('cycle.phase.afterRise') : t('cycle.phase.beforeRise')}
+          </p>
+          <p className="mt-2.5 text-body-lg text-zinc-300 max-w-[46ch]">{nextLine}</p>
+        </div>
+        {actions}
+      </div>
+
+      {pending && (
+        <div className="rounded-2xl border border-pink-500/30 bg-pink-500/[0.06] p-4 md:p-5">
+          <h2 className="font-display text-title text-pink-100">{t('cycle.found.title')}</h2>
+          <p className="mt-1.5 text-body-sm text-zinc-300 leading-relaxed">
+            {t('cycle.found.text', {
+              fall: formatDayMonthLong(addDays(c.start, -summary.offset)),
+              learned: summary.offsetLearned ? 'yes' : 'no',
+              offset: summary.offset,
+              date: formatCivilLong(c.start),
+            })}
+          </p>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setDay({ ...existing, date: c.start, flow: existing?.flow ?? 'unspecified' })}
+              className="min-h-11 px-4 rounded-xl bg-zinc-50 text-zinc-950 text-body-sm font-semibold hover:bg-white transition-colors"
+            >
+              {t('cycle.found.confirm')}
+            </button>
+            <button type="button" onClick={() => onStarted(c.start)} className="min-h-11 px-4 rounded-xl border border-zinc-600 text-zinc-200 text-body-sm font-medium hover:bg-zinc-800 transition-colors">
+              {t('cycle.found.change')}
+            </button>
+            <button type="button" onClick={() => setRejected(c.start, true)} className="min-h-11 px-2 text-body-sm text-zinc-400 underline underline-offset-2 hover:text-zinc-200">
+              {t('cycle.found.reject')}
+            </button>
+          </div>
+          <p className="mt-2.5 text-caption text-zinc-500">{t('cycle.found.note')}</p>
+        </div>
+      )}
+
+      <CycleStrip summary={summary} log={log} />
+
+      <div>
+        <p className="text-eyebrow uppercase text-zinc-500 mb-1">{t('cycle.reached.title')}</p>
+        {reached.map((r) => (
+          <div key={r.title} className="flex items-baseline justify-between gap-4 py-3 border-t border-zinc-800/80">
+            <div className="min-w-0">
+              <div className="text-body text-zinc-200">{r.title}</div>
+              <div className="mt-0.5 text-detail text-zinc-500">{r.detail}</div>
+            </div>
+            <div className={`shrink-0 font-display text-title tabular-nums ${r.color}`}>{r.value}</div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+/** The cycle as a row of days: the period, the rise, today, and the days the next period is likely on. */
+function CycleStrip({ summary, log }: { summary: CycleSummary; log: CycleLog }) {
+  const c = summary.current!;
+  const period = periodOf(log, c.start);
+  const periodDays = period ? daysBetween(period.start, period.end) + 1 : 0;
+  const next = summary.next;
+  const dayOf = (date: CivilDate) => daysBetween(c.start, date) + 1;
+  const from = next ? dayOf(next.from) : null;
+  const to = next ? dayOf(next.to) : null;
+  const likely = next ? dayOf(next.likely) : null;
+  const length = Math.min(MAX_CYCLE, Math.max(28, c.day + 2, to ?? 0));
+  const cells = Array.from({ length }, (_, i) => {
+    const d = i + 1;
+    const past = d <= c.day;
+    let style: React.CSSProperties = { background: past ? '#52525b' : '#27272a' };
+    if (periodDays && d <= periodDays) style = { background: PINK };
+    else if (!periodDays && d === 1 && c.source === 'found') style = { background: 'rgba(244,114,182,0.16)', border: `1px dashed ${PINK}` };
+    else if (from !== null && to !== null && d >= from && d <= to) style = { background: d === likely ? 'rgba(244,114,182,0.28)' : 'transparent', border: `1px dashed ${PINK}` };
+    else if (c.riseDay && d >= c.riseDay) style = { background: past ? VIOLET : '#2e2741' };
+    return { d, style, height: d === c.day ? 34 : 24 };
+  });
+  const below: Record<number, { text: string; color: string }> = {};
+  if (periodDays || c.source === 'found') below[1] = { text: t('cycle.strip.period'), color: 'text-pink-300' };
+  if (c.riseDay) below[c.riseDay] = { text: t('cycle.strip.rise'), color: 'text-violet-300' };
+  if (from !== null && from > c.day) below[from] = { text: t('cycle.strip.next'), color: 'text-pink-300' };
+
+  const label = t('cycle.strip.label', {
+    day: c.day,
+    rise: c.riseDay ? 'yes' : 'no',
+    riseDay: c.riseDay ?? 0,
+    next: from !== null && to !== null ? 'yes' : 'no',
+    from: from ?? 0,
+    to: to ?? 0,
+  });
+  return (
+    <div role="img" aria-label={label}>
+      <div aria-hidden="true" className="flex gap-[3px] h-4">
+        {cells.map((x) => (
+          <div key={x.d} className="flex-1 min-w-0 whitespace-nowrap overflow-visible text-note font-semibold text-zinc-50">
+            {x.d === c.day ? t('cycle.strip.today') : ''}
+          </div>
+        ))}
+      </div>
+      <div aria-hidden="true" className="mt-1 flex gap-[3px] items-end h-[34px]">
+        {cells.map((x) => (
+          <div key={x.d} className="flex-1 min-w-0 rounded-[4px] box-border" style={{ ...x.style, height: x.height }} />
+        ))}
+      </div>
+      <div aria-hidden="true" className="relative mt-1.5 h-4">
+        {Object.entries(below).map(([d, l]) => {
+          const at = (Number(d) - 1) / length;
+          // A label near the end is held to the strip's right edge, so it never runs off it.
+          const pos = at > 0.75 ? { right: 0 } : { left: `${at * 100}%` };
+          return (
+            <span key={d} className={`absolute whitespace-nowrap text-note ${l.color}`} style={pos}>
+              {l.text}
+            </span>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/** Where in the cycle today is, and how the nights since the rise differ from the ones before it. */
+function NowCard({ summary, nights }: { summary: CycleSummary; nights: Night[] }) {
+  const c = summary.current;
+  if (!c) return null;
+  const after = c.phase === 'after-rise' && c.riseDay !== null;
+  const shifts = sinceRise(nights, summary);
+  const rows: { name: string; value: string }[] = shifts
+    ? ([
+      ['temp', 'cycle.now.rows.temp', 2, t('units.celsius')],
+      ['restingHr', 'cycle.now.rows.restingHr', 1, t('units.bpm')],
+      ['hrv', 'cycle.now.rows.hrv', 0, t('units.ms')],
+    ] as const).flatMap(([key, name, digits, unit]) => {
+      const v = shifts[key];
+      return v === null ? [] : [{ name: t(name), value: t('cycle.signed', { sign: v >= 0 ? 'up' : 'down', value: formatFixed(Math.abs(v), digits), unit }) }];
+    })
+    : [];
+  return (
+    <Card className="p-5">
+      <p className={`text-eyebrow uppercase ${after ? 'text-violet-300' : 'text-zinc-400'}`}>
+        {after ? t('cycle.now.afterRise.eyebrow') : t('cycle.now.beforeRise.eyebrow')}
+      </p>
+      <p className="mt-2 font-display text-number-md text-zinc-50">
+        {after ? t('cycle.day', { day: c.day - c.riseDay! + 1 }) : t('cycle.day', { day: c.day })}
+        {after && summary.afterRise && (
+          <span className="ml-2 font-sans text-body-sm font-medium text-zinc-400">{t('cycle.now.afterRise.of', { days: summary.afterRise.typical })}</span>
+        )}
+      </p>
+      <p className="mt-2 text-detail leading-relaxed text-zinc-400">
+        {after
+          ? t('cycle.now.afterRise.text', { day: c.riseDay! })
+          : summary.riseDay
+            ? t('cycle.now.beforeRise.text', { days: span(summary.riseDay.min, summary.riseDay.max) })
+            : t('cycle.now.beforeRise.unknown')}
+      </p>
+      {after && rows.length > 0 && (
+        <div className="mt-3">
+          {rows.map((r) => (
+            <div key={r.name} className="flex justify-between gap-3 py-2 border-t border-zinc-800/80 text-body-sm">
+              <span className="text-zinc-400">{r.name}</span>
+              <span className="text-zinc-50 tabular-nums">{r.value}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </Card>
+  );
+}
+
+/** The last period logged: when, how long, how heavy, and the usual length. */
+function LastPeriodCard({ summary, log, today }: { summary: CycleSummary; log: CycleLog; today: CivilDate }) {
+  const last = loggedPeriods(log.days).filter((p) => p.start <= today).at(-1);
+  if (!last) return null;
+  const flows = log.days.filter((d) => d.date >= last.start && d.date <= last.end).map((d) => d.flow);
+  const heaviest = [...HEAVINESS].reverse().find((f) => flows.includes(f)) ?? null;
+  const ongoing = last.end >= addDays(today, -1);
+  return (
+    <Card className="p-5">
+      <p className="text-eyebrow uppercase text-pink-300">{t('cycle.lastPeriod.eyebrow')}</p>
+      <p className="mt-2 font-display text-headline text-zinc-50">
+        {last.start === last.end ? formatDayMonthLong(last.start) : formatCivilRange(last.start, last.end)}
+      </p>
+      <div className="mt-3">
+        <div className="flex justify-between gap-3 py-2 border-t border-zinc-800/80 text-body-sm">
+          <span className="text-zinc-400">{t('cycle.lastPeriod.length')}</span>
+          <span className="text-zinc-50">
+            {last.length === null ? (ongoing ? t('cycle.lastPeriod.ongoing') : t('cycle.lastPeriod.startOnly')) : t('cycle.days', { count: last.length })}
+          </span>
+        </div>
+        {heaviest && (
+          <div className="flex justify-between gap-3 py-2 border-t border-zinc-800/80 text-body-sm">
+            <span className="text-zinc-400">{t('cycle.lastPeriod.heaviest')}</span>
+            <span className="text-zinc-50">{t(FLOW_LABEL[heaviest])}</span>
+          </div>
+        )}
+        {summary.period && (
+          <div className="flex justify-between gap-3 py-2 border-t border-zinc-800/80 text-body-sm">
+            <span className="text-zinc-400">{t('cycle.lastPeriod.usual')}</span>
+            <span className="text-zinc-50">{t('cycle.lastPeriod.usualRange', { days: span(summary.period.min, summary.period.max) })}</span>
+          </div>
+        )}
+      </div>
+    </Card>
+  );
+}
+
+/** What's logged for today, and the way to log or change it. */
+function LoggedDayCard({ log, today, onLog }: { log: CycleLog; today: CivilDate; onLog: () => void }) {
+  const day = log.days.find((d) => d.date === today);
+  const chips = [
+    ...(day?.flow ? [t(FLOW_LABEL[day.flow])] : []),
+    ...(day?.symptoms ?? []).map((s) => t(SYMPTOM_LABEL[s])),
+  ];
+  return (
+    <Card className="p-5">
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-eyebrow uppercase text-zinc-400">{t('cycle.logged.eyebrow')}</h2>
+        <button type="button" onClick={onLog} className="-my-2 -mr-2 min-h-11 px-2 text-caption text-zinc-300 underline underline-offset-2 hover:text-zinc-100">
+          {day ? t('cycle.logged.change') : t('cycle.logged.add')}
+        </button>
+      </div>
+      {chips.length ? (
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {chips.map((c) => (
+            <span key={c} className="px-3 py-1.5 rounded-full bg-zinc-800 text-zinc-200 text-detail">{c}</span>
+          ))}
+        </div>
+      ) : (
+        <p className="mt-2 text-detail text-zinc-500">{t('cycle.logged.none')}</p>
+      )}
+      {day?.note && <p className="mt-2 text-detail text-zinc-400">{day.note}</p>}
+    </Card>
+  );
+}
+
+// ──────────────────────────────────────────────────────── through the cycle
+
+const CHART_DAYS = 35;
+const MEASURES = [
+  { field: 'temp', name: 'cycle.body.rows.temp', unit: 'units.celsius', digits: 2, signed: true },
+  { field: 'restingHr', name: 'cycle.body.rows.restingHr', unit: 'units.bpm', digits: 0, signed: false },
+  { field: 'hrv', name: 'cycle.body.rows.hrv', unit: 'units.ms', digits: 0, signed: false },
+] as const;
+
+/** Temperature, resting heart rate and HRV by cycle day: this cycle over the middle of the last six. */
+function BodyThroughCycle({ summary, nights }: { summary: CycleSummary; nights: Night[] }) {
+  const c = summary.current;
+  const shifts = sinceRise(nights, summary);
+  const rows = MEASURES.map((m) => ({ ...m, points: byCycleDay(nights, summary, m.field, CHART_DAYS) }));
+  const pastCount = summary.cycles.filter((x) => x.length !== null && x.length >= MIN_CYCLE && x.length <= MAX_CYCLE).slice(-6).length;
+  const hasBand = rows.some((r) => r.points.some((p) => p.middle !== null));
+  if (!c && !hasBand) return null;
+  const periodDays = summary.period?.typical ?? null;
+  const riseFrom = summary.riseDay?.typical ?? c?.riseDay ?? null;
+  const riseTo = summary.length?.typical ?? null;
+  const ticks = [1, 7, 14, 21, 28, 35].filter((d) => !c || Math.abs(d - c.day) >= 3);
+
+  return (
+    <Card>
+      <CardHead
+        title={t('cycle.body.title')}
+        hint={hasBand ? t('cycle.body.hint', { count: pastCount }) : t('cycle.body.hintFew')}
+        domain="cycle"
+      />
+      <div className="px-5 pb-4">
+        <div className="pb-3 flex flex-wrap gap-x-3.5 gap-y-1.5 text-caption text-zinc-400">
+          <span className="flex items-center gap-1.5"><span className="w-4 h-0.5 bg-zinc-50" />{t('cycle.body.legend.mine')}</span>
+          <span className="flex items-center gap-1.5"><span className="w-4 h-2.5 rounded-sm bg-zinc-700" />{t('cycle.body.legend.usual')}</span>
+          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-pink-400/35" />{t('cycle.body.legend.period')}</span>
+          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-violet-400/35" />{t('cycle.body.legend.afterRise')}</span>
+        </div>
+        {rows.map((r) => {
+          const latest = [...r.points].reverse().find((p) => p.mine !== null)?.mine ?? null;
+          const shift = shifts?.[r.field] ?? null;
+          const unit = t(r.unit);
+          return (
+            <div key={r.field} className="py-4 border-t border-zinc-800/60 flex flex-wrap items-center gap-x-5 gap-y-3">
+              <div className="flex-[1_1_170px] min-w-0">
+                <div className="text-body-sm text-zinc-200">{t(r.name)}</div>
+                <div className="mt-0.5 font-display text-number-sm text-zinc-50 tabular-nums">
+                  {latest === null
+                    ? '—'
+                    : r.signed
+                      ? t('cycle.signedValue', { sign: latest >= 0 ? 'up' : 'down', value: formatFixed(Math.abs(latest), r.digits) })
+                      : formatRounded(latest, r.digits)}
+                  <span className="ml-1.5 font-sans text-caption font-medium text-zinc-500">{unit}</span>
+                </div>
+                {shift !== null && c?.riseDay && (
+                  <div className="mt-0.5 text-caption text-violet-300">
+                    {t('cycle.body.change', { change: formatFixed(Math.abs(shift), r.digits), unit, direction: shift >= 0 ? 'up' : 'down', day: c.riseDay })}
+                  </div>
+                )}
+              </div>
+              <div className="flex-[999_1_280px] min-w-0">
+                <CycleChart
+                  points={r.points}
+                  today={c?.day ?? null}
+                  periodDays={periodDays}
+                  riseFrom={riseFrom}
+                  riseTo={riseTo}
+                  label={t('cycle.body.chart', { name: t(r.name) })}
+                />
+              </div>
+            </div>
+          );
+        })}
+        <div aria-hidden="true" className="flex flex-wrap gap-x-5">
+          <div className="flex-[1_1_170px]" />
+          <div className="flex-[999_1_280px] relative h-4 text-note text-zinc-500">
+            {ticks.map((d) => (
+              <span key={d} className="absolute -translate-x-1/2 first:translate-x-0" style={{ left: `${((d - 1) / (CHART_DAYS - 1)) * 100}%` }}>
+                {d === 1 ? t('cycle.body.axisDay', { day: d }) : d}
+              </span>
+            ))}
+            {c && c.day <= CHART_DAYS && (
+              <span className="absolute -translate-x-1/2 font-semibold text-zinc-50" style={{ left: `${((c.day - 1) / (CHART_DAYS - 1)) * 100}%` }}>
+                {t('cycle.strip.today')}
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+/** One measure by cycle day, drawn to fill its width: lines keep their weight as it stretches. */
+function CycleChart({
+  points, today, periodDays, riseFrom, riseTo, label,
+}: {
+  points: ReturnType<typeof byCycleDay>;
+  today: number | null;
+  periodDays: number | null;
+  riseFrom: number | null;
+  riseTo: number | null;
+  label: string;
+}) {
+  const W = 340;
+  const H = 90;
+  const all = points.flatMap((p) => [p.low, p.high, p.mine]).filter((v): v is number => v !== null);
+  if (!all.length) return <div className="h-[90px] rounded-lg bg-zinc-900/60" />;
+  const lo = Math.min(...all);
+  const hi = Math.max(...all);
+  const pad = (hi - lo || 1) * 0.12;
+  const x = (d: number) => ((d - 1) / (CHART_DAYS - 1)) * W;
+  const y = (v: number) => H - ((v - (lo - pad)) / (hi - lo + 2 * pad)) * H;
+  const banded = points.filter((p) => p.low !== null && p.high !== null);
+  const band = banded.length > 1
+    ? `M${banded.map((p) => `${x(p.day).toFixed(1)} ${y(p.high!).toFixed(1)}`).join(' L')} L${[...banded].reverse().map((p) => `${x(p.day).toFixed(1)} ${y(p.low!).toFixed(1)}`).join(' L')} Z`
+    : null;
+  let mine = '';
+  let pen = false;
+  for (const p of points) {
+    if (p.mine === null) {
+      pen = false;
+      continue;
+    }
+    mine += `${pen ? ' L' : ' M'}${x(p.day).toFixed(1)} ${y(p.mine).toFixed(1)}`;
+    pen = true;
+  }
+  const last = [...points].reverse().find((p) => p.mine !== null);
+  return (
+    <svg role="img" aria-label={label} viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="block w-full h-[90px]">
+      {periodDays && <rect x={0} y={0} width={x(periodDays + 0.5)} height={H} fill="rgba(244,114,182,0.13)" />}
+      {riseFrom && riseTo && riseTo > riseFrom && (
+        <rect x={x(riseFrom - 0.5)} y={0} width={x(riseTo - 0.5) - x(riseFrom - 0.5)} height={H} fill="rgba(167,139,250,0.10)" />
+      )}
+      {band && <path d={band} fill="#3f3f46" fillOpacity={0.75} stroke="none" />}
+      {today !== null && today <= CHART_DAYS && (
+        <path d={`M${x(today)} 0 L${x(today)} ${H}`} stroke="#a1a1aa" strokeWidth={1} strokeDasharray="3 3" vectorEffect="non-scaling-stroke" />
+      )}
+      {mine && <path d={mine} fill="none" stroke="#fafafa" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />}
+      {last && (
+        <path
+          d={`M${x(last.day)} ${y(last.mine!)} L${x(last.day)} ${y(last.mine!)}`}
+          stroke="#fafafa"
+          strokeWidth={7}
+          strokeLinecap="round"
+          vectorEffect="non-scaling-stroke"
+        />
+      )}
+    </svg>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────── cycles
+
+/** Bars are drawn on this many days, so cycles of different lengths line up. */
+const BAR_DAYS = 35;
+const pct = (days: number) => `${(Math.max(0, Math.min(days, BAR_DAYS)) / BAR_DAYS) * 100}%`;
+
+/** Each cycle as a bar, newest first: its period or found start, the days before and after the rise. */
+function CycleHistory({ summary, log, today, className = '' }: { summary: CycleSummary; log: CycleLog; today: CivilDate; className?: string }) {
+  const rows = [...summary.cycles].reverse().slice(0, 8);
+  return (
+    <Card className={className}>
+      <CardHead title={t('cycle.history.title')} hint={t('cycle.history.hint')} domain="cycle" />
+      <div className="px-5 pb-5">
+        {!rows.length && <p className="py-6 text-center text-detail text-zinc-500">{t('cycle.history.empty')}</p>}
+        {rows.map((c) => (
+          <CycleBar key={c.start} cycle={c} log={log} today={today} typical={summary.length?.typical ?? 28} />
+        ))}
+        {rows.length > 0 && (
+          <div className="mt-3 flex flex-wrap gap-x-3.5 gap-y-2 text-caption text-zinc-400">
+            <span className="flex items-center gap-1.5"><span className="w-3.5 h-2.5 rounded-[3px]" style={{ background: PINK }} />{t('cycle.history.legend.logged')}</span>
+            <span className="flex items-center gap-1.5"><span className="w-3.5 h-2.5 rounded-[3px] box-border" style={{ border: `1px dashed ${PINK}`, background: 'rgba(244,114,182,0.16)' }} />{t('cycle.history.legend.found')}</span>
+            <span className="flex items-center gap-1.5"><span className="size-2 rounded-full bg-zinc-50" />{t('cycle.history.legend.rise')}</span>
+          </div>
+        )}
+        {summary.length && (
+          <div className="mt-4 pt-4 border-t border-zinc-800/60 grid grid-cols-3 gap-3">
+            <Stat label={t('cycle.history.stats.typical')} value={formatRounded(summary.length.typical, 0)} unit={t('cycle.history.stats.days')} />
+            <Stat label={t('cycle.history.stats.range')} value={span(summary.length.min, summary.length.max)} unit={t('cycle.history.stats.days')} />
+            <Stat
+              label={t('cycle.history.stats.period')}
+              value={summary.period ? span(summary.period.min, summary.period.max) : '—'}
+              unit={summary.period ? t('cycle.history.stats.days') : ''}
+            />
+          </div>
+        )}
+      </div>
+    </Card>
+  );
+}
+
+function Stat({ label, value, unit }: { label: string; value: string; unit: string }) {
+  return (
+    <div>
+      <div className="text-eyebrow-sm uppercase text-zinc-500">{label}</div>
+      <div className="mt-1 font-display text-number-xs text-zinc-50 tabular-nums">
+        {value} <span className="font-sans text-caption font-medium text-zinc-500">{unit}</span>
+      </div>
+    </div>
+  );
+}
+
+function CycleBar({ cycle: c, log, today, typical }: { cycle: Cycle; log: CycleLog; today: CivilDate; typical: number }) {
+  const current = c.next === null;
+  const end = current ? daysBetween(c.start, today) + 1 : c.length!;
+  const period = periodOf(log, c.start);
+  const head = c.source === 'logged' ? (period ? daysBetween(period.start, period.end) + 1 : 1) : 2;
+  const riseDay = c.rise ? daysBetween(c.start, c.rise) + 1 : null;
+  const segments: { left: number; width: number; style: React.CSSProperties; round: string }[] = [
+    c.source === 'logged'
+      ? { left: 0, width: head, style: { background: PINK }, round: 'rounded-l-[7px]' }
+      : { left: 0, width: head, style: { background: 'rgba(244,114,182,0.16)', border: `1px dashed ${PINK}` }, round: 'rounded-l-[7px]' },
+    { left: head, width: (riseDay ? riseDay - 1 : end) - head, style: { background: '#52525b' }, round: '' },
+  ];
+  if (riseDay) segments.push({ left: riseDay - 1, width: end - riseDay + 1, style: { background: VIOLET }, round: current ? '' : 'rounded-r-[7px]' });
+  if (current && typical > end) segments.push({ left: end, width: typical - end, style: { border: '1px dashed #71717a' }, round: 'rounded-r-[7px]' });
+  const length = current ? t('cycle.day', { day: end }) : t('cycle.days', { count: c.length! });
+  const aria = t('cycle.history.row', {
+    date: formatDayMonthLong(c.start),
+    length,
+    source: c.source,
+    rise: riseDay ? 'yes' : 'no',
+    riseDay: riseDay ?? 0,
+  });
+  return (
+    <div className="flex items-center gap-3 py-[7px]">
+      <div className={`w-[52px] shrink-0 text-detail ${current ? 'text-zinc-50' : 'text-zinc-400'}`}>{formatCivil(c.start)}</div>
+      <div role="img" aria-label={aria} className="relative flex-1 min-w-0 h-3.5 rounded-[7px] bg-zinc-900">
+        {segments.filter((s) => s.width > 0).map((s, i) => (
+          <div key={i} className={`absolute inset-y-0 box-border ${s.round}`} style={{ left: pct(s.left), width: pct(s.width), ...s.style }} />
+        ))}
+        {riseDay && <div className="absolute top-[3px] size-2 -ml-1 rounded-full bg-zinc-50" style={{ left: pct(riseDay - 0.5) }} />}
+      </div>
+      <div className={`w-[60px] shrink-0 text-right text-detail tabular-nums ${current ? 'text-zinc-50' : 'text-zinc-300'}`}>{length}</div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────── calendar
+
+const BLEEDING: ReadonlySet<Flow> = new Set(['light', 'medium', 'heavy', 'unspecified']);
+const monthOf = (date: CivilDate) => date.slice(0, 7);
+const shiftMonth = (month: string, by: number) => {
+  const [y, m] = month.split('-').map(Number);
+  const d = new Date(Date.UTC(y, m - 1 + by, 1));
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
+};
+
+/** A month at a glance: periods, found starts, rises, logged days and the likely window. Tap a day to log it. */
+function CycleCalendar({
+  summary, log, today, onPick, className = '',
+}: {
+  summary: CycleSummary;
+  log: CycleLog;
+  today: CivilDate;
+  onPick: (date: CivilDate) => void;
+  className?: string;
+}) {
+  const [month, setMonth] = useState(monthOf(today));
+  const marks = useMemo(() => {
+    const byDate = new Map(log.days.map((d) => [d.date, d]));
+    return {
+      day: (date: CivilDate) => byDate.get(date),
+      found: new Set(summary.cycles.filter((c) => c.source === 'found').map((c) => c.start)),
+      rises: new Set(summary.cycles.map((c) => c.rise).filter((r): r is CivilDate => r !== null)),
+    };
+  }, [log, summary]);
+  const first = `${month}-01`;
+  const lead = isoWeekdayIndex(first);
+  const dates: CivilDate[] = [];
+  for (let d = first; monthOf(d) === month; d = addDays(d, 1)) dates.push(d);
+  const next = summary.next;
+  const titleId = useId();
+
+  return (
+    <Card className={className}>
+      <div className="px-5 pt-4 flex items-center justify-between gap-2">
+        <h3 id={titleId} className="font-display text-title-sm text-zinc-100">{formatMonthYear(month)}</h3>
+        <div className="flex gap-1">
+          <button type="button" aria-label={t('cycle.calendar.previous')} onClick={() => setMonth(shiftMonth(month, -1))} className="size-10 flex items-center justify-center rounded-full border border-zinc-700 text-zinc-300 hover:bg-zinc-800">
+            <span aria-hidden="true">‹</span>
+          </button>
+          <button
+            type="button"
+            aria-label={t('cycle.calendar.next')}
+            disabled={month >= monthOf(today)}
+            onClick={() => setMonth(shiftMonth(month, 1))}
+            className="size-10 flex items-center justify-center rounded-full border border-zinc-700 text-zinc-300 hover:bg-zinc-800 disabled:opacity-30 disabled:hover:bg-transparent"
+          >
+            <span aria-hidden="true">›</span>
+          </button>
+        </div>
+      </div>
+      <div className="px-5 pb-5">
+        <div aria-hidden="true" className="mt-3 grid grid-cols-7 gap-1 text-center text-note font-semibold text-zinc-500">
+          {Array.from({ length: 7 }, (_, i) => (
+            // The language's weekdays start on Sunday; the calendar's on Monday.
+            <span key={i}>{names('format.weekdaysNarrow')[(i + 1) % 7]}</span>
+          ))}
+        </div>
+        <div role="group" aria-labelledby={titleId} className="mt-1.5 grid grid-cols-7 gap-1">
+          {Array.from({ length: lead }, (_, i) => <span key={`lead-${i}`} />)}
+          {dates.map((date) => {
+            const logged = marks.day(date);
+            const bleeding = !!logged?.flow && BLEEDING.has(logged.flow);
+            const spotting = logged?.flow === 'spotting';
+            const found = marks.found.has(date);
+            const rose = marks.rises.has(date);
+            const noted = !!(logged?.symptoms?.length || logged?.note);
+            const likely = !!next && date >= next.from && date <= next.to && date > today;
+            const isToday = date === today;
+            const future = date > today;
+            const notes = [
+              isToday && t('cycle.calendar.notes.today'),
+              bleeding && t('cycle.calendar.notes.period'),
+              spotting && t('cycle.calendar.notes.spotting'),
+              found && t('cycle.calendar.notes.found'),
+              rose && t('cycle.calendar.notes.rise'),
+              noted && t('cycle.calendar.notes.logged'),
+              likely && (date === next!.likely ? t('cycle.calendar.notes.likelyDay') : t('cycle.calendar.notes.likely')),
+            ].filter((n): n is string => !!n);
+            const style: React.CSSProperties = bleeding
+              ? { background: 'rgba(244,114,182,0.32)' }
+              : likely && date === next!.likely
+                ? { background: 'rgba(244,114,182,0.16)', border: `1px dashed ${PINK}` }
+                : found || likely
+                  ? { border: `1px dashed ${PINK}` }
+                  : {};
+            return (
+              <button
+                key={date}
+                type="button"
+                disabled={future}
+                onClick={() => onPick(date)}
+                aria-label={t('cycle.calendar.day', { date: formatCivilLong(date), notes: notes.length ? 'yes' : 'no', list: notes.join(', ') })}
+                className={`relative h-10 rounded-[10px] box-border text-body-sm tabular-nums transition-colors ${
+                  isToday ? 'ring-2 ring-zinc-50 font-bold' : 'font-medium'
+                } ${future ? 'text-zinc-600' : bleeding ? 'text-pink-50' : 'text-zinc-200 hover:bg-zinc-800'}`}
+                style={style}
+              >
+                {Number(date.slice(8, 10))}
+                {(rose || noted || spotting) && (
+                  <span
+                    aria-hidden="true"
+                    className="absolute left-1/2 bottom-1 size-[5px] -ml-[2.5px] rounded-full"
+                    style={{ background: rose ? VIOLET : spotting ? PINK : '#a1a1aa' }}
+                  />
+                )}
+              </button>
+            );
+          })}
+        </div>
+        <div className="mt-3.5 flex flex-wrap gap-x-3.5 gap-y-2 text-caption text-zinc-400">
+          <span className="flex items-center gap-1.5"><span className="size-3 rounded-[3px] bg-pink-400/40" />{t('cycle.calendar.legend.period')}</span>
+          <span className="flex items-center gap-1.5"><span className="size-3 rounded-[3px] box-border" style={{ border: `1px dashed ${PINK}` }} />{t('cycle.calendar.legend.likely')}</span>
+          <span className="flex items-center gap-1.5"><span className="size-[7px] rounded-full" style={{ background: VIOLET }} />{t('cycle.calendar.legend.rise')}</span>
+          <span className="flex items-center gap-1.5"><span className="size-[7px] rounded-full bg-zinc-400" />{t('cycle.calendar.legend.logged')}</span>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────── sheets
+
+/** Log one day: how heavy, how it felt, a note. */
+function DaySheet({ date, onClose }: { date: CivilDate; onClose: () => void }) {
+  const { log, summary, setDay } = useCycle();
+  const existing = log.days.find((d) => d.date === date);
+  const [flow, setFlow] = useState<Flow | 'none'>(existing?.flow ?? 'none');
+  const [symptoms, setSymptoms] = useState<Set<Symptom>>(new Set(existing?.symptoms ?? []));
+  const [note, setNote] = useState(existing?.note ?? '');
+  const titleId = useId();
+  const noteId = useId();
+  const c = summary?.current;
+  const cycleDay = c && date >= c.start ? daysBetween(c.start, date) + 1 : null;
+  const running = loggedPeriods(log.days.filter((d) => d.date !== date)).find((p) => daysBetween(p.end, date) >= 0 && daysBetween(p.end, date) <= 2);
+  const flowNote = flow === 'none'
+    ? t('cycle.sheet.day.flowNote.none')
+    : flow === 'spotting'
+      ? t('cycle.sheet.day.flowNote.spotting')
+      : running
+        ? t('cycle.sheet.day.flowNote.continues', { date: formatDayMonthLong(running.start) })
+        : t('cycle.sheet.day.flowNote.starts');
+  const save = () => {
+    setDay({
+      date,
+      ...(flow !== 'none' ? { flow } : {}),
+      ...(symptoms.size ? { symptoms: [...symptoms] } : {}),
+      ...(note.trim() ? { note: note.trim() } : {}),
+    });
+    onClose();
+  };
+  // A start logged without saying how heavy keeps that until a flow is picked.
+  const flowOptions: { id: Flow | 'none'; label: string }[] = [
+    ...PICKED_FLOWS.map((id) => ({ id, label: t(FLOW_LABEL[id]) })),
+    ...(existing?.flow === 'unspecified' ? [{ id: 'unspecified' as const, label: t(FLOW_LABEL.unspecified) }] : []),
+  ];
+
+  return (
+    <Sheet labelledBy={titleId} onClose={onClose}>
+      <p className="text-eyebrow uppercase text-pink-300">{cycleDay ? t('cycle.sheet.day.eyebrow', { day: cycleDay }) : t('cycle.sheet.day.eyebrowPlain')}</p>
+      <h2 id={titleId} className="mt-1 pr-12 font-display text-headline text-zinc-50">{formatCivilLong(date)}</h2>
+
+      <div className="mt-5">
+        <p className="text-body font-semibold text-zinc-50">{t('cycle.sheet.day.flow')}</p>
+        <div className="mt-2.5">
+          <Chips label={t('cycle.sheet.day.flow')} tone="pink" options={flowOptions} on={(id) => flow === id} onToggle={(id) => setFlow(id)} />
+        </div>
+        <p className="mt-2 text-caption text-zinc-400">{flowNote}</p>
+      </div>
+
+      <div className="mt-5">
+        <p className="text-body font-semibold text-zinc-50">{t('cycle.sheet.day.feel')}</p>
+        <div className="mt-2.5">
+          <Chips
+            label={t('cycle.sheet.day.feel')}
+            options={(Object.keys(SYMPTOM_LABEL) as Symptom[]).map((id) => ({ id, label: t(SYMPTOM_LABEL[id]) }))}
+            on={(id) => symptoms.has(id)}
+            onToggle={(id) => {
+              const next = new Set(symptoms);
+              if (next.has(id)) next.delete(id);
+              else next.add(id);
+              setSymptoms(next);
+            }}
+          />
+        </div>
+      </div>
+
+      <div className="mt-5">
+        <label htmlFor={noteId} className="block text-body font-semibold text-zinc-50">{t('cycle.sheet.day.note')}</label>
+        <textarea
+          id={noteId}
+          rows={3}
+          maxLength={500}
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          placeholder={t('cycle.sheet.day.notePlaceholder')}
+          className="mt-2.5 w-full box-border p-3 rounded-xl border border-zinc-700 bg-zinc-950 text-body-sm text-zinc-100 placeholder:text-zinc-500 resize-none"
+        />
+      </div>
+
+      <p className="mt-4 text-caption text-zinc-400">{t('cycle.sheet.private')}</p>
+      <button type="button" onClick={save} className="mt-3 w-full min-h-12 rounded-xl bg-zinc-50 text-zinc-950 text-body font-semibold hover:bg-white transition-colors">
+        {t('cycle.sheet.save')}
+      </button>
+    </Sheet>
+  );
+}
+
+/** "My period started": today, a day or two ago, or another day, with what the nights suggest. */
+function StartSheet({ suggest, onClose }: { suggest: CivilDate | null; onClose: () => void }) {
+  const { today } = useCycle();
+  return today ? <StartSheetFor today={today} suggest={suggest} onClose={onClose} /> : null;
+}
+
+function StartSheetFor({ today, suggest, onClose }: { today: CivilDate; suggest: CivilDate | null; onClose: () => void }) {
+  const { log, summary, setDay } = useCycle();
+  const quick = [
+    { id: 'today', date: today },
+    { id: 'yesterday', date: addDays(today, -1) },
+    { id: 'two', date: addDays(today, -2) },
+  ] as const;
+  const suggested = suggest ? quick.find((q) => q.date === suggest)?.id ?? 'pick' : 'today';
+  const [choice, setChoice] = useState<'today' | 'yesterday' | 'two' | 'pick'>(suggested);
+  const [picked, setPicked] = useState<CivilDate>(suggest ?? addDays(today, -3));
+  const [month, setMonth] = useState(monthOf(suggest ?? today));
+  const [flow, setFlow] = useState<Flow | null>(null);
+  const titleId = useId();
+  const date = choice === 'pick' ? picked : quick.find((q) => q.id === choice)!.date;
+  // The cycle this start ends: the latest that began before it, other than one a few days off it, which it replaces.
+  const before = summary?.cycles.filter((c) => daysBetween(c.start, date) > 5).at(-1) ?? null;
+  const lastLength = before ? daysBetween(before.start, date) : null;
+  const usual = summary?.length ?? null;
+  const short = lastLength !== null && lastLength < 20;
+  const existing = log.days.find((d) => d.date === date);
+  const save = () => {
+    setDay({ ...existing, date, flow: flow ?? (existing?.flow && existing.flow !== 'spotting' ? existing.flow : 'unspecified') });
+    onClose();
+  };
+  const quickLabel: Record<(typeof quick)[number]['id'] | 'pick', MessageKey> = {
+    today: 'cycle.sheet.start.today',
+    yesterday: 'cycle.sheet.start.yesterday',
+    two: 'cycle.sheet.start.twoDays',
+    pick: 'cycle.sheet.start.another',
+  };
+  const first = `${month}-01`;
+  const days: CivilDate[] = [];
+  for (let d = first; monthOf(d) === month; d = addDays(d, 1)) days.push(d);
+
+  return (
+    <Sheet labelledBy={titleId} onClose={onClose}>
+      <p className="text-eyebrow uppercase text-pink-300">{formatCivilLong(today)}</p>
+      <h2 id={titleId} className="mt-1 pr-12 font-display text-headline text-zinc-50">{t('cycle.sheet.start.title')}</h2>
+      {suggest && <p className="mt-1.5 text-body-sm text-violet-300">{t('cycle.sheet.start.suggest', { date: formatCivilLong(suggest) })}</p>}
+
+      <div className="mt-4">
+        <Chips
+          label={t('cycle.sheet.start.title')}
+          tone="pink"
+          options={(['today', 'yesterday', 'two', 'pick'] as const).map((id) => ({ id, label: t(quickLabel[id]) }))}
+          on={(id) => choice === id}
+          onToggle={(id) => setChoice(id)}
+        />
+      </div>
+
+      {choice === 'pick' && (
+        <div className="mt-4">
+          <div className="flex items-center justify-between">
+            <p className="text-body-sm text-zinc-300">{formatMonthYear(month)}</p>
+            <div className="flex gap-1">
+              <button type="button" aria-label={t('cycle.calendar.previous')} onClick={() => setMonth(shiftMonth(month, -1))} className="size-10 flex items-center justify-center rounded-full border border-zinc-700 text-zinc-300 hover:bg-zinc-800">
+                <span aria-hidden="true">‹</span>
+              </button>
+              <button
+                type="button"
+                aria-label={t('cycle.calendar.next')}
+                disabled={month >= monthOf(today)}
+                onClick={() => setMonth(shiftMonth(month, 1))}
+                className="size-10 flex items-center justify-center rounded-full border border-zinc-700 text-zinc-300 hover:bg-zinc-800 disabled:opacity-30"
+              >
+                <span aria-hidden="true">›</span>
+              </button>
+            </div>
+          </div>
+          <div className="mt-2 grid grid-cols-7 gap-1">
+            {Array.from({ length: isoWeekdayIndex(first) }, (_, i) => <span key={`lead-${i}`} />)}
+            {days.map((d) => (
+              <button
+                key={d}
+                type="button"
+                disabled={d > today}
+                aria-pressed={d === picked}
+                aria-label={formatCivilLong(d)}
+                onClick={() => setPicked(d)}
+                className={`h-10 rounded-[10px] text-body-sm tabular-nums border ${
+                  d === picked ? 'border-pink-400 bg-pink-500/15 text-pink-100 font-bold' : 'border-transparent text-zinc-200 hover:bg-zinc-800'
+                } disabled:text-zinc-600 disabled:hover:bg-transparent`}
+              >
+                {Number(d.slice(8, 10))}
+              </button>
+            ))}
+          </div>
+          <p className="mt-2 text-caption text-zinc-500">{t('cycle.sheet.start.future')}</p>
+        </div>
+      )}
+
+      <div className={`mt-4 p-4 rounded-2xl border ${short ? 'border-rose-500/30 bg-rose-500/[0.06]' : 'border-zinc-800 bg-zinc-950'}`}>
+        <p className="text-body text-zinc-50">{t('cycle.sheet.start.result', { date: formatCivilLong(date) })}</p>
+        {lastLength !== null && (
+          <p className={`mt-1 text-detail ${short ? 'text-rose-300' : 'text-zinc-400'}`}>
+            {short
+              ? t('cycle.sheet.start.short', { days: lastLength, usual: usual ? 'yes' : 'no', min: usual?.min ?? 0, max: usual?.max ?? 0 })
+              : t('cycle.sheet.start.detail', { days: lastLength, day: daysBetween(date, today) + 1 })}
+          </p>
+        )}
+      </div>
+
+      <div className="mt-5">
+        <p className="text-body font-semibold text-zinc-50">
+          {t('cycle.sheet.start.flow')} <span className="font-normal text-zinc-400">{t('cycle.sheet.start.optional')}</span>
+        </p>
+        <div className="mt-2.5">
+          <Chips
+            label={t('cycle.sheet.start.flow')}
+            tone="pink"
+            options={(['light', 'medium', 'heavy'] as const).map((id) => ({ id, label: t(FLOW_LABEL[id]) }))}
+            on={(id) => flow === id}
+            onToggle={(id) => setFlow(flow === id ? null : id)}
+          />
+        </div>
+      </div>
+
+      <p className="mt-4 text-caption text-zinc-400">{t('cycle.sheet.start.note')}</p>
+      <button type="button" onClick={save} className="mt-3 w-full min-h-12 rounded-xl bg-zinc-50 text-zinc-950 text-body font-semibold hover:bg-white transition-colors">
+        {t('cycle.sheet.save')}
+      </button>
+    </Sheet>
+  );
+}
+
