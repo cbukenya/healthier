@@ -3,8 +3,13 @@ import type { ApiErrorBody } from '../types/api';
 /** Thin JSON client for the server's API. The session cookie rides along automatically. */
 
 export class ApiError extends Error {
-  constructor(readonly status: number, readonly code: string, message: string) {
-    super(message);
+  /**
+   * `detail` is the server's own word on it (its message, else its error code), shown as it is;
+   * absent when it sent none, and the status is all there is to say.
+   */
+  constructor(readonly status: number, readonly code: string, readonly detail?: string) {
+    super(detail ?? code);
+    // i18n-ignore: the error class's name, for developers
     this.name = 'ApiError';
   }
 
@@ -27,7 +32,7 @@ export async function api<T>(
   const body = await res.json().catch(() => ({}));
   if (!res.ok) {
     const err = body as Partial<ApiErrorBody>;
-    throw new ApiError(res.status, err.error ?? `http_${res.status}`, err.message ?? err.error ?? `Request failed (${res.status})`);
+    throw new ApiError(res.status, err.error ?? `http_${res.status}`, err.message ?? err.error);
   }
   return body as T;
 }

@@ -2,7 +2,7 @@ import { addDays, civilClock, startOfCivilDay, type CivilDate } from '../lib/dat
 import type { IntradaySample } from '../types/health';
 import { num } from './coerce';
 import { INTRADAY_HEART_RATE } from './registry';
-import { pool, splitWindow, type HealthTransport } from './transport';
+import { pool, splitWindow, type FetchError, type HealthTransport } from './transport';
 
 /**
  * Intraday heart rate.
@@ -39,7 +39,8 @@ export interface IntradayFetch {
   pages: number;
   ms: number;
   status: number;
-  error?: string;
+  /** Why the first failed chunk failed: the transport's error, or `truncated` when Google had more minutes than the pages fetched. */
+  error?: FetchError | { code: 'truncated' };
 }
 
 export async function fetchIntradayHeartRate(
@@ -72,7 +73,7 @@ export async function fetchIntradayHeartRate(
       out.pages += res.pages;
       // A truncated chunk is missing its oldest minutes: don't let it replace stored days.
       if (res.error || res.truncated) {
-        out.error ??= res.error ?? 'Intraday rollup truncated';
+        out.error ??= res.error ?? { code: 'truncated' };
         out.status = res.error ? res.status : out.status;
         continue;
       }

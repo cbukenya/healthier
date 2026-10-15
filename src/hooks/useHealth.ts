@@ -4,7 +4,8 @@ import { unpackDataset } from '../pipeline/incremental';
 import { FIXTURE_CLOCK, buildFixturePayloads, createFixtureFetch } from '../pipeline/fixtures';
 import { HISTORY_QUERIES } from '../pipeline/insights';
 import { api, ApiError } from '../lib/api';
-import type { DatasetResponse, HistoryInfo, SyncResponse } from '../types/api';
+import type { DatasetResponse, HistoryInfo, SyncResponse, SyncStatus } from '../types/api';
+import type { StreamReport } from '../types/health';
 
 /**
  * The one place the UI talks to the pipeline.
@@ -20,11 +21,31 @@ import type { DatasetResponse, HistoryInfo, SyncResponse } from '../types/api';
 
 export type Phase = 'idle' | 'loading' | 'revalidating' | 'ready' | 'error';
 
+/**
+ * Why a sync failed, kept as a code and its detail for the app to say in the person's language
+ * (app.syncFailed.reasons). A failure nobody can name keeps its own words, shown as they are.
+ */
+export type SyncFailure =
+  // Google refused every request; the first stream's error says how.
+  | { code: 'rejected'; detail: Pick<StreamReport, 'error' | 'errorCode'> }
+  // Google access lapsed, so the user must sign in again.
+  | { code: 'reconnect' }
+  // Google refused a new access token without saying why.
+  | { code: 'tokenRefresh'; status: string }
+  // A request to the server failed, and it said nothing about why.
+  | { code: 'request'; status: number }
+  // The sync finished, yet nothing was stored.
+  | { code: 'noData' }
+  // Something other than an error was thrown.
+  | { code: 'unknown' }
+  // Anything else: the server's own message, or the browser's for a network failure.
+  | { code: 'other'; detail: string };
+
 export interface HealthState {
   phase: Phase;
   data: SyncResult | null;
-  error: string | null;
-  progress: { done: number; total: number; label: string } | null;
+  error: SyncFailure | null;
+  progress: { done: number; total: number; dataType: string; label: string } | null;
   isDemo: boolean;
   /** How far back stored history reaches (live mode). */
   history: HistoryInfo | null;
@@ -50,9 +71,39 @@ function wait(ms: number, signal: AbortSignal) {
     const t = setTimeout(resolve, ms);
     signal.addEventListener('abort', () => {
       clearTimeout(t);
+      // i18n-ignore: an abort, for code; an aborted sync is never shown
       reject(new DOMException('Aborted', 'AbortError'));
     }, { once: true });
   });
+}
+
+/** A sync that failed for a reason the app can name. An ApiError, so a lapsed Google connection asks for sign-in. */
+class SyncFailed extends ApiError {
+  constructor(readonly failure: SyncFailure, code = 'sync_failed') {
+    super(409, code);
+  }
+}
+
+/** Why the server's sync failed: a failure it named, or its error's own words. */
+function serverFailure(sync: SyncStatus): SyncFailure {
+  switch (sync.errorCode) {
+    case 'reconnect_required':
+      return { code: 'reconnect' };
+    case 'google_rejected':
+      return { code: 'rejected', detail: { error: sync.error ?? undefined, errorCode: sync.streamErrorCode } };
+    case 'token_refresh_failed':
+      return { code: 'tokenRefresh', status: sync.error ?? '' };
+    default:
+      return { code: 'other', detail: sync.error ?? '' };
+  }
+}
+
+/** Why a sync failed, from what was thrown: a failure the app has words for, else the error's own. */
+function failure(err: unknown): SyncFailure {
+  if (err instanceof SyncFailed) return err.failure;
+  if (err instanceof ApiError && err.detail === undefined) return { code: 'request', status: err.status };
+  if (err instanceof Error) return { code: 'other', detail: err.message };
+  return { code: 'unknown' };
 }
 
 /** The assembled dataset, with the insights' history queries answered from the days before it. */
@@ -73,9 +124,9 @@ async function serverSync(
     await wait(POLL_MS, signal);
     ({ sync } = await api<SyncResponse>('/api/sync', { signal }));
   }
-  if (sync.error) throw new ApiError(409, sync.errorCode ?? 'sync_failed', sync.error);
+  if (sync.error || sync.errorCode) throw new SyncFailed(serverFailure(sync), sync.errorCode ?? undefined);
   const { dataset, history } = await readDataset(signal);
-  if (!dataset) throw new Error('Sync finished but stored no data');
+  if (!dataset) throw new SyncFailed({ code: 'noData' });
   return { data: unpackDataset(dataset), history };
 }
 
@@ -91,7 +142,7 @@ function demoSync(signal: AbortSignal, onProgress: Progress): Promise<SyncResult
     includeIntraday: true,
     queries: HISTORY_QUERIES,
     signal,
-    onProgress: (done, total, label) => onProgress({ done, total, label }),
+    onProgress: (done, total, label, dataType) => onProgress({ done, total, dataType, label }),
   });
 }
 
@@ -115,7 +166,7 @@ export function useHealth({ live, demo = false, onSignInRequired }: UseHealthOpt
       ...s,
       // A failed revalidation must not wipe good stored data off the screen.
       phase: s.data ? 'ready' : 'error',
-      error: err instanceof Error ? err.message : 'Sync failed',
+      error: failure(err),
       progress: null,
     }));
   }, []);

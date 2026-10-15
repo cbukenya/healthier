@@ -1,4 +1,6 @@
 import { civilClock, daysBetween, isoWeekdayIndex, type CivilDate } from '../../lib/date';
+import { t } from '../../i18n';
+import { formatMonth } from '../../i18n/format';
 import type { DailyRecord } from '../../types/health';
 import { BATTERY_TIERS } from '../derive';
 import type { Daypart } from './types';
@@ -26,62 +28,23 @@ export const isWorkday = (d: CivilDate) => isoWeekdayIndex(d) <= 4;
 
 // ──────────────────────────────────────────────────────── plain-language figures
 
-/** "7h 05m", rounded to the minute first so 479.6 reads 8h 00m, not 7h 00m. */
-export const hm = (mins: number) => {
-  const m = Math.round(mins);
-  return `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, '0')}m`;
-};
-
-/** A sleep need as "7h" or "7h 18m"; the median behind it can land on a half minute. */
-export const needLabel = (need: number) => {
-  const m = Math.round(need);
-  return `${Math.floor(m / 60)}h${m % 60 ? ` ${String(m % 60).padStart(2, '0')}m` : ''}`;
-};
-
-export const clk = (m: number) => {
-  const t = ((Math.round(m) % 1440) + 1440) % 1440;
-  return `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`;
-};
-
-export const fmtInt = (v: number) => Math.round(v).toLocaleString('en-US');
-
-/** "18 August". */
-export const dayMonth = (d: CivilDate) =>
-  new Date(`${d}T12:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', timeZone: 'UTC' });
-
-/** "3.6 hours", or "1 hour". */
-export const hoursText = (mins: number) => {
-  const h = (mins / 60).toFixed(1);
-  return h === '1.0' ? '1 hour' : `${h} hours`;
-};
-
-export const plural = (n: number, word: string, many = `${word}s`) => `${n} ${n === 1 ? word : many}`;
-
-const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-
-/** "September" this year, "March 2025" in another, from a 'YYYY-MM' month or a date. */
-export const monthName = (monthOrDate: string, today: CivilDate) => {
-  const [y, m] = monthOrDate.split('-');
-  const name = MONTH_NAMES[Number(m) - 1];
-  return y === today.slice(0, 4) ? name : `${name} ${y}`;
-};
-
 /** "since March 2025, as far back as your history goes": all time, said honestly. */
-export const sinceHistory = (month: string, today: CivilDate) => `since ${monthName(month, today)}, as far back as your history goes`;
+export const sinceHistory = (month: string, today: CivilDate) =>
+  t('insights.common.sinceHistory', { month: formatMonth(month, today) });
 
 /**
- * How far back a record reaches. Records look back one year: "in the past year"
- * once readings go back that far (a month's grace for a late start), else since
- * the readings began.
+ * Whether a record's readings reach back a year, so it's a record "in the past year": once they go
+ * back that far, with a month's grace for a late start. A rule picks its words from this, never
+ * from the phrase pastYear() returns, which is in the person's language.
+ */
+export const reachesYear = (first: CivilDate | null, today: CivilDate) => !first || daysBetween(first, today) >= 335;
+
+/**
+ * How far back a record reaches, said: "in the past year" once readings go back that far, else
+ * since the readings began.
  */
 export const pastYear = (first: CivilDate | null, today: CivilDate) =>
-  !first || daysBetween(first, today) >= 335 ? 'in the past year' : sinceHistory(first, today);
-
-/** "a, b and c". */
-export const listOf = (items: string[]) =>
-  items.length < 2 ? items.join('') : `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`;
-
-export const sentence = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+  first === null || reachesYear(first, today) ? t('insights.common.pastYear') : sinceHistory(first, today);
 
 // ──────────────────────────────────────────────────────────── day arithmetic
 
@@ -184,7 +147,10 @@ export function beforeLatestMorning(days: DailyRecord[]): DailyRecord[] {
   return [];
 }
 
-/** A standing card's note on how long it has held, once that's long enough to be worth saying. */
-export const sinceNote = (held: number, unit = 'day') =>
-  held >= HELD_MAX ? " It's been like this for four weeks or more."
-    : held >= 3 ? ` It's been like this for ${plural(held, unit)}.` : '';
+/**
+ * A standing card's note on how long it has held, once that's long enough to be worth saying:
+ * a sentence with its leading space, for the end of a card's text.
+ */
+export const sinceNote = (held: number, unit: 'day' | 'night' = 'day') =>
+  held >= HELD_MAX ? t('insights.common.sinceNote.longTime')
+    : held >= 3 ? t('insights.common.sinceNote.count', { unit, count: held }) : '';

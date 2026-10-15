@@ -64,24 +64,6 @@ const LOCALE_FILES = Object.fromEntries(
 );
 const english = leaves(enUS);
 
-/** Files whose words haven't moved to the language file yet. */
-const PENDING = new Set<string>([
-  'src/hooks/useHealth.ts',
-  'src/lib/api.ts',
-  'src/pipeline/incremental.ts',
-  'src/pipeline/insights/floors.ts',
-  'src/pipeline/insights/helpers.ts',
-  'src/pipeline/insights/patterns.ts',
-  'src/pipeline/insights/rules/activity.ts',
-  'src/pipeline/insights/rules/body.ts',
-  'src/pipeline/insights/rules/sleep.ts',
-  'src/pipeline/insights/rules/today.ts',
-  'src/pipeline/insights/rules/vitals.ts',
-  'src/pipeline/intraday.ts',
-  'src/pipeline/normalize.ts',
-  'src/pipeline/transport.ts',
-]);
-
 /** Files whose words are never the app's own: data, and notes for developers. */
 const NOT_SHOWN: Record<string, string> = {
   'src/pipeline/registry.ts':
@@ -160,7 +142,7 @@ describe('language files', () => {
 
 describe('the code', () => {
   it('says nothing in words of its own: every word a person sees comes from the language file', () => {
-    const files = sourceFiles(ROOT, 'src').filter((f) => !f.startsWith('src/i18n/') && !(f in NOT_SHOWN) && !PENDING.has(f));
+    const files = sourceFiles(ROOT, 'src').filter((f) => !f.startsWith('src/i18n/') && !(f in NOT_SHOWN));
     const found = scanFiles(ROOT, files).map((f) => `${f.file}:${f.line} ${f.kind}: ${f.text}`);
     assert.deepEqual(found, []);
   });

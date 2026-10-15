@@ -1,8 +1,10 @@
 import { addDays, daysBetween, isoWeekdayIndex, type CivilDate } from '../../../lib/date';
+import { t, type MessageKey } from '../../../i18n';
+import { formatDayMonthLong, formatFixed, formatMonth, formatRounded } from '../../../i18n/format';
 import type { DailyRecord } from '../../../types/health';
 import { bodyComposition, coverage, latestPoint, series, stats, weightTrend } from '../../derive';
 import type { InsightContext } from '../context';
-import { ENTRY_WINDOW, dayMonth, monthName, plural } from '../helpers';
+import { ENTRY_WINDOW } from '../helpers';
 import { trendLine } from '../patterns';
 import type { HistoryQueries } from '../../history';
 import type { Finding } from '../types';
@@ -66,21 +68,25 @@ function weight(ctx: InsightContext, add: Add): void {
     ...base, id: down ? 'weight-down' : 'weight-up', kind: 'trend', tone: 'neutral', direction: down ? 'down' : 'up',
     importance: 44, topic: 'weight', family: 'weight', today: 'as-news', news: crossed && age <= ENTRY_WINDOW + 1,
     claims: { metric: 'weight', direction: down ? 'down' : 'up' }, evidence: trend.readings,
-    title: down ? 'Your weight is slowly going down' : 'Your weight is slowly going up',
-    text: `You're ${down ? 'losing' : 'gaining'} about ${Math.abs(trend.kgPerWeek).toFixed(2)} kg a week. Your latest weigh-in was ${latest.value} kg on ${dayMonth(latest.date)}. That's based on ${trend.readings} weigh-ins over ${trend.spanDays} days, so treat it as a rough guide.`,
+    title: t(down ? 'insights.body.weightDown.title' : 'insights.body.weightUp.title'),
+    text: t(down ? 'insights.body.weightDown.text' : 'insights.body.weightUp.text', {
+      rate: formatFixed(Math.abs(trend.kgPerWeek), 2), weight: formatRounded(latest.value!, 3), date: formatDayMonthLong(latest.date),
+      readings: trend.readings, days: trend.spanDays,
+    }),
   });
 }
 
 /** Standing while the scale is quiet, so the page never calls a frozen trend steady. */
 function staleWeight(ctx: InsightContext, add: Add): void {
+  // i18n-ignore: 'Weight' only names the coverage row inside this function; the card reads its dates, never its label.
   const row = coverage(ctx.days, [{ dataType: 'weight', label: 'Weight' }])[0];
   if (!row.latest || row.staleDays === null || row.staleDays < STALE_AFTER) return;
   add({
     ...base, domain: 'data', id: 'weight-stale', kind: 'data', tone: 'neutral',
     importance: 30, topic: 'weight', family: 'data', today: 'never',
-    news: [STALE_AFTER, 30, 60].some((t) => row.staleDays! >= t && row.staleDays! <= t + ENTRY_WINDOW),
-    title: 'Time for a weigh-in',
-    text: `You haven't logged your weight in ${plural(row.staleDays, 'day')}, so your weight trend is stuck at your last reading on ${dayMonth(row.latest)}.`,
+    news: [STALE_AFTER, 30, 60].some((mark) => row.staleDays! >= mark && row.staleDays! <= mark + ENTRY_WINDOW),
+    title: t('insights.body.weightStale.title'),
+    text: t('insights.body.weightStale.text', { count: row.staleDays, date: formatDayMonthLong(row.latest) }),
   });
 }
 
@@ -100,10 +106,8 @@ function fastChange(ctx: InsightContext, add: Add): void {
     ...base, id: 'body-fast-change', kind: 'alert', tone: 'watch', direction: down ? 'down' : 'up',
     importance: 80, topic: 'weight', family: 'weight', today: 'while-true', news: daysBetween(last.date, ctx.today) <= ENTRY_WINDOW + 1,
     claims: { metric: 'weight', direction: down ? 'down' : 'up' }, evidence: pts.length,
-    title: 'Your weight is changing quickly',
-    text: down
-      ? `You've been losing about ${Math.abs(pct).toFixed(1)}% of your body weight a week for ${weeks} weeks. Most guidance suggests 0.5 to 1% a week for changes that last.`
-      : `You've been gaining about ${Math.abs(pct).toFixed(1)}% of your body weight a week for ${weeks} weeks. That's a fast change, so it's worth a look if it isn't what you're aiming for.`,
+    title: t('insights.body.bodyFastChange.title'),
+    text: t('insights.body.bodyFastChange.text', { direction: down ? 'down' : 'up', percent: formatFixed(Math.abs(pct), 1), weeks }),
   });
 }
 
@@ -121,8 +125,10 @@ function holdingSteady(ctx: InsightContext, add: Add): void {
     ...base, id: 'body-holding-steady', kind: 'pattern', tone: 'neutral',
     importance: 34, topic: 'weight', family: 'weight', today: 'never', news: false,
     claims: { metric: 'weight', direction: 'steady' }, evidence: pts.length,
-    title: 'Your weight is holding steady',
-    text: `Your weight has stayed within ${ceil1(widest).toFixed(1)} kg either way of ${middle.toFixed(1)} kg for ${Math.floor(span / 7)} weeks, across ${pts.length} weigh-ins.`,
+    title: t('insights.body.bodyHoldingSteady.title'),
+    text: t('insights.body.bodyHoldingSteady.text', {
+      within: formatFixed(ceil1(widest), 1), middle: formatFixed(middle, 1), weeks: Math.floor(span / 7), count: pts.length,
+    }),
   });
 }
 
@@ -133,16 +139,14 @@ function swings(ctx: InsightContext, add: Add): void {
   const swing = dailySwing(pts);
   if (swing === null || swing < 0.2) return;
   const trend = weightTrend(series(ctx.days, (d) => d.weightKg));
-  const under = !trend
-    ? ''
-    : Math.abs(trend.kgPerWeek) < 0.05
-      ? ' Underneath that, your trend is flat.'
-      : ` Underneath that, your trend is going ${trend.kgPerWeek < 0 ? 'down' : 'up'} by about ${Math.abs(trend.kgPerWeek).toFixed(2)} kg a week.`;
+  const under = !trend ? 'none' : Math.abs(trend.kgPerWeek) < 0.05 ? 'flat' : trend.kgPerWeek < 0 ? 'down' : 'up';
   add({
     ...base, id: 'body-swings', kind: 'pattern', tone: 'neutral',
     importance: 36, topic: 'weight-swings', family: 'weight', today: 'never', news: false,
-    title: 'Why your weight jumps around',
-    text: `Your weight can swing by about ${swing.toFixed(1)} kg from one day to the next.${under} Weighing at the same time each day makes the swings smaller.`,
+    title: t('insights.body.bodySwings.title'),
+    text: t('insights.body.bodySwings.text', {
+      swing: formatFixed(swing, 1), trend: under, rate: trend ? formatFixed(Math.abs(trend.kgPerWeek), 2) : '',
+    }),
   });
 }
 
@@ -163,13 +167,16 @@ function composition(ctx: InsightContext, add: Add): void {
   if (age >= STALE_AFTER) return;
   // News when the newest paired reading is the one that showed the change.
   const before = change(days.filter((d) => d.date !== now.comp.latest.date));
-  const part = (kg: number, what: string) =>
-    Math.abs(kg) < 0.1 ? `kept your ${what} about the same` : `${kg > 0 ? 'gained' : 'lost'} ${Math.abs(kg).toFixed(1)} kg of ${what}`;
+  const part = (kg: number, what: MessageKey) =>
+    t(what, { change: Math.abs(kg) < 0.1 ? 'same' : kg > 0 ? 'gained' : 'lost', kg: formatFixed(Math.abs(kg), 1) });
   add({
     ...base, id: 'body-composition', kind: 'trend', tone: 'neutral',
     importance: 45, topic: 'composition', family: 'weight', today: 'as-news', news: age <= ENTRY_WINDOW + 1 && !before?.moved,
-    title: 'Your body composition is changing',
-    text: `Over the last ${Math.round(now.weeks)} weeks you ${part(now.lean, 'lean mass')} and ${part(now.fat, 'fat')}. That's from ${now.comp.pairs} readings that measured both.`,
+    title: t('insights.body.bodyComposition.title'),
+    text: t('insights.body.bodyComposition.text', {
+      weeks: Math.round(now.weeks), pairs: now.comp.pairs,
+      lean: part(now.lean, 'insights.body.bodyComposition.lean'), fat: part(now.fat, 'insights.body.bodyComposition.fat'),
+    }),
   });
 }
 
@@ -190,8 +197,10 @@ function fatTrend(ctx: InsightContext, add: Add): void {
     ...base, id: 'body-fat-trend', kind: 'trend', tone: 'neutral', direction: down ? 'down' : 'up',
     importance: 40, topic: 'composition', family: 'weight', today: 'never', news: false,
     claims: { metric: 'body-fat', direction: down ? 'down' : 'up' }, evidence: pts.length,
-    title: down ? 'Your body fat is going down' : 'Your body fat is going up',
-    text: `Your body fat trend went from ${from.toFixed(1)}% to ${to.toFixed(1)}% over the last ${Math.round(span / 7)} weeks, across ${pts.length} readings.`,
+    title: t('insights.body.bodyFatTrend.title', { direction: down ? 'down' : 'up' }),
+    text: t('insights.body.bodyFatTrend.text', {
+      from: formatFixed(from, 1), to: formatFixed(to, 1), weeks: Math.round(span / 7), count: pts.length,
+    }),
   });
 }
 
@@ -213,8 +222,8 @@ function weighInRhythm(ctx: InsightContext, add: Add): void {
     ...base, id: 'body-weigh-in-rhythm', kind: 'milestone', tone: 'good',
     importance: 33, topic: 'weigh-ins', family: 'weigh-ins', today: 'never',
     news: [4, 8].includes(n) && daysBetween(latest.date, today) <= ENTRY_WINDOW,
-    title: 'A steady weigh-in habit',
-    text: `You've weighed in every week for ${n} weeks. That's enough for a trend you can trust.`,
+    title: t('insights.body.bodyWeighInRhythm.title'),
+    text: t('insights.body.bodyWeighInRhythm.text', { count: n }),
   });
 }
 
@@ -230,8 +239,8 @@ function bmi(ctx: InsightContext, add: Add): void {
   add({
     ...base, id: 'body-bmi', kind: 'trend', tone: 'neutral', direction: to < from ? 'down' : 'up',
     importance: 32, topic: 'bmi', family: 'weight', today: 'never', news: true,
-    title: 'Your BMI changed',
-    text: `Going by your weight trend and your height of ${m.toFixed(2)} m, your BMI went from ${from.toFixed(1)} to ${to.toFixed(1)} over the last month.`,
+    title: t('insights.body.bodyBmi.title'),
+    text: t('insights.body.bodyBmi.text', { height: formatFixed(m, 2), from: formatFixed(from, 1), to: formatFixed(to, 1) }),
   });
 }
 
@@ -251,7 +260,10 @@ function sinceStart(ctx: InsightContext, add: Add): void {
   add({
     ...base, id: 'body-since-start', kind: 'milestone', tone: 'neutral',
     importance: 42, topic: 'since-start', family: 'weight', today: 'as-news', news: ctx.dom <= 2,
-    title: 'Since you started',
-    text: `You've ${change < 0 ? 'lost' : 'gained'} ${Math.abs(change).toFixed(1)} kg since ${monthName(first.date, today)}, going from ${first.value.toFixed(1)} kg to ${last.value.toFixed(1)} kg.`,
+    title: t('insights.body.bodySinceStart.title'),
+    text: t('insights.body.bodySinceStart.text', {
+      change: change < 0 ? 'lost' : 'gained', kg: formatFixed(Math.abs(change), 1), month: formatMonth(first.date, today),
+      from: formatFixed(first.value, 1), to: formatFixed(last.value, 1),
+    }),
   });
 }

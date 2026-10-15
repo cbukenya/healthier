@@ -7,7 +7,7 @@ import { splitWindow, MAX_ROLLUP_WINDOW_DAYS } from '../transport';
 import { syncHealthData } from '../sync';
 import { FIXTURE_CLOCK, buildFixturePayloads, createFixtureFetch } from '../fixtures';
 import {
-  HISTORY_QUERIES, evaluate, insightFeeds, monthSummary, needLabel, observations, recoveryTax, settle, todaySummary, weekSummary,
+  HISTORY_QUERIES, evaluate, insightFeeds, monthSummary, observations, recoveryTax, settle, todaySummary, weekSummary,
   type Finding,
 } from '../insights';
 import { freshEntry } from '../insights/helpers';
@@ -2510,11 +2510,6 @@ describe('this week', () => {
     const nights = days.slice(21).filter((d) => d.sleep).map((d) => d.sleep!.minutesAsleep);
     assert.equal(w.sleep!.nights, 6);
     assert.equal(w.sleep!.avgMin, nights.reduce((a, b) => a + b, 0) / 6);
-  });
-
-  it('labels a sleep need in whole minutes', () => {
-    assert.equal(needLabel(420), '7h');
-    assert.equal(needLabel(437.5), '7h 18m');
   });
 
   it('reads the month the same way: the 30 days ending today', () => {

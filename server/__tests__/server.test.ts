@@ -6,7 +6,10 @@ import { isAllowed, parseAccessList } from '../access';
 import { ConfigError, loadConfig } from '../config';
 import { decrypt, encrypt } from '../crypto';
 import { authorizationUrl, identityFromIdToken } from '../google';
+import { failedStatus, GoogleRejected, ReconnectRequired } from '../sync';
+import { GoogleAuthError } from '../google';
 import { todayCivilIn } from '../../src/lib/date';
+import type { StreamReport } from '../../src/types/health';
 
 const VALID_ENV = {
   DATABASE_URL: 'postgres://healthier:pw@localhost:5432/healthier',
@@ -175,5 +178,41 @@ describe('todayCivilIn', () => {
     assert.equal(todayCivilIn('UTC', instant), '2026-10-10');
     assert.equal(todayCivilIn('Europe/Stockholm', instant), '2026-10-11');
     assert.equal(todayCivilIn('America/Los_Angeles', instant), '2026-10-10');
+  });
+});
+
+describe('a failed sync', () => {
+  const report = (fields: Partial<StreamReport>): StreamReport => ({
+    dataType: 'steps', label: 'Steps', domain: 'movement', mode: 'rollup', status: 'unauthorized',
+    observations: 0, requests: 5, pagesFetched: 5, truncated: false, ms: 120, httpStatus: 403, ...fields,
+  });
+
+  it("sends Google's own words when it refused every request; the browser says the rest", () => {
+    const google = '403 PERMISSION_DENIED: Google Health API has not been used in project 1 before or it is disabled.';
+    assert.deepEqual(failedStatus(new GoogleRejected(report({ error: google }))), { error: google, errorCode: 'google_rejected' });
+  });
+
+  it('sends the stream’s code and what it needs when Google said nothing', () => {
+    assert.deepEqual(failedStatus(new GoogleRejected(report({ errorCode: 'http', error: '403' }))), {
+      error: '403',
+      errorCode: 'google_rejected',
+      streamErrorCode: 'http',
+    });
+    // Never a null error: pages opened before errorCode existed look for one.
+    assert.deepEqual(failedStatus(new GoogleRejected(report({ status: 'error', errorCode: 'network' }))), {
+      error: 'network',
+      errorCode: 'google_rejected',
+      streamErrorCode: 'network',
+    });
+    assert.deepEqual(failedStatus(new GoogleRejected(report({}))), { error: '403', errorCode: 'google_rejected', streamErrorCode: 'http' });
+  });
+
+  it('names a lapsed Google connection and a refused token, and sends anything else as its own message', () => {
+    assert.deepEqual(failedStatus(new ReconnectRequired()), { error: 'reconnect_required', errorCode: 'reconnect_required' });
+    assert.deepEqual(failedStatus(new GoogleAuthError('http_503', 503)), { error: '503', errorCode: 'token_refresh_failed' });
+    const described = new GoogleAuthError('invalid_client', 401, 'The OAuth client was not found.');
+    assert.deepEqual(failedStatus(described), { error: 'The OAuth client was not found.', errorCode: null });
+    assert.deepEqual(failedStatus(new Error('connect ECONNREFUSED 127.0.0.1:5432')), { error: 'connect ECONNREFUSED 127.0.0.1:5432', errorCode: null });
+    assert.deepEqual(failedStatus('boom'), { error: 'boom', errorCode: null });
   });
 });
