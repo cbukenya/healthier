@@ -204,6 +204,41 @@ describe('incremental sync', () => {
   });
 });
 
+describe('stream errors', () => {
+  /** Serves the fixtures, except that requests matching `pattern` get `respond`'s answer. */
+  const answering = (pattern: string, respond: () => Promise<Response>): FetchLike => {
+    const good = createFixtureFetch(payloads);
+    return async (url, init) => (url.includes(pattern) ? respond() : good(url, init));
+  };
+  const reportOf = async (dataType: string, opts: { fetchImpl?: FetchLike; grantedScopes?: ScopeKey[] }) => {
+    const out = await syncInto(new MemoryStore(), D1, { full: true, ...opts });
+    return [...out.streams, out.intraday!].find((w) => w.state.report.dataType === dataType)!.state.report;
+  };
+
+  it("keeps Google's own words as they came", async () => {
+    const body = JSON.stringify({ error: { code: 403, message: 'The caller does not have permission', status: 'PERMISSION_DENIED' } });
+    const r = await reportOf('steps', { fetchImpl: answering('/steps/', async () => new Response(body, { status: 403 })) });
+    assert.equal(r.status, 'unauthorized');
+    assert.equal(r.error, '403 PERMISSION_DENIED: The caller does not have permission');
+    assert.equal(r.errorCode, undefined);
+  });
+
+  it('names what nobody put into words with a code, for the app to say', async () => {
+    const empty = await reportOf('steps', { fetchImpl: answering('/steps/', async () => new Response('', { status: 500 })) });
+    assert.deepEqual([empty.errorCode, empty.error], ['http', '500'], 'an error status with an empty reply');
+
+    const silent = await reportOf('distance', { fetchImpl: answering('/distance/', async () => Promise.reject({})) });
+    assert.deepEqual([silent.errorCode, silent.error], ['network', undefined], 'no answer, and no message');
+
+    const endless = async () => Response.json({ rollupDataPoints: [], nextPageToken: 'more' });
+    const cut = await reportOf('heart-rate', { fetchImpl: answering(':rollUp', endless) });
+    assert.deepEqual([cut.status, cut.errorCode, cut.error], ['error', 'truncated', undefined], 'more minutes than a fetch takes');
+
+    const unshared = await reportOf('sleep', { grantedScopes: ['activity', 'metrics'] });
+    assert.deepEqual([unshared.status, unshared.errorCode, unshared.error], ['skipped', 'scope', 'sleep'], 'a scope not granted');
+  });
+});
+
 describe('history', () => {
   const HISTORY = 180;
   const today = todayCivilIn(ZONE, D1);
@@ -271,8 +306,10 @@ describe('history', () => {
     await syncInto(store, D1, { full: true, historyDays: HISTORY });
     const before = store.stateMap.get('steps')!.coveredFrom;
     await backfill(store, failing('/steps/'));
-    assert.equal(store.stateMap.get('steps')!.coveredFrom, before);
-    assert.match(store.stateMap.get('steps')!.backfillError ?? '', /date chunks failed: socket hang up/);
+    const steps = store.stateMap.get('steps')!;
+    assert.equal(steps.coveredFrom, before);
+    assert.equal(steps.backfillError, 'socket hang up', "the network's own words, as they came");
+    assert.ok(steps.backfillChunks && steps.backfillChunks.failed === steps.backfillChunks.total, 'every date chunk failed, and is counted');
     assert.equal(store.stateMap.get('sleep')!.backfillError, undefined, 'successful streams carry no error');
     assert.ok(historyDue(store.stateMap, start).some((s) => s.dataType === 'steps'));
   });

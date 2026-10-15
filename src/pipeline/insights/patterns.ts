@@ -16,9 +16,6 @@ import { isWorkday } from './helpers';
  * data it needs written into it.
  */
 
-/** ISO order, as `isoWeekdayIndex` counts. */
-export const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-
 // ───────────────────────────────────────────────────────── weekday profiles
 
 export interface WeekdayMedian {

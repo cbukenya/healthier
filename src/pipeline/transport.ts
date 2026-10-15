@@ -32,6 +32,12 @@ export interface TransportOptions {
   signal?: AbortSignal;
 }
 
+/**
+ * Why a request failed. Google's reply, or the network's message, keeps its own words; when there
+ * were none, a code says what happened, and the app puts it into words.
+ */
+export type FetchError = { text: string } | { code: 'http'; status: number } | { code: 'network' };
+
 export interface ApiResult<T = any> {
   nextPageToken?: string;
   /** Rollups only: which date chunks succeeded, so partial results can be stored precisely. */
@@ -39,7 +45,7 @@ export interface ApiResult<T = any> {
   ok: boolean;
   status: number;
   body?: T;
-  error?: string;
+  error?: FetchError;
   requests: number;
   pages: number;
   truncated: boolean;
@@ -97,10 +103,10 @@ export class HealthTransport {
     res: Response | null;
     body: any;
     attempts: number;
-    error?: string;
+    error?: FetchError;
   }> {
     let attempt = 0;
-    let lastError = '';
+    let lastError: FetchError | undefined;
     while (attempt <= this.maxRetries) {
       attempt++;
       const t0 = Date.now();
@@ -109,6 +115,7 @@ export class HealthTransport {
           ...init,
           signal: this.signal,
           headers: {
+            // i18n-ignore: an HTTP auth scheme, sent to Google and never shown
             Authorization: `Bearer ${this.token}`,
             'Content-Type': 'application/json',
             ...(init?.headers ?? {}),
@@ -124,7 +131,7 @@ export class HealthTransport {
 
         const retryable = res.status === 429 || res.status >= 500;
         const text = await res.text().catch(() => '');
-        lastError = text || `HTTP ${res.status}`;
+        lastError = text ? { text } : { code: 'http', status: res.status };
         if (!retryable || attempt > this.maxRetries) {
           return { res, body: null, attempts: attempt, error: lastError };
         }
@@ -136,8 +143,9 @@ export class HealthTransport {
         await sleep(wait);
       } catch (err: any) {
         this.requestCount++;
-        if (err?.name === 'AbortError') return { res: null, body: null, attempts: attempt, error: 'aborted' };
-        lastError = err?.message ?? 'network error';
+        // Never shown: an aborted sync's results are thrown away.
+        if (err?.name === 'AbortError') return { res: null, body: null, attempts: attempt, error: { text: 'aborted' } };
+        lastError = err?.message ? { text: err.message } : { code: 'network' };
         if (attempt > this.maxRetries) break;
         await sleep(2 ** attempt * 250);
       }
@@ -162,7 +170,7 @@ export class HealthTransport {
     const chunks = splitWindow(from, to, MAX_ROLLUP_WINDOW_DAYS);
     const points: any[] = [];
     let requests = 0;
-    let firstError: string | undefined;
+    let firstError: FetchError | undefined;
     let status = 200;
 
     const results = await pool(chunks, this.concurrency, async (chunk) => {
@@ -220,7 +228,7 @@ export class HealthTransport {
     let requests = 0;
     let pages = 0;
     let token: string | undefined;
-    let error: string | undefined;
+    let error: FetchError | undefined;
     let status = 200;
 
     do {
@@ -269,7 +277,7 @@ export class HealthTransport {
     let requests = 0;
     let pages = 0;
     let token: string | undefined = opts.pageToken;
-    let error: string | undefined;
+    let error: FetchError | undefined;
     let status = 200;
     let reachedEnough = false;
 

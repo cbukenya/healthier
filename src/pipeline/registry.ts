@@ -30,6 +30,10 @@ export interface StreamContext {
 
 export interface StreamDescriptor {
   dataType: string;
+  /**
+   * The stream's name in English, for logs and as the fallback. The app shows the name in the
+   * `streams` section of the language file, by dataType.
+   */
   label: string;
   domain: MetricDomain;
   /** `rollup` = POST :dailyRollUp with a date range; `list` = GET dataPoints. */
@@ -53,7 +57,7 @@ export interface StreamDescriptor {
   prepare?(points: any[]): any[];
   /** List page size. The API caps some types lower (sleep: 25). Lists page newest-first until they pass the requested start date. */
   pageSize?: number;
-  /** Documented quirks, surfaced in the Data tab. */
+  /** Documented quirks, for whoever reads the code; the app doesn't show them. */
   note?: string;
   /**
    * Readings that come now and then rather than every day (a weigh-in, an ECG, a logged meal),
@@ -629,14 +633,6 @@ export const INTRADAY_HEART_RATE = {
 };
 
 export const STREAMS_BY_TYPE = new Map(STREAMS.map((s) => [s.dataType, s]));
-
-export const DOMAIN_LABELS: Record<MetricDomain, string> = {
-  movement: 'Activity & Movement',
-  sleep: 'Sleep & Recovery',
-  cardio: 'Vitals & Heart',
-  body: 'Body',
-  wellbeing: 'Wellbeing',
-};
 
 export type Gender = 'female' | 'male' | 'other';
 

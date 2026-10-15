@@ -10,8 +10,9 @@ import {
   PIPELINE_VERSION,
   syncIncremental,
   type PackedDataset,
+  type StreamState,
 } from '../src/pipeline/incremental';
-import type { DailyRecord } from '../src/types/health';
+import type { DailyRecord, StreamReport } from '../src/types/health';
 import { readGoals } from '../src/pipeline/goals';
 import { answerQueries, queriesSpan, type HistoryAnswers, type HistoryQueries } from '../src/pipeline/history';
 import { SCOPES, type ScopeKey } from '../src/pipeline/registry';
@@ -67,6 +68,18 @@ export class ReconnectRequired extends Error {
   }
 }
 
+/**
+ * Google refused every request, typically because the Google Health API isn't enabled for the
+ * OAuth project. Carries the first stream's report, whose error the browser shows as the detail.
+ */
+export class GoogleRejected extends Error {
+  readonly code = 'google_rejected';
+  constructor(readonly report: StreamReport) {
+    super(`Google Health rejected every request: ${[report.errorCode, report.error].filter(Boolean).join(' ')}`);
+    this.name = 'GoogleRejected';
+  }
+}
+
 interface Job {
   status: SyncStatus;
   done: Promise<void>;
@@ -82,6 +95,27 @@ const IDLE: SyncStatus = { running: false, progress: null, error: null, errorCod
 
 export function syncStatus(userId: string): SyncStatus {
   return { ...(jobs.get(userId)?.status ?? IDLE), backfilling: backfills.has(userId) };
+}
+
+/**
+ * A failed sync, as its status reports it. The server names what it can with a code and sends
+ * the detail the browser's words need: for a rejection, Google's own (or the first stream's code
+ * and what it needs); for a token refresh Google gave no reason for, its status. Anything else
+ * goes as its own message.
+ *
+ * `error` is never null on a failure: pages opened before errorCode existed look for it.
+ */
+export function failedStatus(err: unknown): Pick<SyncStatus, 'error' | 'errorCode' | 'streamErrorCode'> {
+  if (err instanceof GoogleRejected) {
+    const r = err.report;
+    // Google's words when it sent some; else the stream's own code, or the HTTP status it answered with.
+    if (r.errorCode) return { error: r.error ?? r.errorCode, errorCode: err.code, streamErrorCode: r.errorCode };
+    if (r.error) return { error: r.error, errorCode: err.code };
+    return { error: String(r.httpStatus), errorCode: err.code, streamErrorCode: 'http' };
+  }
+  if (err instanceof ReconnectRequired) return { error: err.code, errorCode: err.code };
+  if (err instanceof GoogleAuthError && !err.description) return { error: String(err.status), errorCode: 'token_refresh_failed' };
+  return { error: err instanceof Error ? err.message : String(err), errorCode: null };
 }
 
 /** Run `fn` once every earlier task for this user has finished. */
@@ -108,8 +142,7 @@ export function startSync(deps: Deps, userId: string, opts: { full?: boolean } =
     })
     .catch((err) => {
       if (!(err instanceof ReconnectRequired)) console.error(`Sync failed for user ${userId}:`, err);
-      status.error = err instanceof Error ? err.message : String(err);
-      status.errorCode = err instanceof ReconnectRequired ? err.code : null;
+      Object.assign(status, failedStatus(err));
     })
     .finally(() => {
       status.running = false;
@@ -154,8 +187,8 @@ async function syncUserLocked(deps: Deps, userId: string, status: SyncStatus, fo
     states: rebuild ? new Map() : streamStates,
     full,
     grantedScopes: grantedScopeKeys(scopes),
-    onProgress: (done, total, label) => {
-      status.progress = { done, total, label };
+    onProgress: (done, total, label, dataType) => {
+      status.progress = { done, total, dataType, label };
     },
   });
 
@@ -165,7 +198,7 @@ async function syncUserLocked(deps: Deps, userId: string, status: SyncStatus, fo
     .map((w) => w.state.report)
     .filter((r) => r.status !== 'skipped');
   if (reports.length && reports.every((r) => r.status === 'error' || r.status === 'unauthorized')) {
-    throw new Error(`Google Health rejected every request: ${reports[0].error ?? `HTTP ${reports[0].httpStatus}`}`);
+    throw new GoogleRejected(reports[0]);
   }
   await applySyncOutput(deps.db, userId, output, PIPELINE_VERSION);
 }
@@ -208,13 +241,22 @@ async function backfillUser(deps: Deps, userId: string): Promise<void> {
       const { token } = await accessToken(deps, userId);
       const write = await backfillStream(new HealthTransport({ token }), stream, states.get(stream.dataType)!, start);
       if (write) await applyStreamWrites(deps.db, userId, [write]);
-      if (write?.state.backfillError) {
-        console.warn(`History backfill of ${stream.dataType} for user ${userId} failed, retrying after the next sync: ${write.state.backfillError}`);
+      const failure = write && backfillFailure(write.state);
+      if (failure) {
+        console.warn(`History backfill of ${stream.dataType} for user ${userId} failed, retrying after the next sync: ${failure}`);
       }
       return true;
     });
     if (!progressed) return;
   }
+}
+
+/** Why a backfill step failed, for the log: the date chunks that failed, then Google's words or the error's code. */
+function backfillFailure(state: StreamState): string | null {
+  const why = [state.backfillErrorCode, state.backfillError].filter(Boolean).join(' ');
+  if (!why) return null;
+  const chunks = state.backfillChunks;
+  return chunks ? `${chunks.failed} of ${chunks.total} date chunks failed: ${why}` : why;
 }
 
 /**
