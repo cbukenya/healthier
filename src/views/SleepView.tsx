@@ -7,7 +7,7 @@ import {
 } from '../pipeline/derive';
 import { scoreSleep } from '../pipeline/sleep';
 import { BarSeries, Hypnogram, StageBar, StageLegend, TrendChart, SleepWindowChart } from '../charts';
-import { BandPill, Card, CardHead, DOMAIN, Delta, EmptyState, Row, Segmented, Value, fmtDuration, CardSummary } from '../ui/primitives';
+import { BandPill, Card, CardHead, Contributors, DOMAIN, Delta, EmptyState, Row, Segmented, Value, fmtDuration, CardSummary } from '../ui/primitives';
 import { SpanSelector, spanSummaryTitle, useSpan } from '../ui/span';
 import { ChartChips } from '../ui/ChartChips';
 import { useMediaQuery } from '../hooks/useMediaQuery';
@@ -207,10 +207,7 @@ export function SleepView({ data, clock, intraday }: { data: SyncResult; clock?:
                   </div>
 
                   {/* 2. Contributors */}
-                  <div>
-                    <div className="text-eyebrow uppercase text-zinc-500 mb-2.5">
-                      {t('sleep.night.score.contributors')}
-                    </div>
+                  <Contributors heading="text-eyebrow uppercase text-zinc-500 mb-2.5">
                     <div className="space-y-2.5">
                       {contributors.map((c, i) => (
                         <div key={i}>
@@ -235,7 +232,7 @@ export function SleepView({ data, clock, intraday }: { data: SyncResult; clock?:
                         </div>
                       ))}
                     </div>
-                  </div>
+                  </Contributors>
                 </div>
               );
             })()}

@@ -1,7 +1,8 @@
-import React, { useId, useState } from 'react';
+import React, { useId } from 'react';
 import { BASELINE_DAYS, BATTERY_TIERS, batteryTier, type Readiness, type ReadinessPart, type ReadinessSignal } from '../pipeline/derive';
 import { t, type MessageKey } from '../i18n';
 import { formatFixed, formatList } from '../i18n/format';
+import { Contributors } from '../ui/primitives';
 
 interface BodyBatteryProps {
   /** Null when readiness can't be computed yet (too little history). */
@@ -260,10 +261,9 @@ export function BodyBattery({ score, parts, confidence, label, missing, calibrat
 
       {parts.length > 0 && (
         <div className="mt-[26px]">
-          <div className="text-eyebrow-lg uppercase text-[#6b6f78] mb-2">
-            {t('today.battery.reached')}
-          </div>
-          {byImpact(parts).map((p) => <ContributorRow key={p.id} part={p} maxAbs={maxAbs} large />)}
+          <Contributors heading="text-eyebrow-lg uppercase text-[#6b6f78] mb-2">
+            {byImpact(parts).map((p) => <ContributorRow key={p.id} part={p} maxAbs={maxAbs} large />)}
+          </Contributors>
         </div>
       )}
 
@@ -274,16 +274,10 @@ export function BodyBattery({ score, parts, confidence, label, missing, calibrat
   );
 }
 
-/** Contributors a phone shows before "Show all". */
-const TOP_CONTRIBUTORS = 3;
-
-/** The battery on a phone: the score beside a small figure, then the contributors that moved it most. */
+/** The battery on a phone: the score beside a small figure, then its contributors, folded until tapped. */
 export function BodyBatteryCompact({ score, parts, confidence, label, missing, calibrating, className = '' }: BodyBatteryProps) {
-  const [showAll, setShowAll] = useState(false);
   const z = batteryText({ score, confidence, missing, calibrating });
   const cautions = parts.filter((p) => p.note);
-  const ranked = byImpact(parts);
-  const shown = showAll ? ranked : ranked.slice(0, TOP_CONTRIBUTORS);
   const maxAbs = Math.max(...parts.map((p) => Math.abs(p.contribution)), 1);
 
   return (
@@ -329,20 +323,9 @@ export function BodyBatteryCompact({ score, parts, confidence, label, missing, c
       </div>
 
       {parts.length > 0 && (
-        <div>
-          <div className="text-eyebrow uppercase text-[#6b6f78] mb-1">{t('today.battery.reached')}</div>
-          {shown.map((p) => <ContributorRow key={p.id} part={p} maxAbs={maxAbs} />)}
-          {parts.length > TOP_CONTRIBUTORS && (
-            <button
-              type="button"
-              onClick={() => setShowAll(!showAll)}
-              aria-expanded={showAll}
-              className="mt-1.5 w-full min-h-11 rounded-xl border border-[#27272a] text-body-sm text-[#a1a1aa] hover:text-zinc-100 hover:bg-zinc-900 transition-colors"
-            >
-              {showAll ? t('today.battery.showTop', { count: TOP_CONTRIBUTORS }) : t('today.battery.showAll', { count: parts.length })}
-            </button>
-          )}
-        </div>
+        <Contributors>
+          {byImpact(parts).map((p) => <ContributorRow key={p.id} part={p} maxAbs={maxAbs} />)}
+        </Contributors>
       )}
 
       {cautions.map((p) => (
