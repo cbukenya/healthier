@@ -1,7 +1,7 @@
 import { addDays, daysBetween } from '../../../lib/date';
 import { t } from '../../../i18n';
 import { formatDayMonthLong, formatDuration, formatFixed } from '../../../i18n/format';
-import { FIRST_SEEN_NIGHTS, MAX_CYCLE, MIN_CYCLE, cycleShifts, typicalShifts } from '../../cycle';
+import { cycleShifts, FIRST_SEEN_NIGHTS, MAX_CYCLE, MIN_CYCLE, typicalShift } from '../../cycle';
 import type { InsightContext } from '../context';
 import type { Finding } from '../types';
 
@@ -122,19 +122,19 @@ function sleepBefore(ctx: InsightContext, add: Add): void {
   });
 }
 
-/** The person's own second-half shift in resting heart rate, once three cycles show it. */
+/** The person's own second-half shift in the sleeping heart rate the finder reads, once three cycles show it. */
 function heartFollows(ctx: InsightContext, add: Add): void {
   const { summary, nights, judged } = ctx.cycle!;
-  const shifts = typicalShifts(nights, summary);
-  if (shifts.restingHr === null || shifts.restingHr < 1) return;
-  const cycles = cycleShifts(nights, summary, 'restingHr').length;
+  const shift = typicalShift(nights, summary, 'sleepHr', 0, 6);
+  if (shift === null || shift < 1) return;
+  const cycles = cycleShifts(nights, summary, 'sleepHr').length;
   add({
     ...base, id: 'cycle-heart-follows', kind: 'pattern', tone: 'neutral',
     importance: 38, topic: 'cycle-heart', family: 'cycle', today: 'never', news: false,
     title: t('insights.cycle.heartFollows.title'),
     text: t('insights.cycle.heartFollows.text', {
       count: cycles,
-      bpm: formatFixed(shifts.restingHr, 1),
+      bpm: formatFixed(shift, 1),
       aware: judged ? 'yes' : 'no',
     }),
   });

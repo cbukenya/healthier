@@ -743,20 +743,24 @@ export function summarizeCycles(nights: Night[], log: CycleLog, today: CivilDate
   };
 }
 
+/** A night's measures the page and the judging read by name. */
+export type NightMeasure = 'temp' | 'restingHr' | 'hrv' | 'sleepHr';
+
 /**
  * How this cycle's nights since the rise differ from its nights before it: temperature in °C,
- * resting heart rate in bpm, HRV in ms. Null for a measure without three nights on each side.
+ * resting and sleeping heart rate in bpm, HRV in ms. Null for a measure without three nights on
+ * each side.
  */
-export function sinceRise(nights: Night[], summary: CycleSummary): Record<'temp' | 'restingHr' | 'hrv', number | null> | null {
+export function sinceRise(nights: Night[], summary: CycleSummary): Record<NightMeasure, number | null> | null {
   const c = summary.current;
   if (!c || !c.rise) return null;
   const inCycle = nights.filter((n) => n.date >= c.start);
-  const shift = (field: 'temp' | 'restingHr' | 'hrv') => {
+  const shift = (field: NightMeasure) => {
     const before = inCycle.filter((n) => n.date < c.rise!).map((n) => n[field]).filter(isNum);
     const after = inCycle.filter((n) => n.date >= c.rise!).map((n) => n[field]).filter(isNum);
     return before.length >= 3 && after.length >= 3 ? mean(after) - mean(before) : null;
   };
-  return { temp: shift('temp'), restingHr: shift('restingHr'), hrv: shift('hrv') };
+  return { temp: shift('temp'), restingHr: shift('restingHr'), hrv: shift('hrv'), sleepHr: shift('sleepHr') };
 }
 
 /**
@@ -766,7 +770,7 @@ export function sinceRise(nights: Night[], summary: CycleSummary): Record<'temp'
 export function byCycleDay(
   nights: Night[],
   summary: CycleSummary,
-  field: 'temp' | 'restingHr' | 'hrv',
+  field: NightMeasure,
   days = 35,
 ): { day: number; mine: number | null; middle: number | null; low: number | null; high: number | null }[] {
   const index = new Map(nights.map((n) => [n.date, n]));
@@ -817,15 +821,17 @@ export type Shifts = Record<'temp' | 'restingHr' | 'hrv', number | null>;
  * a correction the wrong way.
  */
 export function typicalShifts(nights: Night[], summary: CycleSummary): Shifts {
-  const shift = (field: 'temp' | 'restingHr' | 'hrv', lo: number, hi: number) => {
-    const each = cycleShifts(nights, summary, field);
-    return each.length >= MIN_CYCLES ? Math.min(hi, Math.max(lo, median(each))) : null;
-  };
-  return { temp: shift('temp', 0, 0.8), restingHr: shift('restingHr', 0, 6), hrv: shift('hrv', -25, 0) };
+  return { temp: typicalShift(nights, summary, 'temp', 0, 0.8), restingHr: typicalShift(nights, summary, 'restingHr', 0, 6), hrv: typicalShift(nights, summary, 'hrv', -25, 0) };
+}
+
+/** One measure's typical second-half shift, as typicalShifts takes it, held between `lo` and `hi`. */
+export function typicalShift(nights: Night[], summary: CycleSummary, field: NightMeasure, lo: number, hi: number): number | null {
+  const each = cycleShifts(nights, summary, field);
+  return each.length >= MIN_CYCLES ? Math.min(hi, Math.max(lo, median(each))) : null;
 }
 
 /** Each of the last six complete cycles that rose: its nights after the rise against its nights before, with three a side or more. */
-export function cycleShifts(nights: Night[], summary: CycleSummary, field: 'temp' | 'restingHr' | 'hrv'): number[] {
+export function cycleShifts(nights: Night[], summary: CycleSummary, field: NightMeasure): number[] {
   const index = new Map(nights.map((n) => [n.date, n]));
   const cycles = summary.cycles.filter((c) => c.next !== null && c.rise !== null).slice(-CYCLES_FOR_RANGE);
   return cycles.flatMap((c) => {
