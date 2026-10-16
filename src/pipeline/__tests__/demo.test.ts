@@ -87,10 +87,10 @@ describe('demo mode', () => {
     }
   });
 
-  it('has cycles for the Cycle page: found in its nights, three periods logged, the demo morning on day 18', () => {
+  it('has cycles for the Cycle page: found in its nights, three periods logged, the demo morning on day 22', () => {
     const s = summarizeCycles(nightsFrom(data.days, data.answers), DEMO_CYCLE_LOG, data.days.at(-1)!.date);
     assert.equal(s.status, 'ready');
-    assert.equal(s.current?.day, 18);
+    assert.equal(s.current?.day, 22);
     assert.equal(s.current?.phase, 'after-rise');
     assert.ok(s.length && s.length.found > 0 && s.length.logged > 0, 'cycles both found and logged');
     assert.ok(s.next, 'a range for the next period');

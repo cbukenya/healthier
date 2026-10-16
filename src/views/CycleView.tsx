@@ -4,7 +4,7 @@ import { names, t, type MessageKey } from '../i18n';
 import { rich } from '../i18n/react';
 import { formatCivil, formatCivilLong, formatCivilRange, formatDayMonthLong, formatFixed, formatMonthYear, formatRounded } from '../i18n/format';
 import {
-  MAX_CYCLE, MIN_CYCLE, MIN_CYCLES, byCycleDay, loggedPeriods, sinceRise,
+  MAX_CYCLE, MIN_CYCLE, MIN_CYCLES, SECOND_HALF_DAYS, byCycleDay, loggedPeriods, secondHalfDays, sinceRise,
   type Cycle, type CycleLog, type CycleSummary, type Flow, type Night, type Symptom,
 } from '../pipeline/cycle';
 import { useCycle } from '../hooks/useCycle';
@@ -61,7 +61,9 @@ export function CycleView({ data, clock, intraday }: { data: SyncResult; clock?:
 
   return (
     <div className="space-y-3">
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-start">
+      {/* On a computer each row's cards run to the same height, the side cards sharing what the
+          hero leaves, so no row ends in a gap. */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
         <CycleHero
           className="lg:col-span-8"
           summary={summary}
@@ -71,10 +73,10 @@ export function CycleView({ data, clock, intraday }: { data: SyncResult; clock?:
           onLog={() => setSheet({ kind: 'day', date: today })}
           onStarted={(suggest) => setSheet({ kind: 'start', suggest })}
         />
-        <div className="lg:col-span-4 space-y-3">
-          <NowCard summary={summary} nights={nights} />
-          <LastPeriodCard summary={summary} log={log} today={today} />
-          <LoggedDayCard log={log} today={today} onLog={() => setSheet({ kind: 'day', date: today })} />
+        <div className="lg:col-span-4 flex flex-col gap-3">
+          <NowCard className="lg:grow" summary={summary} nights={nights} />
+          <LastPeriodCard className="lg:grow" summary={summary} log={log} today={today} />
+          <LoggedDayCard className="lg:grow" log={log} today={today} onLog={() => setSheet({ kind: 'day', date: today })} />
         </div>
       </div>
 
@@ -84,12 +86,12 @@ export function CycleView({ data, clock, intraday }: { data: SyncResult; clock?:
         </p>
       )}
 
-      <BodyThroughCycle summary={summary} nights={nights} />
-
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
         <CycleHistory className="lg:col-span-7" summary={summary} log={log} today={today} />
         <CycleCalendar className="lg:col-span-5" summary={summary} log={log} today={today} onPick={(date) => setSheet({ kind: 'day', date })} />
       </div>
+
+      <BodyThroughCycle summary={summary} nights={nights} log={log} />
 
       {/* Its footer is the Cycle page's disclaimer: not a way to tell fertile days, nor contraception. */}
       <InsightsCarousel observations={insights} page="cycle" />
@@ -156,9 +158,11 @@ function CycleHero({
     ? t('cycle.next.collecting', { count: Math.max(1, MIN_CYCLES - complete) })
     : today > next.to
       ? t('cycle.next.past', { date: formatDayMonthLong(next.to) })
-      : next.from === next.to
-        ? rich('cycle.next.day', { date: formatDayMonthLong(next.from), b })
-        : rich('cycle.next.range', { from: formatDayMonthLong(next.from), to: formatDayMonthLong(next.to), b });
+      : next.basis === 'early'
+        ? rich('cycle.next.early', { from: formatDayMonthLong(next.from), to: formatDayMonthLong(next.to), b })
+        : next.from === next.to
+          ? rich('cycle.next.day', { date: formatDayMonthLong(next.from), b })
+          : rich('cycle.next.range', { from: formatDayMonthLong(next.from), to: formatDayMonthLong(next.to), b });
   const pending = c.source === 'found' && c.day <= 10;
   const existing = log.days.find((d) => d.date === c.start);
 
@@ -178,18 +182,27 @@ function CycleHero({
       color: 'text-zinc-50',
     });
   }
+  if (!summary.length && summary.early) {
+    reached.push({
+      title: t('cycle.reached.early', { same: summary.early.min === summary.early.max ? 'yes' : 'no', min: summary.early.min, max: summary.early.max }),
+      detail: t('cycle.reached.earlyDetail'),
+      value: span(summary.early.min, summary.early.max),
+      color: 'text-zinc-50',
+    });
+  }
   if (c.riseDay) {
     reached.push({
       title: t('cycle.reached.rise', { day: c.riseDay }),
-      detail: t('cycle.reached.riseDetail'),
+      detail: t('cycle.reached.riseDetail', { days: SECOND_HALF_DAYS }),
       value: shifts?.temp !== null && shifts?.temp !== undefined ? t('cycle.signed', { sign: shifts.temp >= 0 ? 'up' : 'down', value: formatFixed(Math.abs(shifts.temp), 2), unit: t('units.celsius') }) : '',
       color: 'text-violet-300',
     });
   }
   if (next) {
-    const basis = next.basis === 'rise' ? summary.afterRise : summary.length;
+    // The days from this cycle's start the range puts the period on.
+    const [min, max] = [daysBetween(c.start, next.from), daysBetween(c.start, next.to)];
     reached.push({
-      title: t('cycle.reached.next', { basis: next.basis, min: basis?.min ?? 0, max: basis?.max ?? 0 }),
+      title: t('cycle.reached.next', { basis: next.basis, min, max }),
       detail: t('cycle.reached.nextDetail', { from: formatDayMonthLong(next.from), to: formatDayMonthLong(next.to) }),
       value: next.from === next.to ? formatCivil(next.from) : formatCivilRange(next.from, next.to),
       color: 'text-pink-300',
@@ -214,12 +227,7 @@ function CycleHero({
         <div className="rounded-2xl border border-pink-500/30 bg-pink-500/[0.06] p-4 md:p-5">
           <h2 className="font-display text-title text-pink-100">{t('cycle.found.title')}</h2>
           <p className="mt-1.5 text-body-sm text-zinc-300 leading-relaxed">
-            {t('cycle.found.text', {
-              fall: formatDayMonthLong(addDays(c.start, -summary.offset)),
-              learned: summary.offsetLearned ? 'yes' : 'no',
-              offset: summary.offset,
-              date: formatCivilLong(c.start),
-            })}
+            {t('cycle.found.text', { learned: summary.offsetLearned ? 'yes' : 'no', date: formatCivilLong(c.start) })}
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <button
@@ -323,7 +331,7 @@ function CycleStrip({ summary, log }: { summary: CycleSummary; log: CycleLog }) 
 }
 
 /** Where in the cycle today is, and how the nights since the rise differ from the ones before it. */
-function NowCard({ summary, nights }: { summary: CycleSummary; nights: Night[] }) {
+function NowCard({ summary, nights, className = '' }: { summary: CycleSummary; nights: Night[]; className?: string }) {
   const c = summary.current;
   if (!c) return null;
   const after = c.phase === 'after-rise' && c.riseDay !== null;
@@ -339,14 +347,14 @@ function NowCard({ summary, nights }: { summary: CycleSummary; nights: Night[] }
     })
     : [];
   return (
-    <Card className="p-5">
+    <Card className={`p-5 ${className}`}>
       <p className={`text-eyebrow uppercase ${after ? 'text-violet-300' : 'text-zinc-400'}`}>
         {after ? t('cycle.now.afterRise.eyebrow') : t('cycle.now.beforeRise.eyebrow')}
       </p>
       <p className="mt-2 font-display text-number-md text-zinc-50">
         {after ? t('cycle.day', { day: c.day - c.riseDay! + 1 }) : t('cycle.day', { day: c.day })}
-        {after && summary.afterRise && (
-          <span className="ml-2 font-sans text-body-sm font-medium text-zinc-400">{t('cycle.now.afterRise.of', { days: summary.afterRise.typical })}</span>
+        {after && (
+          <span className="ml-2 font-sans text-body-sm font-medium text-zinc-400">{t('cycle.now.afterRise.of', { days: SECOND_HALF_DAYS })}</span>
         )}
       </p>
       <p className="mt-2 text-detail leading-relaxed text-zinc-400">
@@ -371,14 +379,14 @@ function NowCard({ summary, nights }: { summary: CycleSummary; nights: Night[] }
 }
 
 /** The last period logged: when, how long, how heavy, and the usual length. */
-function LastPeriodCard({ summary, log, today }: { summary: CycleSummary; log: CycleLog; today: CivilDate }) {
+function LastPeriodCard({ summary, log, today, className = '' }: { summary: CycleSummary; log: CycleLog; today: CivilDate; className?: string }) {
   const last = loggedPeriods(log.days).filter((p) => p.start <= today).at(-1);
   if (!last) return null;
   const flows = log.days.filter((d) => d.date >= last.start && d.date <= last.end).map((d) => d.flow);
   const heaviest = [...HEAVINESS].reverse().find((f) => flows.includes(f)) ?? null;
   const ongoing = last.end >= addDays(today, -1);
   return (
-    <Card className="p-5">
+    <Card className={`p-5 ${className}`}>
       <p className="text-eyebrow uppercase text-pink-300">{t('cycle.lastPeriod.eyebrow')}</p>
       <p className="mt-2 font-display text-headline text-zinc-50">
         {last.start === last.end ? formatDayMonthLong(last.start) : formatCivilRange(last.start, last.end)}
@@ -408,14 +416,14 @@ function LastPeriodCard({ summary, log, today }: { summary: CycleSummary; log: C
 }
 
 /** What's logged for today, and the way to log or change it. */
-function LoggedDayCard({ log, today, onLog }: { log: CycleLog; today: CivilDate; onLog: () => void }) {
+function LoggedDayCard({ log, today, onLog, className = '' }: { log: CycleLog; today: CivilDate; onLog: () => void; className?: string }) {
   const day = log.days.find((d) => d.date === today);
   const chips = [
     ...(day?.flow ? [t(FLOW_LABEL[day.flow])] : []),
     ...(day?.symptoms ?? []).map((s) => t(SYMPTOM_LABEL[s])),
   ];
   return (
-    <Card className="p-5">
+    <Card className={`p-5 ${className}`}>
       <div className="flex items-center justify-between gap-3">
         <h2 className="text-eyebrow uppercase text-zinc-400">{t('cycle.logged.eyebrow')}</h2>
         <button type="button" onClick={onLog} className="-my-2 -mr-2 min-h-11 px-2 text-caption text-zinc-300 underline underline-offset-2 hover:text-zinc-100">
@@ -445,17 +453,21 @@ const MEASURES = [
   { field: 'hrv', name: 'cycle.body.rows.hrv', unit: 'units.ms', digits: 0, signed: false },
 ] as const;
 
-/** Temperature, resting heart rate and HRV by cycle day: this cycle over the middle of the last six. */
-function BodyThroughCycle({ summary, nights }: { summary: CycleSummary; nights: Night[] }) {
+/**
+ * Temperature, resting heart rate and HRV by cycle day: this cycle over the middle of the last six.
+ * The period is the usual one logged, or this cycle's as logged; the second half runs as on the
+ * strip above. The legend names only what's drawn.
+ */
+function BodyThroughCycle({ summary, nights, log }: { summary: CycleSummary; nights: Night[]; log: CycleLog }) {
   const c = summary.current;
   const shifts = sinceRise(nights, summary);
   const rows = MEASURES.map((m) => ({ ...m, points: byCycleDay(nights, summary, m.field, CHART_DAYS) }));
   const pastCount = summary.cycles.filter((x) => x.length !== null && x.length >= MIN_CYCLE && x.length <= MAX_CYCLE).slice(-6).length;
   const hasBand = rows.some((r) => r.points.some((p) => p.middle !== null));
   if (!c && !hasBand) return null;
-  const periodDays = summary.period?.typical ?? null;
-  const riseFrom = summary.riseDay?.typical ?? c?.riseDay ?? null;
-  const riseTo = summary.length?.typical ?? null;
+  const thisPeriod = c ? periodOf(log, c.start) : null;
+  const periodDays = summary.period?.typical ?? (thisPeriod ? daysBetween(thisPeriod.start, thisPeriod.end) + 1 : null);
+  const half = secondHalfDays(summary);
   const ticks = [1, 7, 14, 21, 28, 35].filter((d) => !c || Math.abs(d - c.day) >= 3);
 
   return (
@@ -467,10 +479,10 @@ function BodyThroughCycle({ summary, nights }: { summary: CycleSummary; nights: 
       />
       <div className="px-5 pb-4">
         <div className="pb-3 flex flex-wrap gap-x-3.5 gap-y-1.5 text-caption text-zinc-400">
-          <span className="flex items-center gap-1.5"><span className="w-4 h-0.5 bg-zinc-50" />{t('cycle.body.legend.mine')}</span>
-          <span className="flex items-center gap-1.5"><span className="w-4 h-2.5 rounded-sm bg-zinc-700" />{t('cycle.body.legend.usual')}</span>
-          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-pink-400/35" />{t('cycle.body.legend.period')}</span>
-          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-violet-400/35" />{t('cycle.body.legend.afterRise')}</span>
+          {c && <span className="flex items-center gap-1.5"><span className="w-4 h-0.5 bg-zinc-50" />{t('cycle.body.legend.mine')}</span>}
+          {hasBand && <span className="flex items-center gap-1.5"><span className="w-4 h-2.5 rounded-sm bg-zinc-700" />{t('cycle.body.legend.usual')}</span>}
+          {periodDays && <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-pink-400/35" />{t('cycle.body.legend.period')}</span>}
+          {half && <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-violet-400/35" />{t('cycle.body.legend.afterRise')}</span>}
         </div>
         {rows.map((r) => {
           const latest = [...r.points].reverse().find((p) => p.mine !== null)?.mine ?? null;
@@ -499,8 +511,7 @@ function BodyThroughCycle({ summary, nights }: { summary: CycleSummary; nights: 
                   points={r.points}
                   today={c?.day ?? null}
                   periodDays={periodDays}
-                  riseFrom={riseFrom}
-                  riseTo={riseTo}
+                  half={half}
                   label={t('cycle.body.chart', { name: t(r.name) })}
                 />
               </div>
@@ -529,13 +540,13 @@ function BodyThroughCycle({ summary, nights }: { summary: CycleSummary; nights: 
 
 /** One measure by cycle day, drawn to fill its width: lines keep their weight as it stretches. */
 function CycleChart({
-  points, today, periodDays, riseFrom, riseTo, label,
+  points, today, periodDays, half, label,
 }: {
   points: ReturnType<typeof byCycleDay>;
   today: number | null;
   periodDays: number | null;
-  riseFrom: number | null;
-  riseTo: number | null;
+  /** The second half's first and last cycle days. */
+  half: { from: number; to: number } | null;
   label: string;
 }) {
   const W = 340;
@@ -565,8 +576,8 @@ function CycleChart({
   return (
     <svg role="img" aria-label={label} viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="block w-full h-[90px]">
       {periodDays && <rect x={0} y={0} width={x(periodDays + 0.5)} height={H} fill="rgba(244,114,182,0.13)" />}
-      {riseFrom && riseTo && riseTo > riseFrom && (
-        <rect x={x(riseFrom - 0.5)} y={0} width={x(riseTo - 0.5) - x(riseFrom - 0.5)} height={H} fill="rgba(167,139,250,0.10)" />
+      {half && half.to > half.from && (
+        <rect x={x(half.from - 0.5)} y={0} width={x(half.to + 0.5) - x(half.from - 0.5)} height={H} fill="rgba(167,139,250,0.10)" />
       )}
       {band && <path d={band} fill="#3f3f46" fillOpacity={0.75} stroke="none" />}
       {today !== null && today <= CHART_DAYS && (
@@ -601,7 +612,7 @@ function CycleHistory({ summary, log, today, className = '' }: { summary: CycleS
       <div className="px-5 pb-5">
         {!rows.length && <p className="py-6 text-center text-detail text-zinc-500">{t('cycle.history.empty')}</p>}
         {rows.map((c) => (
-          <CycleBar key={c.start} cycle={c} log={log} today={today} typical={summary.length?.typical ?? 28} />
+          <CycleBar key={c.start} cycle={c} log={log} today={today} typical={summary.length?.typical ?? summary.early?.typical ?? 28} />
         ))}
         {rows.length > 0 && (
           <div className="mt-3 flex flex-wrap gap-x-3.5 gap-y-2 text-caption text-zinc-400">
