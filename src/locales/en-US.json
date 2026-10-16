@@ -806,7 +806,7 @@
       },
       "heartFollows": {
         "title": "Your heart follows your cycle",
-        "text": "Over {count, plural, one {your last cycle} other {your last # cycles}}, your resting heart rate ran about {bpm} bpm higher in the luteal phase than in the follicular phase. That's a common pattern through a cycle.{aware, select, yes { Healthier allows for it elsewhere, so a higher heart rate then is only called unusual when it goes beyond your own pattern.} other {}}"
+        "text": "Over {count, plural, one {your last cycle} other {your last # cycles}}, your basal resting heart rate ran about {bpm} bpm higher in the luteal phase than in the follicular phase. That's a common pattern through a cycle.{aware, select, yes { Healthier allows for it elsewhere, so a higher heart rate then is only called unusual when it goes beyond your own pattern.} other {}}"
       },
       "steady": {
         "title": "Your cycles are regular",
@@ -1579,7 +1579,7 @@
       },
       "rows": {
         "temp": "Skin temperature",
-        "restingHr": "Resting heart rate",
+        "sleepHr": "Resting heart rate (basal)",
         "hrv": "HRV"
       }
     },
@@ -1626,8 +1626,8 @@
     },
     "body": {
       "title": "Your body through the cycle",
-      "hint": "This cycle, night by night, against your last {count, plural, one {cycle} other {# cycles}}. The grey band is where your past cycles usually were on the same day. Skin temperature is the watch's change from your own baseline.",
-      "hintFew": "This cycle so far, night by night. Your past cycles show as a band once there are three.",
+      "hint": "This cycle, night by night, against your last {count, plural, one {cycle} other {# cycles}}. The grey band is where your past cycles usually were on the same day. Skin temperature is the watch's change from your own baseline. Resting heart rate (basal) is your night's floor: the rate your heart sits at or below for the calmest tenth of your sleep.",
+      "hintFew": "This cycle so far, night by night. Your past cycles show as a band once there are three. Resting heart rate (basal) is your night's floor: the rate your heart sits at or below for the calmest tenth of your sleep.",
       "legend": {
         "mine": "This cycle",
         "usual": "Your past cycles",
@@ -1638,7 +1638,7 @@
       },
       "rows": {
         "temp": "Skin temperature",
-        "restingHr": "Resting heart rate",
+        "sleepHr": "Resting heart rate (basal)",
         "hrv": "HRV"
       },
       "change": "{change} {unit} {direction, select, up {higher} other {lower}} since {about, select, yes {about day {day}} other {day {day}}}",
@@ -2331,7 +2331,7 @@
     "active-energy-burned": "Active energy",
     "sleep": "Sleep sessions",
     "heart-rate": "Heart rate (intraday)",
-    "sleep-heart-rate-floor": "Sleeping heart rate floor",
+    "sleep-heart-rate-floor": "Resting heart rate (basal)",
     "electrocardiogram": "ECG",
     "irregular-rhythm-notification": "Irregular Rhythm Notification",
     "daily-resting-heart-rate": "Resting heart rate",

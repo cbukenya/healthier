@@ -197,7 +197,8 @@ Google Health lets apps add periods but not read them back, so cycles are found 
   backfill, a fortnight of minutes per step, back to the oldest stored sleep; those minutes are not
   kept. All of this only while cycle tracking is on: turning tracking on starts a sync, turning it
   off or deleting the cycle log deletes the stream, and the finder reads the non-REM heart rate
-  until the floor covers the nights.
+  until the floor covers the nights. The page shows the same figure wherever it shows a heart
+  rate, as "Resting heart rate (basal)", so what it draws is what the finder read.
 - **The shape around a start.** `cycleShapes.ts` holds how each measure moves from 24 nights before
   a period to 10 after, averaged across the 42 people of mcPHASES (PhysioNet, 2025), whose daily
   hormone tests mark each cycle. Every night is scored by how well the nights around it match
