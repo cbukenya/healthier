@@ -16,7 +16,7 @@ import { usePageInsights, type Clock } from '../hooks/usePageInsights';
 import { InsightsCarousel } from '../components/InsightsCarousel';
 import type { IntradayDays } from '../pipeline/labs';
 import type { SyncResult } from '../pipeline/sync';
-import { Card, CardHead, DOMAIN } from '../ui/primitives';
+import { Card, CardHead, Contributors, DOMAIN } from '../ui/primitives';
 import { Chips, Sheet } from '../ui/Sheet';
 
 /**
@@ -279,8 +279,7 @@ function CycleHero({
 
       <CycleStrip summary={summary} />
 
-      <div>
-        <p className="text-eyebrow uppercase text-zinc-500 mb-1">{t('cycle.reached.title')}</p>
+      <Contributors>
         {reached.map((r) => (
           <div key={r.title} className="flex items-baseline justify-between gap-4 py-3 border-t border-zinc-800/80">
             <div className="min-w-0">
@@ -290,7 +289,7 @@ function CycleHero({
             <div className={`shrink-0 font-display text-title tabular-nums ${r.color}`}>{r.value}</div>
           </div>
         ))}
-      </div>
+      </Contributors>
     </section>
   );
 }

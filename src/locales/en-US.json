@@ -118,6 +118,7 @@
     "sheet": {
       "close": "Close"
     },
+    "contributors": "Contributors",
     "band": {
       "farBelow": "well below usual",
       "below": "below usual",
@@ -868,7 +869,6 @@
       },
       "range": "{min} – {max}",
       "rangeNarrow": "{min}–{max}",
-      "reached": "How it was reached",
       "parts": {
         "hrv": {
           "label": "HRV vs baseline",
@@ -903,9 +903,7 @@
           "high": "multi-day training load significantly above your 28-day baseline",
           "raised": "recent physical activity above your 28-day usual"
         }
-      },
-      "showTop": "Show the top {count}",
-      "showAll": "Show all {count, plural, one {# contributor} other {# contributors}}"
+      }
     },
     "from": "From {date}",
     "sleep": {
@@ -1136,7 +1134,6 @@
           "fair": "Fair",
           "poor": "Poor"
         },
-        "contributors": "Contributors",
         "duration": {
           "label": "Duration",
           "detail": "{duration} asleep · full marks at 7–9h"
@@ -1543,7 +1540,6 @@
       "next": "Likely next"
     },
     "reached": {
-      "title": "How it was reached",
       "start": "{source, select, logged {This cycle began on {date}} other {This cycle likely began around {date}}}",
       "startDetail": "{source, select, logged {You logged it. Today is day {day}.} other {Found in your nights, give or take {pm} days. Today is about day {day}.}}",
       "cycles": "Your last {count} cycles ran {min} to {max} days",
@@ -1552,7 +1548,7 @@
       "riseDetail": "Counted back {days} days from your likely next period: the luteal phase runs about that long, and changes little from one cycle to the next.",
       "early": "{same, select, yes {Your two cycles so far each ran {min} days} other {Your two cycles so far ran {min} to {max} days}}",
       "earlyDetail": "An early guess, two days wider either side, until there are three cycles to go on.",
-      "next": "{basis, select, early {So your next period may come {min} to {max} days after this cycle began} other {So your next period is likely {min} to {max} days after this cycle began}}",
+      "next": "{basis, select, early {Your next period may come {min} to {max} days after this cycle began} other {Your next period is likely {min} to {max} days after this cycle began}}",
       "nextDetail": "That puts it between {from} and {to}."
     },
     "found": {

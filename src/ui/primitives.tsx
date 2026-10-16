@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useId, useState } from 'react';
+import { ChevronDown } from 'lucide-react';
 import { BASELINE_DAYS, BASELINE_MIN_READINGS, type Band, type Comparison, stats, type Point } from '../pipeline/derive';
 import { t, type MessageKey, type Values } from '../i18n';
 import { rich } from '../i18n/react';
@@ -90,6 +91,38 @@ export const Label = ({ children, className = '' }: { children: React.ReactNode;
     {children}
   </span>
 );
+
+/**
+ * What a score was reached from, under "Contributors" wherever a score lists them. From md up the
+ * list always shows under the heading, styled to its card by `heading`; on a phone it folds under
+ * the same eyebrow with an arrow on the right, the way Labs folds "How it works", closed until tapped.
+ */
+export function Contributors({
+  heading = 'text-eyebrow uppercase text-zinc-500 mb-1',
+  children,
+}: {
+  heading?: string;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  const id = useId();
+  return (
+    <div>
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-controls={id}
+        onClick={() => setOpen(!open)}
+        className="md:hidden w-full cursor-pointer flex items-center justify-between min-h-11 border-t border-zinc-800/80 text-eyebrow uppercase text-zinc-500 hover:text-zinc-300 transition-colors"
+      >
+        {t('ui.contributors')}
+        <ChevronDown size={14} aria-hidden className={`transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      <div className={`hidden md:block ${heading}`}>{t('ui.contributors')}</div>
+      <div id={id} className={open ? undefined : 'hidden md:block'}>{children}</div>
+    </div>
+  );
+}
 
 // ─────────────────────────────────────────────────────────────────── values
 
