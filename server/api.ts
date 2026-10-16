@@ -1,9 +1,10 @@
 import { Router } from 'express';
 import type {
   CycleDayResponse, CycleLogResponse, CycleRejectedResponse, CycleSettingsResponse, DatasetResponse, GoalsResponse, HistoryResponse,
-  InstanceResponse, MeResponse, ProfileResponse, SyncResponse,
+  InstanceResponse, MeResponse, ProfileResponse, SourcesResponse, SyncResponse,
 } from '../src/types/api';
 import { parseGoals } from '../src/pipeline/goals';
+import { parseSourcePrefs, readSourcePrefs } from '../src/pipeline/sources';
 import { hasEntry, parseCycleDay, parseCycleSettings, withDay, withRejected } from '../src/pipeline/cycle';
 import { SLEEP_HR_FLOOR } from '../src/pipeline/registry';
 import type { Gender } from '../src/pipeline/registry';
@@ -13,9 +14,9 @@ import { revokeToken } from './google';
 import { asyncHandler, type Deps } from './http';
 import {
   deleteCycleLog,
-  purgeStream, deleteUser, getCycleLog, getTokens, getUser, hasTokens, setGender, setGoals, setTimeZone, updateCycleLog,
+  purgeStream, deleteUser, getCycleLog, getTokens, getUser, hasTokens, setGender, setGoals, setSourcePrefs, setTimeZone, updateCycleLog,
 } from './repo';
-import { historyInfo, loadDataset, loadHistory, startSync, syncStatus } from './sync';
+import { describeSources, followSourceChoice, historyInfo, loadDataset, loadHistory, refetchTotals, startSync, syncStatus } from './sync';
 
 /** The browser's API. Every route after /instance acts on the signed-in user only. */
 export function apiRoutes(deps: Deps): Router {
@@ -85,6 +86,46 @@ export function apiRoutes(deps: Deps): Router {
       }
       await setGoals(deps.db, res.locals.userId, goals);
       const body: GoalsResponse = { goals };
+      res.json(body);
+    }),
+  );
+
+  /** The person's devices and apps, and their choices of which count and which comes first (pipeline/sources.ts). */
+  router.get(
+    '/sources',
+    asyncHandler(async (req, res) => {
+      const described = await describeSources(deps, res.locals.userId);
+      if (!described) {
+        res.status(404).json({ error: 'not_found' });
+        return;
+      }
+      const body: SourcesResponse = { ...described, refetching: false };
+      res.json(body);
+    }),
+  );
+
+  /**
+   * New choices. Readings are picked when they're read, so a choice of device takes effect at once;
+   * daily totals and minute heart rate come added up by Google, so a new choice of what counts in
+   * them clears those and fetches them again.
+   */
+  router.put(
+    '/sources',
+    asyncHandler(async (req, res) => {
+      const userId: string = res.locals.userId;
+      const prefs = parseSourcePrefs(req.body?.prefs);
+      const user = await getUser(deps.db, userId);
+      if (!prefs || !user) {
+        res.status(400).json({ error: 'invalid_sources' });
+        return;
+      }
+      const before = readSourcePrefs(user.sources);
+      await setSourcePrefs(deps.db, userId, prefs);
+      const refetching = prefs.totals !== before.totals;
+      if (refetching) await refetchTotals(deps, userId);
+      else await followSourceChoice(deps, userId, user.timeZone);
+      const described = await describeSources(deps, userId);
+      const body: SourcesResponse = { ...described!, refetching };
       res.json(body);
     }),
   );

@@ -38,7 +38,7 @@ export function HistoryProvider({
   local?: DailyRecord[] | null;
   children: React.ReactNode;
 }) {
-  const version = `${data?.meta.finishedAt ?? ''}|${info?.from ?? ''}|${info?.complete ?? ''}`;
+  const version = `${data?.meta.finishedAt ?? ''}|${info?.from ?? ''}|${info?.complete ?? ''}|${JSON.stringify(data?.profile?.sources ?? null)}`;
   const [loaded, setLoaded] = useState<{ version: string; days: DailyRecord[] } | null>(null);
   const [loading, setLoading] = useState(false);
   const inFlight = useRef<string | null>(null);

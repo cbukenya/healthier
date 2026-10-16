@@ -2,7 +2,9 @@ import type { PackedDataset } from '../pipeline/incremental';
 import type { Goals } from '../pipeline/goals';
 import type { CycleDay, CycleLog, CycleSettings } from '../pipeline/cycle';
 import type { Gender } from '../pipeline/registry';
-import type { DailyRecord, StreamErrorCode } from './health';
+import type { SourcePrefs } from '../pipeline/sources';
+import type { CivilDate } from '../lib/date';
+import type { DailyRecord, Platform, RecordingMethod, StreamErrorCode } from './health';
 
 /** The JSON contract between server.ts and the browser. */
 
@@ -84,6 +86,32 @@ export interface DatasetResponse {
 /** PUT /api/profile, both ways. */
 export interface ProfileResponse {
   gender: Gender | null;
+}
+
+/** One device or app the person's readings came from, as the Devices and sources card shows it. */
+export interface SourceSummary {
+  id: string;
+  label: string;
+  platform: Platform;
+  method: RecordingMethod;
+  formFactor?: string;
+  app?: string;
+  /** The last day anything stored came from it. */
+  lastSeen: CivilDate | null;
+  /** Each stream it reports: on how many days of the window, and on how many its reading is the one used. */
+  readings: { dataType: string; offered: number; used: number }[];
+}
+
+/** GET and PUT /api/sources: the person's choices and their sources (pipeline/sources.ts). */
+export interface SourcesResponse {
+  prefs: SourcePrefs;
+  /** Every source's id in the order tried, switched-off ones in their place (sourceRanking). */
+  order: string[];
+  sources: SourceSummary[];
+  /** The days the counts cover, back from today. */
+  windowDays: number;
+  /** A new choice of what counts in daily totals is being fetched from Google again. */
+  refetching: boolean;
 }
 
 /** PUT /api/goals, both ways. */

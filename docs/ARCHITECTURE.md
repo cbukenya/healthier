@@ -59,10 +59,10 @@ browser (React)  ──/api──▶  Express server  ──▶  Postgres
 
 | Table | Holds |
 | --- | --- |
-| `users` | Google subject, profile, IANA time zone (decides what "today" means on the server), gender (set on the Body page), goals (set on the Data tab) |
+| `users` | Google subject, profile, IANA time zone (decides what "today" means on the server), gender (set on the Body page), goals and the choice of devices (set on the Data tab) |
 | `google_tokens` | encrypted tokens and granted scopes |
 | `sessions` | hashed session ids |
-| `stream_days (user_id, data_type, date)` | what one stream (steps, sleep, HRV…) contributed to one civil day: only the `DailyRecord` fields it set, plus provenance. Kept for `HISTORY_DAYS` |
+| `stream_days (user_id, data_type, date)` | what one stream (steps, sleep, HRV…) contributed to one civil day: only the `DailyRecord` fields it set, plus provenance, and each source's own reading when more than one reported the day (see Devices and sources). Kept for `HISTORY_DAYS` |
 | `intraday_heart_rate (user_id, date)` | one civil day of minute-level heart rate, column-wise. Kept for the 62-day window |
 | `stream_days` with `data_type = 'sleep-heart-rate-floor'` | the night's heart rate floor, derived from the minutes while cycle tracking is on (see Cycles). Kept like any stream |
 | `stream_state (user_id, data_type)` | per-stream coverage and the outcome of its last fetch (shown on the Data tab) |
@@ -107,7 +107,8 @@ without knowing where. The server applies that to Postgres; demo mode and the te
 - **Several readings, one day.** A day can hold more than one reading of a stream: two devices, or
   a partial reading beside a full one. They apply best first (the stream's `rank`, then the source)
   and only fill what is still empty, so the order the API lists them in never matters and an
-  incremental sync agrees with a full one.
+  incremental sync agrees with a full one. Each source's own reading is kept beside them, and the
+  one shown is picked when the day is read (see Devices and sources).
 - **One sleep, one session.** Sleep points are grouped before parsing (`combineSleepPoints`):
   overlapping sessions are one sleep recorded twice and keep the best copy, and pieces of a night
   less than three hours apart join into one night, with the break counted as awake.
@@ -119,6 +120,53 @@ without knowing where. The server applies that to Postgres; demo mode and the te
 - **Failures are surfaced.** Revoked or expired Google access (`invalid_grant`) asks the user to
   reconnect. A sync in which every request fails (for example, the Google Health API isn't
   enabled) reports Google's error instead of storing an empty dashboard.
+
+## Devices and sources
+
+Google Health takes readings from every device and app the person connects, and names where each
+list reading came from (`dataSource`: platform, recording method, device, app).
+`src/pipeline/sources.ts` decides which one Healthier reads. The Devices and sources card on the
+Data tab (`src/views/SourcesCard.tsx`) shows each source and sets the person's choices, which are
+kept on `users.sources` (`GET` and `PUT /api/sources`).
+
+- **Every source's reading is kept.** When more than one source reported a list stream on a day
+  (sleep, HRV, resting heart rate, breathing rate, skin temperature, blood oxygen, cardio fitness,
+  weight, body fat), normalisation also reads each source's points alone. The stored day keeps
+  each one's reading (`StreamDay.variants`). A day with a reading that names no source stays
+  combined.
+- **The reading is picked when the day is read.** For each stream, `assembleDays` takes the
+  reading of the first source in that stream's order that has one. A new choice applies at once,
+  to the window and to all history, with nothing fetched.
+  - The order is one list for every reading: the person's order, then the sources they haven't
+    placed, most recent first, then by days reported (`sourceRanking`). A new device leads until
+    it's placed.
+  - Advanced puts a first choice for one reading ahead of the list (`perReading`).
+  - A switched-off source is never read.
+  - The server ranks the sources over every stored day (`getSourcesSeen`, which reads provenance
+    only), so every span is picked the same way.
+- **A fill is judged against its own source.** A reading from a source other than its stream's
+  first choice is a fill (`DailyRecord.fills`), such as the night the watch was charging and a ring
+  filled in. It's shown, but `series` labels it with its source, and `compareToBaseline` reads it
+  only against earlier readings from the same source. So it neither takes a verdict from another
+  device's range nor moves that range. Its pill says nothing until that source has 8 readings of
+  its own, and the body battery reads last night's HRV the same way.
+- **The cycle finder keeps a fill where it can.** A night from another source counts where that
+  source gave 20 of the 61 nights around it: a month on an old band stays, a night here and there
+  doesn't. Each night is put in spreads from the nights around it from the same kind of source
+  (`standardized`), so a change of device isn't read as a change in the body. The history
+  queries ask for the two kinds apart (the `own` and `fill` measures).
+- **Daily totals can't be split by device.** Steps, distance, energy, active and zone minutes,
+  floors and the minute heart rate come from Google already added up. The only filter is the kind
+  of source Google adds up (`dataSourceFamily` on each rollup): every source (the default, so it
+  isn't sent), Google's own, or what the person wears. A new choice purges those streams, the
+  minute heart rate and the floor worked out from it, then runs a full sync with the new filter
+  (`refetchTotals`, under the user's lock, after any sync already running). The history backfill
+  fetches older days with it too.
+- **The floor follows the sleep.** The night's heart rate floor is measured inside the chosen
+  sleep's times, so a new choice of device recomputes the window's nights from the stored minutes
+  at once. Older nights keep their floor, because their minutes aren't kept. That costs little: on
+  mcPHASES, moving a sleep's ends by half an hour either way moved the floor by a beat or less on
+  94 to 97% of nights, and by two or less on 98 to 99%.
 
 ## Long spans in the UI
 
@@ -185,14 +233,15 @@ Google Health lets apps add periods but not read them back, so cycles are found 
 (`src/pipeline/cycle.ts`), and what the person logs makes them certain.
 
 - **Five measures.** Sleeping heart rate, resting heart rate, HRV, skin temperature and breathing
-  rate. Each is put in its own standard deviations from its average over the 61 nights around.
+  rate. Each is put in its own standard deviations from its average over the 61 nights around,
+  from the same kind of source (see Devices and sources).
   Sleeping heart rate carries the cycle most clearly; resting heart rate and temperature least.
 - **Sleeping heart rate is the night's floor:** the tenth percentile of the one-minute heart rate
   during the main sleep (`src/pipeline/sleepHrFloor.ts`). The luteal phase lifts the body's floor,
   and the floor shows it more clearly than Google's non-REM average does: on mcPHASES the finder
   placed 52% of period starts within 3 days with the floor against 37% with the average. The
   server computes it after each sync from the minutes it fetches, for every night with a main
-  sleep and at least half its minutes recorded, and stores it as the stream
+  sleep (the one the person's choice of device reads) and at least half its minutes recorded, and stores it as the stream
   `sleep-heart-rate-floor`, so it outlives the minute data. Older nights are filled in by the history
   backfill, a fortnight of minutes per step, back to the oldest stored sleep; those minutes are not
   kept. All of this only while cycle tracking is on: turning tracking on starts a sync, turning it
@@ -367,6 +416,16 @@ the one API route that needs no session, whether to offer it. With no server beh
 - per-stream storage reassembles exactly what normalising every stream at once produces, and
   survives a JSON round trip (as it must to live in Postgres);
 - civil dates and minutes are correct across DST changes.
+
+`src/pipeline/__tests__/sources.test.ts`:
+
+- a day two sources reported keeps each one's reading, and the day's reading changes with the
+  choice at once, with nothing fetched;
+- a reading from another source is a fill, labelled with its source, and judged only against
+  that source's earlier readings;
+- the cycle finder leaves out a night here and there from another device, keeps a stretch on an
+  old one, and reads each against its own;
+- the kind of source for daily totals goes to Google with every rollup.
 
 `src/pipeline/__tests__/normalize.test.ts`: a day comes out the same whatever order its readings
 arrive in; a partial reading never wipes a complete one; two devices' copies of a night count once;

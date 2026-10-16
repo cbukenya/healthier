@@ -45,7 +45,7 @@ export interface IntradayFetch {
 
 export async function fetchIntradayHeartRate(
   transport: HealthTransport,
-  opts: { from: CivilDate; to: CivilDate; timeZone: string; now: Date },
+  opts: { from: CivilDate; to: CivilDate; timeZone: string; now: Date; dataSourceFamily?: string | null },
 ): Promise<IntradayFetch> {
   const t0 = Date.now();
   const clock = civilClock(opts.timeZone);
@@ -61,6 +61,7 @@ export async function fetchIntradayHeartRate(
       INTRADAY_HEART_RATE.dataType,
       { startTime: new Date(start).toISOString(), endTime: new Date(end).toISOString() },
       WINDOW,
+      { dataSourceFamily: opts.dataSourceFamily },
     );
     return { chunk, res };
   });

@@ -207,6 +207,8 @@ export function BandPill({
       <span className="text-note px-2 py-0.5 rounded-full border border-zinc-800 text-zinc-500">{t('ui.band.soFarToday')}</span>
     );
   }
+  // A night from another device with too few of its own to judge against: shown, without a verdict.
+  if (c.source !== undefined && (!c.band || c.n < BASELINE_MIN_READINGS)) return null;
   if (!c.band || c.n < BASELINE_MIN_READINGS) {
     return (
       <span className="text-note px-2 py-0.5 rounded-full border border-zinc-800 text-zinc-500">

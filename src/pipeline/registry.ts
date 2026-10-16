@@ -3,6 +3,7 @@ import { int, num, nullIf, round, sumOf } from './coerce';
 import type { DailyRecord, HeartRateZones, MetricDomain, SourceRef } from '../types/health';
 import type { Goals } from './goals';
 import type { CycleLog } from './cycle';
+import type { SourcePrefs } from './sources';
 import { combineSleepPoints, parseSleepSession } from './sleep';
 
 /**
@@ -664,6 +665,8 @@ export interface ProfileFacts {
   cycle?: CycleLog;
   /** With tracking off the log isn't sent; this says whether one is kept, so it can still be deleted. */
   cycleKept?: boolean;
+  /** The person's choices of device (Devices and sources, pipeline/sources.ts), by which the days were picked. */
+  sources?: SourcePrefs;
 }
 
 export function extractProfile(heightPoints: any[]): ProfileFacts {

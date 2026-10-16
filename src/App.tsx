@@ -223,7 +223,15 @@ export default function App() {
             {view === 'body' && <BodyView data={health.data} onGender={demo ? undefined : saveGender} intraday={intradayDays} clock={demo ? DEMO_CLOCK : undefined} />}
             {view === 'cycle' && <CycleView data={health.data} intraday={intradayDays} clock={demo ? DEMO_CLOCK : undefined} />}
             {view === 'labs' && <LabsView data={health.data} intraday={intradayDays} />}
-            {view === 'data' && <DataView data={health.data} onFullSync={health.fullSync} onDisconnect={demo ? undefined : disconnect} />}
+            {view === 'data' && (
+              <DataView
+                data={health.data}
+                live={!demo}
+                onFullSync={health.fullSync}
+                onDisconnect={demo ? undefined : disconnect}
+                onSourcesChanged={(refetching) => void (refetching ? health.refresh() : health.reload())}
+              />
+            )}
           </main>
           </HistoryProvider>
           </GoalsProvider>

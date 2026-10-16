@@ -3,6 +3,7 @@ import type { CivilDate } from '../src/lib/date';
 import type { StreamDay, StreamState, StreamWrite, SyncOutput, SyncRun } from '../src/pipeline/incremental';
 import type { IntradayDay } from '../src/pipeline/intraday';
 import type { Goals } from '../src/pipeline/goals';
+import type { SourcePrefs, SourceSeen } from '../src/pipeline/sources';
 import { EMPTY_CYCLE_LOG, readCycleLog, type CycleLog } from '../src/pipeline/cycle';
 import type { Gender, ProfileFacts } from '../src/pipeline/registry';
 import type { ApiUser } from '../src/types/api';
@@ -19,6 +20,8 @@ export interface UserRow extends ApiUser {
   gender: Gender | null;
   /** As stored: read it through readGoals, which fills in and bounds what's there. */
   goals: unknown;
+  /** As stored: read it through readSourcePrefs. */
+  sources: unknown;
 }
 
 export async function upsertUser(db: Db, identity: GoogleIdentity): Promise<string> {
@@ -35,7 +38,7 @@ export async function upsertUser(db: Db, identity: GoogleIdentity): Promise<stri
 
 export async function getUser(db: Db, userId: string): Promise<UserRow | null> {
   const { rows } = await db.query<UserRow>(
-    `SELECT id, email, name, picture_url AS "pictureUrl", time_zone AS "timeZone", gender, goals
+    `SELECT id, email, name, picture_url AS "pictureUrl", time_zone AS "timeZone", gender, goals, sources
      FROM users WHERE id = $1`,
     [userId],
   );
@@ -48,6 +51,10 @@ export async function setTimeZone(db: Db, userId: string, timeZone: string): Pro
 
 export async function setGender(db: Db, userId: string, gender: Gender | null): Promise<void> {
   await db.query('UPDATE users SET gender = $2, updated_at = now() WHERE id = $1', [userId, gender]);
+}
+
+export async function setSourcePrefs(db: Db, userId: string, prefs: SourcePrefs): Promise<void> {
+  await db.query('UPDATE users SET sources = $2::jsonb, updated_at = now() WHERE id = $1', [userId, JSON.stringify(prefs)]);
 }
 
 export async function setGoals(db: Db, userId: string, goals: Goals): Promise<void> {
@@ -306,6 +313,41 @@ export async function purgeStream(db: Db, userId: string, dataType: string): Pro
   await withTransaction(db, async (tx) => {
     await tx.query('DELETE FROM stream_days WHERE user_id = $1 AND data_type = $2', [userId, dataType]);
     await tx.query('DELETE FROM stream_state WHERE user_id = $1 AND data_type = $2', [userId, dataType]);
+  });
+}
+
+/**
+ * Each stream's sources, with the last day each reported it and on how many days, across all
+ * stored history: what a day's reading is picked by (pipeline/sources.ts). Read from the stored
+ * days' provenance alone, never their readings.
+ */
+export async function getSourcesSeen(db: Db, userId: string): Promise<Map<string, Map<string, SourceSeen>>> {
+  const { rows } = await db.query<{ data_type: string; id: string; latest: CivilDate; days: number }>(
+    `SELECT d.data_type, s.id, to_char(max(d.date), 'YYYY-MM-DD') AS latest, count(*)::int AS days
+     FROM stream_days d
+     CROSS JOIN LATERAL (
+       SELECT jsonb_object_keys(d.value->'variants') AS id
+       UNION
+       SELECT d.value->'sourceByType'->>d.data_type
+     ) s
+     WHERE d.user_id = $1 AND s.id IS NOT NULL
+     GROUP BY d.data_type, s.id`,
+    [userId],
+  );
+  const out = new Map<string, Map<string, SourceSeen>>();
+  for (const r of rows) {
+    let seen = out.get(r.data_type);
+    if (!seen) out.set(r.data_type, (seen = new Map()));
+    seen.set(r.id, { latest: r.latest, days: r.days });
+  }
+  return out;
+}
+
+/** Forget the minute heart rate and its state: the next sync fetches the window again. */
+export async function purgeIntraday(db: Db, userId: string): Promise<void> {
+  await withTransaction(db, async (tx) => {
+    await tx.query('DELETE FROM intraday_heart_rate WHERE user_id = $1', [userId]);
+    await tx.query(`DELETE FROM stream_state WHERE user_id = $1 AND data_type = 'heart-rate'`, [userId]);
   });
 }
 

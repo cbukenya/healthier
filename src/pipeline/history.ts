@@ -1,6 +1,7 @@
 import { addDays, isoWeekdayIndex, type CivilDate } from '../lib/date';
 import type { DailyRecord } from '../types/health';
 import { scoreSleep } from './sleep';
+import { fillReading as fill, ownReading as own } from './sources';
 
 /**
  * History queries: how anything that needs your older days asks for them.
@@ -40,6 +41,23 @@ export const MEASURES = {
   hrv: (d: DailyRecord) => d.hrv,
   /** Heart rate in non-REM sleep. */
   nonRemHr: (d: DailyRecord) => d.nonRemHr,
+  /**
+   * The cycle finder's measures, apart by source (pipeline/sources.ts): `own` the readings from
+   * the stream's first choice, `fill` those from another source, so each night can be read
+   * against nights from the same kind.
+   */
+  ownSkinTempDeviationC: (d: DailyRecord) => own(d, 'skinTempDeviationC'),
+  fillSkinTempDeviationC: (d: DailyRecord) => fill(d, 'skinTempDeviationC'),
+  ownRestingHr: (d: DailyRecord) => own(d, 'restingHr'),
+  fillRestingHr: (d: DailyRecord) => fill(d, 'restingHr'),
+  ownHrv: (d: DailyRecord) => own(d, 'hrv'),
+  fillHrv: (d: DailyRecord) => fill(d, 'hrv'),
+  ownSleepMinutes: (d: DailyRecord) => own(d, 'sleep')?.minutesAsleep ?? null,
+  fillSleepMinutes: (d: DailyRecord) => fill(d, 'sleep')?.minutesAsleep ?? null,
+  ownNonRemHr: (d: DailyRecord) => own(d, 'nonRemHr'),
+  fillNonRemHr: (d: DailyRecord) => fill(d, 'nonRemHr'),
+  ownRespiratoryRate: (d: DailyRecord) => own(d, 'respiratoryRate'),
+  fillRespiratoryRate: (d: DailyRecord) => fill(d, 'respiratoryRate'),
   /** The night's heart rate floor, while cycle tracking is on. */
   sleepHrFloor: (d: DailyRecord) => d.sleepHrFloor,
   respiratoryRate: (d: DailyRecord) => d.respiratoryRate,
