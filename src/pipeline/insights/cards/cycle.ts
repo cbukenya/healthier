@@ -1,7 +1,7 @@
 import { addDays, daysBetween } from '../../../lib/date';
 import { t } from '../../../i18n';
 import { formatDayMonthLong, formatDuration, formatFixed } from '../../../i18n/format';
-import { FALL_NIGHTS, MAX_CYCLE, MIN_CYCLE, cycleShifts, typicalShifts } from '../../cycle';
+import { FIRST_SEEN_NIGHTS, MAX_CYCLE, MIN_CYCLE, cycleShifts, typicalShifts } from '../../cycle';
 import type { InsightContext } from '../context';
 import type { Finding } from '../types';
 
@@ -33,7 +33,7 @@ function due(ctx: InsightContext, add: Add): void {
   const c = summary.current;
   if (!next || !c || c.day < MIN_CYCLE) return;
   if (ctx.today < addDays(next.from, -2) || ctx.today > next.to) return;
-  const range = next.basis === 'rise' ? summary.afterRise : summary.length;
+  const range = next.basis === 'early' ? summary.early : summary.length;
   const started = ctx.today >= next.from ? 'yes' : 'no';
   add({
     ...base, id: 'cycle-due', kind: 'review', tone: 'neutral',
@@ -47,7 +47,6 @@ function due(ctx: InsightContext, add: Add): void {
       count: range?.count ?? 0,
       min: range?.min ?? 0,
       max: range?.max ?? 0,
-      rise: c.riseDay ?? 0,
       from: formatDayMonthLong(next.from),
       to: formatDayMonthLong(next.to),
       tab: t('app.nav.cycle'),
@@ -57,21 +56,18 @@ function due(ctx: InsightContext, add: Add): void {
 
 /**
  * A new cycle found in the nights and not yet confirmed: Today only, if allowed there, and only in
- * its first days. A found start has settled by day FALL_NIGHTS − offset of its cycle (see
- * FALL_NIGHTS); the card shows until two days after that, and the Cycle page offers to confirm it
- * for longer.
+ * its first week. A start can be found once FIRST_SEEN_NIGHTS nights from it are in; the Cycle page
+ * offers to confirm it for longer.
  */
 function newCycle(ctx: InsightContext, add: Add): void {
   const { summary, log } = ctx.cycle!;
   const c = summary.current;
-  if (!c || c.source !== 'found' || !log.settings.todayCards || c.day > FALL_NIGHTS - summary.offset + 2) return;
-  const fall = addDays(c.start, -summary.offset);
+  if (!c || c.source !== 'found' || !log.settings.todayCards || c.day > FIRST_SEEN_NIGHTS + 4) return;
   add({
     ...base, id: 'cycle-new', kind: 'nudge', tone: 'neutral',
     importance: 57, topic: 'cycle-new', family: 'cycle', today: 'as-news', news: true,
     title: t('insights.cycle.newCycle.title'),
     text: t('insights.cycle.newCycle.text', {
-      fall: formatDayMonthLong(fall),
       date: formatDayMonthLong(c.start),
       tab: t('app.nav.cycle'),
     }),

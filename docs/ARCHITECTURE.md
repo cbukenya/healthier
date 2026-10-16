@@ -183,17 +183,35 @@ and its figures.
 Google Health lets apps add periods but not read them back, so cycles are found in the nights
 (`src/pipeline/cycle.ts`), and what the person logs makes them certain.
 
-- **A nightly signal.** Skin temperature, resting heart rate and HRV (inverted, counting half) are
-  each put in their own standard deviations from their average over the 61 nights around, then
-  averaged. All three shift in the second half of a cycle.
-- **Runs of high nights.** A cycle's second half is a run of 7 to 18 nights that stands above the
-  week before it and the week after it, both. Comparing whole runs lets a cycle show through
-  night-to-night noise, and a slow drift, which leaves one side as high as the run, never passes.
-  The night after a run's fall is a found start, moved by the person's own gap between fall and
-  period once two starts are confirmed.
-- **Only in a rhythm.** Found starts count when two cycles in a row run 21 to 38 days, or next to a
-  logged start. Where a rhythm is established, a start the first look missed is looked for again
-  where the rhythm expects it, with a lower bar.
+- **Five measures.** Sleeping heart rate, resting heart rate, HRV, skin temperature and breathing
+  rate. Each is put in its own standard deviations from its average over the 61 nights around.
+  Sleeping and resting heart rate carry the cycle most clearly; temperature is the noisiest.
+- **The shape around a start.** `cycleShapes.ts` holds how each measure moves from 24 nights before
+  a period to 10 after, averaged across the 42 people of mcPHASES (PhysioNet, 2025), whose daily
+  hormone tests mark each cycle. Every night is scored by how well the nights around it match
+  those shapes. Each measure is matched against its own shape, because each turns at its own
+  moment, and the measures that move most count most.
+- **One start per cycle.** Through each stretch of nights, the found starts are the chain of nights
+  21 to 45 apart with the most score, gaps near the person's usual length preferred. A start in the
+  last week shows only once the drop after it has. Found starts are moved by the person's own gap
+  between their nights and their period once two starts are confirmed.
+- **Only when they stand out.** With nothing logged, found starts are shown only when their mean
+  score clears a bar set on simulated people without cycles. The simulation used the noise
+  mcPHASES shows once its cycles are taken out, and the bar lets at most 1 in 20 such people see
+  a cycle. A period logged within the nights shows there are cycles, and lifts the bar.
+- **The second half's start** is counted back 11 days from the next start, the usual length of
+  the second half in mcPHASES, which changes little from one cycle to the next. That lands within
+  3 days of the hormone-marked day more often than matching the nights' shapes does: in 81% of
+  mcPHASES's cycles against 77%, and 88% against 69% for the people held out. In the cycle under
+  way, it's counted back from the day the next period is likely, once that day has come.
+- **The next period** is a range from the last six cycles' lengths, once there are three. With two,
+  it's an early guess: their lengths, two days wider either side.
+- **How accurate.** On mcPHASES with nothing logged, cycles show for 73% of three-month stretches.
+  59% of starts are found within 3 days and 65% within 5, and 76% of the starts shown are real.
+  With the first period logged, 72% of the later starts are within 3 days and 82% within 5. Of
+  the ended cycles shown, 74% have their second half within 3 days of the hormone-marked one (78%
+  with every period logged). A strong fever just after a period can pull that start a few days
+  early.
 - **Logs win.** A logged or confirmed start beats a found one nearby and counts twice as much in the
   typical cycle. Only logged periods have a length.
 - **Older nights** come from history queries grouped by day, 240 days back.

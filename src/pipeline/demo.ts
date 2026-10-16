@@ -21,7 +21,7 @@ import type { CycleDay, CycleLog, Flow } from './cycle';
  *     card watches for, and stretches of fast heart rate in some of them;
  *   - minute heart rate for the whole 62-day window: commutes, runs, hikes, nights asleep, and a
  *     run yesterday evening, so the last 24 hours climb through the zones;
- *   - cycles all year, in their nights, three periods logged, and the demo morning on day 18.
+ *   - cycles all year, in their nights, three periods logged, and the demo morning on day 22.
  *
  * It goes through buildFixturePayloads and the fixture server like the test data, so demo mode
  * runs the real pipeline on it, end to end, history backfill included.
@@ -94,19 +94,20 @@ interface DemoDay extends FixtureDay {
 }
 
 /**
- * The demo person's cycles: a start every 26 to 31 days, the latest on 25 September, so the
- * demo morning is day 18. Their nights follow them, the way the Cycle page finds them.
+ * The demo person's cycles: a start every 26 to 31 days, the latest on 21 September, so the
+ * demo morning is day 22, a few days into the second half. Their nights follow them, the way the
+ * Cycle page finds them.
  */
 export const DEMO_CYCLE_STARTS: CivilDate[] = (() => {
   const r = seeded(20260925);
-  const out: CivilDate[] = ['2026-09-25'];
+  const out: CivilDate[] = ['2026-09-21'];
   const first = addDays(TODAY, -(DEMO_DAYS - 1));
   while (out[0] > addDays(first, -40)) out.unshift(addDays(out[0], -(26 + Math.floor(r.next() * 6))));
   return out;
 })();
 
-/** The second half of each cycle runs from the rise to the night before the next start. */
-const AFTER_RISE_DAYS = 14;
+/** The second half of each cycle runs from the rise, 11 days before the next start, to the night before it. */
+const AFTER_RISE_DAYS = 11;
 
 /** Whether a night is in the second half of a cycle: warmer, a faster resting heart rate, a lower HRV. */
 function secondHalf(date: CivilDate): boolean {
