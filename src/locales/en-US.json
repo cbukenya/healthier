@@ -2250,7 +2250,8 @@
         "readings": "individual readings",
         "last": "{how} · last fetch: {requests, plural, one {# request} other {# requests}}, {pages, plural, one {# page} other {# pages}}, {ms} ms",
         "lastWithStatus": "{how} · last fetch: {requests, plural, one {# request} other {# requests}}, {pages, plural, one {# page} other {# pages}}, {ms} ms, HTTP {status}",
-        "none": "not fetched"
+        "none": "not fetched",
+      "derived": "computed by Healthier from the one-minute heart rate during your main sleep, while cycle tracking is on"
       },
       "domains": {
         "movement": "Activity & Movement",
@@ -2330,6 +2331,7 @@
     "active-energy-burned": "Active energy",
     "sleep": "Sleep sessions",
     "heart-rate": "Heart rate (intraday)",
+    "sleep-heart-rate-low": "Sleeping heart rate, low end",
     "electrocardiogram": "ECG",
     "irregular-rhythm-notification": "Irregular Rhythm Notification",
     "daily-resting-heart-rate": "Resting heart rate",

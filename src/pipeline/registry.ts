@@ -633,6 +633,19 @@ export const INTRADAY_HEART_RATE = {
     'one-minute averages server-side (dataPoints:rollUp, 60s windows, ≤14 days per request).',
 };
 
+/**
+ * The night's low-end heart rate, computed by Healthier from the minute heart rate during the main
+ * sleep while cycle tracking is on (sleepHrLow.ts). Stored and reported like a stream, so it
+ * outlives the minute data, which is kept for the window only, and shows on the Data page.
+ */
+export const SLEEP_HR_LOW = {
+  dataType: 'sleep-heart-rate-low',
+  label: 'Sleeping heart rate, low end',
+  domain: 'cardio' as MetricDomain,
+  mode: 'derived' as const,
+  scope: INTRADAY_HEART_RATE.scope,
+};
+
 export const STREAMS_BY_TYPE = new Map(STREAMS.map((s) => [s.dataType, s]));
 
 export type Gender = 'female' | 'male' | 'other';

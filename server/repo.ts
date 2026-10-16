@@ -301,6 +301,14 @@ export async function applySyncOutput(db: Db, userId: string, out: SyncOutput, p
   });
 }
 
+/** Forget one stream: its days and its state. The next sync starts it over, if it's still read. */
+export async function purgeStream(db: Db, userId: string, dataType: string): Promise<void> {
+  await withTransaction(db, async (tx) => {
+    await tx.query('DELETE FROM stream_days WHERE user_id = $1 AND data_type = $2', [userId, dataType]);
+    await tx.query('DELETE FROM stream_state WHERE user_id = $1 AND data_type = $2', [userId, dataType]);
+  });
+}
+
 /** Store backfilled history: stream writes only, without touching the sync run or retention. */
 export async function applyStreamWrites(db: Db, userId: string, writes: StreamWrite[]): Promise<void> {
   await withTransaction(db, (tx) => writeStreams(tx, userId, writes));

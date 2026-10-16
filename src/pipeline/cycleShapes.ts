@@ -8,11 +8,10 @@
  * - **How they were made:** each measure was put in spreads from the person's own 61 nights around
  *   it, then averaged across every labelled period start, from 24 nights before to 10 nights after.
  * - **What they hold:** averages across all 42 people. No one's own nights are in them.
- * - **Sleeping heart rate:** its shape comes from the lowest tenth of each night's minute heart rate
- *   during sleep. mcPHASES stamps minute heart rate in UTC and its sleep logs in local time, and the
- *   shape was made with the two 4 to 5 hours apart. Made again with them lined up, from the heart
- *   rate in light and deep sleep (what Google Health sends as the non-REM heart rate), it comes out
- *   the same: a match of 0.99, and the same size.
+ * - **Sleeping heart rate:** the night's low end, the tenth percentile of the one-minute heart rate
+ *   during the main sleep (sleepHrLow.ts), from mcPHASES's minute heart rate lined up with its sleep
+ *   logs. The shape of the average over light and deep sleep, Google's non-REM heart rate, is the
+ *   same to a match of 0.99, so the finder reads that until the low end covers the nights.
  * - **Scale:** each shape has a mean of zero and a length of one. `size` is how far the measure
  *   moved around a start before that, so the measures that move most count most.
  *
@@ -25,8 +24,8 @@ export const SHAPE_FROM = -24;
 
 export const SHAPES = {
   sleepHr: {
-    size: 1.945,
-    shape: [-0.128, -0.168, -0.187, -0.079, -0.178, -0.115, -0.135, -0.065, -0.046, -0.002, 0.109, 0.024, 0.061, 0.08, 0.172, 0.18, 0.178, 0.176, 0.237, 0.349, 0.368, 0.253, 0.264, 0.142, -0.027, -0.069, -0.088, -0.168, -0.146, -0.146, -0.206, -0.185, -0.131, -0.167, -0.156],
+    size: 2.363,
+    shape: [-0.1, -0.187, -0.198, -0.116, -0.181, -0.118, -0.129, -0.059, -0.042, 0.027, 0.031, 0.02, 0.061, 0.062, 0.151, 0.165, 0.168, 0.213, 0.26, 0.351, 0.368, 0.277, 0.266, 0.142, -0.025, -0.065, -0.115, -0.146, -0.146, -0.141, -0.164, -0.166, -0.139, -0.166, -0.157],
   },
   restingHr: {
     size: 1.847,

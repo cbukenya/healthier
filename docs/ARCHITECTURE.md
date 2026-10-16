@@ -64,6 +64,7 @@ browser (React)  ──/api──▶  Express server  ──▶  Postgres
 | `sessions` | hashed session ids |
 | `stream_days (user_id, data_type, date)` | what one stream (steps, sleep, HRV…) contributed to one civil day: only the `DailyRecord` fields it set, plus provenance. Kept for `HISTORY_DAYS` |
 | `intraday_heart_rate (user_id, date)` | one civil day of minute-level heart rate, column-wise. Kept for the 62-day window |
+| `stream_days` with `data_type = 'sleep-heart-rate-low'` | the night's low-end heart rate, derived from the minutes while cycle tracking is on (see Cycles). Kept like any stream |
 | `stream_state (user_id, data_type)` | per-stream coverage and the outcome of its last fetch (shown on the Data tab) |
 | `sync_state (user_id)` | pipeline version, last sync and last full sync, profile facts (height, age) |
 | `cycle_logs (user_id)` | cycle tracking: the settings, the periods and symptoms the person logged, and found starts they said weren't a period. AES-256-GCM ciphertext under `ENCRYPTION_KEY`, read and changed whole, in a transaction |
@@ -185,7 +186,18 @@ Google Health lets apps add periods but not read them back, so cycles are found 
 
 - **Five measures.** Sleeping heart rate, resting heart rate, HRV, skin temperature and breathing
   rate. Each is put in its own standard deviations from its average over the 61 nights around.
-  Sleeping and resting heart rate carry the cycle most clearly; temperature is the noisiest.
+  Sleeping heart rate carries the cycle most clearly; resting heart rate and temperature least.
+- **Sleeping heart rate is the night's low end:** the tenth percentile of the one-minute heart rate
+  during the main sleep (`src/pipeline/sleepHrLow.ts`). The luteal phase lifts the body's floor,
+  and the floor shows it more clearly than Google's non-REM average does: on mcPHASES the finder
+  placed 52% of period starts within 3 days with the low end against 37% with the average. The
+  server computes it after each sync from the minutes it fetches, for every night with a main
+  sleep and at least half its minutes recorded, and stores it as the stream
+  `sleep-heart-rate-low`, so it outlives the minute data. Older nights are filled in by the history
+  backfill, a fortnight of minutes per step, back to the oldest stored sleep; those minutes are not
+  kept. All of this only while cycle tracking is on: turning tracking on starts a sync, turning it
+  off or deleting the cycle log deletes the stream, and the finder reads the non-REM heart rate
+  until the low end covers the nights.
 - **The shape around a start.** `cycleShapes.ts` holds how each measure moves from 24 nights before
   a period to 10 after, averaged across the 42 people of mcPHASES (PhysioNet, 2025), whose daily
   hormone tests mark each cycle. Every night is scored by how well the nights around it match
@@ -206,14 +218,15 @@ Google Health lets apps add periods but not read them back, so cycles are found 
   way, it's counted back from the day the next period is likely, once that day has come.
 - **The next period** is a range from the last six cycles' lengths, once there are three. With two,
   it's an early guess: their lengths, two days wider either side.
-- **How accurate.** On mcPHASES with nothing logged, cycles show for 50% of three-month stretches.
-  37% of starts are found within 3 days and 44% within 5, and 70% of the starts shown are real.
-  With the first period logged, 65% of the later starts are within 3 days and 79% within 5. Of
-  the ended cycles shown, 51% have their second half within 3 days of the hormone-marked one (78%
+- **How accurate.** On mcPHASES with nothing logged, cycles show for 63% of three-month stretches.
+  52% of starts are found within 3 days and 56% within 5, and 77% of the starts shown are real.
+  With the first period logged, 67% of the later starts are within 3 days and 79% within 5. Of
+  the ended cycles shown, 53% have their second half within 3 days of the hormone-marked one (78%
   with every period logged). Each person is scored with shapes made without their own nights, and
-  the sleeping heart rate is each night's average in light and deep sleep, which is how Google
-  Health measures its non-REM heart rate. A strong fever just after a period can pull that start
-  a few days early.
+  the sleeping heart rate is the night's low end, computed from mcPHASES's minute heart rate the
+  way the server computes it. With Google's non-REM heart rate instead, 37% of starts are within 3
+  days and cycles show for 50% of stretches. A strong fever just after a period can pull a start a
+  few days early.
 - **Logs win.** A logged or confirmed start beats a found one nearby and counts twice as much in the
   typical cycle. Only logged periods have a length.
 - **Older nights** come from history queries grouped by day, 240 days back.

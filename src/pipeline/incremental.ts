@@ -6,6 +6,7 @@ import { emptyRecord, normalize } from './normalize';
 import {
   extractProfile,
   INTRADAY_HEART_RATE,
+  SLEEP_HR_LOW,
   STREAMS,
   type ProfileFacts,
   type ScopeKey,
@@ -531,8 +532,8 @@ export function assembleDays(
 ): DailyRecord[] {
   return dateRange(from, to).map((date) => {
     const row = emptyRecord(date);
-    for (const stream of STREAMS) {
-      const part = rows.get(stream.dataType)?.get(date);
+    for (const dataType of [...STREAMS.map((s) => s.dataType), SLEEP_HR_LOW.dataType]) {
+      const part = rows.get(dataType)?.get(date);
       if (!part) continue;
       Object.assign(row, part.fields);
       for (const p of part.present) if (!row.present.includes(p)) row.present.push(p);
@@ -555,7 +556,7 @@ export function assembleDataset(stored: StoredData, from: CivilDate, to: CivilDa
     for (const dt of d.present) observed.set(dt, { count: (observed.get(dt)?.count ?? 0) + 1, latest: d.date });
   }
 
-  const known = new Set([...STREAMS.map((s) => s.dataType), INTRADAY_HEART_RATE.dataType]);
+  const known = new Set([...STREAMS.map((s) => s.dataType), INTRADAY_HEART_RATE.dataType, SLEEP_HR_LOW.dataType]);
   const reports: StreamReport[] = [];
   const sources: SourceRef[] = [];
   for (const st of stored.states) {
@@ -679,7 +680,7 @@ function httpStatusToStatus(status: number): StreamStatus {
  * A failed fetch's error as its report keeps it: Google's words (or the network's), shortened, or
  * a code and what it needs, for the app to say in the person's language.
  */
-function reportError(e: FetchError | { code: 'truncated' } | undefined): Pick<StreamReport, 'error' | 'errorCode'> {
+export function reportError(e: FetchError | { code: 'truncated' } | undefined): Pick<StreamReport, 'error' | 'errorCode'> {
   if (!e) return {};
   if ('text' in e) return { error: summariseError(e.text) };
   return e.code === 'http' ? { errorCode: 'http', error: String(e.status) } : { errorCode: e.code };
