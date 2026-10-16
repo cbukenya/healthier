@@ -263,7 +263,7 @@ const CHAIN_PULL = 0.1;
  * How much the found starts have to stand out before they're shown, when nothing is logged: the
  * mean of their scores, at least EVIDENCE_FLOOR, and higher for fewer starts (a few can look strong
  * by chance). Set on people simulated without cycles, with the noise mcPHASES shows once its cycles
- * are taken out: at most 1 in 20 of them pass, at any history length. 73% of mcPHASES's three-month
+ * are taken out: at most 1 in 20 of them pass, at any history length. Half of mcPHASES's three-month
  * stretches pass; the rest show "Finding your rhythm" until a period is logged.
  */
 const EVIDENCE_FLOOR = 1.62;
