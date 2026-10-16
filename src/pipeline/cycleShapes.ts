@@ -9,7 +9,10 @@
  *   it, then averaged across every labelled period start, from 24 nights before to 10 nights after.
  * - **What they hold:** averages across all 42 people. No one's own nights are in them.
  * - **Sleeping heart rate:** its shape comes from the lowest tenth of each night's minute heart rate
- *   during sleep, the closest mcPHASES has to the non-REM heart rate Google Health sends.
+ *   during sleep. mcPHASES stamps minute heart rate in UTC and its sleep logs in local time, and the
+ *   shape was made with the two 4 to 5 hours apart. Made again with them lined up, from the heart
+ *   rate in light and deep sleep (what Google Health sends as the non-REM heart rate), it comes out
+ *   the same: a match of 0.99, and the same size.
  * - **Scale:** each shape has a mean of zero and a length of one. `size` is how far the measure
  *   moved around a start before that, so the measures that move most count most.
  *

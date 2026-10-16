@@ -206,12 +206,14 @@ Google Health lets apps add periods but not read them back, so cycles are found 
   way, it's counted back from the day the next period is likely, once that day has come.
 - **The next period** is a range from the last six cycles' lengths, once there are three. With two,
   it's an early guess: their lengths, two days wider either side.
-- **How accurate.** On mcPHASES with nothing logged, cycles show for 73% of three-month stretches.
-  59% of starts are found within 3 days and 65% within 5, and 76% of the starts shown are real.
-  With the first period logged, 72% of the later starts are within 3 days and 82% within 5. Of
-  the ended cycles shown, 74% have their second half within 3 days of the hormone-marked one (78%
-  with every period logged). A strong fever just after a period can pull that start a few days
-  early.
+- **How accurate.** On mcPHASES with nothing logged, cycles show for 50% of three-month stretches.
+  37% of starts are found within 3 days and 44% within 5, and 70% of the starts shown are real.
+  With the first period logged, 65% of the later starts are within 3 days and 79% within 5. Of
+  the ended cycles shown, 51% have their second half within 3 days of the hormone-marked one (78%
+  with every period logged). Each person is scored with shapes made without their own nights, and
+  the sleeping heart rate is each night's average in light and deep sleep, which is how Google
+  Health measures its non-REM heart rate. A strong fever just after a period can pull that start
+  a few days early.
 - **Logs win.** A logged or confirmed start beats a found one nearby and counts twice as much in the
   typical cycle. Only logged periods have a length.
 - **Older nights** come from history queries grouped by day, 240 days back.
