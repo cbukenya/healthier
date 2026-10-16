@@ -130,6 +130,13 @@ The **Data** page shows every stream and where it came from. If you try it, plea
 [open an issue](https://github.com/cbukenya/healthier/issues/new/choose) and tell us what works
 and what doesn't. Leave out any health data.
 
+**Several devices at once.** If a watch and a ring both report your nights, the **Devices and
+sources** card on the Data page shows which one each reading comes from. Put the one you trust
+first, or switch one off, and the change applies to all your history at once. A night the first
+one missed is filled from the next, and judged only against that device's own nights. Daily
+totals such as steps come already added up by Google, so for those you choose which kinds of
+source count.
+
 ## Self-hosting
 
 Requires Docker with Compose, and a Google OAuth client of your own (next section). You don't

@@ -165,7 +165,7 @@ export class HealthTransport {
    * re-joined. Chunk failures are partial, not fatal: 40 good days beat an error,
    * but the result still carries the error and says which chunks failed.
    */
-  async rollup(dataType: string, from: CivilDate, to: CivilDate): Promise<ApiResult> {
+  async rollup(dataType: string, from: CivilDate, to: CivilDate, dataSourceFamily?: string | null): Promise<ApiResult> {
     const t0 = Date.now();
     const chunks = splitWindow(from, to, MAX_ROLLUP_WINDOW_DAYS);
     const points: any[] = [];
@@ -181,6 +181,8 @@ export class HealthTransport {
           end: { date: ghDateFromCivil(addDays(chunk.end, 1)) },
         },
         windowSizeDays: 1,
+        // Which kinds of source Google adds up (pipeline/sources.ts); every source when absent.
+        ...(dataSourceFamily ? { dataSourceFamily } : {}),
       };
       return this.request(dataType, `${this.baseUrl}/dataTypes/${dataType}/dataPoints:dailyRollUp`, {
         method: 'POST',
@@ -220,7 +222,7 @@ export class HealthTransport {
     dataType: string,
     range: { startTime: string; endTime: string },
     windowSize: string,
-    opts: { pageSize?: number; maxPages?: number } = {},
+    opts: { pageSize?: number; maxPages?: number; dataSourceFamily?: string | null } = {},
   ): Promise<ApiResult> {
     const t0 = Date.now();
     const maxPages = opts.maxPages ?? 5;
@@ -234,7 +236,11 @@ export class HealthTransport {
     do {
       const r = await this.request(dataType, `${this.baseUrl}/dataTypes/${dataType}/dataPoints:rollUp`, {
         method: 'POST',
-        body: JSON.stringify({ range, windowSize, pageSize: opts.pageSize ?? 10000, ...(token ? { pageToken: token } : {}) }),
+        body: JSON.stringify({
+          range, windowSize, pageSize: opts.pageSize ?? 10000,
+          ...(opts.dataSourceFamily ? { dataSourceFamily: opts.dataSourceFamily } : {}),
+          ...(token ? { pageToken: token } : {}),
+        }),
       });
       requests += r.attempts;
       pages++;

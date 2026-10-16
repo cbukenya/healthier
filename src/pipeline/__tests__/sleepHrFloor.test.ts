@@ -58,9 +58,7 @@ describe('the night\'s heart rate floor', () => {
   });
 
   it('recomputes the window from its second day and keeps older coverage', () => {
-    const sleepDays = new Map<CivilDate, StreamDay>([
-      ['2026-08-11', { fields: { sleep: sleepOf('2026-08-10T23:30:00Z', '2026-08-11T06:30:00Z') }, present: ['sleep'], sources: [], sourceByType: {} }],
-    ]);
+    const sleepDays = [{ date: '2026-08-11', sleep: sleepOf('2026-08-10T23:30:00Z', '2026-08-11T06:30:00Z') }];
     const prev = { ...state('2026-05-01', '2026-08-01'), latestDate: '2026-08-01' as CivilDate };
     const w = sleepHrFloorWindow(prev, sleepDays, night, { windowStart: '2026-07-01', today: '2026-08-31', keepFrom: '2025-09-01' });
     assert.deepEqual(w.replace, [{ from: '2026-07-02', to: '2026-08-31' }]);
@@ -122,8 +120,8 @@ describe('its history, a fortnight at a time', () => {
   });
   /** A main sleep every night, 23:00 to 07:00. */
   const loadSleep = async (from: CivilDate, to: CivilDate) => {
-    const out = new Map<CivilDate, StreamDay>();
-    for (let d = from; d <= to; d = addDays(d, 1)) out.set(d, { fields: { sleep: sleepOf(`${addDays(d, -1)}T23:00:00Z`, `${d}T07:00:00Z`) }, present: ['sleep'], sources: [], sourceByType: {} });
+    const out: { date: CivilDate; sleep: any }[] = [];
+    for (let d = from; d <= to; d = addDays(d, 1)) out.push({ date: d, sleep: sleepOf(`${addDays(d, -1)}T23:00:00Z`, `${d}T07:00:00Z`) });
     return out;
   };
   const opts = { timeZone: 'UTC', now: new Date('2026-09-01T12:00:00Z') };

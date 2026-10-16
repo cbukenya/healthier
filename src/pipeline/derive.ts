@@ -3,6 +3,7 @@ import { t, type MessageKey } from '../i18n';
 import { formatCivil, formatDuration, formatFixed, formatRounded } from '../i18n/format';
 import type { DailyRecord, HealthDataset, SleepSession } from '../types/health';
 import { scoreSleep } from './sleep';
+import { fillSource } from './sources';
 
 /**
  * Derived analytics. Every function here is pure: rows in, numbers out, no fetching,
@@ -18,13 +19,22 @@ import { scoreSleep } from './sleep';
 export interface Point {
   date: CivilDate;
   value: number | null;
+  /**
+   * The source of a value that isn't its stream's first choice (a fill, pipeline/sources.ts).
+   * A comparison reads a point only against earlier points from the same source.
+   */
+  source?: string;
 }
 
 export type Accessor = (d: DailyRecord) => number | null;
 
 /** Extract one metric as a date-aligned series, nulls preserved. */
 export function series(days: DailyRecord[], get: Accessor): Point[] {
-  return days.map((d) => ({ date: d.date, value: get(d) }));
+  return days.map((d) => {
+    const value = get(d);
+    const source = fillSource(d, get, value);
+    return source === undefined ? { date: d.date, value } : { date: d.date, value, source };
+  });
 }
 
 export const values = (s: Point[]): number[] =>
@@ -106,6 +116,8 @@ export interface Comparison {
   band: Band | null;
   /** Observations behind the baseline — the UI hides bands below ~10. */
   n: number;
+  /** The value came from a source other than its stream's first choice, and is judged against that source's own readings. */
+  source?: string;
 }
 
 const NEUTRAL: Comparison = {
@@ -127,10 +139,13 @@ export function compareToBaseline(s: Point[], window = BASELINE_DAYS, minPoints 
   const lastIdx = lastIndexWithValue(s);
   if (lastIdx < 0) return NEUTRAL;
   const value = s[lastIdx].value!;
-  const priors = values(s.slice(Math.max(0, lastIdx - window), lastIdx));
+  // Like with like: a reading is judged only against earlier readings from the same source.
+  const source = s[lastIdx].source;
+  const priors = values(s.slice(Math.max(0, lastIdx - window), lastIdx).filter((p) => p.source === source));
   const date = s[lastIdx].date;
+  const from = source === undefined ? {} : { source };
   if (priors.length < minPoints) {
-    return { ...NEUTRAL, value, date, n: priors.length };
+    return { ...NEUTRAL, value, date, n: priors.length, ...from };
   }
   const st = stats(priors)!;
   const spread = spreadOf(priors, st, floor);
@@ -146,6 +161,7 @@ export function compareToBaseline(s: Point[], window = BASELINE_DAYS, minPoints 
     z,
     band: bandFor(z),
     n: priors.length,
+    ...from,
   };
 }
 
@@ -204,14 +220,15 @@ export const completedDays = (days: DailyRecord[]): DailyRecord[] => days.slice(
  * the baseline restarts with the device. Days with no recorded source are kept.
  */
 export function sameDevice(days: DailyRecord[], dataType: string, get: Accessor): Point[] {
+  const s = series(days, get);
+  // A fill (pipeline/sources.ts) keeps its own source, and is judged against that source's readings.
   let device: string | undefined;
   for (let i = days.length - 1; i >= 0 && device === undefined; i--) {
-    if (get(days[i]) !== null) device = days[i].sourceByType?.[dataType] ?? '';
+    if (s[i].value !== null && s[i].source === undefined) device = days[i].sourceByType?.[dataType] ?? '';
   }
-  return days.map((d) => {
-    const value = get(d);
-    const source = d.sourceByType?.[dataType];
-    return { date: d.date, value: value === null || (device && source && source !== device) ? null : value };
+  return s.map((p, i) => {
+    const source = days[i].sourceByType?.[dataType];
+    return p.value === null || p.source !== undefined || !(device && source && source !== device) ? p : { ...p, value: null };
   });
 }
 
@@ -494,7 +511,7 @@ export function readiness(days: DailyRecord[], needSet?: number | null): Readine
   const overnightAll = series(days, (d) => d.hrv);
   const overnight = sameDevice(days, HRV, (d) => d.hrv);
   const deep = sameDevice(days, HRV, (d) => d.hrvDeepSleep);
-  const ln = (s: Point[]) => s.map((p) => ({ date: p.date, value: p.value === null || p.value <= 0 ? null : Math.log(p.value) }));
+  const ln = (s: Point[]) => s.map((p) => ({ ...p, value: p.value === null || p.value <= 0 ? null : Math.log(p.value) }));
   // Deep-sleep RMSSD is the cleaner series when last night has it and it has a
   // baseline of its own; otherwise the overnight average, never nothing.
   const lastOvernight = latestPoint(overnight);
@@ -746,13 +763,15 @@ function lnComparison(lnSeries: Point[]): {
   // compares observations against themselves. "Last week" stays a week; a
   // coverage minimum protects the mean instead.
   const end = Math.max(0, lastIdx - 7);
-  const priors = values(lnSeries.slice(Math.max(0, end - BASELINE_DAYS), end));
+  // Like with like, as compareToBaseline: only the judged night's own source.
+  const own = (s: Point[]) => s.filter((p) => p.source === lnSeries[lastIdx].source);
+  const priors = values(own(lnSeries.slice(Math.max(0, end - BASELINE_DAYS), end)));
   if (priors.length < BASELINE_MIN_READINGS) return null;
   const st = stats(priors)!;
   const spread = spreadOf(priors, st, NOISE_FLOOR.lnHrv);
   if (spread <= 0) return null;
   const lastLn = lnSeries[lastIdx].value!;
-  const recent = values(lnSeries.slice(Math.max(0, lastIdx - 6), lastIdx + 1));
+  const recent = values(own(lnSeries.slice(Math.max(0, lastIdx - 6), lastIdx + 1)));
   if (recent.length < 4) return null; // ≥4 of the last 7 calendar nights
   const mean7Ln = recent.reduce((a, b) => a + b, 0) / recent.length;
   return {

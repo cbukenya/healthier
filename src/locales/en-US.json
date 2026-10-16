@@ -2078,6 +2078,67 @@
     "howItWorks": "How it works"
   },
   "data": {
+    "sources": {
+      "title": "Devices and sources",
+      "hint": "Google Health combines what your devices and apps send it. Here you can see which one each reading came from, choose which ones count, and which comes first.",
+      "advanced": "Advanced: choose per reading",
+      "simple": "One order for everything",
+      "readings": {
+        "title": "Readings, first choice at the top",
+        "hint": "When two report the same day, the higher one is used. A day from another one is shown, but judged only against that one's own readings."
+      },
+      "kind": {
+        "manual": "Logged by hand",
+        "app": "App",
+        "platform": "{platform, select, FITBIT {Google} HEALTH_CONNECT {through Health Connect} HEALTH_KIT {through Apple Health} GOOGLE_FIT {Google Fit} other {}}",
+        "lastReading": "last reading {date}"
+      },
+      "supplies": {
+        "none": "Nothing in the last {days} days."
+      },
+      "status": {
+        "off": "Not used: its readings are left out of your days and your usual ranges.",
+        "all": "Used on all {count, plural, one {# day} other {# days}} it reported.",
+        "some": "Used on {used} of the {count, plural, one {# day} other {# days}} it reported. On the rest, another device came first.",
+        "none": "Reported {count, plural, one {# day} other {# days}}, but another device came first on each.",
+        "older": "Its earlier readings are kept, and still count in your history."
+      },
+      "move": {
+        "up": "Move {name} up",
+        "down": "Move {name} down"
+      },
+      "totals": {
+        "title": "Daily totals",
+        "hint": "Steps, distance, energy, active and zone minutes, floors and minute heart rate come already added up by Google, so they can't be split by device. You can choose which kinds of source count.",
+        "all": {
+          "name": "Every device and app",
+          "note": "The default. Your watch, the steps your phone counts, and workouts other apps add."
+        },
+        "google": {
+          "name": "Google and Fitbit only",
+          "note": "Your watch, your phone's step count and what you log in Google Health. Leaves out other apps."
+        },
+        "worn": {
+          "name": "Only what you wear",
+          "note": "Your watch or band alone. Leaves out your phone's steps and anything logged by hand."
+        },
+        "confirm": "With this choice, Healthier fetches your daily totals and minute heart rate from Google again. That takes a few minutes, and everything else keeps working.",
+        "apply": "Fetch again",
+        "cancel": "Cancel",
+        "refetching": "Fetching your daily totals from Google again."
+      },
+      "grid": {
+        "hint": "Pick the first choice for each reading. The others fill only what it missed, in the order of the list, and each one's readings are judged against its own.",
+        "reading": "Reading",
+        "off": "Off",
+        "pick": "{reading}: use {name} first",
+        "minute": "Heart rate through the day",
+        "minuteNote": "Google combines it from all your sources, so it can't be chosen per device. It follows the daily totals choice, and so do the Labs that read it and the basal resting heart rate on the Cycle page."
+      },
+      "footer": "A change applies at once, to every page and all your history, with nothing fetched again.",
+      "demo": "In demo mode this shows the demo's devices, and choices aren't kept.",
+      "failed": "Couldn't save that. Try again."
+    },
     "cycle": {
       "title": "Cycle tracking",
       "hint": "Off until you turn it on. Google Health doesn't share periods with other apps, so Healthier finds your cycles in your nights and keeps a log of its own.",
