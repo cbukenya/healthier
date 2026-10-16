@@ -14,7 +14,7 @@ is open, for anyone to read and improve.
   <img src="docs/screenshots/phone-today.png" alt="Today on a phone" width="24%">
   <img src="docs/screenshots/phone-sleep.png" alt="Sleep on a phone" width="24%">
   <img src="docs/screenshots/phone-vitals.png" alt="Vitals on a phone, with a day of heart rate" width="24%">
-  <img src="docs/screenshots/phone-labs.png" alt="Labs on a phone" width="24%">
+  <img src="docs/screenshots/phone-cycle.png" alt="Cycle on a phone: the phase, the day, and the cycle as a strip of days" width="24%">
 </p>
 <p align="center"><sub>All screenshots are from demo mode: a year of made-up data, not a real person's.</sub></p>
 
