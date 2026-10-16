@@ -569,7 +569,9 @@ export function DataStreams({ data }: { data: SyncResult }) {
       const last = { how, requests: r.requests, pages: r.pagesFetched, ms: r.ms };
       const fetch = kind === 'unshared'
         ? t('data.streams.fetch.none')
-        : r.httpStatus && r.httpStatus !== 200
+        : r.mode === 'derived'
+          ? t('data.streams.fetch.derived')
+          : r.httpStatus && r.httpStatus !== 200
           ? t('data.streams.fetch.lastWithStatus', { ...last, status: r.httpStatus })
           : t('data.streams.fetch.last', last);
       return { report: r, kind, status, detail: r.truncated ? t('data.streams.detail.truncated', { detail }) : detail, fetch };

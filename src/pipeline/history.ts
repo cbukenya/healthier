@@ -40,6 +40,8 @@ export const MEASURES = {
   hrv: (d: DailyRecord) => d.hrv,
   /** Heart rate in non-REM sleep. */
   nonRemHr: (d: DailyRecord) => d.nonRemHr,
+  /** The night's heart rate floor, while cycle tracking is on. */
+  sleepHrFloor: (d: DailyRecord) => d.sleepHrFloor,
   respiratoryRate: (d: DailyRecord) => d.respiratoryRate,
   spo2: (d: DailyRecord) => d.spo2?.avg ?? null,
   skinTempDeviationC: (d: DailyRecord) => d.skinTempDeviationC,

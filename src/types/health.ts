@@ -138,6 +138,11 @@ export interface DailyRecord {
   hrvDeepSleep: number | null;
   /** Non-REM heart rate, reported alongside HRV. */
   nonRemHr: number | null;
+  /**
+   * The night's heart rate floor: the tenth percentile of the one-minute heart rate during the
+   * main sleep. Healthier's own, computed while cycle tracking is on (pipeline/sleepHrFloor.ts).
+   */
+  sleepHrFloor: number | null;
   /** On-device nonlinear metric over the night's true beat-to-beat intervals. Opaque vendor formula: track shifts only, never interpret levels. */
   hrvEntropy: number | null;
   respiratoryRate: number | null;
@@ -201,7 +206,8 @@ export interface StreamReport {
   /** The registry's English name, for logs; the app names a stream by its dataType. */
   label: string;
   domain: MetricDomain;
-  mode: 'rollup' | 'list';
+  /** `derived`: computed by Healthier from other streams, never fetched. */
+  mode: 'rollup' | 'list' | 'derived';
   status: StreamStatus;
   /** Observations that fell inside the requested window (not raw payload items). */
   observations: number;

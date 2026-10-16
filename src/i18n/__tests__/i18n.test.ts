@@ -12,7 +12,7 @@ import {
   formatDuration, formatFixed, formatHour, formatHours, formatHoursDecimal, formatList, formatMinutes, formatMonth,
   formatMonthYear, formatNumber, formatRounded, formatThousands, formatYear, meanLabel,
 } from '../format';
-import { INTRADAY_HEART_RATE, STREAMS } from '../../pipeline/registry';
+import { INTRADAY_HEART_RATE, SLEEP_HR_FLOOR, STREAMS } from '../../pipeline/registry';
 import { scanFiles, scanSource, sourceFiles } from './scan';
 
 const ROOT = join(import.meta.dirname, '../../..');
@@ -115,8 +115,8 @@ describe('language files', () => {
     }
   });
 
-  it('name every data stream the app syncs, and no others', () => {
-    const synced = [...STREAMS.map((s) => s.dataType), INTRADAY_HEART_RATE.dataType];
+  it('name every data stream the app syncs or derives, and no others', () => {
+    const synced = [...STREAMS.map((s) => s.dataType), INTRADAY_HEART_RATE.dataType, SLEEP_HR_FLOOR.dataType];
     assert.deepEqual(Object.keys(enUS.streams).sort(), synced.sort());
   });
 
