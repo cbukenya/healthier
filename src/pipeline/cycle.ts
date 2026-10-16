@@ -184,7 +184,7 @@ export interface Night {
   temp: number | null;
   restingHr: number | null;
   hrv: number | null;
-  /** Heart rate in non-REM sleep, bpm. */
+  /** Sleeping heart rate, bpm: the night's floor (sleepHrFloor.ts), or Google's non-REM heart rate until that covers the nights. */
   sleepHr?: number | null;
   /** Breaths a minute asleep. */
   breath?: number | null;
@@ -201,6 +201,7 @@ export const cycleQueries = {
   cycleRestingHr: { measure: 'restingHr', aggregate: 'mean', group: 'day', back: CYCLE_HISTORY_DAYS },
   cycleHrv: { measure: 'hrv', aggregate: 'mean', group: 'day', back: CYCLE_HISTORY_DAYS },
   cycleAsleep: { measure: 'sleepMinutes', aggregate: 'mean', group: 'day', back: CYCLE_HISTORY_DAYS },
+  cycleSleepHrFloor: { measure: 'sleepHrFloor', aggregate: 'mean', group: 'day', back: CYCLE_HISTORY_DAYS },
   cycleSleepHr: { measure: 'nonRemHr', aggregate: 'mean', group: 'day', back: CYCLE_HISTORY_DAYS },
   cycleBreath: { measure: 'respiratoryRate', aggregate: 'mean', group: 'day', back: CYCLE_HISTORY_DAYS },
 } satisfies HistoryQueries;
@@ -214,25 +215,36 @@ export function nightsFrom(days: DailyRecord[], answers: HistoryAnswers = {}): N
     if (!n) byDate.set(date, (n = { date, temp: null, restingHr: null, hrv: null }));
     return n;
   };
-  const older: [keyof typeof cycleQueries, 'temp' | 'restingHr' | 'hrv' | 'sleepHr' | 'breath' | 'asleep'][] = [
-    ['cycleTemp', 'temp'], ['cycleRestingHr', 'restingHr'], ['cycleHrv', 'hrv'], ['cycleSleepHr', 'sleepHr'],
-    ['cycleBreath', 'breath'], ['cycleAsleep', 'asleep'],
+  const older: [keyof typeof cycleQueries, 'temp' | 'restingHr' | 'hrv' | 'breath' | 'asleep'][] = [
+    ['cycleTemp', 'temp'], ['cycleRestingHr', 'restingHr'], ['cycleHrv', 'hrv'], ['cycleBreath', 'breath'], ['cycleAsleep', 'asleep'],
   ];
   const windowFrom = days[0].date;
-  for (const [query, field] of older) {
+  const answered = (query: keyof typeof cycleQueries, put: (date: CivilDate, v: number) => void) => {
     for (const row of answers[query]?.rows ?? []) {
-      if (row.key && row.key < windowFrom && typeof row.mean === 'number' && Number.isFinite(row.mean)) night(row.key)[field] = row.mean;
+      if (row.key && row.key < windowFrom && typeof row.mean === 'number' && Number.isFinite(row.mean)) put(row.key, row.mean);
     }
-  }
+  };
+  for (const [query, field] of older) answered(query, (date, v) => { night(date)[field] = v; });
   for (const d of days) {
     const n = night(d.date);
     n.temp = d.skinTempDeviationC;
     n.restingHr = d.restingHr;
     n.hrv = d.hrv;
-    n.sleepHr = d.nonRemHr;
     n.breath = d.respiratoryRate;
     n.asleep = d.sleep?.minutesAsleep ?? null;
   }
+  // The sleeping heart rate: the night's floor (sleepHrFloor.ts) once it covers half the nights
+  // Google's non-REM heart rate does. It's computed only while tracking is on, and its history
+  // fills in over the hour after; until then, the non-REM heart rate, as before.
+  const lowEnd = new Map<CivilDate, number>();
+  const nonRem = new Map<CivilDate, number>();
+  answered('cycleSleepHrFloor', (date, v) => lowEnd.set(date, v));
+  answered('cycleSleepHr', (date, v) => nonRem.set(date, v));
+  for (const d of days) {
+    if (isNum(d.sleepHrFloor)) lowEnd.set(d.date, d.sleepHrFloor);
+    if (isNum(d.nonRemHr)) nonRem.set(d.date, d.nonRemHr);
+  }
+  for (const [date, v] of lowEnd.size > 0 && lowEnd.size * 2 >= nonRem.size ? lowEnd : nonRem) night(date).sleepHr = v;
   const dates = [...byDate.keys()].sort();
   const out: Night[] = [];
   for (let date = dates[0]; date <= days[days.length - 1].date; date = addDays(date, 1)) {
@@ -263,12 +275,12 @@ const CHAIN_PULL = 0.1;
  * How much the found starts have to stand out before they're shown, when nothing is logged: the
  * mean of their scores, at least EVIDENCE_FLOOR, and higher for fewer starts (a few can look strong
  * by chance). Set on people simulated without cycles, with the noise mcPHASES shows once its cycles
- * are taken out: at most 1 in 20 of them pass, at any history length. Half of mcPHASES's three-month
- * stretches pass; the rest show "Finding your rhythm" until a period is logged.
+ * are taken out: at most 1 in 20 of them pass, at any history length. Two thirds of mcPHASES's
+ * three-month stretches pass; the rest show "Finding your rhythm" until a period is logged.
  */
-const EVIDENCE_FLOOR = 1.62;
-const EVIDENCE_BASE = 0.98;
-const EVIDENCE_FEW = 1.76;
+const EVIDENCE_FLOOR = 1.65;
+const EVIDENCE_BASE = 1.0;
+const EVIDENCE_FEW = 1.8;
 export const evidenceBar = (starts: number) => Math.max(EVIDENCE_FLOOR, EVIDENCE_BASE + EVIDENCE_FEW / Math.sqrt(Math.max(2, starts)));
 
 /**

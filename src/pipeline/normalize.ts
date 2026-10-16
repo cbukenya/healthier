@@ -30,6 +30,7 @@ export function emptyRecord(date: CivilDate): DailyRecord {
     hrv: null,
     hrvDeepSleep: null,
     nonRemHr: null,
+    sleepHrFloor: null,
     hrvEntropy: null,
     respiratoryRate: null,
     spo2: null,
