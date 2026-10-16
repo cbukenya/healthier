@@ -384,7 +384,10 @@ async function backfillSleepHrFloorStep(
   const prev = states.get(SLEEP_HR_FLOOR.dataType);
   const sleep = states.get('sleep');
   if (attempted.has(SLEEP_HR_FLOOR.dataType) || !prev?.coveredFrom || !sleep?.coveredFrom) return false;
-  const oldest = sleep.coveredFrom > start ? sleep.coveredFrom : start;
+  // Back to the oldest stored sleep: the nights before it have nothing to measure.
+  const firstSleep = await getOldestStreamDay(deps.db, userId, 'sleep');
+  if (!firstSleep) return false;
+  const oldest = [sleep.coveredFrom, start, firstSleep].reduce((a, b) => (a > b ? a : b));
   if (prev.coveredFrom <= oldest) return false;
   const log = await getCycleLog(deps.db, deps.config.encryptionKey, userId);
   if (!log.settings.tracking) return false;

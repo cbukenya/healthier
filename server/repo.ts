@@ -377,11 +377,11 @@ async function writeStreams(tx: pg.PoolClient, userId: string, writes: StreamWri
   }
 }
 
-/** The oldest day with any stored data, or null. */
-export async function getOldestStreamDay(db: Db, userId: string): Promise<CivilDate | null> {
+/** The oldest day with any stored data, or with one stream's, or null. */
+export async function getOldestStreamDay(db: Db, userId: string, dataType?: string): Promise<CivilDate | null> {
   const { rows } = await db.query<{ oldest: CivilDate | null }>(
-    `SELECT to_char(min(date), 'YYYY-MM-DD') AS oldest FROM stream_days WHERE user_id = $1`,
-    [userId],
+    `SELECT to_char(min(date), 'YYYY-MM-DD') AS oldest FROM stream_days WHERE user_id = $1 AND ($2::text IS NULL OR data_type = $2)`,
+    [userId, dataType ?? null],
   );
   return rows[0]?.oldest ?? null;
 }
