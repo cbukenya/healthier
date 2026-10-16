@@ -13,7 +13,7 @@ import { SECOND_HALF_DAYS, type Cycle, type CycleSummary } from './cycle';
 
 export type Phase = 'menstrual' | 'follicular' | 'ovulation' | 'earlyLuteal' | 'lateLuteal';
 
-/** How far a start found in the nights may be off, either way: most are within 3 days (mcPHASES). */
+/** How far a start found in the nights may be off, either way: 7 in 10 of those shown are within 3 days (mcPHASES). */
 export const FOUND_START_DAYS = 3;
 /** A cycle whose start and end were both found: the two errors together, about 4 days. */
 export const BOTH_FOUND_DAYS = 4;
