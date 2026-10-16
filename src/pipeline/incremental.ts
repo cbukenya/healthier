@@ -6,7 +6,7 @@ import { emptyRecord, normalize } from './normalize';
 import {
   extractProfile,
   INTRADAY_HEART_RATE,
-  SLEEP_HR_LOW,
+  SLEEP_HR_FLOOR,
   STREAMS,
   type ProfileFacts,
   type ScopeKey,
@@ -532,7 +532,7 @@ export function assembleDays(
 ): DailyRecord[] {
   return dateRange(from, to).map((date) => {
     const row = emptyRecord(date);
-    for (const dataType of [...STREAMS.map((s) => s.dataType), SLEEP_HR_LOW.dataType]) {
+    for (const dataType of [...STREAMS.map((s) => s.dataType), SLEEP_HR_FLOOR.dataType]) {
       const part = rows.get(dataType)?.get(date);
       if (!part) continue;
       Object.assign(row, part.fields);
@@ -556,7 +556,7 @@ export function assembleDataset(stored: StoredData, from: CivilDate, to: CivilDa
     for (const dt of d.present) observed.set(dt, { count: (observed.get(dt)?.count ?? 0) + 1, latest: d.date });
   }
 
-  const known = new Set([...STREAMS.map((s) => s.dataType), INTRADAY_HEART_RATE.dataType, SLEEP_HR_LOW.dataType]);
+  const known = new Set([...STREAMS.map((s) => s.dataType), INTRADAY_HEART_RATE.dataType, SLEEP_HR_FLOOR.dataType]);
   const reports: StreamReport[] = [];
   const sources: SourceRef[] = [];
   for (const st of stored.states) {

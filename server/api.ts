@@ -5,7 +5,7 @@ import type {
 } from '../src/types/api';
 import { parseGoals } from '../src/pipeline/goals';
 import { hasEntry, parseCycleDay, parseCycleSettings, withDay, withRejected } from '../src/pipeline/cycle';
-import { SLEEP_HR_LOW } from '../src/pipeline/registry';
+import { SLEEP_HR_FLOOR } from '../src/pipeline/registry';
 import type { Gender } from '../src/pipeline/registry';
 import { parseQueries } from '../src/pipeline/history';
 import { requireUser, SESSION_COOKIE, sessionCookieOptions } from './auth';
@@ -112,10 +112,10 @@ export function apiRoutes(deps: Deps): Router {
         wasTracking = log.settings.tracking;
         return { ...log, settings };
       });
-      // The night's low-end heart rate is kept for cycle tracking alone: a sync computes it and
+      // The night's heart rate floor is kept for cycle tracking alone: a sync computes it and
       // fills its history as soon as tracking goes on, and it goes as soon as tracking goes off.
       if (settings.tracking && !wasTracking) startSync(deps, res.locals.userId);
-      if (!settings.tracking && wasTracking) await purgeStream(deps.db, res.locals.userId, SLEEP_HR_LOW.dataType);
+      if (!settings.tracking && wasTracking) await purgeStream(deps.db, res.locals.userId, SLEEP_HR_FLOOR.dataType);
       const body: CycleSettingsResponse = { settings };
       res.json(body);
     }),
@@ -157,7 +157,7 @@ export function apiRoutes(deps: Deps): Router {
     '/cycle',
     asyncHandler(async (req, res) => {
       await deleteCycleLog(deps.db, res.locals.userId);
-      await purgeStream(deps.db, res.locals.userId, SLEEP_HR_LOW.dataType);
+      await purgeStream(deps.db, res.locals.userId, SLEEP_HR_FLOOR.dataType);
       res.json({ ok: true });
     }),
   );

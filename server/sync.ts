@@ -16,8 +16,8 @@ import type { DailyRecord, StreamReport } from '../src/types/health';
 import { readGoals } from '../src/pipeline/goals';
 import { EMPTY_CYCLE_LOG } from '../src/pipeline/cycle';
 import { answerQueries, queriesSpan, type HistoryAnswers, type HistoryQueries } from '../src/pipeline/history';
-import { SCOPES, SLEEP_HR_LOW, type ScopeKey } from '../src/pipeline/registry';
-import { backfillSleepHrLow, sleepHrLowWindow } from '../src/pipeline/sleepHrLow';
+import { SCOPES, SLEEP_HR_FLOOR, type ScopeKey } from '../src/pipeline/registry';
+import { backfillSleepHrFloor, sleepHrFloorWindow } from '../src/pipeline/sleepHrFloor';
 import { HealthTransport } from '../src/pipeline/transport';
 import type { HistoryInfo, SyncStatus } from '../src/types/api';
 import { isAllowed } from './access';
@@ -205,18 +205,18 @@ async function syncUserLocked(deps: Deps, userId: string, status: SyncStatus, fo
     throw new GoogleRejected(reports[0]);
   }
   await applySyncOutput(deps.db, userId, output, PIPELINE_VERSION);
-  await deriveSleepHrLow(deps, userId, user.timeZone, now);
+  await deriveSleepHrFloor(deps, userId, user.timeZone, now);
 }
 
 /**
- * The night's low-end heart rate for the window, from the minutes just stored, while cycle tracking
- * is on (sleepHrLow.ts). With tracking off, whatever was stored goes: it's kept for the cycle finder
+ * The night's heart rate floor for the window, from the minutes just stored, while cycle tracking
+ * is on (sleepHrFloor.ts). With tracking off, whatever was stored goes: it's kept for the cycle finder
  * alone. The window's nights are recomputed every sync, so a sleep that arrives late is counted.
  */
-async function deriveSleepHrLow(deps: Deps, userId: string, timeZone: string, now: Date): Promise<void> {
+async function deriveSleepHrFloor(deps: Deps, userId: string, timeZone: string, now: Date): Promise<void> {
   const log = await getCycleLog(deps.db, deps.config.encryptionKey, userId);
   if (!log.settings.tracking) {
-    await purgeStream(deps.db, userId, SLEEP_HR_LOW.dataType);
+    await purgeStream(deps.db, userId, SLEEP_HR_FLOOR.dataType);
     return;
   }
   const today = todayCivilIn(timeZone, now);
@@ -227,7 +227,7 @@ async function deriveSleepHrLow(deps: Deps, userId: string, timeZone: string, no
     getIntradayDays(deps.db, userId, windowStart, today),
     getStreamStates(deps.db, userId),
   ]);
-  await applyStreamWrites(deps.db, userId, [sleepHrLowWindow(states.get(SLEEP_HR_LOW.dataType), rows.get('sleep'), intraday, { windowStart, today, keepFrom })]);
+  await applyStreamWrites(deps.db, userId, [sleepHrFloorWindow(states.get(SLEEP_HR_FLOOR.dataType), rows.get('sleep'), intraday, { windowStart, today, keepFrom })]);
 }
 
 /** Backfill the user's history in the background, or join the backfill already running. */
@@ -273,18 +273,18 @@ async function backfillUser(deps: Deps, userId: string): Promise<void> {
         }
         return true;
       }
-      return backfillSleepHrLowStep(deps, userId, user.timeZone, states, start, attempted);
+      return backfillSleepHrFloorStep(deps, userId, user.timeZone, states, start, attempted);
     });
     if (!progressed) return;
   }
 }
 
 /**
- * After the streams: the night's low-end heart rate, a fortnight of nights at a time, back to the
+ * After the streams: the night's heart rate floor, a fortnight of nights at a time, back to the
  * oldest stored sleep, while cycle tracking is on. Each step fetches that fortnight's minutes and
  * keeps only the nights' figures. A failed step waits for the next sync, like a stream's.
  */
-async function backfillSleepHrLowStep(
+async function backfillSleepHrFloorStep(
   deps: Deps,
   userId: string,
   timeZone: string,
@@ -292,15 +292,15 @@ async function backfillSleepHrLowStep(
   start: CivilDate,
   attempted: Set<string>,
 ): Promise<boolean> {
-  const prev = states.get(SLEEP_HR_LOW.dataType);
+  const prev = states.get(SLEEP_HR_FLOOR.dataType);
   const sleep = states.get('sleep');
-  if (attempted.has(SLEEP_HR_LOW.dataType) || !prev?.coveredFrom || !sleep?.coveredFrom) return false;
+  if (attempted.has(SLEEP_HR_FLOOR.dataType) || !prev?.coveredFrom || !sleep?.coveredFrom) return false;
   const oldest = sleep.coveredFrom > start ? sleep.coveredFrom : start;
   if (prev.coveredFrom <= oldest) return false;
   const log = await getCycleLog(deps.db, deps.config.encryptionKey, userId);
   if (!log.settings.tracking) return false;
   const { token } = await accessToken(deps, userId);
-  const write = await backfillSleepHrLow(
+  const write = await backfillSleepHrFloor(
     new HealthTransport({ token }),
     prev,
     async (from, to) => (await getStreamDays(deps.db, userId, from, to)).get('sleep'),
@@ -311,8 +311,8 @@ async function backfillSleepHrLowStep(
   await applyStreamWrites(deps.db, userId, [write]);
   const failure = backfillFailure(write.state);
   if (failure) {
-    attempted.add(SLEEP_HR_LOW.dataType);
-    console.warn(`History backfill of ${SLEEP_HR_LOW.dataType} for user ${userId} failed, retrying after the next sync: ${failure}`);
+    attempted.add(SLEEP_HR_FLOOR.dataType);
+    console.warn(`History backfill of ${SLEEP_HR_FLOOR.dataType} for user ${userId} failed, retrying after the next sync: ${failure}`);
   }
   return true;
 }

@@ -139,10 +139,10 @@ export interface DailyRecord {
   /** Non-REM heart rate, reported alongside HRV. */
   nonRemHr: number | null;
   /**
-   * The night's low-end heart rate: the tenth percentile of the one-minute heart rate during the
-   * main sleep. Healthier's own, computed while cycle tracking is on (pipeline/sleepHrLow.ts).
+   * The night's heart rate floor: the tenth percentile of the one-minute heart rate during the
+   * main sleep. Healthier's own, computed while cycle tracking is on (pipeline/sleepHrFloor.ts).
    */
-  sleepHrLow: number | null;
+  sleepHrFloor: number | null;
   /** On-device nonlinear metric over the night's true beat-to-beat intervals. Opaque vendor formula: track shifts only, never interpret levels. */
   hrvEntropy: number | null;
   respiratoryRate: number | null;

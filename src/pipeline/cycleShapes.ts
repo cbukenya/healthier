@@ -8,10 +8,10 @@
  * - **How they were made:** each measure was put in spreads from the person's own 61 nights around
  *   it, then averaged across every labelled period start, from 24 nights before to 10 nights after.
  * - **What they hold:** averages across all 42 people. No one's own nights are in them.
- * - **Sleeping heart rate:** the night's low end, the tenth percentile of the one-minute heart rate
- *   during the main sleep (sleepHrLow.ts), from mcPHASES's minute heart rate lined up with its sleep
+ * - **Sleeping heart rate:** the night's floor, the tenth percentile of the one-minute heart rate
+ *   during the main sleep (sleepHrFloor.ts), from mcPHASES's minute heart rate lined up with its sleep
  *   logs. The shape of the average over light and deep sleep, Google's non-REM heart rate, is the
- *   same to a match of 0.99, so the finder reads that until the low end covers the nights.
+ *   same to a match of 0.99, so the finder reads that until the floor covers the nights.
  * - **Scale:** each shape has a mean of zero and a length of one. `size` is how far the measure
  *   moved around a start before that, so the measures that move most count most.
  *

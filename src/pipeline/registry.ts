@@ -634,13 +634,13 @@ export const INTRADAY_HEART_RATE = {
 };
 
 /**
- * The night's low-end heart rate, computed by Healthier from the minute heart rate during the main
- * sleep while cycle tracking is on (sleepHrLow.ts). Stored and reported like a stream, so it
+ * The night's heart rate floor, computed by Healthier from the minute heart rate during the main
+ * sleep while cycle tracking is on (sleepHrFloor.ts). Stored and reported like a stream, so it
  * outlives the minute data, which is kept for the window only, and shows on the Data page.
  */
-export const SLEEP_HR_LOW = {
-  dataType: 'sleep-heart-rate-low',
-  label: 'Sleeping heart rate, low end',
+export const SLEEP_HR_FLOOR = {
+  dataType: 'sleep-heart-rate-floor',
+  label: 'Sleeping heart rate floor',
   domain: 'cardio' as MetricDomain,
   mode: 'derived' as const,
   scope: INTRADAY_HEART_RATE.scope,

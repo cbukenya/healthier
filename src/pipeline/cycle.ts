@@ -184,7 +184,7 @@ export interface Night {
   temp: number | null;
   restingHr: number | null;
   hrv: number | null;
-  /** Sleeping heart rate, bpm: the night's low end (sleepHrLow.ts), or Google's non-REM heart rate until that covers the nights. */
+  /** Sleeping heart rate, bpm: the night's floor (sleepHrFloor.ts), or Google's non-REM heart rate until that covers the nights. */
   sleepHr?: number | null;
   /** Breaths a minute asleep. */
   breath?: number | null;
@@ -201,7 +201,7 @@ export const cycleQueries = {
   cycleRestingHr: { measure: 'restingHr', aggregate: 'mean', group: 'day', back: CYCLE_HISTORY_DAYS },
   cycleHrv: { measure: 'hrv', aggregate: 'mean', group: 'day', back: CYCLE_HISTORY_DAYS },
   cycleAsleep: { measure: 'sleepMinutes', aggregate: 'mean', group: 'day', back: CYCLE_HISTORY_DAYS },
-  cycleSleepHrLow: { measure: 'sleepHrLow', aggregate: 'mean', group: 'day', back: CYCLE_HISTORY_DAYS },
+  cycleSleepHrFloor: { measure: 'sleepHrFloor', aggregate: 'mean', group: 'day', back: CYCLE_HISTORY_DAYS },
   cycleSleepHr: { measure: 'nonRemHr', aggregate: 'mean', group: 'day', back: CYCLE_HISTORY_DAYS },
   cycleBreath: { measure: 'respiratoryRate', aggregate: 'mean', group: 'day', back: CYCLE_HISTORY_DAYS },
 } satisfies HistoryQueries;
@@ -233,15 +233,15 @@ export function nightsFrom(days: DailyRecord[], answers: HistoryAnswers = {}): N
     n.breath = d.respiratoryRate;
     n.asleep = d.sleep?.minutesAsleep ?? null;
   }
-  // The sleeping heart rate: the night's low end (sleepHrLow.ts) once it covers half the nights
+  // The sleeping heart rate: the night's floor (sleepHrFloor.ts) once it covers half the nights
   // Google's non-REM heart rate does. It's computed only while tracking is on, and its history
   // fills in over the hour after; until then, the non-REM heart rate, as before.
   const lowEnd = new Map<CivilDate, number>();
   const nonRem = new Map<CivilDate, number>();
-  answered('cycleSleepHrLow', (date, v) => lowEnd.set(date, v));
+  answered('cycleSleepHrFloor', (date, v) => lowEnd.set(date, v));
   answered('cycleSleepHr', (date, v) => nonRem.set(date, v));
   for (const d of days) {
-    if (isNum(d.sleepHrLow)) lowEnd.set(d.date, d.sleepHrLow);
+    if (isNum(d.sleepHrFloor)) lowEnd.set(d.date, d.sleepHrFloor);
     if (isNum(d.nonRemHr)) nonRem.set(d.date, d.nonRemHr);
   }
   for (const [date, v] of lowEnd.size > 0 && lowEnd.size * 2 >= nonRem.size ? lowEnd : nonRem) night(date).sleepHr = v;

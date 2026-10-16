@@ -2331,7 +2331,7 @@
     "active-energy-burned": "Active energy",
     "sleep": "Sleep sessions",
     "heart-rate": "Heart rate (intraday)",
-    "sleep-heart-rate-low": "Sleeping heart rate, low end",
+    "sleep-heart-rate-floor": "Sleeping heart rate floor",
     "electrocardiogram": "ECG",
     "irregular-rhythm-notification": "Irregular Rhythm Notification",
     "daily-resting-heart-rate": "Resting heart rate",
