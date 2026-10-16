@@ -180,6 +180,12 @@ export interface DailyRecord {
    * to sync anything that day — a hand-typed weight was credited to the watch.
    */
   sourceByType: Record<string, string>;
+  /**
+   * The fields that came from a source other than their stream's first choice, with that source
+   * (pipeline/sources.ts): shown, but judged only against readings from the same source. Set when
+   * stored days are read.
+   */
+  fills?: Partial<Record<keyof DailyRecord, string>>;
 }
 
 /** Intraday samples, fetched separately because they're high-volume. */

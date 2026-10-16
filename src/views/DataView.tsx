@@ -8,6 +8,7 @@ import { Card, CardHead, Segmented } from '../ui/primitives';
 import { groupDays, mean, type Bucket } from '../pipeline/aggregate';
 import { CoverageGrid } from '../charts';
 import { CycleCard, DataFacts, DataStreams, GoalsCard, SyncStatus } from './DataCards';
+import { SourcesCard } from './SourcesCard';
 import { DASHBOARD_WINDOW_DAYS, type SyncResult } from '../pipeline/sync';
 import { useHistory } from '../hooks/useHistory';
 import { SpanSelector, useSpan } from '../ui/span';
@@ -20,7 +21,15 @@ const COVERAGE_HINT = {
   month: 'data.coverage.hint.month',
 } as const satisfies Record<Bucket, MessageKey>;
 
-export function DataView({ data, onFullSync, onDisconnect }: { data: SyncResult; onFullSync: () => void; onDisconnect?: () => void }) {
+export function DataView({ data, live, onFullSync, onDisconnect, onSourcesChanged }: {
+  data: SyncResult;
+  /** False in demo mode. */
+  live: boolean;
+  onFullSync: () => void;
+  onDisconnect?: () => void;
+  /** After a new choice of devices: `refetching` when daily totals are being fetched again. */
+  onSourcesChanged: (refetching: boolean) => void;
+}) {
   const spanState = useSpan(data, '90');
   const history = useHistory().info;
   const cov = coverage(spanState.days, STREAMS.map((s) => ({ dataType: s.dataType, label: streamName(s.dataType, s.label) })));
@@ -83,6 +92,8 @@ export function DataView({ data, onFullSync, onDisconnect }: { data: SyncResult;
       </div>
 
       <CycleCard kept={!!data.profile?.cycleKept} />
+
+      <SourcesCard data={data} live={live} onChanged={onSourcesChanged} />
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
         <div className="lg:col-span-8">

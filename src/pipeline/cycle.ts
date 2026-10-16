@@ -190,65 +190,110 @@ export interface Night {
   breath?: number | null;
   /** Minutes asleep, for the cards that read sleep through the cycle. */
   asleep?: number | null;
+  /**
+   * The measures whose reading came from a source other than its stream's first choice
+   * (pipeline/sources.ts): read against the nights around from other sources, not the first choice's.
+   */
+  fill?: Partial<Record<NightField, true>>;
 }
+
+/** A night's measures that a source other than the first choice can fill. */
+type NightField = 'temp' | 'restingHr' | 'hrv' | 'sleepHr' | 'breath' | 'asleep';
 
 /** How far back the cycles reach: about eight cycles, so six full ones are there to go on. */
 export const CYCLE_HISTORY_DAYS = 240;
 
-/** The older nights the Cycle page needs, asked for with the dataset (see history.ts). */
+/**
+ * The older nights the Cycle page needs, asked for with the dataset (see history.ts). Each
+ * measure twice: the readings from its stream's first choice, and those from another source
+ * (pipeline/sources.ts), so the nights from each can be read apart.
+ */
 export const cycleQueries = {
-  cycleTemp: { measure: 'skinTempDeviationC', aggregate: 'mean', group: 'day', back: CYCLE_HISTORY_DAYS },
-  cycleRestingHr: { measure: 'restingHr', aggregate: 'mean', group: 'day', back: CYCLE_HISTORY_DAYS },
-  cycleHrv: { measure: 'hrv', aggregate: 'mean', group: 'day', back: CYCLE_HISTORY_DAYS },
-  cycleAsleep: { measure: 'sleepMinutes', aggregate: 'mean', group: 'day', back: CYCLE_HISTORY_DAYS },
+  cycleTemp: { measure: 'ownSkinTempDeviationC', aggregate: 'mean', group: 'day', back: CYCLE_HISTORY_DAYS },
+  cycleTempFill: { measure: 'fillSkinTempDeviationC', aggregate: 'mean', group: 'day', back: CYCLE_HISTORY_DAYS },
+  cycleRestingHr: { measure: 'ownRestingHr', aggregate: 'mean', group: 'day', back: CYCLE_HISTORY_DAYS },
+  cycleRestingHrFill: { measure: 'fillRestingHr', aggregate: 'mean', group: 'day', back: CYCLE_HISTORY_DAYS },
+  cycleHrv: { measure: 'ownHrv', aggregate: 'mean', group: 'day', back: CYCLE_HISTORY_DAYS },
+  cycleHrvFill: { measure: 'fillHrv', aggregate: 'mean', group: 'day', back: CYCLE_HISTORY_DAYS },
+  cycleAsleep: { measure: 'ownSleepMinutes', aggregate: 'mean', group: 'day', back: CYCLE_HISTORY_DAYS },
+  cycleAsleepFill: { measure: 'fillSleepMinutes', aggregate: 'mean', group: 'day', back: CYCLE_HISTORY_DAYS },
   cycleSleepHrFloor: { measure: 'sleepHrFloor', aggregate: 'mean', group: 'day', back: CYCLE_HISTORY_DAYS },
-  cycleSleepHr: { measure: 'nonRemHr', aggregate: 'mean', group: 'day', back: CYCLE_HISTORY_DAYS },
-  cycleBreath: { measure: 'respiratoryRate', aggregate: 'mean', group: 'day', back: CYCLE_HISTORY_DAYS },
+  cycleSleepHr: { measure: 'ownNonRemHr', aggregate: 'mean', group: 'day', back: CYCLE_HISTORY_DAYS },
+  cycleSleepHrFill: { measure: 'fillNonRemHr', aggregate: 'mean', group: 'day', back: CYCLE_HISTORY_DAYS },
+  cycleBreath: { measure: 'ownRespiratoryRate', aggregate: 'mean', group: 'day', back: CYCLE_HISTORY_DAYS },
+  cycleBreathFill: { measure: 'fillRespiratoryRate', aggregate: 'mean', group: 'day', back: CYCLE_HISTORY_DAYS },
 } satisfies HistoryQueries;
 
-/** Every night from the oldest answered to the window's last day, gaps included as nulls. */
+/** One measure's readings by night: from its stream's first choice, and from another source. */
+interface Readings {
+  own: Map<CivilDate, number>;
+  fill: Map<CivilDate, number>;
+}
+
+/**
+ * Every night from the oldest answered to the window's last day, gaps included as nulls. A night
+ * from a source other than the first choice (pipeline/sources.ts) is kept only where that source
+ * gave enough of the nights around it to be read against its own (standardized): the night the
+ * watch was charging and a ring filled in is left out, a month on another device stays.
+ */
 export function nightsFrom(days: DailyRecord[], answers: HistoryAnswers = {}): Night[] {
   if (!days.length) return [];
-  const byDate = new Map<CivilDate, Night>();
-  const night = (date: CivilDate) => {
-    let n = byDate.get(date);
-    if (!n) byDate.set(date, (n = { date, temp: null, restingHr: null, hrv: null }));
-    return n;
-  };
-  const older: [keyof typeof cycleQueries, 'temp' | 'restingHr' | 'hrv' | 'breath' | 'asleep'][] = [
-    ['cycleTemp', 'temp'], ['cycleRestingHr', 'restingHr'], ['cycleHrv', 'hrv'], ['cycleBreath', 'breath'], ['cycleAsleep', 'asleep'],
-  ];
   const windowFrom = days[0].date;
-  const answered = (query: keyof typeof cycleQueries, put: (date: CivilDate, v: number) => void) => {
+  const answered = (query: keyof typeof cycleQueries, into = new Map<CivilDate, number>()) => {
     for (const row of answers[query]?.rows ?? []) {
-      if (row.key && row.key < windowFrom && typeof row.mean === 'number' && Number.isFinite(row.mean)) put(row.key, row.mean);
+      if (row.key && row.key < windowFrom && typeof row.mean === 'number' && Number.isFinite(row.mean)) into.set(row.key, row.mean);
     }
+    return into;
   };
-  for (const [query, field] of older) answered(query, (date, v) => { night(date)[field] = v; });
-  for (const d of days) {
-    const n = night(d.date);
-    n.temp = d.skinTempDeviationC;
-    n.restingHr = d.restingHr;
-    n.hrv = d.hrv;
-    n.breath = d.respiratoryRate;
-    n.asleep = d.sleep?.minutesAsleep ?? null;
-  }
+  const readings = <K extends keyof DailyRecord>(own: keyof typeof cycleQueries, fill: keyof typeof cycleQueries, key: K, get: (v: DailyRecord[K]) => number | null): Readings => {
+    const r = { own: answered(own), fill: answered(fill) };
+    for (const d of days) {
+      const v = get(d[key]);
+      if (isNum(v)) (d.fills?.[key] === undefined ? r.own : r.fill).set(d.date, v);
+    }
+    return r;
+  };
+  const value = (v: number | null) => v;
+  const nonRem = readings('cycleSleepHr', 'cycleSleepHrFill', 'nonRemHr', value);
   // The sleeping heart rate: the night's floor (sleepHrFloor.ts) once it covers half the nights
   // Google's non-REM heart rate does. It's computed only while tracking is on, and its history
-  // fills in over the hour after; until then, the non-REM heart rate, as before.
-  const lowEnd = new Map<CivilDate, number>();
-  const nonRem = new Map<CivilDate, number>();
-  answered('cycleSleepHrFloor', (date, v) => lowEnd.set(date, v));
-  answered('cycleSleepHr', (date, v) => nonRem.set(date, v));
-  for (const d of days) {
-    if (isNum(d.sleepHrFloor)) lowEnd.set(d.date, d.sleepHrFloor);
-    if (isNum(d.nonRemHr)) nonRem.set(d.date, d.nonRemHr);
-  }
-  for (const [date, v] of lowEnd.size > 0 && lowEnd.size * 2 >= nonRem.size ? lowEnd : nonRem) night(date).sleepHr = v;
-  const dates = [...byDate.keys()].sort();
+  // fills in over the hour after; until then, the non-REM heart rate, as before. The floor comes
+  // from the minute heart rate, which names no source.
+  const floor = answered('cycleSleepHrFloor');
+  for (const d of days) if (isNum(d.sleepHrFloor)) floor.set(d.date, d.sleepHrFloor);
+  const fields: [NightField, Readings][] = [
+    ['temp', readings('cycleTemp', 'cycleTempFill', 'skinTempDeviationC', value)],
+    ['restingHr', readings('cycleRestingHr', 'cycleRestingHrFill', 'restingHr', value)],
+    ['hrv', readings('cycleHrv', 'cycleHrvFill', 'hrv', value)],
+    ['breath', readings('cycleBreath', 'cycleBreathFill', 'respiratoryRate', value)],
+    ['asleep', readings('cycleAsleep', 'cycleAsleepFill', 'sleep', (s) => s?.minutesAsleep ?? null)],
+    ['sleepHr', floor.size > 0 && floor.size * 2 >= nonRem.own.size + nonRem.fill.size ? { own: floor, fill: new Map() } : nonRem],
+  ];
+
+  let start = windowFrom;
+  for (const [, r] of fields) for (const date of [...r.own.keys(), ...r.fill.keys()]) if (date < start) start = date;
   const out: Night[] = [];
-  for (let date = dates[0]; date <= days[days.length - 1].date; date = addDays(date, 1)) {
-    out.push(byDate.get(date) ?? { date, temp: null, restingHr: null, hrv: null });
+  const index = new Map<CivilDate, number>();
+  for (let date = start; date <= days[days.length - 1].date; date = addDays(date, 1)) {
+    index.set(date, out.length);
+    out.push({ date, temp: null, restingHr: null, hrv: null });
+  }
+  for (const d of days) {
+    const n = out[index.get(d.date)!];
+    n.breath = null;
+    n.asleep = null;
+  }
+  for (const [field, r] of fields) {
+    for (const [date, v] of r.own) out[index.get(date)!][field] = v;
+    if (!r.fill.size) continue;
+    const from = out.map((n) => r.fill.has(n.date) && !r.own.has(n.date));
+    const sums = [0];
+    for (const f of from) sums.push(sums[sums.length - 1] + (f ? 1 : 0));
+    out.forEach((n, i) => {
+      if (!from[i] || sums[Math.min(out.length, i + AROUND + 1)] - sums[Math.max(0, i - AROUND)] < MIN_AROUND) return;
+      n[field] = r.fill.get(n.date)!;
+      (n.fill ??= {})[field] = true;
+    });
   }
   return out;
 }
@@ -330,19 +375,27 @@ const median = (xs: number[]) => {
 
 /** Each night is read against the 61 nights around it, so a slow drift over the seasons isn't a cycle. */
 const AROUND = 30;
+/** The nights a night is read against: at least this many of the 61 around it. */
+const MIN_AROUND = 20;
 /** A night further out than this, in spreads, counts as this far: a fever can't swamp the rest. */
 const CLAMP_SD = 3;
 
 /**
  * One measure's nights, each in spreads from its own average over the 61 nights around it, clamped
  * at CLAMP_SD. The mean and spread move smoothly as a cycle's halves come and go from the nights
- * around, where a median would jump from one half to the other.
+ * around, where a median would jump from one half to the other. A night from a source other than
+ * the first choice (`fill`) is read against the nights around that came from one too, and the
+ * first choice's against its own, so a change of device doesn't look like a change in the body.
  */
-function standardized(x: (number | null | undefined)[]): (number | null)[] {
+export function standardized(x: (number | null | undefined)[], fill: readonly boolean[] = []): (number | null)[] {
   return x.map((v, i) => {
     if (!isNum(v)) return null;
-    const around = x.slice(Math.max(0, i - AROUND), i + AROUND + 1).filter(isNum);
-    if (around.length < 20) return null;
+    const around: number[] = [];
+    for (let j = Math.max(0, i - AROUND); j <= Math.min(x.length - 1, i + AROUND); j++) {
+      const w = x[j];
+      if (isNum(w) && !!fill[j] === !!fill[i]) around.push(w);
+    }
+    if (around.length < MIN_AROUND) return null;
     const mid = mean(around);
     const spread = Math.sqrt(mean(around.map((w) => (w - mid) ** 2)));
     if (!(spread > 0)) return null;
@@ -364,7 +417,7 @@ export function startScores(nights: Night[]): (number | null)[] {
   for (const m of Object.keys(SHAPES) as ShapeMeasure[]) {
     const { size, shape } = SHAPES[m];
     allWeight += size;
-    const z = standardized(nights.map((x) => x[m]));
+    const z = standardized(nights.map((x) => x[m]), nights.map((x) => !!x.fill?.[m]));
     for (let i = 0; i < n; i++) {
       let s = 0;
       let e = 0;
@@ -464,7 +517,7 @@ function secondHalfLevel(nights: Night[]): (number | null)[] {
     const { size, shape } = SHAPES[m];
     // The way the measure moves in the second half: its shape's sign four nights before a start.
     const sign = Math.sign(shape[-4 - SHAPE_FROM]);
-    return { size, sign, z: standardized(nights.map((x) => x[m])) };
+    return { size, sign, z: standardized(nights.map((x) => x[m]), nights.map((x) => !!x.fill?.[m])) };
   });
   return nights.map((_, i) => {
     let s = 0;

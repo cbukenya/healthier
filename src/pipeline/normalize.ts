@@ -53,6 +53,15 @@ export function emptyRecord(date: CivilDate): DailyRecord {
   };
 }
 
+/**
+ * A source known only by its id (`platform:label`, as parseSource makes it): one seen in stored
+ * history whose full description a later full sync no longer carries.
+ */
+export function sourceFromId(id: string): SourceRef {
+  const at = id.indexOf(':');
+  return { id, label: at < 0 ? id : id.slice(at + 1), platform: (at < 0 ? 'UNKNOWN' : id.slice(0, at)) as Platform, method: 'UNKNOWN' };
+}
+
 /** Google's `dataSource` block → a stable, groupable source reference. */
 export function parseSource(dataSource: any): SourceRef | undefined {
   if (!dataSource) return undefined;
@@ -85,6 +94,8 @@ function prettifyPackage(pkg: string): string {
     'com.google.android.apps.fitness': 'Google Fit', // i18n-ignore: a brand name, the same in every language
     'com.google.android.apps.healthdata': 'Health Connect', // i18n-ignore: a brand name, the same in every language
     'com.fitbit.FitbitMobile': 'Fitbit', // i18n-ignore: a brand name, the same in every language
+    'com.huawei.health': 'Huawei Health', // i18n-ignore: a brand name, the same in every language
+    'com.huawei.iossporthealth': 'Huawei Health', // i18n-ignore: a brand name, the same in every language
   };
   if (known[pkg]) return known[pkg];
   const tail = pkg.split('.').pop() ?? pkg;
@@ -106,6 +117,11 @@ export interface NormalizeResult {
   counts: Map<string, number>;
   latest: Map<string, CivilDate>;
   sources: Map<string, SourceRef>;
+  /**
+   * Each source's own reading, by dataType, date and source id, for the days more than one source
+   * reported a list stream: the day's reading is picked from these when it's read (sources.ts).
+   */
+  variants: Map<string, Map<CivilDate, Map<string, DailyRecord>>>;
 }
 
 /**
@@ -132,7 +148,33 @@ export function normalize(inputs: NormalizeInput[]): NormalizeResult {
     return row;
   };
 
+  const variants = new Map<string, Map<CivilDate, Map<string, DailyRecord>>>();
+
   for (const { stream, points } of inputs) {
+    // Each source's own reading, read the same way from its own points alone.
+    if (stream.mode === 'list') {
+      const bySource = new Map<string, any[]>();
+      for (const dp of points ?? []) {
+        const id = parseSource(dp?.dataSource)?.id ?? '';
+        const own = bySource.get(id);
+        if (own) own.push(dp);
+        else bySource.set(id, [dp]);
+      }
+      if (bySource.size > 1) {
+        const byDate = new Map<CivilDate, Map<string, DailyRecord>>();
+        for (const [id, own] of bySource) {
+          for (const [date, row] of normalize([{ stream, points: own }]).days) {
+            const forDate = byDate.get(date);
+            if (forDate) forDate.set(id, row);
+            else byDate.set(date, new Map([[id, row]]));
+          }
+        }
+        // A reading that names no source can't be chosen, so its day keeps the readings combined.
+        for (const [date, forDate] of byDate) if (forDate.size < 2 || forDate.has('')) byDate.delete(date);
+        if (byDate.size) variants.set(stream.dataType, byDate);
+      }
+    }
+
     const parsed: { c: any; dp: any; date: CivilDate; source?: SourceRef; rank: number }[] = [];
     for (const dp of stream.prepare ? stream.prepare(points ?? []) : points ?? []) {
       const container = dp?.[stream.container];
@@ -161,7 +203,7 @@ export function normalize(inputs: NormalizeInput[]): NormalizeResult {
     counts.set(stream.dataType, written.size);
   }
 
-  return { days, counts, latest, sources };
+  return { days, counts, latest, sources, variants };
 }
 
 const compareIds = (a = '', b = '') => (a < b ? -1 : a > b ? 1 : 0);

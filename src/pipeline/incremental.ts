@@ -3,6 +3,7 @@ import type { DailyRecord, HealthDataset, SleepSession, SourceRef, StreamErrorCo
 import { answerQueries, queriesSpan, type HistoryAnswers, type HistoryQueries } from './history';
 import { fetchIntradayHeartRate, sampleCount, unpackIntraday, type IntradayDay } from './intraday';
 import { emptyRecord, normalize } from './normalize';
+import { DEFAULT_SOURCE_PREFS, sourceOrders, type SourceChoice, type SourceSeen } from './sources';
 import {
   extractProfile,
   INTRADAY_HEART_RATE,
@@ -42,7 +43,7 @@ export const DASHBOARD_WINDOW_DAYS = 62;
  * stored shapes change. Stored days were produced by the old code, so every user
  * is rebuilt with a full sync before their dashboard is shown again.
  */
-export const PIPELINE_VERSION = 2;
+export const PIPELINE_VERSION = 3;
 
 /** Trailing days re-fetched on every sync, today included. */
 export const REFETCH_DAYS = 3;
@@ -72,6 +73,12 @@ export interface StreamDay {
   present: string[];
   sources: string[];
   sourceByType: Record<string, string>;
+  /**
+   * Each source's own reading for the day, by source id, when more than one source reported it:
+   * the day's reading is picked from these when it's read (pipeline/sources.ts), so a change of
+   * choice needs no new fetch. `fields` holds the reading the sync picked.
+   */
+  variants?: Record<string, { fields: Partial<DailyRecord>; present: string[] }>;
 }
 
 /** Per-stream bookkeeping carried from one sync to the next. */
@@ -161,6 +168,8 @@ export interface IncrementalOptions {
   historyDays?: number;
   grantedScopes?: ScopeKey[];
   includeIntraday?: boolean;
+  /** Which kinds of source Google adds up in daily totals and minute heart rate (pipeline/sources.ts). */
+  dataSourceFamily?: string | null;
   /** After each stream: its English label, for logs, and its dataType, for the app to name it. */
   onProgress?: (done: number, total: number, label: string, dataType: string) => void;
 }
@@ -206,8 +215,9 @@ export function fetchStreamPoints(
   stream: StreamDescriptor,
   from: CivilDate,
   to: CivilDate,
+  dataSourceFamily?: string | null,
 ): Promise<ApiResult> {
-  if (stream.mode === 'rollup') return transport.rollup(stream.dataType, from, to);
+  if (stream.mode === 'rollup') return transport.rollup(stream.dataType, from, to, dataSourceFamily);
   const stopBefore = addDays(from, -1);
   return transport.list(stream.dataType, {
     pageSize: stream.pageSize ?? 100,
@@ -226,7 +236,7 @@ function dateOfPoint(stream: StreamDescriptor, dp: any): CivilDate | null {
 }
 
 const EMPTY = emptyRecord('0000-00-00');
-const PROVENANCE = new Set<keyof DailyRecord>(['date', 'present', 'sources', 'sourceByType']);
+const PROVENANCE = new Set<keyof DailyRecord>(['date', 'present', 'sources', 'sourceByType', 'fills']);
 
 /** A normalised row → just what one stream contributed to it. */
 export function toStreamDay(row: DailyRecord): StreamDay {
@@ -239,8 +249,8 @@ export function toStreamDay(row: DailyRecord): StreamDay {
 }
 
 /** Fetch one stream for [from, to] and split it into storable days, by the ranges that fully succeeded. */
-async function fetchStreamDays(transport: HealthTransport, stream: StreamDescriptor, from: CivilDate, to: CivilDate) {
-  const res = await fetchStreamPoints(transport, stream, from, to);
+async function fetchStreamDays(transport: HealthTransport, stream: StreamDescriptor, from: CivilDate, to: CivilDate, dataSourceFamily?: string | null) {
+  const res = await fetchStreamPoints(transport, stream, from, to, dataSourceFamily);
   const points: any[] = res.body?.rollupDataPoints ?? res.body?.dataPoints ?? [];
 
   // Only ranges fetched completely may replace stored days.
@@ -251,11 +261,20 @@ async function fetchStreamDays(transport: HealthTransport, stream: StreamDescrip
         ? [{ from, to }]
         : [];
 
-  const { days: rows, counts, latest, sources } = normalize([{ stream, points }]);
+  const { days: rows, counts, latest, sources, variants } = normalize([{ stream, points }]);
+  const own = variants.get(stream.dataType);
   const days: Record<CivilDate, StreamDay> = {};
   for (const [date, row] of rows) {
     if (!okRanges.some((r) => date >= r.from && date <= r.to)) continue;
     const part = toStreamDay(row);
+    const each = own?.get(date);
+    if (each) {
+      part.variants = {};
+      for (const [id, r] of each) {
+        const v = toStreamDay(r);
+        part.variants[id] = { fields: v.fields, present: v.present };
+      }
+    }
     if (part.present.length || Object.keys(part.fields).length) days[date] = part;
   }
   return { res, points, okRanges, days, counts, latest, sources };
@@ -265,13 +284,14 @@ async function syncStream(
   transport: HealthTransport,
   stream: StreamDescriptor,
   prev: StreamState | undefined,
-  plan: { from: CivilDate; to: CivilDate; windowStart: CivilDate; keepFrom: CivilDate; full: boolean },
+  plan: { from: CivilDate; to: CivilDate; windowStart: CivilDate; keepFrom: CivilDate; full: boolean; dataSourceFamily?: string | null },
 ): Promise<{ write: StreamWrite; points: any[] }> {
   const { res, points, okRanges, days, counts, latest, sources } = await fetchStreamDays(
     transport,
     stream,
     plan.from,
     plan.to,
+    plan.dataSourceFamily,
   );
 
   const parsed = counts.get(stream.dataType) ?? 0;
@@ -327,6 +347,7 @@ export async function syncIncremental(opts: IncrementalOptions): Promise<SyncOut
       windowStart,
       keepFrom,
       full: opts.full,
+      dataSourceFamily: opts.dataSourceFamily,
     });
     // Lists are newest-first, so even an incremental fetch sees the latest height.
     if (stream.dataType === 'height' && write.state.report.status !== 'error') profile = { ...profile, ...extractProfile(points) };
@@ -357,6 +378,7 @@ export async function syncIncremental(opts: IncrementalOptions): Promise<SyncOut
       to: opts.today,
       timeZone: opts.timeZone,
       now: opts.now,
+      dataSourceFamily: opts.dataSourceFamily,
     });
     const fetchedDays = [...res.days.values()];
     const samples = sampleCount(fetchedDays);
@@ -434,10 +456,11 @@ export async function backfillStream(
   stream: StreamDescriptor,
   prev: StreamState,
   start: CivilDate,
+  dataSourceFamily?: string | null,
 ): Promise<StreamWrite | null> {
   if (!prev.coveredFrom || prev.coveredFrom <= start) return null;
   const to = addDays(prev.coveredFrom, -1);
-  const { res, okRanges, days, sources } = await fetchStreamDays(transport, stream, start, to);
+  const { res, okRanges, days, sources } = await fetchStreamDays(transport, stream, start, to, dataSourceFamily);
   const failed = res.chunks?.filter((c) => !c.ok).length;
   const error: Pick<StreamReport, 'error' | 'errorCode'> = res.ok ? {} : reportError(res.error ?? { code: 'http', status: res.status });
   return {
@@ -464,11 +487,12 @@ export function answerFromRows(
   queries: HistoryQueries,
   windowFrom: CivilDate,
   today: CivilDate,
+  choice: SourceChoice = choiceFromRows(rows),
 ): HistoryAnswers {
   let oldest: CivilDate | null = null;
   for (const days of rows.values()) for (const date of days.keys()) if (!oldest || date < oldest) oldest = date;
   const span = queriesSpan(queries, today, windowFrom, oldest);
-  return answerQueries(queries, span ? assembleHistory(rows, span.from, span.to) : [], today, windowFrom, oldest);
+  return answerQueries(queries, span ? assembleHistory(rows, span.from, span.to, choice) : [], today, windowFrom, oldest);
 }
 
 /** Daily records for a long span, without the per-minute detail only "last night" views need. */
@@ -476,9 +500,10 @@ export function assembleHistory(
   rows: ReadonlyMap<string, ReadonlyMap<CivilDate, StreamDay>>,
   from: CivilDate,
   to: CivilDate,
+  choice?: SourceChoice,
 ): DailyRecord[] {
   const trim = (s: SleepSession): SleepSession => ({ ...s, segments: [], shortAwakeningsMin: [] });
-  return assembleDays(rows, from, to).map((d) => ({
+  return assembleDays(rows, from, to, choice).map((d) => ({
     ...d,
     sleep: d.sleep && trim(d.sleep),
     naps: d.naps.map(trim),
@@ -518,27 +543,88 @@ export interface StoredData {
   states: Iterable<StreamState>;
   profile: ProfileFacts;
   run: SyncRun | null;
+  /** How each day's readings are picked (pipeline/sources.ts); the default choices over `rows` when absent. */
+  choice?: SourceChoice;
+}
+
+/** Each stream's sources, with where they last reported it and on how many days, from stored days. */
+export function seenInRows(rows: ReadonlyMap<string, ReadonlyMap<CivilDate, StreamDay>>): Map<string, Map<string, SourceSeen>> {
+  const out = new Map<string, Map<string, SourceSeen>>();
+  for (const [dataType, days] of rows) {
+    const seen = new Map<string, SourceSeen>();
+    for (const [date, part] of days) {
+      for (const id of sourcesOf(part, dataType)) {
+        const s = seen.get(id);
+        if (!s) seen.set(id, { latest: date, days: 1 });
+        else {
+          s.days++;
+          if (date > s.latest) s.latest = date;
+        }
+      }
+    }
+    if (seen.size) out.set(dataType, seen);
+  }
+  return out;
+}
+
+/** The choice the rows themselves imply, with the default choices: for demo mode and tests. */
+export const choiceFromRows = (rows: ReadonlyMap<string, ReadonlyMap<CivilDate, StreamDay>>): SourceChoice =>
+  ({ prefs: DEFAULT_SOURCE_PREFS, orders: sourceOrders(seenInRows(rows), DEFAULT_SOURCE_PREFS) });
+
+/** The sources a stored day of a stream holds a reading from. */
+function sourcesOf(part: StreamDay, dataType: string): string[] {
+  if (part.variants) return Object.keys(part.variants);
+  const id = part.sourceByType?.[dataType];
+  return id === undefined ? [] : [id];
+}
+
+/**
+ * A stored day of a stream as the choice reads it: the reading of the first source in the
+ * stream's order that has one, or nothing when every source it has is switched off. `fill` when
+ * that isn't the stream's first choice. A stream whose readings carry no source reads as stored.
+ */
+function pick(part: StreamDay, dataType: string, order: readonly string[] | undefined): (StreamDay & { fill: boolean }) | null {
+  if (!order) return { ...part, fill: false };
+  if (part.variants) {
+    const id = order.find((x) => part.variants![x]);
+    if (id === undefined) return null;
+    const v = part.variants[id];
+    return { fields: v.fields, present: v.present, sources: [id], sourceByType: { [dataType]: id }, fill: id !== order[0] };
+  }
+  const id = part.sourceByType?.[dataType];
+  if (id === undefined) return { ...part, fill: false };
+  if (!order.includes(id)) return null;
+  return { ...part, fill: id !== order[0] };
 }
 
 /**
  * Rebuild DailyRecords from per-stream days. Streams merge in registry order,
  * the order normalisation applies them, so the result matches normalising
- * every payload at once (asserted in the tests).
+ * every payload at once (asserted in the tests). Each stream's reading for a
+ * day is picked by `choice` (pipeline/sources.ts); without one, by the default
+ * choices over these rows.
  */
 export function assembleDays(
   rows: ReadonlyMap<string, ReadonlyMap<CivilDate, StreamDay>>,
   from: CivilDate,
   to: CivilDate,
+  choice: SourceChoice = choiceFromRows(rows),
 ): DailyRecord[] {
   return dateRange(from, to).map((date) => {
     const row = emptyRecord(date);
     for (const dataType of [...STREAMS.map((s) => s.dataType), SLEEP_HR_FLOOR.dataType]) {
-      const part = rows.get(dataType)?.get(date);
+      const stored = rows.get(dataType)?.get(date);
+      if (!stored) continue;
+      const part = pick(stored, dataType, choice.orders.get(dataType));
       if (!part) continue;
       Object.assign(row, part.fields);
       for (const p of part.present) if (!row.present.includes(p)) row.present.push(p);
       for (const s of part.sources) if (!row.sources.includes(s)) row.sources.push(s);
       Object.assign(row.sourceByType, part.sourceByType);
+      if (part.fill) {
+        const fills = (row.fills ??= {});
+        for (const key of Object.keys(part.fields) as (keyof DailyRecord)[]) fills[key] = part.sources[0];
+      }
     }
     return row;
   });
@@ -546,7 +632,7 @@ export function assembleDays(
 
 /** The dashboard's dataset for [from, to], built entirely from stored rows and states. */
 export function assembleDataset(stored: StoredData, from: CivilDate, to: CivilDate): PackedDataset {
-  const days = assembleDays(stored.rows, from, to);
+  const days = assembleDays(stored.rows, from, to, stored.choice ?? choiceFromRows(stored.rows));
   const intraday = stored.intraday
     .filter((d) => d.date >= from && d.date <= to)
     .sort((a, b) => (a.date < b.date ? -1 : 1));

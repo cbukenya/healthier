@@ -54,12 +54,8 @@ export function sleepHrFloorDays(days: readonly Pick<DailyRecord, 'date' | 'slee
   return out;
 }
 
-/** The stored main sleeps from `from` to `to`, as the nights to judge. */
-function nightsOf(sleepDays: ReadonlyMap<CivilDate, StreamDay> | undefined, from: CivilDate, to: CivilDate): Pick<DailyRecord, 'date' | 'sleep'>[] {
-  const out: Pick<DailyRecord, 'date' | 'sleep'>[] = [];
-  for (const [date, day] of sleepDays ?? []) if (date >= from && date <= to && day.fields.sleep) out.push({ date, sleep: day.fields.sleep });
-  return out;
-}
+/** A night's main sleep, as the person's choice of sleep device reads it (pipeline/sources.ts). */
+export type FloorNight = Pick<DailyRecord, 'date' | 'sleep'>;
 
 function stateOf(prev: StreamState | undefined, days: Record<CivilDate, StreamDay>, coveredFrom: CivilDate, finalThrough: CivilDate, ms: number): StreamState {
   const dates = Object.keys(days).sort();
@@ -87,19 +83,22 @@ function stateOf(prev: StreamState | undefined, days: Record<CivilDate, StreamDa
 }
 
 /**
- * The window's nights, recomputed from the stored minutes after each sync: every night after the
- * window's first, whose evening minutes are gone (the minutes are kept from the window's first
- * day). Coverage reaches back as far as the backfill has taken it.
+ * The window's nights, recomputed from the stored minutes after each sync, and when the choice of
+ * sleep device changes: every night after the window's first, whose evening minutes are gone (the
+ * minutes are kept from the window's first day). Coverage reaches back as far as the backfill
+ * has taken it. Older nights keep the floor their sleep's times gave when it was computed: on
+ * mcPHASES, moving a sleep's ends by half an hour moved the floor by a beat or less on 94% of
+ * nights or more.
  */
 export function sleepHrFloorWindow(
   prev: StreamState | undefined,
-  sleepDays: ReadonlyMap<CivilDate, StreamDay> | undefined,
+  nights: readonly FloorNight[],
   intraday: readonly IntradayDay[],
   plan: { windowStart: CivilDate; today: CivilDate; keepFrom: CivilDate },
 ): StreamWrite {
   const t0 = Date.now();
   const from = addDays(plan.windowStart, 1);
-  const days = sleepHrFloorDays(nightsOf(sleepDays, from, plan.today), intraday);
+  const days = sleepHrFloorDays(nights.filter((n) => n.date >= from && n.date <= plan.today), intraday);
   const older = prev?.coveredFrom && prev.coveredFrom < from ? prev.coveredFrom : from;
   const coveredFrom = older < plan.keepFrom ? plan.keepFrom : older;
   return { dataType: SLEEP_HR_FLOOR.dataType, replace: [{ from, to: plan.today }], days, state: stateOf(prev, days, coveredFrom, plan.today, Date.now() - t0) };
@@ -113,21 +112,21 @@ export function sleepHrFloorWindow(
 export async function backfillSleepHrFloor(
   transport: HealthTransport,
   prev: StreamState,
-  loadSleep: (from: CivilDate, to: CivilDate) => Promise<ReadonlyMap<CivilDate, StreamDay> | undefined>,
+  loadNights: (from: CivilDate, to: CivilDate) => Promise<readonly FloorNight[]>,
   start: CivilDate,
-  opts: { timeZone: string; now: Date },
+  opts: { timeZone: string; now: Date; dataSourceFamily?: string | null },
 ): Promise<StreamWrite | null> {
   if (!prev.coveredFrom || prev.coveredFrom <= start) return null;
   const to = addDays(prev.coveredFrom, -1);
   const earliest = addDays(to, -(FLOOR_BACKFILL_DAYS - 1));
   const from = earliest < start ? start : earliest;
   // The first night's evening is on the day before `from`.
-  const res = await fetchIntradayHeartRate(transport, { from: addDays(from, -1), to, timeZone: opts.timeZone, now: opts.now });
+  const res = await fetchIntradayHeartRate(transport, { from: addDays(from, -1), to, timeZone: opts.timeZone, now: opts.now, dataSourceFamily: opts.dataSourceFamily });
   if (res.error) {
     const error = reportError(res.error);
     return { dataType: SLEEP_HR_FLOOR.dataType, replace: [], days: {}, state: { ...prev, backfillError: error.error, backfillErrorCode: error.errorCode } };
   }
-  const days = sleepHrFloorDays(nightsOf(await loadSleep(from, to), from, to), [...res.days.values()]);
+  const days = sleepHrFloorDays((await loadNights(from, to)).filter((n) => n.date >= from && n.date <= to), [...res.days.values()]);
   const state = stateOf(prev, days, from, prev.finalThrough ?? to, res.ms);
   return {
     dataType: SLEEP_HR_FLOOR.dataType,

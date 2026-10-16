@@ -120,6 +120,15 @@ const MIGRATIONS: { id: number; name: string; sql: string }[] = [
       );
     `,
   },
+  {
+    id: 5,
+    name: 'user sources',
+    sql: `
+      -- Set by the person on the Data tab (Devices and sources, SourcePrefs in src/pipeline/sources.ts):
+      -- which devices count, in what order, and which kinds of source Google adds up. NULL until set.
+      ALTER TABLE users ADD COLUMN sources jsonb;
+    `,
+  },
 ];
 
 export function createDb(connectionString: string): Db {

@@ -266,8 +266,18 @@ export function useHealth({ live, demo = false, onSignInRequired }: UseHealthOpt
   }, [backfilling]);
 
   const refresh = useCallback(() => run(state.data ? 'revalidate' : 'cold'), [run, state.data]);
+  /** Read the stored dataset again, with nothing fetched from Google: after a new choice of device. */
+  const reload = useCallback(async () => {
+    if (demo || !live) return;
+    try {
+      const res = await readDataset(new AbortController().signal);
+      if (res.dataset) setState((s) => ({ ...s, data: unpackDataset(res.dataset!), history: res.history }));
+    } catch (err) {
+      fail(err);
+    }
+  }, [demo, live, fail]);
   /** Refetch the whole window from Google, not just the unsettled tail. */
   const fullSync = useCallback(() => run(state.data ? 'revalidate' : 'cold', true), [run, state.data]);
 
-  return useMemo(() => ({ ...state, refresh, fullSync }), [state, refresh, fullSync]);
+  return useMemo(() => ({ ...state, refresh, fullSync, reload }), [state, refresh, fullSync, reload]);
 }
