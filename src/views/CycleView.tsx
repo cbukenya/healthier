@@ -409,7 +409,7 @@ function NowCard({ summary, nights, className = '' }: { summary: CycleSummary; n
   const rows: { name: string; value: string }[] = shifts
     ? ([
       ['temp', 'cycle.now.rows.temp', 2, t('units.celsius')],
-      ['restingHr', 'cycle.now.rows.restingHr', 1, t('units.bpm')],
+      ['sleepHr', 'cycle.now.rows.sleepHr', 1, t('units.bpm')],
       ['hrv', 'cycle.now.rows.hrv', 0, t('units.ms')],
     ] as const).flatMap(([key, name, digits, unit]) => {
       const v = shifts[key];
@@ -558,12 +558,13 @@ function LoggedDayCard({ log, today, onLog, className = '' }: { log: CycleLog; t
 const CHART_DAYS = 35;
 const MEASURES = [
   { field: 'temp', name: 'cycle.body.rows.temp', unit: 'units.celsius', digits: 2, signed: true },
-  { field: 'restingHr', name: 'cycle.body.rows.restingHr', unit: 'units.bpm', digits: 0, signed: false },
+  { field: 'sleepHr', name: 'cycle.body.rows.sleepHr', unit: 'units.bpm', digits: 0, signed: false },
   { field: 'hrv', name: 'cycle.body.rows.hrv', unit: 'units.ms', digits: 0, signed: false },
 ] as const;
 
 /**
- * Temperature, resting heart rate and HRV by cycle day: this cycle over the middle of the last six,
+ * Temperature, the sleeping heart rate the finder reads (the night's floor, shown as the basal
+ * resting heart rate) and HRV by cycle day: this cycle over the middle of the last six,
  * shaded by this cycle's phases as the strip draws them. The legend names only what's drawn.
  */
 function BodyThroughCycle({ summary, nights }: { summary: CycleSummary; nights: Night[] }) {

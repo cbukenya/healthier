@@ -640,7 +640,7 @@ export const INTRADAY_HEART_RATE = {
  */
 export const SLEEP_HR_FLOOR = {
   dataType: 'sleep-heart-rate-floor',
-  label: 'Sleeping heart rate floor',
+  label: 'Resting heart rate (basal)',
   domain: 'cardio' as MetricDomain,
   mode: 'derived' as const,
   scope: INTRADAY_HEART_RATE.scope,
