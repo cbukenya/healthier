@@ -805,7 +805,7 @@
       },
       "heartFollows": {
         "title": "Your heart follows your cycle",
-        "text": "Over {count, plural, one {your last cycle} other {your last # cycles}}, your resting heart rate ran about {bpm} bpm higher in the second half than in the first. That's a common pattern in the second half of a cycle.{aware, select, yes { Healthier allows for it elsewhere, so a higher heart rate then is only called unusual when it goes beyond your own pattern.} other {}}"
+        "text": "Over {count, plural, one {your last cycle} other {your last # cycles}}, your resting heart rate ran about {bpm} bpm higher in the luteal phase than in the follicular phase. That's a common pattern through a cycle.{aware, select, yes { Healthier allows for it elsewhere, so a higher heart rate then is only called unusual when it goes beyond your own pattern.} other {}}"
       },
       "steady": {
         "title": "Your cycles are regular",
@@ -1509,15 +1509,23 @@
   "cycle": {
     "eyebrow": "Today in your cycle",
     "day": "Day {day}",
+    "aboutDay": "About day {day} <soft>±{pm}</soft>",
+    "aboutDayPlain": "About day {day}",
+    "dayPm": "Day {day} <soft>±{pm}</soft>",
     "days": "{count, plural, one {# day} other {# days}}",
+    "daysPm": "{count} <soft>±{pm}</soft> days",
+    "likely": "likely",
     "span": "{min}–{max}",
     "signed": "{sign, select, up {+} other {−}}{value} {unit}",
     "signedValue": "{sign, select, up {+} other {−}}{value}",
-    "phase": {
-      "period": "Your period",
-      "beforeRise": "First half of your cycle",
-      "afterRise": "Second half of your cycle"
+    "phases": {
+      "menstrual": "Menstruation",
+      "follicular": "Follicular",
+      "ovulation": "Ovulation",
+      "earlyLuteal": "Early luteal",
+      "lateLuteal": "Late luteal"
     },
+    "start": "{source, select, logged {Your period began on {date}. You logged it.} other {Your period likely began around {date}, found in your nights.}}",
     "next": {
       "range": "Your next period is likely between <b>{from}</b> and <b>{to}</b>.",
       "day": "Your next period is likely around <b>{date}</b>.",
@@ -1530,20 +1538,18 @@
       "started": "My period started"
     },
     "strip": {
-      "label": "Day {day} of this cycle.{rise, select, yes { The second half likely began around day {riseDay}.} other {}}{next, select, yes { Your next period is likely from day {from} to day {to}.} other {}}",
+      "label": "{phase}, {about, select, yes {about day {day}} other {day {day}}} of this cycle.{rise, select, yes { The luteal phase likely began around day {riseDay}.} other {}}{next, select, yes { Your next period is likely from day {from} to day {to}.} other {}}",
       "today": "Today",
-      "period": "Period",
-      "rise": "Second half",
       "next": "Likely next"
     },
     "reached": {
       "title": "How it was reached",
-      "start": "{source, select, logged {This cycle began on {date}} other {This cycle began around {date}}}",
-      "startDetail": "{source, select, logged {You logged it. Today is day {day}.} other {Found in your nights, give or take a few days. Today is day {day}.}}",
+      "start": "{source, select, logged {This cycle began on {date}} other {This cycle likely began around {date}}}",
+      "startDetail": "{source, select, logged {You logged it. Today is day {day}.} other {Found in your nights, give or take {pm} days. Today is about day {day}.}}",
       "cycles": "Your last {count} cycles ran {min} to {max} days",
       "cyclesDetail": "{logged, plural, =0 {} one {One began with a period you logged. } other {# began with a period you logged. }}{found, plural, =0 {} one {One was found in your nights. } other {# were found in your nights. }}Logged ones count twice as much, and the middle is {typical} days.",
-      "rise": "Your second half likely began around day {day}",
-      "riseDetail": "Counted back {days} days from your likely next period: the second half runs about that long, and changes little from one cycle to the next.",
+      "rise": "Your luteal phase likely began around day {day}",
+      "riseDetail": "Counted back {days} days from your likely next period: the luteal phase runs about that long, and changes little from one cycle to the next.",
       "early": "{same, select, yes {Your two cycles so far each ran {min} days} other {Your two cycles so far ran {min} to {max} days}}",
       "earlyDetail": "An early guess, two days wider either side, until there are three cycles to go on.",
       "next": "{basis, select, early {So your next period may come {min} to {max} days after this cycle began} other {So your next period is likely {min} to {max} days after this cycle began}}",
@@ -1568,14 +1574,12 @@
     },
     "now": {
       "afterRise": {
-        "eyebrow": "Second half",
         "of": "of about {days}",
-        "text": "Your second half likely began around day {day}, going by your past cycles. Since then, against the nights before it:"
+        "text": "Your luteal phase likely began around day {day}, going by your past cycles. Since then, against the nights before it:"
       },
       "beforeRise": {
-        "eyebrow": "First half",
-        "text": "In your last cycles, the second half likely began on day {days}.",
-        "unknown": "The second half begins after ovulation, around the middle of a cycle."
+        "text": "In your last cycles, the luteal phase likely began on day {days}.",
+        "unknown": "The luteal phase begins after ovulation, around the middle of a cycle."
       },
       "rows": {
         "temp": "Skin temperature",
@@ -1590,7 +1594,12 @@
       "startOnly": "Only its start logged",
       "heaviest": "Heaviest flow",
       "usual": "Your usual",
-      "usualRange": "{days} days"
+      "usualRange": "{days} days",
+      "around": "Around {date}",
+      "found": "Found in your nights",
+      "foundDetail": "give or take {pm} days",
+      "notLogged": "Not logged",
+      "logIt": "Log it"
     },
     "logged": {
       "eyebrow": "Logged today",
@@ -1627,25 +1636,27 @@
         "mine": "This cycle",
         "usual": "Your past cycles",
         "period": "Period",
-        "afterRise": "Second half"
+        "periodFound": "Period found in your nights",
+        "luteal": "Luteal phase",
+        "ovulation": "Ovulation, likely"
       },
       "rows": {
         "temp": "Skin temperature",
         "restingHr": "Resting heart rate",
         "hrv": "HRV"
       },
-      "change": "{change} {unit} {direction, select, up {higher} other {lower}} since day {day}",
+      "change": "{change} {unit} {direction, select, up {higher} other {lower}} since {about, select, yes {about day {day}} other {day {day}}}",
       "chart": "{name} through this cycle, against your past cycles",
       "axisDay": "Day {day}"
     },
     "history": {
       "title": "Your cycles",
-      "hint": "Each bar is one cycle, found in your nights whether you logged it or not. Solid pink is a period you logged; dashed is a start found in your nights, give or take a few days.",
+      "hint": "Each bar is one cycle, shaded from phase to phase. Where the colours blend, the day is unsure; a sharp edge is a day you logged. A faded period was found in your nights, and the ± on its length says how far it may be off.",
       "empty": "Your cycles will show here as Healthier finds them in your nights, or as you log them.",
       "legend": {
         "logged": "Period you logged",
-        "found": "Start found in your nights",
-        "rise": "Second half began"
+        "found": "Period found in your nights",
+        "ovulation": "Ovulation, likely"
       },
       "stats": {
         "typical": "Typical cycle",
@@ -1653,7 +1664,7 @@
         "period": "Periods you logged",
         "days": "days"
       },
-      "row": "From {date}: {length}, {source, select, logged {a period you logged} other {a start found in your nights}}{rise, select, yes {, second half from day {riseDay}} other {}}."
+      "row": "From {date}: {length}{pm, plural, =0 {} other {, give or take {pm} days}}, {source, select, logged {a period you logged} other {a period found in your nights}}{rise, select, yes {, luteal phase from about day {riseDay}} other {}}."
     },
     "calendar": {
       "previous": "Previous month",
@@ -1664,15 +1675,16 @@
         "period": "a period day",
         "spotting": "spotting",
         "found": "a start found in your nights",
-        "rise": "your second half began",
+        "rise": "your luteal phase likely began",
+        "ovulation": "ovulation likely",
         "logged": "something logged",
         "likely": "your period may start",
         "likelyDay": "your period is most likely to start"
       },
       "legend": {
-        "period": "Period",
+        "phases": "Days shaded by phase",
         "likely": "Likely period",
-        "rise": "Second half began",
+        "ovulation": "Ovulation, likely",
         "logged": "Logged"
       }
     },
@@ -1710,7 +1722,7 @@
       }
     },
     "failed": "That change couldn't be saved, so it was undone. Try again in a moment.",
-    "disclaimer": "General wellness information, not medical advice. Healthier doesn't tell you when you're fertile and isn't a form of contraception. If something about your cycle worries you, talk to a clinician."
+    "disclaimer": "General wellness information, not medical advice. The phases are estimates from your nights and your log, so Healthier can't tell you when you're fertile, and it isn't a form of contraception. If something about your cycle worries you, talk to a clinician."
   },
   "labs": {
     "intro": {

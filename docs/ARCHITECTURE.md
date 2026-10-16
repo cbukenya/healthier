@@ -220,6 +220,16 @@ Google Health lets apps add periods but not read them back, so cycles are found 
 - **The page** (`src/views/CycleView.tsx`) shows only while tracking is on, which is a switch on
   the Data page for anyone, whatever gender is set. `useCycle` holds the log for every screen: a
   change shows at once, is saved straight away, and is undone if the save fails.
+- **Phases, not just a day.** The page leads with the phase (menstruation, follicular, ovulation,
+  early or late luteal) and puts the day under it: "Day 22" when the start was logged, "About day
+  22 ±3" with a "likely" tag when it was found. `pipeline/cyclePhases.ts` places each phase by
+  cycle day and says how sure it is; `views/cycleColours.ts` draws it.
+  - The strip, the bars and the calendar shade each day by its phase, blending over the days a
+    boundary could fall on. A logged period's edge is sharp; a found period is a dimmer pink.
+  - Ovulation is never measured: it is put the day before the luteal phase, counted back from the
+    next period, and drawn as a small amber mark that fades over the days it could be.
+  - A length with a found end carries ±3 days, with both ends found ±4.
+  - The footer says the phases are estimates, so the page can't tell anyone when they're fertile.
 - **Cards** (`insights/cards/cycle.ts`) run only while tracking is on:
   - a period due soon, from the person's own cycles;
   - a new cycle found in the nights (on Today only, for its first days);

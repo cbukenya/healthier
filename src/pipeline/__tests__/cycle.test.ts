@@ -554,7 +554,7 @@ describe('cycle cards', () => {
     const shorter = (n: Night): Night => ({ ...n, asleep: starts.some((st) => n.date < st && n.date >= addDays(st, -4)) ? 380 : 430 });
     const { card } = cardsOn(today, log(), shorter);
     assert.match(card('cycle-sleep-before')!.text, /^Over your last 6 cycles, you slept 6h \d+m on average in the three nights before your period, \d+ minutes less/);
-    assert.match(card('cycle-heart-follows')!.text, /^Over your last 6 cycles, your resting heart rate ran about 2\.\d bpm higher in the second half than in the first/);
+    assert.match(card('cycle-heart-follows')!.text, /^Over your last 6 cycles, your resting heart rate ran about 2\.\d bpm higher in the luteal phase than in the follicular phase/);
     assert.equal(
       card('cycle-steady')!.text,
       'Your last 6 cycles all ran between 27 and 31 days. Regular cycles make your next period easier to see coming.',
