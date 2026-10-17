@@ -17,6 +17,15 @@ export function streamName(dataType: string, fallback: string): string {
 }
 
 /**
+ * A stream's name inside a sentence, from the `streamsInText` section: "skin temperature" in "No
+ * skin temperature since 4 Oct". A stream the file doesn't know keeps the name it came with.
+ */
+export function streamNameInText(dataType: string, fallback: string): string {
+  const key = `streamsInText.${dataType}`;
+  return hasMessage(key) ? t(key) : fallback;
+}
+
+/**
  * What went wrong on a stream's last fetch: Google's words (or the network's) as they came, or
  * Healthier's own for an error it names with a code. A report stored before codes holds English
  * of ours in `error`; it shows as it is.

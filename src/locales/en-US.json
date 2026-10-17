@@ -2137,7 +2137,8 @@
       },
       "footer": "A change applies at once, to every page and all your history, with nothing fetched again.",
       "demo": "In demo mode this shows the demo's devices, and choices aren't kept.",
-      "failed": "Couldn't save that. Try again."
+      "failed": "Couldn't save that. Try again.",
+      "loading": "Reading your devices and apps…"
     },
     "cycle": {
       "title": "Cycle tracking",
@@ -2155,43 +2156,100 @@
       "deleteFailed": "Your cycle data couldn't be deleted. Try again in a moment.",
       "failed": "That couldn't be saved. Try again in a moment."
     },
-    "coverage": {
-      "title": "Coverage matrix",
-      "hint": {
-        "day": "Each block is a day: solid where the stream has an observation. Gaps are days the API returned nothing (or the sentinel 'zero' that means missing).",
-        "week": "Each block is a week, shaded by how many of its days have an observation: solid is all seven.",
-        "month": "Each block is a month, shaded by how many of its days have an observation."
+    "overview": {
+      "label": "Data sections",
+      "back": "Back to Data",
+      "groups": {
+        "data": "Your data",
+        "settings": "Data settings",
+        "about": "About"
+      },
+      "summaries": {
+        "devices": "{first} first, then {rest}",
+        "devicesNone": "Nothing reported yet",
+        "goals": "{steps} steps · {brisk} brisk min · {sleep} sleep",
+        "cycle": "{tracking, select, on {{cards, select, yes {On · cards on Today} other {On}}} other {Off}}",
+        "facts": "How your numbers are worked out",
+        "account": "Sign out, or disconnect and delete",
+        "accountDemo": "Leave the demo"
       }
     },
-    "sync": {
-      "title": "Sync status",
+    "status": {
+      "label": "Sync status",
+      "synced": {
+        "justNow": "Synced just now",
+        "minutes": "Synced {count, plural, one {# minute} other {# minutes}} ago",
+        "hours": "Synced {count, plural, one {# hour} other {# hours}} ago",
+        "days": "Synced {count, plural, one {# day} other {# days}} ago"
+      },
+      "syncing": "Syncing now",
+      "syncFailed": "Sync failed",
       "fullSync": "Full sync",
       "fullSyncHint": "Fetch the whole window from Google again, not just the last few days",
-      "lastSynced": {
-        "label": "Last synced",
-        "justNow": "Just now",
-        "minutes": "{count, plural, one {# minute ago} other {# minutes ago}}",
-        "hours": "{count, plural, one {# hour ago} other {# hours ago}}",
-        "days": "{count, plural, one {# day ago} other {# days ago}}"
+      "signIn": "Sign in again",
+      "current": {
+        "title": "Your data is up to date",
+        "sub": "Healthier fetches what's new from Google Health on its own, and Full sync fetches your whole window again.",
+        "demo": "This is the demo: made-up days, worked out in this browser."
+      },
+      "behind": {
+        "title": "{list, select, yes {No {streams} since {date}} other {{count} readings haven't come in since {date}}}",
+        "sub": "{count, plural, one {Everything else is in. It fills in as soon as your device records it again.} other {Everything else is in. They fill in as soon as your devices record them again.}}"
+      },
+      "failed": {
+        "title": "{list, select, yes {Healthier couldn't fetch {streams}} other {Healthier couldn't fetch {count} readings}}",
+        "sub": "Google answered the last sync with an error. Data streams shows what it said, and Healthier tries again on the next sync."
+      },
+      "importing": {
+        "title": "Your history is on its way",
+        "sub": "{count, plural, one {Your last day is in.} other {Your last # days are in.}} Older days follow in the background, and the longer views fill in as they land."
+      },
+      "failing": {
+        "title": "{day, select, today {Healthier hasn't synced since {time}} yesterday {Healthier hasn't synced since yesterday} date {Healthier hasn't synced since {date}} other {Healthier couldn't sync}}",
+        "sub": "Healthier tries again on its next sync, or now with Retry."
+      },
+      "expired": {
+        "title": "Google access has expired",
+        "sub": "Healthier can't read from Google Health until you sign in again. Everything already here stays."
       },
       "window": {
         "label": "Window",
-        "value": "{from} → {to} · {count, plural, one {# day} other {# days}}"
+        "days": "{count, plural, one {# day} other {# days}}",
+        "range": "{from} → {to}"
       },
       "history": {
         "label": "History",
-        "from": "from {date}",
         "importing": "importing…",
         "complete": "complete",
         "incomplete": "incomplete, retrying",
         "incompleteHint": "Some streams failed to import; they retry after the next sync."
       },
-      "lastSync": "Last sync: {count, plural, one {# request} other {# requests}} in {took}",
-      "took": {
+      "lastSync": {
+        "label": "Last sync",
+        "requests": "{count, plural, one {# request} other {# requests}}",
         "milliseconds": "{ms} ms",
         "seconds": "{seconds} s"
+      }
+    },
+    "account": {
+      "title": "Account",
+      "hint": "Your connection to Google Health, and your data here.",
+      "google": {
+        "label": "Google Health",
+        "connected": "Connected. Signing out keeps your data here for when you sign back in.",
+        "connectedAs": "Connected as {email}. Signing out keeps your data here for when you sign back in.",
+        "signOut": "Sign out"
       },
-      "disconnect": "Disconnect & delete data"
+      "delete": {
+        "label": "Disconnect and delete",
+        "text": "Ends Healthier's access to your Google account and deletes everything it stored for you here: your days, goals, device choices and cycle log. Your data in Google Health isn't touched.",
+        "action": "Disconnect & delete data"
+      },
+      "demo": {
+        "label": "Demo mode",
+        "text": "Made-up days, worked out in this browser. Nothing you change here is kept.",
+        "exit": "Exit demo"
+      }
     },
     "goals": {
       "title": "Goals",
@@ -2225,8 +2283,10 @@
       "failed": "Couldn't save that change, so your goals are as they were. Try again."
     },
     "intraday": {
-      "title": "Intraday coverage (Heart rate)",
+      "title": "Through the day",
       "span": "{days}d",
+      "less": "Less",
+      "more": "More",
       "hint": "Minutes of heart rate recorded in each hour over the last {days, plural, one {# day} other {# days}}. Each block is one hour; solid means most of it was recorded.",
       "hintWeekly": "Minutes of heart rate recorded in each hour, averaged per week over the {days, plural, one {# day} other {# days}} minute data is kept. Gaps show when the watch is usually off.",
       "today": "Today",
@@ -2235,6 +2295,7 @@
     },
     "facts": {
       "title": "Data facts",
+      "hint": "What to know about the numbers Healthier shows you.",
       "arithmetic": {
         "lead": "Arithmetic, not AI",
         "text": "Your body battery, sleep score and insights are worked out with plain arithmetic from your own data. Nothing is written or guessed by AI. Sleep stages and cardio fitness are your watch's own estimates."
@@ -2258,7 +2319,16 @@
     },
     "streams": {
       "title": "Data streams",
-      "hint": "Everything Healthier reads from Google Health, and whether it's arriving. Open one to see where it comes from and what happened on the last fetch.",
+      "hint": {
+        "day": "Everything Healthier reads from Google Health, a block a day: solid where a reading arrived, dark where Google had none. Open one to see where it comes from and what happened on the last fetch.",
+        "week": "Everything Healthier reads from Google Health, a block a week, shaded by how many of its days have a reading: solid is all seven. Open one to see where it comes from and what happened on the last fetch.",
+        "month": "Everything Healthier reads from Google Health, a block a month, shaded by how many of its days have a reading. Open one to see where it comes from and what happened on the last fetch."
+      },
+      "columns": {
+        "days": "Days",
+        "latest": "Latest"
+      },
+      "notKept": "{date} · {stream} · minutes aren't kept this far back",
       "summary": {
         "label": "Summary",
         "ok": "<b>{count}</b> up to date",
@@ -2408,5 +2478,32 @@
     "nutrition-log": "Nutrition (Macros)",
     "hydration-log": "Hydration",
     "blood-glucose": "Blood glucose"
+  },
+  "streamsInText": {
+    "steps": "steps",
+    "distance": "distance",
+    "floors": "floors climbed",
+    "active-minutes": "active minutes",
+    "active-zone-minutes": "Active Zone Minutes",
+    "total-calories": "total energy",
+    "active-energy-burned": "active energy",
+    "sleep": "sleep sessions",
+    "heart-rate": "minute-by-minute heart rate",
+    "sleep-heart-rate-floor": "basal resting heart rate",
+    "electrocardiogram": "ECG",
+    "irregular-rhythm-notification": "Irregular Rhythm Notifications",
+    "daily-resting-heart-rate": "resting heart rate",
+    "daily-heart-rate-zones": "heart rate zones",
+    "daily-heart-rate-variability": "heart-rate variability",
+    "daily-oxygen-saturation": "blood oxygen",
+    "daily-respiratory-rate": "breathing rate",
+    "daily-vo2-max": "cardio fitness",
+    "daily-sleep-temperature-derivations": "skin temperature",
+    "weight": "weight",
+    "body-fat": "body fat",
+    "height": "height",
+    "nutrition-log": "nutrition",
+    "hydration-log": "hydration",
+    "blood-glucose": "blood glucose"
   }
 }

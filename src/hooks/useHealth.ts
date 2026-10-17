@@ -192,7 +192,8 @@ export function useHealth({ live, demo = false, onSignInRequired }: UseHealthOpt
       abortRef.current?.abort();
       const ctl = new AbortController();
       abortRef.current = ctl;
-      setState((s) => ({ ...s, phase: mode === 'cold' ? 'loading' : 'revalidating', error: null, isDemo: demo }));
+      // The last failure stands until this run ends, so a retry doesn't read as all well while it runs.
+      setState((s) => ({ ...s, phase: mode === 'cold' ? 'loading' : 'revalidating', isDemo: demo }));
 
       try {
         const onProgress: Progress = (progress) => setState((s) => ({ ...s, progress }));

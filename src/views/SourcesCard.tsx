@@ -8,7 +8,7 @@ import { addDays } from '../lib/date';
 import { DEFAULT_SOURCE_PREFS, READING_STREAMS, sourceRanking, type SourcePrefs, type SourceSeen, type TotalsFamily } from '../pipeline/sources';
 import type { SyncResult } from '../pipeline/sync';
 import type { SourceSummary, SourcesResponse } from '../types/api';
-import { Card, CardHead } from '../ui/primitives';
+import { SectionCard } from './DataCards';
 
 /**
  * Devices and sources (pipeline/sources.ts): which of the person's devices and apps each reading
@@ -80,17 +80,18 @@ function demoView(data: SyncResult): SourcesResponse {
   return { prefs, order: sourceRanking(seen, prefs), sources, windowDays: data.days.length, refetching: false };
 }
 
-export function SourcesCard({ data, live, onChanged }: {
-  data: SyncResult;
-  /** False in demo mode, where the demo's sources are shown and nothing can be chosen. */
-  live: boolean;
-  /** After a saved change: `refetching` when daily totals are being fetched again. */
-  onChanged: (refetching: boolean) => void;
-}) {
+/** The person's devices and apps, and the means to choose between them: shared by the Data page's list and the section. */
+export interface Sources {
+  /** As the server describes them, or the demo's own; null until they've loaded. */
+  view: SourcesResponse | null;
+  /** Keeps a new choice. False when it couldn't be saved, and the old one stands. */
+  save: (next: SourcePrefs) => Promise<boolean>;
+  /** Daily totals are being fetched again, after a new choice for them. */
+  refetching: boolean;
+}
+
+export function useSources(data: SyncResult, live: boolean, onChanged: (refetching: boolean) => void): Sources {
   const [loaded, setLoaded] = useState<SourcesResponse | null>(null);
-  const [advanced, setAdvanced] = useState(false);
-  const [failed, setFailed] = useState(false);
-  const [asking, setAsking] = useState<TotalsFamily | null>(null);
   const [refetching, setRefetching] = useState(false);
 
   // The counts change as the days do: read them again with each new dataset.
@@ -111,28 +112,61 @@ export function SourcesCard({ data, live, onChanged }: {
     // A new dataset after a refetch means it's done.
   }, [data]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const view = live ? loaded : demoView(data);
-  const rows = useMemo(() => (view ? ordered(view) : []), [view]);
-  if (!view) return null;
-  const prefs = view.prefs;
-  const off = new Set(prefs.off);
-  const today = data.days.at(-1)?.date ?? null;
-
+  const demo = useMemo(() => (live ? null : demoView(data)), [live, data]);
   const save = async (next: SourcePrefs) => {
-    if (!live || !loaded) return;
+    if (!live || !loaded) return false;
     const before = loaded;
     setLoaded({ ...loaded, prefs: next });
-    setFailed(false);
     try {
       const res = await api<SourcesResponse>('/api/sources', { method: 'PUT', body: { prefs: next } });
       setLoaded(res);
       if (res.refetching) setRefetching(true);
       onChanged(res.refetching);
+      return true;
     } catch (err) {
       console.error('Failed to save devices and sources:', err);
       setLoaded(before);
-      setFailed(true);
+      return false;
     }
+  };
+  return { view: live ? loaded : demo, save, refetching };
+}
+
+/** What the Data page's list says of them: "Google Fitbit Air first, then Smart scale". */
+export function sourcesSummary(view: SourcesResponse): string {
+  const off = new Set(view.prefs.off);
+  const used = ordered(view).filter((s) => !off.has(s.id));
+  if (!used.length) return t('data.overview.summaries.devicesNone');
+  if (used.length === 1) return used[0].label;
+  return t('data.overview.summaries.devices', { first: used[0].label, rest: formatList(used.slice(1).map((s) => s.label)) });
+}
+
+export function SourcesCard({ data, live, sources }: {
+  data: SyncResult;
+  /** False in demo mode, where the demo's sources are shown and nothing can be chosen. */
+  live: boolean;
+  sources: Sources;
+}) {
+  const [advanced, setAdvanced] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const [asking, setAsking] = useState<TotalsFamily | null>(null);
+  const { view, refetching } = sources;
+
+  const rows = useMemo(() => (view ? ordered(view) : []), [view]);
+  if (!view) {
+    return (
+      <SectionCard title={t('data.sources.title')} hint={t('data.sources.hint')} domain="data">
+        <p role="status" className="px-5 pb-5 text-caption text-zinc-500 animate-pulse">{t('data.sources.loading')}</p>
+      </SectionCard>
+    );
+  }
+  const prefs = view.prefs;
+  const off = new Set(prefs.off);
+  const today = data.days.at(-1)?.date ?? null;
+
+  const save = async (next: SourcePrefs) => {
+    setFailed(false);
+    if (!(await sources.save(next))) setFailed(true);
   };
   const move = (i: number, by: number) => {
     const ids = rows.map((s) => s.id);
@@ -144,24 +178,23 @@ export function SourcesCard({ data, live, onChanged }: {
   const toggle = (id: string) => void save({ ...prefs, off: off.has(id) ? prefs.off.filter((x) => x !== id) : [...prefs.off, id] });
 
   return (
-    <Card>
-      <CardHead
-        title={t('data.sources.title')}
-        hint={t('data.sources.hint')}
-        domain="data"
-        right={rows.length > 1 && (
-          <button
-            type="button"
-            onClick={() => setAdvanced(!advanced)}
-            className="min-h-10 inline-flex items-center gap-1.5 px-3 rounded-lg border border-zinc-700 text-detail font-medium text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100 transition-colors"
-          >
-            {advanced && <ChevronLeft size={14} aria-hidden />}
-            {t(advanced ? 'data.sources.simple' : 'data.sources.advanced')}
-            {!advanced && <ChevronRight size={14} aria-hidden />}
-          </button>
-        )}
-      />
-      <div className="px-5 pb-4">
+    <SectionCard
+      title={t('data.sources.title')}
+      hint={t('data.sources.hint')}
+      domain="data"
+      right={rows.length > 1 && (
+        <button
+          type="button"
+          onClick={() => setAdvanced(!advanced)}
+          className="min-h-10 inline-flex items-center gap-1.5 px-3 rounded-lg border border-zinc-700 text-detail font-medium text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100 transition-colors"
+        >
+          {advanced && <ChevronLeft size={14} aria-hidden />}
+          {t(advanced ? 'data.sources.simple' : 'data.sources.advanced')}
+          {!advanced && <ChevronRight size={14} aria-hidden />}
+        </button>
+      )}
+    >
+      <div className="@container px-5 pb-4">
         {advanced ? (
           <PerReading rows={rows} prefs={prefs} live={live} onPick={(next) => void save(next)} />
         ) : (
@@ -196,7 +229,7 @@ export function SourcesCard({ data, live, onChanged }: {
             <h4 id="sources-totals" className="text-eyebrow uppercase text-zinc-500">{t('data.sources.totals.title')}</h4>
             <p className="text-caption leading-relaxed text-zinc-500 max-w-[64ch]">{t('data.sources.totals.hint')}</p>
           </div>
-          <div role="radiogroup" aria-labelledby="sources-totals" className="grid grid-cols-1 md:grid-cols-3 gap-2">
+          <div role="radiogroup" aria-labelledby="sources-totals" className="grid grid-cols-1 @2xl:grid-cols-3 gap-2">
             {TOTALS.map((f) => {
               const on = (asking ?? prefs.totals) === f;
               return (
@@ -246,7 +279,7 @@ export function SourcesCard({ data, live, onChanged }: {
           {failed && <p role="alert" className="mt-1 text-rose-400">{t('data.sources.failed')}</p>}
         </div>
       </div>
-    </Card>
+    </SectionCard>
   );
 }
 

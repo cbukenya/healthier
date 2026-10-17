@@ -1,128 +1,66 @@
-import React, { useEffect, useId, useMemo, useState } from 'react';
-import { ChevronDown, Lock, Minus, Plus, RefreshCw } from 'lucide-react';
-import { daysBetween, type CivilDate } from '../lib/date';
-import { formatCivil, formatCivilYear, formatFixed, formatInteger, formatList, formatMonthYear } from '../i18n/format';
-import { hasMessage, t, type MessageKey } from '../i18n';
+import React, { createContext, useContext, useEffect, useId, useRef, useState } from 'react';
+import { Minus, Plus } from 'lucide-react';
+import type { CivilDate } from '../lib/date';
+import { formatInteger, formatList, formatMonthYear } from '../i18n/format';
+import { t } from '../i18n';
 import { rich } from '../i18n/react';
-import { streamError, streamName } from '../i18n/streams';
 import { BASELINE_DAYS, NEED_ESTIMATE } from '../pipeline/derive';
 import { REFETCH_DAYS } from '../pipeline/incremental';
 import { DEFAULT_GOALS, GOAL_LIMITS, WHO_WEEK, fitGoal, sameGoals, type GoalLimit, type Goals } from '../pipeline/goals';
-import { parseSource } from '../pipeline/normalize';
-import { INTRADAY_HEART_RATE, STREAMS, STREAMS_BY_TYPE } from '../pipeline/registry';
-import type { SyncResult } from '../pipeline/sync';
-import type { HistoryInfo } from '../types/api';
-import type { MetricDomain, SourceRef, StreamReport } from '../types/health';
 import { useGoalsControl } from '../hooks/useGoals';
 import { useCycle } from '../hooks/useCycle';
 import { SPANS, spanLabel } from '../ui/span';
-import { useMediaQuery } from '../hooks/useMediaQuery';
-import { Card, CardHead, DURATION_UNIT, fmtDuration, withUnits } from '../ui/primitives';
+import { Card, CardHead, DURATION_UNIT, fmtDuration, withUnits, type DomainKey } from '../ui/primitives';
 
-// ─────────────────────────────────────────────────────────── sync status
-
-/** "Just now", "12 minutes ago", "3 hours ago", "2 days ago". */
-function ago(then: number, now: number): string {
-  const min = Math.floor((now - then) / 60_000);
-  if (min < 1) return t('data.sync.lastSynced.justNow');
-  if (min < 60) return t('data.sync.lastSynced.minutes', { count: min });
-  const h = Math.floor(min / 60);
-  return h < 24 ? t('data.sync.lastSynced.hours', { count: h }) : t('data.sync.lastSynced.days', { count: Math.floor(h / 24) });
-}
+// ─────────────────────────────────────────────────────────── section frame
 
 /**
- * When the data last came in, what the dashboard covers and how far back the
- * history goes, with the two things you can do about it. Small on purpose: the
- * Goals card sits under it.
+ * Whether a section fills a phone's screen of its own, opened from the Data page's list. There its
+ * name is the screen's heading and its card holds only the content; beside the list, on a wider
+ * screen, it's an ordinary card with its name at the top.
  */
-export function SyncStatus({
-  data,
-  history,
-  onFullSync,
-  onDisconnect,
-}: {
-  data: SyncResult;
-  history: HistoryInfo | null;
-  onFullSync: () => void;
-  /** Absent in demo mode, where there's nothing stored to delete. */
-  onDisconnect?: () => void;
+const ScreenContext = createContext(false);
+export const SectionScreen = ScreenContext.Provider;
+export const useSectionScreen = () => useContext(ScreenContext);
+
+/**
+ * In a section's own screen, the first row of a card's content has no rule above it: there's no
+ * card heading to set it apart from.
+ */
+export const firstRuleOff = (screen: boolean) => (screen ? '[&>:first-child]:border-t-0' : '');
+
+/** A Data page section: a card with its name and hint, or, as its own screen, a heading over the card. */
+export function SectionCard({ title, hint, right, domain, children }: {
+  title: string;
+  hint?: React.ReactNode;
+  right?: React.ReactNode;
+  domain?: DomainKey;
+  children: React.ReactNode;
 }) {
-  // A minute's tick keeps "12 minutes ago" true while the page stays open.
-  const [now, setNow] = useState(() => Date.now());
+  const screen = useSectionScreen();
+  const heading = useRef<HTMLHeadingElement>(null);
+  // A screen just opened starts at its name, for anyone following focus.
   useEffect(() => {
-    const timer = setInterval(() => setNow(Date.now()), 60_000);
-    return () => clearInterval(timer);
-  }, []);
+    if (screen) heading.current?.focus({ preventScroll: true });
+  }, [screen]);
 
-  const { meta } = data;
-  const synced = Date.parse(meta.finishedAt);
-  const known = !Number.isNaN(synced);
-  // The app syncs whenever it opens on data older than 15 minutes, so a day-old sync means it couldn't.
-  const stale = known && now - synced > 24 * 3_600_000;
-  const took = meta.ms < 1000
-    ? t('data.sync.took.milliseconds', { ms: meta.ms })
-    : t('data.sync.took.seconds', { seconds: formatFixed(meta.ms / 1000, 1) });
-
+  if (!screen) {
+    return (
+      <Card>
+        <CardHead title={title} hint={hint} right={right} domain={domain} />
+        {children}
+      </Card>
+    );
+  }
   return (
-    <Card>
-      <CardHead
-        title={t('data.sync.title')}
-        right={
-          <button
-            onClick={onFullSync}
-            title={t('data.sync.fullSyncHint')}
-            className="-my-2.5 md:-my-1 min-h-11 md:min-h-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 transition-colors text-caption font-medium text-zinc-200"
-          >
-            <RefreshCw size={12} aria-hidden="true" /> {t('data.sync.fullSync')}
-          </button>
-        }
-      />
-      <dl className="px-5 grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-2 text-caption">
-        <dt className="text-zinc-500">{t('data.sync.lastSynced.label')}</dt>
-        <dd className="text-right text-zinc-200">
-          {known ? (
-            <>
-              <span aria-hidden="true" className={`inline-block w-1.5 h-1.5 mr-1.5 rounded-full align-[1px] ${stale ? 'bg-amber-400' : 'bg-emerald-400'}`} />
-              {ago(synced, now)}
-            </>
-          ) : (
-            '—'
-          )}
-        </dd>
-        <dt className="text-zinc-500">{t('data.sync.window.label')}</dt>
-        <dd className="text-right text-zinc-200 tabular-nums">
-          {t('data.sync.window.value', { from: formatCivil(meta.from), to: formatCivil(meta.to), count: data.days.length })}
-        </dd>
-        {history?.from && (
-          <>
-            <dt className="text-zinc-500">{t('data.sync.history.label')}</dt>
-            <dd className="text-right text-zinc-200">
-              {t('data.sync.history.from', { date: formatCivilYear(history.from) })} ·{' '}
-              {history.backfilling ? (
-                <span className="text-amber-400">{t('data.sync.history.importing')}</span>
-              ) : history.complete ? (
-                <span className="text-emerald-400">{t('data.sync.history.complete')}</span>
-              ) : (
-                <span className="text-amber-400" title={t('data.sync.history.incompleteHint')}>{t('data.sync.history.incomplete')}</span>
-              )}
-            </dd>
-          </>
-        )}
-      </dl>
-      <div className="mt-3 pl-5 pr-2 py-0.5 min-h-10 border-t border-zinc-800/60 flex items-center justify-between gap-3">
-        <span className="text-note text-zinc-500 tabular-nums">
-          {t('data.sync.lastSync', { count: meta.totalRequests, took })}
-        </span>
-        {onDisconnect && (
-          <button
-            onClick={onDisconnect}
-            className="min-h-11 md:min-h-9 px-3 rounded-lg text-caption font-medium text-rose-400 hover:bg-rose-500/10 transition-colors"
-          >
-            {t('data.sync.disconnect')}
-          </button>
-        )}
-      </div>
-    </Card>
+    <>
+      <h2 ref={heading} tabIndex={-1} className="mt-1 font-display text-display text-zinc-50 outline-none">
+        {title}
+      </h2>
+      {hint && <div className="mt-1 text-detail leading-relaxed text-zinc-400">{hint}</div>}
+      {right && <div className="mt-3 text-caption text-zinc-500">{right}</div>}
+      <Card className="mt-4 pt-2">{children}</Card>
+    </>
   );
 }
 
@@ -133,12 +71,11 @@ export function SyncStatus({
  * what "usual" means, the span things cover, how missing days are treated and
  * where the data is smoothed. Each figure comes from the constant it describes.
  */
-export function DataFacts({ windowDays, windowFrom, historyFrom, className = '' }: {
+export function DataFacts({ windowDays, windowFrom, historyFrom }: {
   windowDays: number;
   /** The window's first day: history older than this reaches the longer views. */
   windowFrom: CivilDate;
   historyFrom: CivilDate | null;
-  className?: string;
 }) {
   // The words are the app's own: body battery, sleep score, insights, usual, window, history, sync, Today so far, Labs.
   // The span buttons past the window, by their own labels: "90d, 1y and All".
@@ -164,8 +101,7 @@ export function DataFacts({ windowDays, windowFrom, historyFrom, className = '' 
     ['minutes', t('data.facts.minutes.lead'), t('data.facts.minutes.text')],
   ];
   return (
-    <Card className={className}>
-      <CardHead title={t('data.facts.title')} domain="data" />
+    <SectionCard title={t('data.facts.title')} hint={t('data.facts.hint')} domain="data">
       <ul className="px-5 pb-2">
         {facts.map(([id, lead, text], i) => (
           <li key={id} className={i ? 'py-3 border-t border-zinc-800/60' : 'pt-1 pb-3'}>
@@ -174,7 +110,7 @@ export function DataFacts({ windowDays, windowFrom, historyFrom, className = '' 
           </li>
         ))}
       </ul>
-    </Card>
+    </SectionCard>
   );
 }
 
@@ -201,6 +137,7 @@ export function GoalsCard({ autoNeed }: {
   autoNeed: number;
 }) {
   const { goals, change, failed } = useGoalsControl();
+  const screen = useSectionScreen();
   if (!change) return null;
   const set = (patch: Partial<Goals>) => change({ ...goals, ...patch });
   /** A step down and a step up from a goal's value, each absent at its bound. */
@@ -212,23 +149,22 @@ export function GoalsCard({ autoNeed }: {
   const L = GOAL_LIMITS;
 
   return (
-    <Card>
-      <CardHead
-        title={t('data.goals.title')}
-        hint={t('data.goals.hint')}
-        right={
-          !sameGoals(goals, DEFAULT_GOALS) && (
-            <button
-              type="button"
-              onClick={() => change(DEFAULT_GOALS)}
-              className="-my-2.5 md:-my-1.5 -mr-2 min-h-11 md:min-h-0 px-2 md:py-1.5 rounded-lg text-caption font-medium text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60 transition-colors"
-            >
-              {t('data.goals.reset')}
-            </button>
-          )
-        }
-      />
-      <div className="px-5 pb-1.5">
+    <SectionCard
+      title={t('data.goals.title')}
+      hint={t('data.goals.hint')}
+      right={
+        !sameGoals(goals, DEFAULT_GOALS) && (
+          <button
+            type="button"
+            onClick={() => change(DEFAULT_GOALS)}
+            className="-my-2.5 md:-my-1.5 -mr-2 min-h-11 md:min-h-0 px-2 md:py-1.5 rounded-lg text-caption font-medium text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60 transition-colors"
+          >
+            {t('data.goals.reset')}
+          </button>
+        )
+      }
+    >
+      <div className={`px-5 pb-1.5 ${firstRuleOff(screen)}`}>
         <GoalRow
           label={t('data.goals.steps.label')}
           per={t('data.goals.steps.per')}
@@ -279,19 +215,20 @@ export function GoalsCard({ autoNeed }: {
           {t('data.goals.failed')}
         </p>
       )}
-    </Card>
+    </SectionCard>
   );
 }
 
 /**
  * Cycle tracking: off until the person turns it on, for anyone who has periods, whatever gender is
- * set. The log can be deleted on its own. Full width on a computer, its switches two to a row.
+ * set. The log can be deleted on its own. Where the card is wide enough, its switches go two to a row.
  */
 export function CycleCard({ kept }: {
   /** A log is kept on the server, though tracking is off and it wasn't sent. */
   kept: boolean;
 }) {
   const { log, setSettings, forget, failed } = useCycle();
+  const screen = useSectionScreen();
   const [deleteFailed, setDeleteFailed] = useState(false);
   const on = log.settings.tracking;
   const remove = async () => {
@@ -305,10 +242,9 @@ export function CycleCard({ kept }: {
     }
   };
   return (
-    <Card>
-      <CardHead title={t('data.cycle.title')} hint={t('data.cycle.hint')} domain="cycle" />
-      <div className="px-5 pb-4">
-        <div className="grid grid-cols-1 lg:grid-cols-2 lg:gap-x-8">
+    <SectionCard title={t('data.cycle.title')} hint={t('data.cycle.hint')} domain="cycle">
+      <div className="@container px-5 pb-4">
+        <div className={`grid grid-cols-1 @2xl:grid-cols-2 @2xl:gap-x-8 ${screen ? '[&>:first-child]:border-t-0 @2xl:[&>:nth-child(2)]:border-t-0' : ''}`}>
           <SwitchRow
             label={t('data.cycle.tracking')}
             note={t('data.cycle.trackingNote')}
@@ -347,7 +283,7 @@ export function CycleCard({ kept }: {
         {failed && <p role="alert" className="mt-3 text-caption text-rose-400">{t('data.cycle.failed')}</p>}
         {deleteFailed && <p role="alert" className="mt-3 text-caption text-rose-400">{t('data.cycle.deleteFailed')}</p>}
       </div>
-    </Card>
+    </SectionCard>
   );
 }
 
@@ -421,258 +357,68 @@ function GoalRow({ label, per, badge, shown, less, more, lessLabel, moreLabel, n
   );
 }
 
-// ─────────────────────────────────────────────────────────── data streams
-
-type Kind = 'ok' | 'behind' | 'empty' | 'unshared' | 'failed';
-
-/** A daily stream whose latest reading is this many days old has stopped arriving. */
-const BEHIND_AFTER = 3;
-
-const KIND: Record<Kind, { summary: MessageKey; text: string; dot: string }> = {
-  ok: { summary: 'data.streams.summary.ok', text: 'text-zinc-300', dot: 'bg-emerald-400' },
-  behind: { summary: 'data.streams.summary.behind', text: 'text-amber-300', dot: 'bg-amber-400' },
-  empty: { summary: 'data.streams.summary.empty', text: 'text-zinc-500', dot: 'ring-1 ring-inset ring-zinc-600' },
-  unshared: { summary: 'data.streams.summary.unshared', text: 'text-zinc-400', dot: '' },
-  failed: { summary: 'data.streams.summary.failed', text: 'text-rose-400', dot: 'bg-rose-400' },
-};
-
-const DOMAINS: MetricDomain[] = ['movement', 'sleep', 'cardio', 'body', 'wellbeing'];
-/** Each group's heading. */
-const DOMAIN_NAMES = {
-  movement: 'data.streams.domains.movement',
-  sleep: 'data.streams.domains.sleep',
-  cardio: 'data.streams.domains.cardio',
-  body: 'data.streams.domains.body',
-  wellbeing: 'data.streams.domains.wellbeing',
-} as const satisfies Record<MetricDomain, MessageKey>;
-/** On wide screens the groups sit in two columns of about the same height. */
-const LEFT: MetricDomain[] = ['movement', 'sleep', 'body'];
-
-/** Registry order within a group, minute-level heart rate leading the vitals. */
-const order = (dataType: string) =>
-  dataType === INTRADAY_HEART_RATE.dataType ? -1 : STREAMS.findIndex((s) => s.dataType === dataType);
-
-function kindOf(r: StreamReport, today: CivilDate): Kind {
-  if (r.status === 'skipped') return 'unshared';
-  if (r.status === 'error' || r.status === 'unauthorized') return 'failed';
-  if (!r.latestDate) return 'empty';
-  const occasional = STREAMS_BY_TYPE.get(r.dataType)?.occasional ?? false;
-  return !occasional && daysBetween(r.latestDate, today) >= BEHIND_AFTER ? 'behind' : 'ok';
-}
-
-/** Today, yesterday or a date, for the messages to say: "14 Aug", or "2 Mar 2025" from another year. */
-function when(date: CivilDate, today: CivilDate): { day: 'today' | 'yesterday' | 'date'; date: string } {
-  const n = daysBetween(date, today);
-  return {
-    day: n <= 0 ? 'today' : n === 1 ? 'yesterday' : 'date',
-    date: date.slice(0, 4) === today.slice(0, 4) ? formatCivil(date) : formatCivilYear(date),
-  };
-}
+// ─────────────────────────────────────────────────────────────── account
 
 /**
- * What a reading's source is called: a device's or app's own name, or a platform's, as it came. A
- * device Google knows only by its kind ("WATCH") is stored under the kind's English name ("Watch"),
- * so the language file names that one, when it knows the kind.
+ * The person's connection to Google Health: signing out, which keeps their data here, and
+ * disconnecting, which deletes it. In demo mode, the way out of the demo.
  */
-function deviceName(src: SourceRef): string {
-  if (src.app) return src.label;
-  const kind = src.formFactor;
-  if (kind) {
-    // The label normalize.ts stores for a source it knows only by this kind.
-    if (src.label !== parseSource({ device: { formFactor: kind } })?.label) return src.label;
-    const key = `data.streams.formFactors.${kind.toUpperCase()}`;
-    return hasMessage(key) ? t(key) : src.label;
-  }
-  // A source Google says nothing about is stored as "Unknown".
-  return src.platform === 'UNKNOWN' && src.label === parseSource({})?.label ? t('data.streams.unknownSource') : src.label;
-}
-
-interface StreamRow {
-  report: StreamReport;
-  kind: Kind;
-  /** What the row says on the right: the latest reading's day when all is well, else what's wrong. */
-  status: string;
-  /** The sentence an opened row starts with. */
-  detail: string;
-  /** The last fetch, for whoever wants it. */
-  fetch: string;
-}
-
-/**
- * Everything Healthier reads from Google Health, in plain names, grouped like
- * the app's pages. Each row says one thing: the day of its latest reading, or
- * what's wrong (behind, nothing recorded, not shared, failed). Opening a row
- * explains it in a sentence and then gives the raw dataType, the last fetch's
- * numbers and Google's own error.
- *
- * The fetch numbers describe only the stream's latest fetch, which after the
- * first sync is usually just the last few days, so they stay in the detail
- * rather than sitting beside the window's day counts as if they described them.
- */
-export function DataStreams({ data }: { data: SyncResult }) {
-  const [open, setOpen] = useState<string | null>(null);
-  const wide = useMediaQuery('(min-width: 768px)');
-  const today = data.meta.to;
-  const windowDays = data.days.length;
-
-  // Minute-level heart rate counts minutes, not days: count the days that have any.
-  const heartRateDays = useMemo(() => new Set((data.heartRateSamples ?? []).map((s) => s.date)).size, [data.heartRateSamples]);
-
-  const rows = useMemo(() => {
-    /** The device behind a day's reading ("from Google Pixel Watch 3"), or logged by hand, when it's known. */
-    const source = (dataType: string, date: CivilDate | undefined) => {
-      const id = date ? data.days.find((d) => d.date === date)?.sourceByType[dataType] : undefined;
-      const src = id ? data.meta.sources.find((s) => s.id === id) : undefined;
-      return { source: !src ? 'none' : src.method === 'MANUAL' ? 'hand' : 'device', device: src ? deviceName(src) : '' };
-    };
-
-    return data.meta.streams.map((r): StreamRow => {
-      const kind = kindOf(r, today);
-      const latest = r.latestDate;
-      const day = latest ? when(latest, today) : { day: 'date', date: '' };
-      const intraday = r.dataType === INTRADAY_HEART_RATE.dataType;
-      const days = intraday ? heartRateDays : r.observations;
-      const coverage = days === windowDays
-        ? t(intraday ? 'data.streams.coverage.everyDayMinutes' : 'data.streams.coverage.everyDay')
-        : t(intraday ? 'data.streams.coverage.someDaysMinutes' : 'data.streams.coverage.someDays', { days, total: windowDays });
-
-      let status: string;
-      let detail: string;
-      switch (kind) {
-        case 'ok': {
-          status = t('data.streams.status.latest', day);
-          const reading = { when: t('data.streams.latestWhen', day), ...source(r.dataType, latest) };
-          detail = STREAMS_BY_TYPE.get(r.dataType)?.occasional
-            ? t('data.streams.detail.occasional', reading)
-            : t(intraday ? 'data.streams.detail.latestMinute' : 'data.streams.detail.latestReading', { ...reading, coverage });
-          break;
-        }
-        case 'behind':
-          status = t('data.streams.status.behind', { date: day.date });
-          detail = t('data.streams.detail.behind', { date: day.date });
-          break;
-        case 'empty':
-          status = t('data.streams.status.empty');
-          detail = t('data.streams.detail.empty');
-          break;
-        case 'unshared':
-          status = t('data.streams.status.unshared');
-          detail = t('data.streams.detail.unshared');
-          break;
-        case 'failed':
-          status = t(r.status === 'unauthorized' ? 'data.streams.status.unauthorized' : 'data.streams.status.failed');
-          detail = t(r.status === 'unauthorized' ? 'data.streams.detail.unauthorized' : 'data.streams.detail.failed');
-          break;
-      }
-
-      const how = t(intraday ? 'data.streams.fetch.minutes' : r.mode === 'rollup' ? 'data.streams.fetch.totals' : 'data.streams.fetch.readings');
-      const last = { how, requests: r.requests, pages: r.pagesFetched, ms: r.ms };
-      const fetch = kind === 'unshared'
-        ? t('data.streams.fetch.none')
-        : r.mode === 'derived'
-          ? t('data.streams.fetch.derived')
-          : r.httpStatus && r.httpStatus !== 200
-          ? t('data.streams.fetch.lastWithStatus', { ...last, status: r.httpStatus })
-          : t('data.streams.fetch.last', last);
-      return { report: r, kind, status, detail: r.truncated ? t('data.streams.detail.truncated', { detail }) : detail, fetch };
-    });
-  }, [data, today, windowDays, heartRateDays]);
-
-  const groups = DOMAINS.map((domain) => ({
-    domain,
-    rows: rows.filter((r) => r.report.domain === domain).sort((a, b) => order(a.report.dataType) - order(b.report.dataType)),
-  })).filter((g) => g.rows.length);
-  const columns = wide
-    ? [groups.filter((g) => LEFT.includes(g.domain)), groups.filter((g) => !LEFT.includes(g.domain))]
-    : [groups];
-  const counts = (Object.keys(KIND) as Kind[])
-    .map((kind) => ({ kind, n: rows.filter((r) => r.kind === kind).length }))
-    .filter((c) => c.n > 0);
-
+export function AccountCard({ email, demo, onSignOut, onDisconnect }: {
+  email: string | null;
+  demo: boolean;
+  /** Signs out, or in demo mode leaves the demo. */
+  onSignOut: () => void;
+  /** Absent in demo mode, where there's nothing stored to delete. */
+  onDisconnect?: () => void;
+}) {
+  const screen = useSectionScreen();
+  const plain = 'shrink-0 min-h-10 px-3.5 rounded-lg border border-zinc-700 text-caption font-medium text-zinc-200 hover:bg-zinc-800 transition-colors';
   return (
-    <Card>
-      <CardHead
-        title={t('data.streams.title')}
-        domain="data"
-        hint={t('data.streams.hint')}
-      />
-      <ul aria-label={t('data.streams.summary.label')} className="px-5 -mt-1 flex flex-wrap gap-x-4 gap-y-1 text-caption text-zinc-400">
-        {counts.map(({ kind, n }) => (
-          <li key={kind} className="flex items-center gap-1.5">
-            <Mark kind={kind} />
-            <span>
-              {rich(KIND[kind].summary, { count: n, b: (w) => <span className="font-semibold text-zinc-200 tabular-nums">{w}</span> })}
-            </span>
-          </li>
-        ))}
-      </ul>
-      <div className="px-5 pb-3 pt-1 grid grid-cols-1 md:grid-cols-2 gap-x-10 items-start">
-        {columns.map((col, i) => (
-          <div key={i} className="min-w-0">
-            {col.map((g) => (
-              <div key={g.domain} className="pt-2">
-                <h4 className="pt-2 pb-1 text-eyebrow uppercase text-zinc-500">{t(DOMAIN_NAMES[g.domain])}</h4>
-                <ul>
-                  {g.rows.map((row) => (
-                    <StreamItem
-                      key={row.report.dataType}
-                      row={row}
-                      open={open === row.report.dataType}
-                      onToggle={() => setOpen((o) => (o === row.report.dataType ? null : row.report.dataType))}
-                    />
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
-        ))}
+    <SectionCard title={t('data.account.title')} hint={t('data.account.hint')}>
+      <div className={`px-5 pb-2 ${firstRuleOff(screen)}`}>
+        {demo ? (
+          <AccountRow
+            label={t('data.account.demo.label')}
+            text={t('data.account.demo.text')}
+            action={<button type="button" onClick={onSignOut} className={plain}>{t('data.account.demo.exit')}</button>}
+          />
+        ) : (
+          <>
+            <AccountRow
+              label={t('data.account.google.label')}
+              text={email ? t('data.account.google.connectedAs', { email }) : t('data.account.google.connected')}
+              action={<button type="button" onClick={onSignOut} className={plain}>{t('data.account.google.signOut')}</button>}
+            />
+            {onDisconnect && (
+              <AccountRow
+                label={t('data.account.delete.label')}
+                text={t('data.account.delete.text')}
+                action={
+                  <button
+                    type="button"
+                    onClick={onDisconnect}
+                    className="shrink-0 min-h-10 px-3.5 rounded-lg border border-rose-900/60 text-caption font-medium text-rose-300 hover:bg-rose-500/10 transition-colors"
+                  >
+                    {t('data.account.delete.action')}
+                  </button>
+                }
+              />
+            )}
+          </>
+        )}
       </div>
-    </Card>
+    </SectionCard>
   );
 }
 
-/** A stream's state at a glance: a dot, hollow when there's nothing, or a lock when it isn't shared. */
-function Mark({ kind }: { kind: Kind }) {
-  return kind === 'unshared' ? (
-    <Lock size={11} aria-hidden="true" className="shrink-0 text-zinc-400" />
-  ) : (
-    <span aria-hidden="true" className={`shrink-0 w-1.5 h-1.5 rounded-full ${KIND[kind].dot}`} />
-  );
-}
-
-function StreamItem({ row, open, onToggle }: { row: StreamRow; open: boolean; onToggle: () => void }) {
-  const r = row.report;
-  const id = `stream-${r.dataType}`;
-  const error = row.kind === 'failed' ? streamError(r) : undefined;
+function AccountRow({ label, text, action }: { label: string; text: string; action: React.ReactNode }) {
   return (
-    <li className="border-t border-zinc-800/60">
-      <button
-        type="button"
-        aria-expanded={open}
-        aria-controls={id}
-        onClick={onToggle}
-        className="w-full min-h-11 md:min-h-10 flex items-center gap-2.5 py-2 text-left"
-      >
-        <span className="flex-1 min-w-0 truncate text-body-sm text-zinc-200">{streamName(r.dataType, r.label)}</span>
-        <span className={`shrink-0 flex items-center gap-1.5 text-detail ${KIND[row.kind].text}`}>
-          <Mark kind={row.kind} />
-          {row.status}
-        </span>
-        <ChevronDown size={14} aria-hidden="true" className={`shrink-0 text-zinc-600 transition-transform ${open ? 'rotate-180' : ''}`} />
-      </button>
-      {open && (
-        <div id={id} className="pb-3.5">
-          <p className="text-detail leading-relaxed text-zinc-400">{row.detail}</p>
-          {error && (
-            <p className="mt-2 p-2 rounded-lg bg-rose-500/10 border border-rose-500/20 font-mono text-caption text-rose-400 whitespace-pre-wrap break-words">
-              {error}
-            </p>
-          )}
-          <p className="mt-2 text-note text-zinc-500">
-            <code className="font-mono text-zinc-400">{r.dataType}</code> · {row.fetch}
-          </p>
-        </div>
-      )}
-    </li>
+    <div className="py-3 border-t border-zinc-800/60 flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+      <div className="min-w-0 grow basis-64">
+        <div className="text-body text-zinc-200">{label}</div>
+        <p className="mt-0.5 text-caption leading-relaxed text-zinc-500">{text}</p>
+      </div>
+      {action}
+    </div>
   );
 }
