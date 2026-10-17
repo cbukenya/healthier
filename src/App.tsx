@@ -26,7 +26,7 @@ import { VitalsView } from './views/VitalsView';
 import { BodyView } from './views/BodyView';
 import { DataView } from './views/DataView';
 import { LabsView } from './views/LabsView';
-import { AboutYourData, SignInNote } from './views/SignInParts';
+import { AboutYourData, GoogleG, SignInNote } from './views/SignInParts';
 
 /** Why the sync failed, in words: a reason the app can name, or the failure's own words when it can't. */
 function failureText(f: SyncFailure): string {
@@ -138,8 +138,9 @@ export default function App() {
           <div className="space-y-3">
             <button
               onClick={signIn}
-              className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-white text-black font-semibold hover:bg-zinc-200 transition-colors"
+              className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-xl bg-white text-black font-semibold hover:bg-zinc-200 transition-colors"
             >
+              <GoogleG />
               {needsReconnect ? t('app.signIn.reconnect') : t('app.signIn.connect')}
             </button>
             {instance.demo && (
