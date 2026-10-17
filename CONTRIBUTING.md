@@ -165,7 +165,8 @@ users.
 
 ## Releasing (maintainers)
 
-Releases are cut from `main` by pushing a version tag:
+Releases are cut from `main` by pushing a version tag on it. A tag on any other commit fails
+before anything is published:
 
 ```sh
 git tag v0.2.0
@@ -176,6 +177,11 @@ The Release workflow runs CI, publishes `ghcr.io/cbukenya/healthier:0.2.0`, `:0.
 for amd64 and arm64, and creates a GitHub release with generated notes. Use semantic versioning;
 call out database migrations and `PIPELINE_VERSION` bumps in the release notes, since those make
 upgrades take longer.
+
+A deployment can follow the releases. Set the repository variable `DEPLOY_REPO` to its repository,
+and the secret `DEPLOY_DISPATCH_TOKEN` to a fine-grained token with **Contents: Read and write** on
+that repository alone. Each stable release then sends it a `release` event with the version, as
+`client_payload.version`. Pre-releases aren't sent.
 
 ## License
 

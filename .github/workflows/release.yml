@@ -1,7 +1,8 @@
-# Push a version tag to release:
+# Push a version tag on main to release:
 #   git tag v0.2.0 && git push origin v0.2.0
 # Publishes ghcr.io/cbukenya/healthier:0.2.0, :0.2 and :latest (amd64 + arm64)
-# and a GitHub release with notes generated from merged pull requests.
+# and a GitHub release with notes generated from merged pull requests. A tag
+# that isn't on main publishes nothing.
 name: Release
 
 on:
@@ -9,7 +10,21 @@ on:
     tags: ['v*.*.*']
 
 jobs:
+  on-main:
+    name: Tag is on main
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - run: |
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "::error::$GITHUB_REF_NAME isn't on main. Releases are tagged on main."
+            exit 1
+          fi
+
   ci:
+    needs: on-main
     uses: ./.github/workflows/ci.yml
 
   publish:
@@ -52,3 +67,18 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           PRERELEASE: ${{ contains(github.ref_name, '-') && '--prerelease' || '' }}
         run: gh release create "$GITHUB_REF_NAME" --verify-tag --generate-notes $PRERELEASE
+
+  # A deployment that follows releases, such as a hosted instance, names its repository in the
+  # DEPLOY_REPO variable: each stable release sends it a `release` event with the version. A
+  # fine-grained token in DEPLOY_DISPATCH_TOKEN, with Contents read and write on that repository
+  # alone, sends it. Without the variable, nothing is sent.
+  notify:
+    needs: publish
+    if: vars.DEPLOY_REPO != '' && !contains(github.ref_name, '-')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send the release to ${{ vars.DEPLOY_REPO }}
+        env:
+          GH_TOKEN: ${{ secrets.DEPLOY_DISPATCH_TOKEN }}
+          DEPLOY_REPO: ${{ vars.DEPLOY_REPO }}
+        run: gh api "repos/$DEPLOY_REPO/dispatches" -f event_type=release -f "client_payload[version]=${GITHUB_REF_NAME#v}"
