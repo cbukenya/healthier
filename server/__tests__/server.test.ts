@@ -72,6 +72,15 @@ describe('config', () => {
     );
   });
 
+  it('reads the sign-in note, trimmed, and keeps it to a few sentences', () => {
+    assert.equal(loadConfig(VALID_ENV).signInNote, null);
+    assert.equal(loadConfig({ ...VALID_ENV, SIGN_IN_NOTE: '  Email me to join.  ' }).signInNote, 'Email me to join.');
+    assert.throws(
+      () => loadConfig({ ...VALID_ENV, SIGN_IN_NOTE: 'x'.repeat(601) }),
+      (err: unknown) => err instanceof ConfigError && err.invalid.some((m) => m.startsWith('SIGN_IN_NOTE')),
+    );
+  });
+
   it('rejects malformed numbers and URLs', () => {
     assert.throws(
       () => loadConfig({ ...VALID_ENV, PORT: 'abc', APP_URL: 'localhost:3000', SYNC_INTERVAL_MINUTES: '-5' }),
@@ -81,11 +90,11 @@ describe('config', () => {
 });
 
 describe('instance', () => {
-  it('tells the sign-in screen whether demo mode is offered, before anyone signs in', async () => {
+  it("tells the sign-in screen whether demo mode is offered, and the install's note, before anyone signs in", async () => {
     const app = express();
     app.use(cookieParser());
     // No route here may reach the database without a session, so it isn't given one.
-    app.use('/api', apiRoutes({ config: loadConfig({ ...VALID_ENV, DEMO_MODE: 'false' }), db: {} as Db }));
+    app.use('/api', apiRoutes({ config: loadConfig({ ...VALID_ENV, DEMO_MODE: 'false', SIGN_IN_NOTE: 'Email me to join.' }), db: {} as Db }));
     const server = await new Promise<Server>((resolve) => {
       const s = app.listen(0, () => resolve(s));
     });
@@ -93,7 +102,7 @@ describe('instance', () => {
       const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}/api`;
       const instance = await fetch(`${base}/instance`);
       assert.equal(instance.status, 200);
-      assert.deepEqual(await instance.json(), { demo: false });
+      assert.deepEqual(await instance.json(), { demo: false, note: 'Email me to join.' });
       assert.equal((await fetch(`${base}/me`)).status, 401, 'everything else still needs a session');
     } finally {
       server.close();

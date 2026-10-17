@@ -403,7 +403,10 @@ of made-up data from a watch and a scale.
 
 An install can hide demo mode with `DEMO_MODE=false`. The sign-in screen asks `GET /api/instance`,
 the one API route that needs no session, whether to offer it. With no server behind it, as with
-`npm run demo`, it offers it.
+`npm run demo`, it offers it. The same route carries the install's own note for the sign-in
+screen (`SIGN_IN_NOTE`), such as how to join. It's the one place an install's own words reach the
+screen. The note is shown as text, with its email addresses and links made into links
+(`src/lib/linkify.ts`), never as markup.
 
 ## Guarantees the tests hold
 

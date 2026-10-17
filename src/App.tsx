@@ -26,6 +26,7 @@ import { VitalsView } from './views/VitalsView';
 import { BodyView } from './views/BodyView';
 import { DataView } from './views/DataView';
 import { LabsView } from './views/LabsView';
+import { AboutYourData, SignInNote } from './views/SignInParts';
 
 /** Why the sync failed, in words: a reason the app can name, or the failure's own words when it can't. */
 function failureText(f: SyncFailure): string {
@@ -118,7 +119,8 @@ export default function App() {
   if ((!user || needsReconnect) && !demo) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center p-6">
-        <div className="max-w-md w-full p-8 rounded-2xl bg-zinc-900 border border-zinc-800 shadow-2xl">
+        <div className="relative max-w-md w-full p-8 rounded-2xl bg-zinc-900 border border-zinc-800 shadow-2xl">
+          <AboutYourData />
           <img src="/logo.svg" alt="" width={48} height={48} className="mb-6" />
           <h1 className="font-display text-display text-white mb-2">{t('app.name')}</h1>
           <p className="text-body text-zinc-400 mb-8 leading-relaxed">
@@ -149,9 +151,7 @@ export default function App() {
               </button>
             )}
           </div>
-          {/* Google requires this disclosure in the app itself for the Health API's restricted scopes. */}
-          <p className="mt-6 text-caption leading-relaxed text-zinc-500">{t('app.signIn.disclosure')}</p>
-          <p className="mt-2 text-caption leading-relaxed text-zinc-600">{t('app.signIn.wellness')}</p>
+          {instance.note && <SignInNote note={instance.note} />}
         </div>
       </div>
     );

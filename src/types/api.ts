@@ -19,6 +19,8 @@ export interface ApiUser {
 export interface InstanceResponse {
   /** Whether the sign-in screen offers demo mode (DEMO_MODE). */
   demo: boolean;
+  /** The install's own note under the sign-in buttons (SIGN_IN_NOTE), in its own words; null for none. */
+  note: string | null;
 }
 
 export interface MeResponse {

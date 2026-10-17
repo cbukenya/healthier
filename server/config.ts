@@ -14,6 +14,9 @@ import { parseAccessList, type AccessList } from './access';
 
 type Env = Record<string, string | undefined>;
 
+/** The sign-in note is a sentence or two under a button, not a page. */
+const MAX_SIGN_IN_NOTE = 600;
+
 export interface Config {
   port: number;
   /** Public base URL the app is reached at; OAuth redirects are built from it. */
@@ -34,6 +37,8 @@ export interface Config {
   allowedEmails: AccessList | null;
   /** Whether the sign-in screen offers demo mode. */
   demoMode: boolean;
+  /** This install's own note under the sign-in buttons, such as how to join; null for none. */
+  signInNote: string | null;
 }
 
 export class ConfigError extends Error {
@@ -90,6 +95,11 @@ export function loadConfig(env: Env = process.env): Config {
     invalid.push('ENCRYPTION_KEY must be 32 bytes, base64-encoded. Generate one with: openssl rand -base64 32');
   }
 
+  const signInNote = optional('SIGN_IN_NOTE') ?? null;
+  if (signInNote && signInNote.length > MAX_SIGN_IN_NOTE) {
+    invalid.push(`SIGN_IN_NOTE must be at most ${MAX_SIGN_IN_NOTE} characters, got ${signInNote.length}`);
+  }
+
   let allowedEmails: AccessList | null = null;
   const rawAllowed = optional('ALLOWED_EMAILS');
   if (rawAllowed) {
@@ -112,6 +122,7 @@ export function loadConfig(env: Env = process.env): Config {
     historyDays: integer('HISTORY_DAYS', DEFAULT_HISTORY_DAYS, DASHBOARD_WINDOW_DAYS, 3650),
     allowedEmails,
     demoMode: flag('DEMO_MODE', true),
+    signInNote,
   };
 
   if (missing.length || invalid.length) throw new ConfigError(missing, invalid);

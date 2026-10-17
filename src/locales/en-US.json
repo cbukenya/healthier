@@ -70,6 +70,7 @@
       "connect": "Connect Google Account",
       "reconnect": "Reconnect Google Account",
       "demo": "Demo mode",
+      "about": "How Healthier uses your data",
       "disclosure": "Healthier reads your health and fitness data from Google Health (activity, sleep, heart rate, vitals and body measurements) to show your trends, work out your personal baselines and generate insights. It is stored only on the server running this app, used for nothing else, and never shared. You can disconnect and delete it at any time from the Data tab.",
       "wellness": "For general wellness only. Healthier is not a medical device and doesn't diagnose, detect or monitor any condition."
     },
