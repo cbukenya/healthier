@@ -178,11 +178,6 @@ for amd64 and arm64, and creates a GitHub release with generated notes. Use sema
 call out database migrations and `PIPELINE_VERSION` bumps in the release notes, since those make
 upgrades take longer.
 
-A deployment can follow the releases. Set the repository variable `DEPLOY_REPO` to its repository,
-and the secret `DEPLOY_DISPATCH_TOKEN` to a fine-grained token with **Contents: Read and write** on
-that repository alone. Each stable release then sends it a `release` event with the version, as
-`client_payload.version`. Pre-releases aren't sent.
-
 ## License
 
 Healthier is licensed under the [GNU AGPL-3.0](LICENSE). By contributing, you agree that your

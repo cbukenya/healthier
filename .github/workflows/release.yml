@@ -67,18 +67,3 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           PRERELEASE: ${{ contains(github.ref_name, '-') && '--prerelease' || '' }}
         run: gh release create "$GITHUB_REF_NAME" --verify-tag --generate-notes $PRERELEASE
-
-  # A deployment that follows releases, such as a hosted instance, names its repository in the
-  # DEPLOY_REPO variable: each stable release sends it a `release` event with the version. A
-  # fine-grained token in DEPLOY_DISPATCH_TOKEN, with Contents read and write on that repository
-  # alone, sends it. Without the variable, nothing is sent.
-  notify:
-    needs: publish
-    if: vars.DEPLOY_REPO != '' && !contains(github.ref_name, '-')
-    runs-on: ubuntu-latest
-    steps:
-      - name: Send the release to ${{ vars.DEPLOY_REPO }}
-        env:
-          GH_TOKEN: ${{ secrets.DEPLOY_DISPATCH_TOKEN }}
-          DEPLOY_REPO: ${{ vars.DEPLOY_REPO }}
-        run: gh api "repos/$DEPLOY_REPO/dispatches" -f event_type=release -f "client_payload[version]=${GITHUB_REF_NAME#v}"
