@@ -165,7 +165,8 @@ users.
 
 ## Releasing (maintainers)
 
-Releases are cut from `main` by pushing a version tag:
+Releases are cut from `main` by pushing a version tag on it. A tag on any other commit fails
+before anything is published:
 
 ```sh
 git tag v0.2.0
