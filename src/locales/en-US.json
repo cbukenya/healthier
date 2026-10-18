@@ -554,7 +554,7 @@
       },
       "bedDrifting": {
         "title": "Your bedtime has been all over the place",
-        "text": "Over the last two weeks your bedtime has moved by about {minutes, plural, one {# minute} other {# minutes}} either side of {time}. A steady bedtime often matters more than the total hours."
+        "text": "Over the last two weeks your bedtime has moved by about {minutes, plural, one {# minute} other {# minutes}} either side of {time}. A steadier bedtime helps your sleep, as long as you still get the hours you need."
       },
       "bedSettling": {
         "titleSettling": "Your bedtime is settling down",
@@ -580,7 +580,7 @@
         "textUsual": "{later, select, true {You've been going to bed around {time} lately, and it's been getting later.} other {You've been going to bed around {time} lately.}}",
         "usualAlsoShort": " You're also {shortfall} short on sleep this week.",
         "usualLastNightShort": " Last night was short.",
-        "actionUsual": "Getting to bed around your usual time tonight will help. A steady bedtime matters as much as the extra sleep."
+        "actionUsual": "Getting to bed around your usual time tonight, with time for a full night's sleep, will help."
       },
       "weekdayDeficit": {
         "title": "You sleep less on weekdays",
