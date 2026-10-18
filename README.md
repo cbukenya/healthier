@@ -296,3 +296,5 @@ Please report vulnerabilities privately; see [SECURITY.md](SECURITY.md).
 [GNU Affero General Public License v3.0](LICENSE). You may use, modify and self-host Healthier
 freely. If you run a modified version as a service for others, you must make your source code
 available to its users under the same license.
+
+The body battery's figures are silhouettes from [Vecteezy](https://www.vecteezy.com).

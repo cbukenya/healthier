@@ -19,6 +19,7 @@ import type { SyncResult } from '../pipeline/sync';
 import { useCycle } from '../hooks/useCycle';
 import { useGoals } from '../hooks/useGoals';
 import { BodyBattery, BodyBatteryCompact } from './BodyBattery';
+import type { Gender } from '../pipeline/registry';
 import { ThisWeek } from './ThisWeek';
 import { InsightsCarousel } from '../components/InsightsCarousel';
 import { Tile } from '../ui/Tile';
@@ -32,10 +33,13 @@ const usual = (c: Comparison | null) =>
 
 export function TodayView({
   data,
+  gender,
   intraday,
   clock,
 }: {
   data: SyncResult;
+  /** Picks the body battery's figure. */
+  gender: Gender | null;
   intraday?: IntradayDays;
   /** Demo mode runs on the fixture's clock and zone; live data on this device's. */
   clock?: { now: Date; timeZone: string };
@@ -83,6 +87,7 @@ export function TodayView({
     label: s.readiness.label,
     missing: s.readiness.missing,
     calibrating: s.readiness.calibrating,
+    gender,
   };
   // A tile's date note, when its reading isn't today's.
   const from = (date: CivilDate | null | undefined) => (date && date !== today ? t('today.from', { date: formatCivilLong(date) }) : null);
