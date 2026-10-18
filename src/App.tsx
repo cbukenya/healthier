@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { IntradaySample } from './types/health';
-import { CircleDotDashed, FileCode2, FlaskConical, Footprints, Heart, Moon, RefreshCw, User, ShieldAlert, PersonStanding } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CircleDotDashed, FileCode2, FlaskConical, Footprints, Heart, Moon, RefreshCw, User, ShieldAlert, PersonStanding } from 'lucide-react';
 import { useAuth } from './hooks/useAuth';
 import { useInstance } from './hooks/useInstance';
 import { useHealth } from './hooks/useHealth';
@@ -95,6 +95,13 @@ export default function App() {
     }
   }, [user, demo]);
 
+  // A page opened from the bar starts at its top, not where the last one was left.
+  useEffect(() => {
+    window.scrollTo({ top: 0 });
+  }, [view]);
+
+  const bar = usePinnedHeight();
+
   if (!ready || !instance) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
@@ -146,10 +153,9 @@ export default function App() {
   }
 
   const shell = (
-      <div className="max-w-5xl mx-auto px-4 pt-3 pb-6 md:pt-6">
-        <PageNav view={view} setView={setView} />
+      <div className="max-w-5xl mx-auto px-4 pt-2 pb-6 md:pt-3">
         {today && (
-          <time dateTime={today} className="block mt-1 px-3 text-right text-detail text-zinc-500">
+          <time dateTime={today} className="block px-3 text-right text-detail text-zinc-500">
             {formatCivilDay(today)}
           </time>
         )}
@@ -233,10 +239,12 @@ export default function App() {
       </div>
   );
 
-  return (
-    <div className="min-h-screen bg-black text-zinc-300 font-sans selection:bg-zinc-800 selection:text-white">
-      {/* Header */}
-      <header className="sticky top-0 z-30 bg-black/80 backdrop-blur-md border-b border-zinc-800/80">
+  // The bar and the page icons are pinned together, solid, so no page is ever behind the bar: iOS
+  // Safari can shift a pinned bar out of place, and anything sliding under it got lost there. The
+  // padding keeps the bar clear of the status bar when Healthier runs from the Home Screen.
+  const page = (
+    <>
+      <header ref={bar} className="sticky top-0 z-30 bg-black border-b border-zinc-800/80 pt-[env(safe-area-inset-top)]">
         <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <img src="/logo.svg" alt="" width={28} height={28} />
@@ -274,63 +282,188 @@ export default function App() {
             </button>
           </div>
         </div>
+        <div className="max-w-5xl mx-auto px-4 pt-1 md:pt-2">
+          <PageNav view={view} setView={setView} />
+        </div>
       </header>
+      {shell}
+    </>
+  );
 
-      {/* Navigation & Status. Cycle tracking reaches the nav as well as the pages. */}
-      {health.data ? <CycleProvider data={health.data} live={!demo}>{shell}</CycleProvider> : shell}
+  return (
+    <div className="min-h-screen bg-black text-zinc-300 font-sans selection:bg-zinc-800 selection:text-white">
+      {/* Cycle tracking reaches the page icons as well as the pages. */}
+      {health.data ? <CycleProvider data={health.data} live={!demo}>{page}</CycleProvider> : page}
     </div>
   );
 }
 
 type View = 'today' | 'activity' | 'sleep' | 'vitals' | 'body' | 'cycle' | 'labs' | 'data';
 
-/** The pages, the Cycle page among them while cycle tracking is on. */
+/**
+ * The bar's height as `--bar-height` on the page, for whatever sticks under the bar: the Data
+ * page's section list. It changes with the text size, so it's measured, not assumed.
+ */
+function usePinnedHeight() {
+  const observer = useRef<ResizeObserver | null>(null);
+  return useCallback((el: HTMLElement | null) => {
+    observer.current?.disconnect();
+    observer.current = null;
+    if (!el) return;
+    const set = () => document.documentElement.style.setProperty('--bar-height', `${el.offsetHeight}px`);
+    set();
+    observer.current = new ResizeObserver(set);
+    observer.current.observe(el);
+  }, []);
+}
+
+/** How far from the row's edge the open page is kept, clear of the fade. */
+const EDGE = 48;
+
+/**
+ * The pages, the Cycle page among them while cycle tracking is on. On a narrow phone they don't
+ * all fit: the row scrolls sideways on its own, by swipe, trackpad or mouse wheel, and an edge
+ * with pages past it fades out behind a small arrow that slides the row along.
+ */
 function PageNav({ view, setView }: { view: View; setView: (view: View) => void }) {
   const tracking = useCycleTracking();
   // Turning tracking off on the Data page takes the Cycle page away; never leave anyone on it.
   useEffect(() => {
     if (view === 'cycle' && !tracking) setView('today');
   }, [view, tracking, setView]);
+
+  const row = useRef<HTMLDivElement>(null);
+  const [edges, setEdges] = useState({ before: false, after: false });
+  const measure = useCallback(() => {
+    const el = row.current;
+    if (!el) return;
+    const before = el.scrollLeft > 1;
+    const after = el.scrollLeft + el.clientWidth < el.scrollWidth - 1;
+    setEdges((e) => (e.before === before && e.after === after ? e : { before, after }));
+  }, []);
+
+  /** Scrolls the row so the open page is in view, clear of the fade. */
+  const reveal = useCallback(() => {
+    const el = row.current;
+    const open = el?.querySelector<HTMLElement>('[aria-current="page"]');
+    if (el && open) {
+      const start = open.offsetLeft;
+      const end = start + open.offsetWidth;
+      if (start - EDGE < el.scrollLeft) el.scrollLeft = start - EDGE;
+      else if (end + EDGE > el.scrollLeft + el.clientWidth) el.scrollLeft = end + EDGE - el.clientWidth;
+    }
+    measure();
+  }, [measure]);
+  useLayoutEffect(reveal, [view, tracking, reveal]);
+
+  // A turned phone, a new text size or the fonts arriving change what fits, and how wide the open page is.
+  useEffect(() => {
+    const el = row.current;
+    if (!el) return;
+    const observer = new ResizeObserver(reveal);
+    observer.observe(el);
+    for (const child of el.children) observer.observe(child);
+    void document.fonts?.ready.then(reveal);
+    return () => observer.disconnect();
+  }, [tracking, reveal]);
+
+  // A mouse wheel turns the row while it has pages past an edge, then hands back to the page.
+  useEffect(() => {
+    const el = row.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
+      const next = Math.min(el.scrollWidth - el.clientWidth, Math.max(0, el.scrollLeft + e.deltaY));
+      if (Math.round(next) === Math.round(el.scrollLeft)) return;
+      e.preventDefault();
+      el.scrollLeft = next;
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, []);
+
+  const slide = (direction: 1 | -1) => {
+    const el = row.current;
+    el?.scrollBy({ left: direction * Math.round(el.clientWidth * 0.6), behavior: 'smooth' });
+  };
+
   return (
-    <nav className="flex items-center justify-between md:justify-start gap-0.5 md:gap-1 overflow-x-auto pb-2 no-scrollbar">
-      <NavButton
-        active={view === 'today'} onClick={() => setView('today')}
-        icon={<User size={14} />} label={t('app.nav.today')}
-      />
-      <NavButton
-        active={view === 'activity'} onClick={() => setView('activity')}
-        icon={<Footprints size={14} />} label={t('app.nav.activity')} color={DOMAIN.movement.text}
-      />
-      <NavButton
-        active={view === 'sleep'} onClick={() => setView('sleep')}
-        icon={<Moon size={14} />} label={t('app.nav.sleep')} color={DOMAIN.sleep.text}
-      />
-      <NavButton
-        active={view === 'vitals'} onClick={() => setView('vitals')}
-        icon={<Heart size={14} />} label={t('app.nav.vitals')} color={DOMAIN.cardio.text}
-      />
-      <NavButton
-        active={view === 'body'} onClick={() => setView('body')}
-        icon={<PersonStanding size={14} />} label={t('app.nav.body')} color={DOMAIN.body.text}
-      />
-      {tracking && (
+    <nav aria-label={t('app.nav.label')}>
+      <div
+        ref={row}
+        onScroll={measure}
+        className="relative flex items-center justify-between md:justify-start gap-0.5 md:gap-1 overflow-x-auto overscroll-x-contain pb-2 no-scrollbar"
+      >
+        {edges.before && <RowEdge side="start" onClick={() => slide(-1)} />}
         <NavButton
-          active={view === 'cycle'} onClick={() => setView('cycle')}
-          icon={<CircleDotDashed size={14} />} label={t('app.nav.cycle')} color={DOMAIN.cycle.text}
+          active={view === 'today'} onClick={() => setView('today')}
+          icon={<User size={14} />} label={t('app.nav.today')}
         />
-      )}
-      <NavButton
-        active={view === 'labs'} onClick={() => setView('labs')}
-        icon={<FlaskConical size={14} />} label={t('app.nav.labs')} color="text-yellow-400"
-      />
-      {/* Sets Data apart. On phones it gives way when the row is full, so it never pushes Data out of view. */}
-      <div className="flex justify-center w-[19px] -mx-px min-w-0 shrink overflow-hidden md:w-auto md:mx-2 md:shrink-0">
-        <div className="w-px h-4 shrink-0 bg-zinc-800" />
+        <NavButton
+          active={view === 'activity'} onClick={() => setView('activity')}
+          icon={<Footprints size={14} />} label={t('app.nav.activity')} color={DOMAIN.movement.text}
+        />
+        <NavButton
+          active={view === 'sleep'} onClick={() => setView('sleep')}
+          icon={<Moon size={14} />} label={t('app.nav.sleep')} color={DOMAIN.sleep.text}
+        />
+        <NavButton
+          active={view === 'vitals'} onClick={() => setView('vitals')}
+          icon={<Heart size={14} />} label={t('app.nav.vitals')} color={DOMAIN.cardio.text}
+        />
+        <NavButton
+          active={view === 'body'} onClick={() => setView('body')}
+          icon={<PersonStanding size={14} />} label={t('app.nav.body')} color={DOMAIN.body.text}
+        />
+        {tracking && (
+          <NavButton
+            active={view === 'cycle'} onClick={() => setView('cycle')}
+            icon={<CircleDotDashed size={14} />} label={t('app.nav.cycle')} color={DOMAIN.cycle.text}
+          />
+        )}
+        <NavButton
+          active={view === 'labs'} onClick={() => setView('labs')}
+          icon={<FlaskConical size={14} />} label={t('app.nav.labs')} color="text-yellow-400"
+        />
+        {/* Sets Data apart. On phones it gives way when the row is full, so it never pushes Data out of view. */}
+        <div className="flex justify-center w-[19px] -mx-px min-w-0 shrink overflow-hidden md:w-auto md:mx-2 md:shrink-0">
+          <div className="w-px h-4 shrink-0 bg-zinc-800" />
+        </div>
+        <NavButton
+          active={view === 'data'} onClick={() => setView('data')}
+          icon={<FileCode2 size={14} />} label={t('app.nav.data')} color="text-zinc-400"
+        />
+        {edges.after && <RowEdge side="end" onClick={() => slide(1)} />}
       </div>
-      <NavButton
-        active={view === 'data'} onClick={() => setView('data')}
-        icon={<FileCode2 size={14} />} label={t('app.nav.data')} color="text-zinc-400"
-      />
     </nav>
+  );
+}
+
+/**
+ * An edge of the page row with pages past it: a fade, and an arrow that slides the row along. Both
+ * sit inside the row, pinned to its visible edge, so a swipe that starts on them still scrolls it.
+ * The arrow is for fingers; a keyboard reaches every page by tabbing along the row. Its negative
+ * margin takes back the row's gap, so showing an edge never changes how far the row scrolls.
+ */
+function RowEdge({ side, onClick }: { side: 'start' | 'end'; onClick: () => void }) {
+  const start = side === 'start';
+  return (
+    <div className={`sticky z-10 w-0 shrink-0 self-stretch ${start ? 'left-0 -mr-0.5 md:-mr-1' : 'right-0 -ml-0.5 md:-ml-1'}`}>
+      <div
+        aria-hidden="true"
+        className={`pointer-events-none absolute top-0 h-10 md:h-full w-14 from-black via-black/85 to-transparent ${start ? 'left-0 bg-linear-to-r' : 'right-0 bg-linear-to-l'}`}
+      />
+      <button
+        type="button"
+        tabIndex={-1}
+        aria-hidden="true"
+        onClick={onClick}
+        className={`absolute top-0 h-10 md:h-full w-9 flex items-center text-zinc-400 hover:text-zinc-200 ${start ? 'left-0 justify-start' : 'right-0 justify-end'}`}
+      >
+        <span className="size-6 rounded-full bg-zinc-800 flex items-center justify-center">
+          {start ? <ChevronLeft size={14} strokeWidth={2.5} /> : <ChevronRight size={14} strokeWidth={2.5} />}
+        </span>
+      </button>
+    </div>
   );
 }
