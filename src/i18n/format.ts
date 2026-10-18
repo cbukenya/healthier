@@ -105,6 +105,12 @@ export function formatMonthYear(monthOrDate: string): string {
   return t('format.date.monthYear', { month: names('format.months')[m - 1], year: y });
 }
 
+/** "Sep 2025", from a 'YYYY-MM' month or a date. */
+export function formatMonthYearShort(monthOrDate: string): string {
+  const [y, m] = parts(monthOrDate);
+  return t('format.date.monthYear', { month: names('format.monthsShort')[m - 1], year: y });
+}
+
 /** "September" in `today`'s year, "March 2025" in another, from a 'YYYY-MM' month or a date. */
 export function formatMonth(monthOrDate: string, today: CivilDate): string {
   const [y, m] = parts(monthOrDate);
@@ -115,10 +121,8 @@ export function formatMonth(monthOrDate: string, today: CivilDate): string {
 export function bucketLabel(date: CivilDate, bucket: Bucket, style: 'tick' | 'full' = 'tick'): string {
   const [y, m] = parts(date);
   if (bucket === 'month') {
-    const month = names('format.monthsShort')[m - 1];
-    return style === 'full'
-      ? t('format.date.monthYear', { month, year: y })
-      : t('format.date.monthYearShort', { month, year: String(y).slice(2) });
+    if (style === 'full') return formatMonthYearShort(date);
+    return t('format.date.monthYearShort', { month: names('format.monthsShort')[m - 1], year: String(y).slice(2) });
   }
   if (bucket === 'week' && style === 'full') return t('format.date.weekOf', { date: formatCivilYear(date) });
   return formatCivil(date);

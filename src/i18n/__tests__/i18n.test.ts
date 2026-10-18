@@ -120,6 +120,10 @@ describe('language files', () => {
     assert.deepEqual(Object.keys(enUS.streams).sort(), synced.sort());
   });
 
+  it('name every stream inside a sentence too, the same streams', () => {
+    assert.deepEqual(Object.keys(enUS.streamsInText).sort(), Object.keys(enUS.streams).sort());
+  });
+
   it('are used: every key in the English file is named somewhere in the code', () => {
     const literals = new Set<string>();
     const prefixes: string[] = [];

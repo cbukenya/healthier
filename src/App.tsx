@@ -3,7 +3,7 @@ import type { IntradaySample } from './types/health';
 import { CircleDotDashed, FileCode2, FlaskConical, Footprints, Heart, Moon, RefreshCw, User, ShieldAlert, PersonStanding } from 'lucide-react';
 import { useAuth } from './hooks/useAuth';
 import { useInstance } from './hooks/useInstance';
-import { useHealth, type SyncFailure } from './hooks/useHealth';
+import { useHealth } from './hooks/useHealth';
 import { HistoryProvider } from './hooks/useHistory';
 import { GoalsProvider } from './hooks/useGoals';
 import { CycleProvider, useCycleTracking } from './hooks/useCycle';
@@ -12,7 +12,8 @@ import { DASHBOARD_WINDOW_DAYS } from './pipeline/sync';
 import { DEMO_CLOCK } from './pipeline/demo';
 import { formatCivilDay } from './i18n/format';
 import { t } from './i18n';
-import { streamError, streamName } from './i18n/streams';
+import { streamName } from './i18n/streams';
+import { failureText } from './i18n/sync';
 import { api } from './lib/api';
 import type { Gender } from './pipeline/registry';
 import { readGoals, type Goals } from './pipeline/goals';
@@ -26,26 +27,6 @@ import { VitalsView } from './views/VitalsView';
 import { BodyView } from './views/BodyView';
 import { DataView } from './views/DataView';
 import { LabsView } from './views/LabsView';
-
-/** Why the sync failed, in words: a reason the app can name, or the failure's own words when it can't. */
-function failureText(f: SyncFailure): string {
-  switch (f.code) {
-    case 'rejected':
-      return t('app.syncFailed.reasons.rejected', { detail: streamError(f.detail) ?? '' });
-    case 'reconnect':
-      return t('app.syncFailed.reasons.reconnect');
-    case 'tokenRefresh':
-      return t('app.syncFailed.reasons.tokenRefresh', { status: f.status });
-    case 'request':
-      return t('app.syncFailed.reasons.request', { status: f.status });
-    case 'noData':
-      return t('app.syncFailed.reasons.noData');
-    case 'unknown':
-      return t('app.syncFailed.reasons.unknown');
-    case 'other':
-      return f.detail;
-  }
-}
 
 export default function App() {
   const { user, needsReconnect, ready, signIn, signOut, deleteAccount, reload } = useAuth();
@@ -76,6 +57,12 @@ export default function App() {
     },
     [],
   );
+
+  /** Out of the demo, or signed out, keeping the data. */
+  const leave = () => {
+    if (demo) setDemo(false);
+    else void signOut();
+  };
 
   const disconnect = async () => {
     if (!window.confirm(t('app.disconnect.confirm'))) return;
@@ -227,7 +214,13 @@ export default function App() {
               <DataView
                 data={health.data}
                 live={!demo}
+                syncing={health.phase === 'revalidating'}
+                failure={health.error}
+                email={demo ? null : user?.email ?? null}
                 onFullSync={health.fullSync}
+                onRetry={health.refresh}
+                onSignIn={signIn}
+                onSignOut={leave}
                 onDisconnect={demo ? undefined : disconnect}
                 onSourcesChanged={(refetching) => void (refetching ? health.refresh() : health.reload())}
               />
@@ -273,10 +266,7 @@ export default function App() {
             )}
 
             <button
-              onClick={() => {
-                if (demo) setDemo(false);
-                else signOut();
-              }}
+              onClick={leave}
               className="min-h-11 md:min-h-0 px-3 py-1.5 rounded-lg text-detail md:text-caption font-medium text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
             >
               {demo ? t('app.header.exitDemo') : t('app.header.signOut')}

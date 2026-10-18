@@ -50,13 +50,16 @@ export function Card({
   children,
   className = '',
   as: Tag = 'section',
+  label,
 }: {
   children: React.ReactNode;
   className?: string;
   as?: any;
+  /** A name for the card when nothing in it names it. */
+  label?: string;
 }) {
   return (
-    <Tag className={`bg-zinc-900/70 border border-zinc-800 rounded-2xl ${className}`}>{children}</Tag>
+    <Tag aria-label={label} className={`bg-zinc-900/70 border border-zinc-800 rounded-2xl ${className}`}>{children}</Tag>
   );
 }
 

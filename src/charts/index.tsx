@@ -5,15 +5,15 @@ import {
   Area, Bar, BarChart, CartesianGrid, Cell, ComposedChart, Line, ReferenceArea,
   ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts';
-import { isoWeekdayIndex, type CivilDate } from '../lib/date';
+import type { CivilDate } from '../lib/date';
 import { lastIndexWithValue, rollingMean, values, type Point } from '../pipeline/derive';
 import { niceScale } from '../lib/scale';
-import { bucketStart, meanWindowFor, type Bucket } from '../pipeline/aggregate';
+import { meanWindowFor, type Bucket } from '../pipeline/aggregate';
 import { AXIS, GRID, fmtDuration, fmtNum } from '../ui/primitives';
 import { rulerStep } from '../ui/DayRuler';
 import type { DailyRecord, SleepSession } from '../types/health';
 import { names, numberFormat, t, type MessageKey } from '../i18n';
-import { bucketLabel, formatCivil, formatCivilNumeric, formatClock, formatYear, meanLabel, weekdayLetter } from '../i18n/format';
+import { bucketLabel, formatCivil, formatClock, meanLabel, weekdayLetter } from '../i18n/format';
 
 /**
  * Charts.
@@ -718,120 +718,6 @@ export function StageBar({ session, height = 14 }: { session: SleepSession; heig
       )}
     </div>
   );
-}
-
-// ─────────────────────────────────────────────────────────── coverage grid
-
-/**
- * One cell per day per stream. This is the chart that would have made the old
- * bugs obvious on day one: a stream returning nothing looks completely different
- * from a stream returning zeros.
- */
-export function CoverageGrid({
-  rows,
-  dates,
-  bucket = 'day',
-}: {
-  rows: { dataType: string; label: string; days: boolean[]; observed: number; total: number }[];
-  dates: CivilDate[];
-  /**
-   * Day: one cell per day, recorded or not. Week/month: one cell per bucket,
-   * shaded by the share of its days that have a reading.
-   */
-  bucket?: Bucket;
-}) {
-  // Cell boundaries: index ranges into `dates`, one per day or per bucket.
-  const cells = useMemo(() => {
-    const out: { date: CivilDate; from: number; to: number }[] = [];
-    dates.forEach((d, i) => {
-      const key = bucketStart(d, bucket);
-      const last = out[out.length - 1];
-      if (last && last.date === key) last.to = i;
-      else out.push({ date: key, from: i, to: i });
-    });
-    return out;
-  }, [dates, bucket]);
-
-  const labels = useMemo(() => {
-    const out = cells.map((_, i) => coverageLabel(cells, i, bucket));
-    // The first column is labelled so the grid never starts unnamed, unless the next label is right beside it.
-    const next = out.findIndex((l, i) => i > 0 && l !== null);
-    if (cells.length > 31 && next > 0 && next < 4) out[0] = null;
-    return out;
-  }, [cells, bucket]);
-  const gap = cells.length > 120 ? 'gap-0' : 'gap-[1.5px]';
-
-  return (
-    <div className="overflow-x-auto px-5 pb-5">
-      <div className="min-w-[560px]">
-        {/* Column labels share the cells' flex layout, so each sits exactly over its column. */}
-        <div className="flex gap-2 mb-1.5">
-          <span className="w-[144px] shrink-0" />
-          <div className={`flex flex-1 ${gap} h-11`}>
-            {cells.map((c, i) => (
-              <span key={c.date} className="flex-1 min-w-0 flex items-end justify-center">
-                {labels[i] && (
-                  <span className="text-micro leading-none text-zinc-500 whitespace-nowrap [writing-mode:vertical-rl] rotate-180">
-                    {labels[i]}
-                  </span>
-                )}
-              </span>
-            ))}
-          </div>
-          <span className="w-[52px] shrink-0" />
-        </div>
-        {rows.map((r) => (
-          <div key={r.dataType} className="flex items-center gap-2 mb-[3px]">
-            <span className="w-[144px] shrink-0 text-caption text-zinc-400 truncate" title={r.dataType}>
-              {r.label}
-            </span>
-            <div className={`flex flex-1 ${gap}`}>
-              {cells.map((c) => {
-                const total = c.to - c.from + 1;
-                let recorded = 0;
-                for (let i = c.from; i <= c.to; i++) if (r.days[i]) recorded++;
-                const when = bucket === 'day' ? formatCivilNumeric(dates[c.from]) : bucketLabel(c.date, bucket, 'full');
-                const title =
-                  bucket === 'day'
-                    ? t(recorded ? 'charts.coverage.dayRecorded' : 'charts.coverage.dayMissing', { date: when, stream: r.label })
-                    : t('charts.coverage.bucket', { date: when, stream: r.label, recorded, total });
-                return (
-                  <span
-                    key={c.date}
-                    title={title}
-                    className={`flex-1 h-3.5 rounded-[1.5px] ${recorded ? 'bg-emerald-500' : 'bg-zinc-800'}`}
-                    // A full bucket matches a recorded day; partial ones fade with their share.
-                    style={recorded ? { opacity: 0.25 + 0.45 * (recorded / total) } : undefined}
-                  />
-                );
-              })}
-            </div>
-            {/* The counts go in raw, without digit grouping ("1043/1096", not "1,043/1,096"), to keep to the 52px column. */}
-            <span className="w-[52px] shrink-0 text-right text-note text-zinc-500 tabular-nums">
-              {t('charts.coverage.count', { observed: r.observed, total: r.total })}
-            </span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-/**
- * Which coverage columns get a date label: every day up to a month, Mondays up
- * to ~4 months, the first week of each month for weekly cells, and months (or
- * years, past three years) for monthly ones.
- */
-function coverageLabel(cells: { date: CivilDate }[], i: number, bucket: Bucket): string | null {
-  const c = cells[i];
-  const prev = cells[i - 1];
-  if (bucket === 'day') {
-    if (cells.length <= 31) return formatCivil(c.date);
-    return i === 0 || isoWeekdayIndex(c.date) === 0 ? formatCivil(c.date) : null;
-  }
-  if (bucket === 'week') return !prev || prev.date.slice(0, 7) !== c.date.slice(0, 7) ? bucketLabel(c.date, 'month') : null;
-  if (cells.length <= 36) return bucketLabel(c.date, 'month');
-  return i === 0 || c.date.slice(5, 7) === '01' ? formatYear(c.date) : null;
 }
 
 // ─────────────────────────────────────────────────────── weekday profile
