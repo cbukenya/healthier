@@ -222,6 +222,7 @@ reference.
 | `SYNC_INTERVAL_MINUTES` | no | Background sync interval per user. Default `60`; `0` turns it off. |
 | `HISTORY_DAYS` | no | Days of daily history kept and imported per user. Default `730` (62–3650). |
 | `DEMO_MODE` | no | Offer **Demo mode** on the sign-in screen. Default `true`; `false` hides it. |
+| `SIGN_IN_NOTE` | no | Your own note under the sign-in buttons, such as how to join. Plain text, up to 600 characters; email addresses and links in it become links. Empty shows none. |
 
 ## Running behind a domain
 

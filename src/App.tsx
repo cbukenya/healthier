@@ -27,6 +27,7 @@ import { VitalsView } from './views/VitalsView';
 import { BodyView } from './views/BodyView';
 import { DataView } from './views/DataView';
 import { LabsView } from './views/LabsView';
+import { AboutYourData, GoogleG, SignInNote } from './views/SignInParts';
 
 export default function App() {
   const { user, needsReconnect, ready, signIn, signOut, deleteAccount, reload } = useAuth();
@@ -105,7 +106,8 @@ export default function App() {
   if ((!user || needsReconnect) && !demo) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center p-6">
-        <div className="max-w-md w-full p-8 rounded-2xl bg-zinc-900 border border-zinc-800 shadow-2xl">
+        <div className="relative max-w-md w-full p-8 rounded-2xl bg-zinc-900 border border-zinc-800 shadow-2xl">
+          <AboutYourData />
           <img src="/logo.svg" alt="" width={48} height={48} className="mb-6" />
           <h1 className="font-display text-display text-white mb-2">{t('app.name')}</h1>
           <p className="text-body text-zinc-400 mb-8 leading-relaxed">
@@ -123,8 +125,9 @@ export default function App() {
           <div className="space-y-3">
             <button
               onClick={signIn}
-              className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-white text-black font-semibold hover:bg-zinc-200 transition-colors"
+              className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-xl bg-white text-black font-semibold hover:bg-zinc-200 transition-colors"
             >
+              <GoogleG />
               {needsReconnect ? t('app.signIn.reconnect') : t('app.signIn.connect')}
             </button>
             {instance.demo && (
@@ -136,9 +139,7 @@ export default function App() {
               </button>
             )}
           </div>
-          {/* Google requires this disclosure in the app itself for the Health API's restricted scopes. */}
-          <p className="mt-6 text-caption leading-relaxed text-zinc-500">{t('app.signIn.disclosure')}</p>
-          <p className="mt-2 text-caption leading-relaxed text-zinc-600">{t('app.signIn.wellness')}</p>
+          {instance.note && <SignInNote note={instance.note} />}
         </div>
       </div>
     );
