@@ -51,10 +51,11 @@ function ago(days: number): string {
   return t('body.latest.ago.months', { count: Math.round(days / 30.4) });
 }
 
-export function BodyView({ data, onGender, clock, intraday }: {
+export function BodyView({ data, gender, onGender, clock, intraday }: {
   data: SyncResult;
-  /** Saves the person's gender; absent in demo mode, where it lasts as long as the page. */
-  onGender?: (gender: Gender | null) => Promise<void>;
+  /** The person's gender, kept by the app so Today's figure follows a change at once. */
+  gender: Gender | null;
+  onGender: (gender: Gender | null) => void;
   clock?: Clock;
   intraday?: IntradayDays;
 }) {
@@ -65,7 +66,6 @@ export function BodyView({ data, onGender, clock, intraday }: {
   // A phone shows one chart at a time behind chips; wider screens show them all.
   const wide = useMediaQuery('(min-width: 768px)');
   const [chart, setChart] = useState<BodyChart>('weight');
-  const [gender, setGender] = useState<Gender | null>(data.profile.gender ?? null);
 
   // The newest readings, whatever span is on screen: long history once it has loaded, else the window.
   const all = history.days ?? data.days;
@@ -74,22 +74,13 @@ export function BodyView({ data, onGender, clock, intraday }: {
   const heightCm = data.profile.heightCm;
   const bmi = (kg: number) => (heightCm ? kg / (heightCm / 100) ** 2 : null);
 
-  const chooseGender = (next: Gender | null) => {
-    const before = gender;
-    setGender(next);
-    onGender?.(next).catch((err) => {
-      console.error('Failed to save gender:', err);
-      setGender(before);
-    });
-  };
-
   const { latest, previous } = body;
   const profile = (
     <ProfileTile
       age={data.profile.age ?? null}
       heightCm={heightCm}
       gender={gender}
-      onGender={chooseGender}
+      onGender={onGender}
       className={`col-span-2 ${latest ? 'lg:col-span-1 lg:order-2' : 'lg:col-span-3'}`}
     />
   );

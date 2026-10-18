@@ -50,6 +50,21 @@ export default function App() {
     await api<ProfileResponse>('/api/profile', { method: 'PUT', body: { gender } });
   };
 
+  // The gender the person set, from their profile until they change it on the Body page. The app
+  // keeps it so Today's figure follows a change at once; in demo mode it lasts as long as the page.
+  const [genderChoice, setGenderChoice] = useState<Gender | null | undefined>(undefined);
+  useEffect(() => setGenderChoice(undefined), [user, demo]);
+  const gender = genderChoice === undefined ? health.data?.profile?.gender ?? null : genderChoice;
+  const chooseGender = (next: Gender | null) => {
+    const before = gender;
+    setGenderChoice(next);
+    if (demo) return;
+    saveGender(next).catch((err) => {
+      console.error('Failed to save gender:', err);
+      setGenderChoice(before);
+    });
+  };
+
   // Goals come with the dataset; read once per dataset so every screen sees the same object.
   const savedGoals = useMemo(() => readGoals(health.data?.profile?.goals), [health.data]);
   const saveGoals = useMemo(
@@ -210,11 +225,11 @@ export default function App() {
           <GoalsProvider saved={savedGoals} save={demo ? undefined : saveGoals}>
           <HistoryProvider data={health.data} info={health.history} live={!demo} local={health.localHistory}>
           <main className="mt-3 md:mt-6 animate-in fade-in duration-500">
-            {view === 'today' && <TodayView data={health.data} intraday={intradayDays} clock={demo ? DEMO_CLOCK : undefined} />}
+            {view === 'today' && <TodayView data={health.data} gender={gender} intraday={intradayDays} clock={demo ? DEMO_CLOCK : undefined} />}
             {view === 'activity' && <ActivityView data={health.data} intraday={intradayDays} clock={demo ? DEMO_CLOCK : undefined} />}
             {view === 'sleep' && <SleepView data={health.data} intraday={intradayDays} clock={demo ? DEMO_CLOCK : undefined} />}
             {view === 'vitals' && <VitalsView data={health.data} intraday={intradayDays} clock={demo ? DEMO_CLOCK : undefined} />}
-            {view === 'body' && <BodyView data={health.data} onGender={demo ? undefined : saveGender} intraday={intradayDays} clock={demo ? DEMO_CLOCK : undefined} />}
+            {view === 'body' && <BodyView data={health.data} gender={gender} onGender={chooseGender} intraday={intradayDays} clock={demo ? DEMO_CLOCK : undefined} />}
             {view === 'cycle' && <CycleView data={health.data} intraday={intradayDays} clock={demo ? DEMO_CLOCK : undefined} />}
             {view === 'labs' && <LabsView data={health.data} intraday={intradayDays} />}
             {view === 'data' && (

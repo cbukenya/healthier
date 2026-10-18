@@ -3,6 +3,8 @@ import { BASELINE_DAYS, BATTERY_TIERS, batteryTier, type Readiness, type Readine
 import { t, type MessageKey } from '../i18n';
 import { formatFixed, formatList } from '../i18n/format';
 import { Contributors } from '../ui/primitives';
+import type { Gender } from '../pipeline/registry';
+import { silhouette } from './silhouettes';
 
 interface BodyBatteryProps {
   /** Null when readiness can't be computed yet (too little history). */
@@ -12,6 +14,8 @@ interface BodyBatteryProps {
   label: string;
   missing: Readiness['missing'];
   calibrating: Readiness['calibrating'];
+  /** Picks the figure: a woman's for female, else a man's. */
+  gender: Gender | null;
   className?: string;
 }
 
@@ -74,30 +78,20 @@ const TOP = 9;
 const BOTTOM = 462;
 const yOf = (level: number) => BOTTOM - (level / 100) * (BOTTOM - TOP);
 
-function BodyShape() {
-  return (
-    <>
-      <circle cx="120" cy="36" r="27"/>
-      <rect x="107" y="54" width="26" height="24" rx="9"/>
-      <path d="M84,90 C84,77 95,72 104,72 L136,72 C145,72 156,77 156,90 L152,184 C151,198 155,212 156,230 C157,250 146,260 120,260 C94,260 83,250 84,230 C85,212 89,198 88,184 Z"/>
-      <rect x="69"  y="79" width="18" height="192" rx="9"   transform="rotate(10 78 87)"/>
-      <rect x="153" y="79" width="18" height="192" rx="9"   transform="rotate(-10 162 87)"/>
-      <rect x="88"  y="238" width="27" height="214" rx="13" transform="rotate(2 101 246)"/>
-      <rect x="125" y="238" width="27" height="214" rx="13" transform="rotate(-2 139 246)"/>
-      <rect x="68"  y="446" width="44" height="16" rx="8" transform="rotate(-5 106 454)"/>
-      <rect x="128" y="446" width="44" height="16" rx="8" transform="rotate(5 134 454)"/>
-    </>
-  );
-}
-
 /**
  * The figure filled to the score, with the stages as a rail beside it, each band at its true
  * height and the current one lit. `labelled` names each stage and its range; the small phone
  * figure leaves that to the text beside it and draws the rail heavier to stay legible.
  */
-function BatteryFigure({ score, labelled, className }: { score: number | null; labelled: boolean; className?: string }) {
+function BatteryFigure({ score, gender, labelled, className }: {
+  score: number | null;
+  gender: Gender | null;
+  labelled: boolean;
+  className?: string;
+}) {
   // Both layouts are in the page at once, so their gradient and clip ids must not collide.
   const id = useId().replace(/[^\w-]/g, '');
+  const body = silhouette(gender);
   const tier = score === null ? null : batteryTier(score);
   const level = score ?? 0;
   const fillY = yOf(level);
@@ -128,7 +122,7 @@ function BatteryFigure({ score, labelled, className }: { score: number | null; l
         </filter>
 
         <clipPath id={`${id}-body`}>
-          <BodyShape />
+          <path d={body} />
         </clipPath>
 
         <clipPath id={`${id}-level`}>
@@ -144,9 +138,7 @@ function BatteryFigure({ score, labelled, className }: { score: number | null; l
         </g>
       </g>
 
-      <g fill="#1b1b1f">
-        <BodyShape />
-      </g>
+      <path d={body} fill="#1b1b1f" />
 
       <g clipPath={`url(#${id}-body)`}>
         <g clipPath={`url(#${id}-level)`}>
@@ -222,7 +214,7 @@ function ContributorRow({ part, maxAbs, large = false }: { part: ReadinessPart; 
   );
 }
 
-export function BodyBattery({ score, parts, confidence, label, missing, calibrating, className = '' }: BodyBatteryProps) {
+export function BodyBattery({ score, parts, confidence, label, missing, calibrating, gender, className = '' }: BodyBatteryProps) {
   const z = batteryText({ score, confidence, missing, calibrating });
   const cautions = parts.filter((p) => p.note);
 
@@ -255,7 +247,7 @@ export function BodyBattery({ score, parts, confidence, label, missing, calibrat
         </div>
 
         <div className="w-full max-w-[340px] md:max-w-none mx-auto md:mx-0 mt-2 md:mt-0">
-          <BatteryFigure score={score} labelled className="w-full h-auto block" />
+          <BatteryFigure score={score} gender={gender} labelled className="w-full h-auto block" />
         </div>
       </div>
 
@@ -275,7 +267,7 @@ export function BodyBattery({ score, parts, confidence, label, missing, calibrat
 }
 
 /** The battery on a phone: the score beside a small figure, then its contributors, folded until tapped. */
-export function BodyBatteryCompact({ score, parts, confidence, label, missing, calibrating, className = '' }: BodyBatteryProps) {
+export function BodyBatteryCompact({ score, parts, confidence, label, missing, calibrating, gender, className = '' }: BodyBatteryProps) {
   const z = batteryText({ score, confidence, missing, calibrating });
   const cautions = parts.filter((p) => p.note);
   const maxAbs = Math.max(...parts.map((p) => Math.abs(p.contribution)), 1);
@@ -303,7 +295,7 @@ export function BodyBatteryCompact({ score, parts, confidence, label, missing, c
         </div>
         {/* The figure and its rail on the right, as on desktop, with each stage's range beside its band. */}
         <div className="flex items-stretch gap-1 justify-self-center min-[360px]:justify-self-auto">
-          <BatteryFigure score={score} labelled={false} className="w-[104px] h-auto shrink-0 block" />
+          <BatteryFigure score={score} gender={gender} labelled={false} className="w-[104px] h-auto shrink-0 block" />
           <div aria-hidden="true" className="relative w-[56px]">
             {BATTERY_TIERS.map((stage, i) => {
               const centre = (yOf(i === 0 ? 100 : BATTERY_TIERS[i - 1].min) + yOf(stage.min)) / 2;
