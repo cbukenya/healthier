@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import type { InsightPage, Kind, Observation } from '../pipeline/insights';
 import { t, type MessageKey } from '../i18n';
+import { tint } from '../ui/primitives';
 
 const DOMAIN_LABELS: Record<string, MessageKey> = {
   cardio: 'insights.carousel.domains.cardio',
@@ -24,28 +25,33 @@ const DOMAIN_ICONS: Record<string, React.ReactNode> = {
   movement: <Footprints size={14} />,
 };
 
+/** A card's glow: its tone strongest in the far corner, fading out before it reaches the words. */
+const glow = (colour: string, strong: number, soft: number) =>
+  `radial-gradient(130% 130% at 100% 100%, ${tint(colour, strong)} 0%, ${tint(colour, soft)} 42%, transparent 68%)`;
+
 const TONE_STYLES: Record<string, { bg: string, border: string }> = {
   good: {
-    bg: 'radial-gradient(130% 130% at 100% 100%, rgba(52,211,153,.34) 0%, rgba(52,211,153,.10) 42%, rgba(52,211,153,0) 68%)',
-    border: 'rgba(52,211,153,.16)',
+    bg: glow('var(--emerald-400)', 34, 10),
+    border: tint('var(--emerald-400)', 16),
   },
   watch: {
-    bg: 'radial-gradient(130% 130% at 100% 100%, rgba(245,158,11,.32) 0%, rgba(245,158,11,.09) 42%, rgba(245,158,11,0) 68%)',
-    border: 'rgba(245,158,11,.15)',
+    bg: glow('var(--amber-500)', 32, 9),
+    border: tint('var(--amber-500)', 15),
   },
   neutral: {
-    bg: 'radial-gradient(130% 130% at 100% 100%, rgba(148,163,184,.20) 0%, rgba(148,163,184,.06) 42%, rgba(148,163,184,0) 68%)',
-    border: 'rgba(148,163,184,.15)',
+    bg: glow('var(--slate-400)', 20, 6),
+    border: tint('var(--slate-400)', 15),
   },
 };
 
-const DOMAIN_STYLES: Record<string, { color: string, border: string, bg: string }> = {
-  cardio: { color: '#fb7185', border: 'rgba(251,113,133,.3)', bg: 'rgba(251,113,133,.08)' },
-  sleep: { color: '#818cf8', border: 'rgba(129,140,248,.3)', bg: 'rgba(129,140,248,.08)' },
-  body: { color: '#5eead4', border: 'rgba(94,234,212,.3)', bg: 'rgba(94,234,212,.08)' },
-  cycle: { color: '#f472b6', border: 'rgba(244,114,182,.3)', bg: 'rgba(244,114,182,.08)' },
-  data: { color: '#a1a1aa', border: 'rgba(161,161,170,.3)', bg: 'rgba(161,161,170,.08)' },
-  movement: { color: '#34d399', border: 'rgba(52,211,153,.3)', bg: 'rgba(52,211,153,.08)' },
+/** Each domain's chip in its page's colour. */
+const DOMAIN_COLORS: Record<string, string> = {
+  cardio: 'var(--rose-400)',
+  sleep: 'var(--indigo-400)',
+  body: 'var(--teal-300)',
+  cycle: 'var(--pink-400)',
+  data: 'var(--color-zinc-400)',
+  movement: 'var(--emerald-400)',
 };
 
 const KIND_LABELS: Record<Kind, MessageKey> = {
@@ -75,7 +81,7 @@ const Pattern = createLucideIcon('pattern-steps', [
  * One colour for every kind badge, on every page. A page's own colour on a
  * badge could read as a verdict: Vitals' rose on a milestone looks like a warning.
  */
-const KIND_COLOR = '#818cf8';
+const KIND_COLOR = 'var(--indigo-400)';
 
 /** On a page every card is from that page, so the chip says what kind of card it is instead. */
 function KindIcon({ obs }: { obs: Observation }) {
@@ -171,7 +177,7 @@ export function InsightsCarousel({ observations, page }: { observations: Observa
 
   return (
     <div className="h-full flex flex-col">
-      <div className="bg-[#09090b] border border-zinc-800/80 rounded-[20px] pt-5 pb-4 md:pt-6 md:pb-5 overflow-hidden w-full relative flex-1 flex flex-col">
+      <div className="bg-card border border-zinc-800/80 rounded-[20px] pt-5 pb-4 md:pt-6 md:pb-5 overflow-hidden w-full relative flex-1 flex flex-col">
         <div className="flex justify-between items-center md:items-start gap-3 md:gap-6 px-4 md:px-6 pb-4">
           <div>
             <h2 className="font-display text-title text-zinc-100">{t(copy?.title ?? 'insights.carousel.title')}</h2>
@@ -208,7 +214,7 @@ export function InsightsCarousel({ observations, page }: { observations: Observa
               key={obs.id}
               // On a phone the next card peeks in from the edge, so it's clear there are more to swipe;
               // the rail's padding matches the gap, so the card before stays out of sight.
-              className="snap-start shrink-0 w-[calc(100%-16px)] md:w-full min-h-[172px] rounded-[18px] border p-[18px] md:p-5 relative flex flex-col bg-[#111114]"
+              className="snap-start shrink-0 w-[calc(100%-16px)] md:w-full min-h-[172px] rounded-[18px] border p-[18px] md:p-5 relative flex flex-col bg-panel"
               style={{
                 backgroundImage: tone.bg,
                 borderColor: tone.border
@@ -217,7 +223,7 @@ export function InsightsCarousel({ observations, page }: { observations: Observa
               <span
                 className="self-end text-body-sm font-medium flex items-center gap-1.5"
                 style={{
-                  color: copy ? KIND_COLOR : DOMAIN_STYLES[obs.domain].color,
+                  color: copy ? KIND_COLOR : DOMAIN_COLORS[obs.domain],
                 }}
               >
                 {copy ? <KindIcon obs={obs} /> : DOMAIN_ICONS[obs.domain]}
@@ -225,14 +231,14 @@ export function InsightsCarousel({ observations, page }: { observations: Observa
               </span>
               <div className="flex-1" />
               <div>
-                <h3 className="font-display text-insight text-[#fafafa] mt-3">
+                <h3 className="font-display text-insight text-zinc-50 mt-3">
                   {obs.title}
                 </h3>
-                <p className="font-display text-insight-body md:text-insight-body-lg text-[#9ca0a8] mt-2">
+                <p className="font-display text-insight-body md:text-insight-body-lg text-zinc-400 mt-2">
                   {obs.text}
                 </p>
                 {obs.action && (
-                  <p className="font-display text-insight-body md:text-insight-body-lg text-[#d4d4d8] md:text-[#9ca0a8] mt-3 md:mt-4">
+                  <p className="font-display text-insight-body md:text-insight-body-lg text-zinc-300 md:text-zinc-400 mt-3 md:mt-4">
                     {obs.action}
                   </p>
                 )}
@@ -248,8 +254,8 @@ export function InsightsCarousel({ observations, page }: { observations: Observa
               key={i}
               className={`h-[5px] transition-all duration-300 ${
                 i === activeIndex
-                  ? 'bg-[#a1a1aa] w-[14px] rounded-[3px]'
-                  : 'bg-[#2c2c32] w-[5px] rounded-full'
+                  ? 'bg-zinc-400 w-[14px] rounded-[3px]'
+                  : 'bg-rule-strong w-[5px] rounded-full'
               }`}
             />
           ))}

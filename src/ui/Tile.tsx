@@ -16,7 +16,7 @@ export function Tile({ label, icon, value, pill, chart, rows, empty, note }: {
 }) {
   const shown = rows.filter((r): r is [string, string] => !!r[1]);
   return (
-    <article className="min-w-0 bg-[#0c0c0e] border border-[#1e1e22] rounded-[18px] p-3.5 flex flex-col gap-1.5">
+    <article className="min-w-0 bg-card border border-card-edge rounded-[18px] p-3.5 flex flex-col gap-1.5">
       <div className="flex items-center justify-between gap-2">
         <Label className="truncate">{label}</Label>
         {icon}

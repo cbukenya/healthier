@@ -16,7 +16,7 @@ import { usePageInsights, type Clock } from '../hooks/usePageInsights';
 import { InsightsCarousel } from '../components/InsightsCarousel';
 import type { IntradayDays } from '../pipeline/labs';
 import type { SyncResult } from '../pipeline/sync';
-import { Card, CardHead, Contributors, DOMAIN } from '../ui/primitives';
+import { Card, CardHead, Contributors, DOMAIN, tint } from '../ui/primitives';
 import { Chips, Sheet } from '../ui/Sheet';
 
 /**
@@ -126,7 +126,7 @@ const dayWords = (day: number, pm: number) => (pm ? rich('cycle.aboutDay', { day
 /** An ovulation mark inside a day: a short amber bar at its foot, as bright as it is likely. */
 function OvulationBar({ alpha, inset = 'inset-x-[18%]' }: { alpha: number; inset?: string }) {
   if (alpha <= 0) return null;
-  return <span aria-hidden="true" className={`absolute ${inset} bottom-[3px] h-[3px] rounded-full`} style={{ background: `rgba(251,191,36,${alpha.toFixed(2)})` }} />;
+  return <span aria-hidden="true" className={`absolute ${inset} bottom-[3px] h-[3px] rounded-full`} style={{ background: tint('var(--amber-400)', Math.round(alpha * 100)) }} />;
 }
 
 function CycleHero({
@@ -156,7 +156,7 @@ function CycleHero({
   if (!c) {
     const none = summary.status === 'no-rhythm';
     return (
-      <section aria-labelledby="cycle-hero" className={`bg-[#0c0c0e] border border-[#1e1e22] rounded-[28px] p-6 md:p-10 ${className}`}>
+      <section aria-labelledby="cycle-hero" className={`bg-card border border-card-edge rounded-[28px] p-6 md:p-10 ${className}`}>
         <p className="text-eyebrow uppercase text-pink-300">{t('cycle.eyebrow')}</p>
         <h1 id="cycle-hero" className="mt-2 font-display text-display-lg text-zinc-50">
           {none ? t('cycle.noRhythm.title') : t('cycle.collecting.title')}
@@ -231,7 +231,7 @@ function CycleHero({
   }
 
   return (
-    <section aria-labelledby="cycle-hero" className={`bg-[#0c0c0e] border border-[#1e1e22] rounded-[28px] p-6 md:p-10 flex flex-col gap-6 ${className}`}>
+    <section aria-labelledby="cycle-hero" className={`bg-card border border-card-edge rounded-[28px] p-6 md:p-10 flex flex-col gap-6 ${className}`}>
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
           <p className="text-eyebrow uppercase text-pink-300">{t('cycle.eyebrow')}</p>
@@ -336,7 +336,7 @@ function CycleStrip({ summary }: { summary: CycleSummary }) {
     const inNext = from !== null && to !== null && d >= from && d <= to;
     const colour = dayColour(d, shape);
     const style: React.CSSProperties = inNext
-      ? { background: d === likely ? 'rgba(244,114,182,0.28)' : 'transparent', border: `1px dashed ${PINK}` }
+      ? { background: d === likely ? tint('var(--pink-400)', 28) : 'transparent', border: `1px dashed ${PINK}` }
       : { background: past ? colour : mix(colour, PAGE_GROUND, 0.62) };
     return { d, style, height: d === c.day ? 34 : 24, ovulation: inNext ? 0 : ovulationAlpha(d, shape, !past) };
   });
@@ -448,7 +448,7 @@ function NowCard({ summary, nights, className = '' }: { summary: CycleSummary; n
 
 /** A found period's swatch: dim pink brightening, as the strip and the bars draw it. */
 const FoundSwatch = () => (
-  <span aria-hidden="true" className="inline-block w-3.5 h-2.5 rounded-[3px] shrink-0" style={{ background: `linear-gradient(to right, ${mix(PINK, PAGE_GROUND, 0.8)}, ${mix(PINK, PAGE_GROUND, 0.35)})` }} />
+  <span aria-hidden="true" className="inline-block w-3.5 h-2.5 rounded-[3px] shrink-0" style={{ background: `linear-gradient(to right, ${mix(PHASE_HEX.menstrual, PAGE_GROUND, 0.8)}, ${mix(PHASE_HEX.menstrual, PAGE_GROUND, 0.35)})` }} />
 );
 
 /**
@@ -665,7 +665,7 @@ function CycleChart({
   const W = 340;
   const H = 90;
   const all = points.flatMap((p) => [p.low, p.high, p.mine]).filter((v): v is number => v !== null);
-  if (!all.length) return <div className="h-[90px] rounded-lg bg-zinc-900/60" />;
+  if (!all.length) return <div className="h-[90px] rounded-lg bg-faint/60" />;
   const lo = Math.min(...all);
   const hi = Math.max(...all);
   const pad = (hi - lo || 1) * 0.12;
@@ -715,16 +715,16 @@ function CycleChart({
       </defs>
       {period && <rect x={period.from} y={0} width={period.to - period.from} height={H} fill={`url(#${gid}p)`} />}
       {luteal && <rect x={luteal.from} y={0} width={luteal.to - luteal.from} height={H} fill={`url(#${gid}l)`} />}
-      {band && <path d={band} fill="#3f3f46" fillOpacity={0.75} stroke="none" />}
+      {band && <path d={band} fill="var(--color-zinc-700)" fillOpacity={0.75} stroke="none" />}
       {today !== null && today <= CHART_DAYS && (
-        <path d={`M${x(today)} 0 L${x(today)} ${H}`} stroke="#a1a1aa" strokeWidth={1} strokeDasharray="3 3" vectorEffect="non-scaling-stroke" />
+        <path d={`M${x(today)} 0 L${x(today)} ${H}`} stroke="var(--color-zinc-400)" strokeWidth={1} strokeDasharray="3 3" vectorEffect="non-scaling-stroke" />
       )}
       {ovulation && <rect x={x(ovulation.day - ovulation.spread)} y={H - 4} width={x(ovulation.day + ovulation.spread) - x(ovulation.day - ovulation.spread)} height={3} fill={`url(#${gid}o)`} />}
-      {mine && <path d={mine} fill="none" stroke="#fafafa" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />}
+      {mine && <path d={mine} fill="none" stroke="var(--color-zinc-50)" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />}
       {last && (
         <path
           d={`M${x(last.day)} ${y(last.mine!)} L${x(last.day)} ${y(last.mine!)}`}
-          stroke="#fafafa"
+          stroke="var(--color-zinc-50)"
           strokeWidth={7}
           strokeLinecap="round"
           vectorEffect="non-scaling-stroke"
@@ -818,10 +818,10 @@ function CycleBar({ cycle: c, next, summary, today }: { cycle: Cycle; next: Cycl
   return (
     <div className="flex items-center gap-3 py-[7px]">
       <div className={`w-[52px] shrink-0 text-detail ${current ? 'text-zinc-50' : 'text-zinc-400'}`}>{formatCivil(c.start)}</div>
-      <div role="img" aria-label={aria} className="relative flex-1 min-w-0 h-3.5 rounded-[7px] bg-zinc-900">
+      <div role="img" aria-label={aria} className="relative flex-1 min-w-0 h-3.5 rounded-[7px] bg-faint">
         <div className={`absolute inset-y-0 left-0 ${current ? 'rounded-l-[7px]' : 'rounded-[7px]'}`} style={{ width: pct(drawn), background: `linear-gradient(to right, ${stops})` }} />
         {current && typical > end && (
-          <div className="absolute inset-y-0 box-border rounded-r-[7px]" style={{ left: pct(end), width: pct(typical - end), border: '1px dashed #71717a' }} />
+          <div className="absolute inset-y-0 box-border rounded-r-[7px]" style={{ left: pct(end), width: pct(typical - end), border: '1px dashed var(--color-zinc-500)' }} />
         )}
         {showOvulation && (
           <div className="absolute top-1/2 -translate-y-1/2 h-[3px] rounded-full" style={{ left: pct(ovulation.day - 0.5 - ovulation.spread), width: pct(2 * ovulation.spread), background: OVULATION_DASH }} />
@@ -929,7 +929,7 @@ function CycleCalendar({
             ].filter((n): n is string => !!n);
             const style: React.CSSProperties = likely
               ? date === next!.likely
-                ? { background: 'rgba(244,114,182,0.16)', border: `1px dashed ${PINK}` }
+                ? { background: tint('var(--pink-400)', 16), border: `1px dashed ${PINK}` }
                 : { border: `1px dashed ${PINK}` }
               : inCycle && !future
                 ? { background: mix(dayColour(inCycle.day, inCycle.shape), CARD_GROUND, 0.72) }
@@ -951,7 +951,7 @@ function CycleCalendar({
                   <span
                     aria-hidden="true"
                     className="absolute left-1/2 bottom-2 size-[5px] -ml-[2.5px] rounded-full"
-                    style={{ background: spotting ? PINK : '#a1a1aa' }}
+                    style={{ background: spotting ? PINK : 'var(--color-zinc-400)' }}
                   />
                 )}
                 <OvulationBar alpha={ovulation} inset="inset-x-1.5" />

@@ -10,7 +10,7 @@ import type { DailyRecord } from '../types/health';
 import { WHO_WEEK } from '../pipeline/goals';
 import { useGoals } from '../hooks/useGoals';
 
-const BRISK_HEX = '#fb923c';
+const BRISK_HEX = 'var(--orange-400)';
 
 /** Moderate plus vigorous minutes, the ones activity guidelines count. */
 export const briskOf = (d: DailyRecord) => (d.activeMinutes ? d.activeMinutes.moderate + d.activeMinutes.vigorous : null);
@@ -197,7 +197,7 @@ export function WeeklyTotals({ weeks }: { weeks: WeekTotal[] }) {
             type="button"
             onClick={() => setShowAll(!showAll)}
             aria-expanded={showAll}
-            className="mt-1.5 w-full min-h-11 rounded-xl border border-[#27272a] text-body-sm text-[#a1a1aa] hover:text-zinc-100 hover:bg-zinc-900 transition-colors"
+            className="mt-1.5 w-full min-h-11 rounded-xl border border-zinc-800 text-body-sm text-zinc-400 hover:text-zinc-100 hover:bg-zinc-900 transition-colors"
           >
             {showAll ? t('activity.weekly.showLatest', { count: WEEKS_SHOWN }) : t('activity.weekly.showAll', { count: weeks.length })}
           </button>

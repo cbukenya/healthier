@@ -344,6 +344,16 @@ one file. The h and m of a big duration are set as units by `withUnits` in
 `src/ui/primitives.tsx`. Chart ticks share `TICK` in `src/charts/index.tsx`, because SVG text
 can't read the CSS tokens.
 
+## Colours
+
+Classes take Tailwind's palette. Anything drawn in code (charts, the battery figure, glows,
+inline styles) takes its colour from `src/theme.css` through `var(--name)`: the shades the
+charts were drawn in, kept exact, and the grounds of the cards and panels that draw their own.
+Greys come from the palette through its variables, such as `var(--color-zinc-400)`. Each page
+keeps its colour in `DOMAIN` (`src/ui/primitives.tsx`), for its classes and its charts alike. A
+test fails on any hex or `rgb()` written into the code; it names the two files allowed their
+own: the Cycle page's phase colours, which are blended in code, and Google's G.
+
 ## Languages
 
 Every word the app shows comes from `src/locales/<tag>.json`, one file per language, in ICU

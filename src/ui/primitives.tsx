@@ -15,16 +15,19 @@ import { durationPieces, formatDuration, formatFixed, formatNumber, formatRounde
  *
  * Good/bad is carried by the *delta*, not by the metric's colour — otherwise a
  * green resting heart rate and a green step count would mean opposite things.
+ *
+ * Each domain's classes come from Tailwind's palette; its `hex` is the colour its charts
+ * and figures draw in, a variable from src/theme.css.
  */
 
 export const DOMAIN = {
-  movement: { text: 'text-emerald-400', bg: 'bg-emerald-500/10', ring: 'ring-emerald-500/25', hex: '#34d399', dim: '#065f46' },
-  sleep: { text: 'text-indigo-400', bg: 'bg-indigo-500/10', ring: 'ring-indigo-500/25', hex: '#818cf8', dim: '#3730a3' },
-  cardio: { text: 'text-rose-400', bg: 'bg-rose-500/10', ring: 'ring-rose-500/25', hex: '#fb7185', dim: '#881337' },
-  body: { text: 'text-teal-300', bg: 'bg-teal-500/10', ring: 'ring-teal-500/25', hex: '#5eead4', dim: '#115e59' },
-  data: { text: 'text-amber-400', bg: 'bg-amber-500/10', ring: 'ring-amber-500/25', hex: '#fbbf24', dim: '#78350f' },
-  wellbeing: { text: 'text-violet-400', bg: 'bg-violet-500/10', ring: 'ring-violet-500/25', hex: '#a78bfa', dim: '#4c1d95' },
-  cycle: { text: 'text-pink-400', bg: 'bg-pink-500/10', ring: 'ring-pink-500/25', hex: '#f472b6', dim: '#831843' },
+  movement: { text: 'text-emerald-400', bg: 'bg-emerald-500/10', ring: 'ring-emerald-500/25', hex: 'var(--emerald-400)' },
+  sleep: { text: 'text-indigo-400', bg: 'bg-indigo-500/10', ring: 'ring-indigo-500/25', hex: 'var(--indigo-400)' },
+  cardio: { text: 'text-rose-400', bg: 'bg-rose-500/10', ring: 'ring-rose-500/25', hex: 'var(--rose-400)' },
+  body: { text: 'text-teal-300', bg: 'bg-teal-500/10', ring: 'ring-teal-500/25', hex: 'var(--teal-300)' },
+  data: { text: 'text-amber-400', bg: 'bg-amber-500/10', ring: 'ring-amber-500/25', hex: 'var(--amber-400)' },
+  wellbeing: { text: 'text-violet-400', bg: 'bg-violet-500/10', ring: 'ring-violet-500/25', hex: 'var(--violet-400)' },
+  cycle: { text: 'text-pink-400', bg: 'bg-pink-500/10', ring: 'ring-pink-500/25', hex: 'var(--pink-400)' },
 } as const;
 
 export type DomainKey = keyof typeof DOMAIN;
@@ -35,14 +38,17 @@ export type DomainKey = keyof typeof DOMAIN;
  * them, so Light, Moderate and Vigorous look the same on both.
  */
 export const EFFORT = {
-  light: '#10b981',
-  moderate: '#bef264',
-  vigorous: '#f59e0b',
-  peak: '#f43f5e',
+  light: 'var(--emerald-500)',
+  moderate: 'var(--lime-300)',
+  vigorous: 'var(--amber-500)',
+  peak: 'var(--rose-500)',
 } as const;
 
-export const AXIS = '#52525b';
-export const GRID = '#27272a';
+/** A colour at a share of its strength, over whatever is behind it: tint('var(--rose-500)', 30). */
+export const tint = (colour: string, percent: number) => `color-mix(in srgb, ${colour} ${percent}%, transparent)`;
+
+export const AXIS = 'var(--color-zinc-600)';
+export const GRID = 'var(--color-zinc-800)';
 
 // ────────────────────────────────────────────────────────────────── layout
 

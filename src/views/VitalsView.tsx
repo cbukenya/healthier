@@ -25,9 +25,9 @@ import { HeartRateCard } from './HeartRateCard';
 
 const spo2Of = (d: DailyRecord) => (d.spo2 ? { avg: d.spo2.avg, low: d.spo2.ciLower, high: d.spo2.ciUpper } : null);
 
-const BREATHING_HEX = '#a855f7';
-const SPO2_HEX = '#0ea5e9';
-const VO2_HEX = '#14b8a6';
+const BREATHING_HEX = 'var(--purple-500)';
+const SPO2_HEX = 'var(--sky-500)';
+const VO2_HEX = 'var(--teal-500)';
 
 /** A comparison's usual range, for the band behind a trend line. */
 const usual = (c: Comparison) => (c.baseline !== null && c.spread !== null ? { centre: c.baseline, spread: c.spread } : null);

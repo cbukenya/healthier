@@ -97,9 +97,9 @@ export function ActivityView({ data, clock, intraday }: { data: SyncResult; cloc
   );
   const energyCard = (
     <Card>
-      <CardHead domain="movement" title={t('activity.energy.title')} hint={t('activity.energy.hint')} right={<CardSummary data={kcalWin} color="#fbbf24" unit={t('units.kcal')} format={(v) => fmtNum(v, 0)} />} />
+      <CardHead domain="movement" title={t('activity.energy.title')} hint={t('activity.energy.hint')} right={<CardSummary data={kcalWin} color="var(--amber-400)" unit={t('units.kcal')} format={(v) => fmtNum(v, 0)} />} />
       <div className="px-2 pb-3">
-        <BarSeries series={groupSeries(kcalWin, bucket)} bucket={bucket} color="#fbbf24" unit={t('units.kcal')} height={200} />
+        <BarSeries series={groupSeries(kcalWin, bucket)} bucket={bucket} color="var(--amber-400)" unit={t('units.kcal')} height={200} />
       </div>
     </Card>
   );
@@ -149,9 +149,9 @@ export function ActivityView({ data, clock, intraday }: { data: SyncResult; cloc
   );
   const distanceCard = (
     <Card>
-      <CardHead domain="movement" title={t('activity.distance.title')} hint={t('activity.distance.hint')} right={<CardSummary data={distWin} color="#2dd4bf" unit={t('units.km')} format={(v) => fmtNum(v, 2)} />} />
+      <CardHead domain="movement" title={t('activity.distance.title')} hint={t('activity.distance.hint')} right={<CardSummary data={distWin} color="var(--teal-400)" unit={t('units.km')} format={(v) => fmtNum(v, 2)} />} />
       <div className="px-2 pb-3">
-        <TrendChart series={groupSeries(distWin, bucket)} bucket={bucket} color="#2dd4bf" unit={t('units.km')} height={150} format={(v) => fmtNum(v, 2)} />
+        <TrendChart series={groupSeries(distWin, bucket)} bucket={bucket} color="var(--teal-400)" unit={t('units.km')} height={150} format={(v) => fmtNum(v, 2)} />
       </div>
     </Card>
   );

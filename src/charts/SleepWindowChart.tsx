@@ -4,7 +4,7 @@ import { bucketLabel, formatCivil, formatClock, formatDuration, formatMinutes } 
 import { sleepRegularity, typicalSleepWindow } from '../pipeline/derive';
 import { groupNights, type Bucket } from '../pipeline/aggregate';
 import { emptyRecord } from '../pipeline/normalize';
-import { Card, CardHead, fmtDuration } from '../ui/primitives';
+import { Card, CardHead, fmtDuration, tint } from '../ui/primitives';
 import type { DailyRecord, SleepSession } from '../types/health';
 
 /**
@@ -40,10 +40,10 @@ function bucketRows(days: DailyRecord[], bucket: Bucket): DailyRecord[] {
 }
 
 const STAGE_FILL: [key: 'deep' | 'rem' | 'light' | 'awake', color: string][] = [
-  ['deep', '#4338ca'],
-  ['rem', '#a78bfa'],
-  ['light', '#818cf8'],
-  ['awake', '#d8b48a'],
+  ['deep', 'var(--indigo-700)'],
+  ['rem', 'var(--violet-400)'],
+  ['light', 'var(--indigo-400)'],
+  ['awake', 'var(--tan)'],
 ];
 
 /** The stages' names, the same set the hypnogram and every sleep card use. */
@@ -55,10 +55,10 @@ const STAGE_LABELS = {
 } as const satisfies Record<(typeof STAGE_FILL)[number][0], MessageKey>;
 
 const REG_COPY: Record<string, { label: MessageKey; color: string; text: MessageKey }> = {
-  excellent: { label: 'sleep.window.regularity.bands.excellent.label', color: '#22c55e', text: 'sleep.window.regularity.bands.excellent.text' },
-  good: { label: 'sleep.window.regularity.bands.good.label', color: '#6ee7b7', text: 'sleep.window.regularity.bands.good.text' },
-  bad: { label: 'sleep.window.regularity.bands.bad.label', color: '#eab308', text: 'sleep.window.regularity.bands.bad.text' },
-  critical: { label: 'sleep.window.regularity.bands.critical.label', color: '#f43f5e', text: 'sleep.window.regularity.bands.critical.text' },
+  excellent: { label: 'sleep.window.regularity.bands.excellent.label', color: 'var(--green-500)', text: 'sleep.window.regularity.bands.excellent.text' },
+  good: { label: 'sleep.window.regularity.bands.good.label', color: 'var(--emerald-300)', text: 'sleep.window.regularity.bands.good.text' },
+  bad: { label: 'sleep.window.regularity.bands.bad.label', color: 'var(--yellow-500)', text: 'sleep.window.regularity.bands.bad.text' },
+  critical: { label: 'sleep.window.regularity.bands.critical.label', color: 'var(--rose-500)', text: 'sleep.window.regularity.bands.critical.text' },
 };
 
 /** Fold a minutes-of-day onto an 18:00-anchored evening→next-noon line. */
@@ -98,7 +98,7 @@ export function SleepWindowChart({
   const winB = typical ? fold(typical.wakeMean) : null;
   const sdA = typical?.bedSdMin ?? 0;
   const sdB = typical?.wakeSdMin ?? 0;
-  const lineColor = '#818cf8';
+  const lineColor = 'var(--indigo-400)';
 
   // Rows render newest-first, matching the nights list beside this chart.
   const rows = useMemo(() => (bucket === 'day' ? [...days].reverse() : bucketRows(days, bucket)), [days, bucket]);
@@ -235,8 +235,8 @@ export function SleepWindowChart({
           {Array.from({ length: Math.floor(SPAN / hourStep) + 1 }, (_, i) => axisA + i * hourStep).map((m) => (
             <g key={m}>
               <line x1={x(m)} x2={x(m)} y1={PT - 4} y2={H - PB + 4}
-                stroke={m % 1440 === 0 ? '#2c2c32' : '#1c1c20'} strokeWidth={m % 1440 === 0 ? 1.2 : 1} />
-              <text x={x(m)} y={H - PB + 16} textAnchor="middle" fontSize={9.5} fill="#52525b">
+                stroke={m % 1440 === 0 ? 'var(--rule-strong)' : 'var(--rule)'} strokeWidth={m % 1440 === 0 ? 1.2 : 1} />
+              <text x={x(m)} y={H - PB + 16} textAnchor="middle" fontSize={9.5} fill="var(--color-zinc-600)">
                 {formatClock(m)}
               </text>
             </g>
@@ -253,7 +253,7 @@ export function SleepWindowChart({
             if (label) {
               rowEls.push(
                 <text key="lbl" x={PL - 10} y={cy + 3} textAnchor="end"
-                  fontSize={dense ? 8.5 : 10.5} fill="#9ca0a8">
+                  fontSize={dense ? 8.5 : 10.5} fill="var(--color-zinc-400)">
                   {rowLabel(d.date)}
                 </text>,
               );
@@ -261,11 +261,11 @@ export function SleepWindowChart({
             if (ruler) {
               rowEls.push(
                 <line key="tick" x1={PL - (label ? 7 : 4)} x2={PL - 1} y1={cy} y2={cy} strokeWidth={1}
-                  stroke={i === 0 ? '#a1a1aa' : label ? '#52525b' : '#3f3f46'} />,
+                  stroke={i === 0 ? 'var(--color-zinc-400)' : label ? 'var(--color-zinc-600)' : 'var(--color-zinc-700)'} />,
               );
             }
             if (!dense) {
-              rowEls.push(<line key="grid" x1={PL} x2={W - PR} y1={cy} y2={cy} stroke="#141417" strokeWidth={1} />);
+              rowEls.push(<line key="grid" x1={PL} x2={W - PR} y1={cy} y2={cy} stroke="var(--rule-faint)" strokeWidth={1} />);
             }
 
             if (s) {
@@ -309,7 +309,7 @@ export function SleepWindowChart({
                       })()
                     ) : (
                       // Un-staged night: honest plain fill rather than invented stages.
-                      <rect x={x(b)} y={y} width={x(w) - x(b)} height={BAR} fill="#818cf8" opacity={0.75} />
+                      <rect x={x(b)} y={y} width={x(w) - x(b)} height={BAR} fill="var(--indigo-400)" opacity={0.75} />
                     )}
                   </g>
                 </g>,
@@ -317,7 +317,7 @@ export function SleepWindowChart({
 
               if (showRight) {
                 rowEls.push(
-                  <text key="dur" x={W - PR + 12} y={cy + 3.5} fontSize={10.5} fill="#d4d6db" fontWeight={500}>
+                  <text key="dur" x={W - PR + 12} y={cy + 3.5} fontSize={10.5} fill="var(--color-zinc-300)" fontWeight={500}>
                     {fmtDuration(s.minutesAsleep)}
                   </text>,
                 );
@@ -326,7 +326,7 @@ export function SleepWindowChart({
                   const dev = fold(s.bedtimeMin) - winA;
                   if (Math.abs(dev) >= 10) {
                     rowEls.push(
-                      <text key="dev" x={W - PR + 66} y={cy + 3.5} fontSize={9} fill="#6b6f78">
+                      <text key="dev" x={W - PR + 66} y={cy + 3.5} fontSize={9} fill="var(--color-zinc-500)">
                         {t('sleep.window.bedOffset', { offset: signed(dev) })}
                       </text>,
                     );
@@ -349,7 +349,7 @@ export function SleepWindowChart({
         ))}
         {typical && (
           <span className="flex items-center gap-1.5 text-note uppercase tracking-wider text-zinc-500">
-            <i className="w-3 h-2.5 rounded-[2px] border border-dashed" style={{ borderColor: '#818cf8aa' }} />
+            <i className="w-3 h-2.5 rounded-[2px] border border-dashed" style={{ borderColor: tint('var(--indigo-400)', 67) }} />
             {t('sleep.window.averageWindow', { bed: formatClock(typical.bedMean), wake: formatClock(typical.wakeMean) })}
           </span>
         )}

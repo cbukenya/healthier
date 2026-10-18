@@ -28,8 +28,8 @@ import { bucketLabel, formatCivil, formatClock, meanLabel, weekdayLetter } from 
 const TICK = { fill: AXIS, fontSize: 10 } as const;
 
 const tooltipStyle = {
-  backgroundColor: '#09090b',
-  border: '1px solid #27272a',
+  backgroundColor: 'var(--color-zinc-950)',
+  border: '1px solid var(--color-zinc-800)',
   borderRadius: 10,
   fontSize: 'var(--text-caption)',
   padding: '8px 10px',
@@ -105,9 +105,9 @@ function RulerTick({ x, y, index, payload, n }: { x: number; y: number; index: n
   const latest = index === n - 1;
   return (
     <g transform={`translate(${x},${y})`}>
-      <line y1={1} y2={dated ? 7 : 4} stroke={latest ? '#a1a1aa' : dated ? AXIS : '#3f3f46'} strokeWidth={1} />
+      <line y1={1} y2={dated ? 7 : 4} stroke={latest ? 'var(--color-zinc-400)' : dated ? AXIS : 'var(--color-zinc-700)'} strokeWidth={1} />
       {dated && (
-        <text y={19} textAnchor="middle" fill={latest ? '#a1a1aa' : AXIS} fontSize={TICK.fontSize} fontWeight={latest ? 600 : 400}>
+        <text y={19} textAnchor="middle" fill={latest ? 'var(--color-zinc-400)' : AXIS} fontSize={TICK.fontSize} fontWeight={latest ? 600 : 400}>
           {payload.value}
         </text>
       )}
@@ -198,10 +198,10 @@ export function TrendChart({
             y1={baseline.centre - baseline.spread}
             y2={baseline.centre + baseline.spread}
             ifOverflow="extendDomain"
-            {...({ fill: '#a1a1aa', fillOpacity: 0.06, stroke: 'none' } as any)}
+            {...({ fill: 'var(--color-zinc-400)', fillOpacity: 0.06, stroke: 'none' } as any)}
           />
         )}
-        {baseline && <ReferenceLine y={baseline.centre} ifOverflow="extendDomain" stroke="#71717a" strokeDasharray="3 3" strokeWidth={1} />}
+        {baseline && <ReferenceLine y={baseline.centre} ifOverflow="extendDomain" stroke="var(--color-zinc-500)" strokeDasharray="3 3" strokeWidth={1} />}
         <XAxis
           dataKey="label"
           axisLine={false}
@@ -220,8 +220,8 @@ export function TrendChart({
           width={52}
         />
         <Tooltip
-          contentStyle={tooltipStyle} itemStyle={{ color: '#a1a1aa' }}
-          labelStyle={{ color: '#e4e4e7', fontWeight: 600, marginBottom: 2 }}
+          contentStyle={tooltipStyle} itemStyle={{ color: 'var(--color-zinc-400)' }}
+          labelStyle={{ color: 'var(--color-zinc-200)', fontWeight: 600, marginBottom: 2 }}
           labelFormatter={tooltipHeading}
           formatter={(v: any, name?: string | number) => [
             v === null ? t('charts.tooltip.notRecorded') : reading(format(Number(v)), unit),
@@ -312,15 +312,15 @@ export function BarSeries({
         <CartesianGrid stroke={GRID} strokeDasharray="2 4" vertical={false} />
         {goal !== undefined && (
           <ReferenceLine
-            y={goal} stroke="#a1a1aa" strokeDasharray="4 3" strokeWidth={1}
+            y={goal} stroke="var(--color-zinc-400)" strokeDasharray="4 3" strokeWidth={1}
             label={{ value: axisTick(goal), position: 'right', fill: AXIS, fontSize: 9 }}
           />
         )}
         <XAxis dataKey="label" axisLine={false} tickLine={false} {...dayAxis(rows.length, bucket)} />
         <YAxis axisLine={false} tickLine={false} tick={TICK} tickFormatter={axisTick} width={52} />
         <Tooltip
-          contentStyle={tooltipStyle} itemStyle={{ color: '#a1a1aa' }}
-          labelStyle={{ color: '#e4e4e7', fontWeight: 600 }}
+          contentStyle={tooltipStyle} itemStyle={{ color: 'var(--color-zinc-400)' }}
+          labelStyle={{ color: 'var(--color-zinc-200)', fontWeight: 600 }}
           labelFormatter={tooltipHeading}
           formatter={(v: any) => [
             v === null ? t('charts.tooltip.notRecorded') : reading(format(Number(v)), unit),
@@ -379,8 +379,8 @@ export function StackedBars({
         <XAxis dataKey="label" axisLine={false} tickLine={false} {...dayAxis(rows.length, bucket)} />
         <YAxis axisLine={false} tickLine={false} tick={TICK} tickFormatter={axisTick} width={52} />
         <Tooltip
-          contentStyle={tooltipStyle} itemStyle={{ color: '#a1a1aa' }}
-          labelStyle={{ color: '#e4e4e7', fontWeight: 600, marginBottom: 2 }}
+          contentStyle={tooltipStyle} itemStyle={{ color: 'var(--color-zinc-400)' }}
+          labelStyle={{ color: 'var(--color-zinc-200)', fontWeight: 600, marginBottom: 2 }}
           labelFormatter={tooltipHeading}
           formatter={(v: any, name?: string | number) => {
             const k = keys.find((x) => x.key === name);
@@ -445,8 +445,8 @@ export function RangeBandChart({
         <XAxis dataKey="label" axisLine={false} tickLine={false} interval={tickInterval(rows.length)} tick={TICK} dy={6} />
         <YAxis axisLine={false} tickLine={false} tick={TICK} tickFormatter={axisTick} domain={domain ?? ['auto', 'auto']} width={52} />
         <Tooltip
-          contentStyle={tooltipStyle} itemStyle={{ color: '#a1a1aa' }}
-          labelStyle={{ color: '#e4e4e7', fontWeight: 600, marginBottom: 2 }}
+          contentStyle={tooltipStyle} itemStyle={{ color: 'var(--color-zinc-400)' }}
+          labelStyle={{ color: 'var(--color-zinc-200)', fontWeight: 600, marginBottom: 2 }}
           labelFormatter={tooltipHeading}
           formatter={(v: any, name?: string | number) => {
             if (name === 'band') {
@@ -475,8 +475,8 @@ export function DivergingBars({
   series,
   height = 170,
   unit = t('units.celsius'),
-  posColor = '#fb7185',
-  negColor = '#818cf8',
+  posColor = 'var(--rose-400)',
+  negColor = 'var(--indigo-400)',
   bucket = 'day',
 }: {
   series: Point[];
@@ -492,12 +492,12 @@ export function DivergingBars({
     <ResponsiveContainer width="100%" height={height}>
       <BarChart data={rows} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
         <CartesianGrid stroke={GRID} strokeDasharray="2 4" vertical={false} />
-        <ReferenceLine y={0} stroke="#52525b" strokeWidth={1} />
+        <ReferenceLine y={0} stroke="var(--color-zinc-600)" strokeWidth={1} />
         <XAxis dataKey="label" axisLine={false} tickLine={false} interval={tickInterval(rows.length)} tick={TICK} dy={6} />
         <YAxis axisLine={false} tickLine={false} tick={TICK} tickFormatter={axisTick} width={52} />
         <Tooltip
-          contentStyle={tooltipStyle} itemStyle={{ color: '#a1a1aa' }}
-          labelStyle={{ color: '#e4e4e7', fontWeight: 600 }}
+          contentStyle={tooltipStyle} itemStyle={{ color: 'var(--color-zinc-400)' }}
+          labelStyle={{ color: 'var(--color-zinc-200)', fontWeight: 600 }}
           labelFormatter={tooltipHeading}
           formatter={(v: any) => [
             v === null
@@ -519,10 +519,10 @@ export function DivergingBars({
 // ─────────────────────────────────────────────────────────────── hypnogram
 
 const STAGE_STYLE = {
-  awake: { row: 0, label: 'sleep.stages.awake', color: '#d8b48a' },
-  rem: { row: 1, label: 'sleep.stages.rem', color: '#a78bfa' },
-  light: { row: 2, label: 'sleep.stages.light', color: '#818cf8' },
-  deep: { row: 3, label: 'sleep.stages.deep', color: '#4338ca' },
+  awake: { row: 0, label: 'sleep.stages.awake', color: 'var(--tan)' },
+  rem: { row: 1, label: 'sleep.stages.rem', color: 'var(--violet-400)' },
+  light: { row: 2, label: 'sleep.stages.light', color: 'var(--indigo-400)' },
+  deep: { row: 3, label: 'sleep.stages.deep', color: 'var(--indigo-700)' },
 } as const satisfies Record<string, { row: number; label: MessageKey; color: string }>;
 
 /**
@@ -662,7 +662,7 @@ export function Hypnogram({ session, height = 200 }: { session: SleepSession; he
               );
             })}
             {session.shortAwakeningsMin.map((m, i) => (
-              <line key={i} x1={x(m)} x2={x(m)} y1={PT - 12} y2={PT - 4} stroke="#e4e4e7" strokeWidth={1.6} strokeLinecap="round">
+              <line key={i} x1={x(m)} x2={x(m)} y1={PT - 12} y2={PT - 4} stroke="var(--color-zinc-200)" strokeWidth={1.6} strokeLinecap="round">
                 <title>{t('charts.hypnogram.awakening', { time: formatClock(segs[0].clockMin + m) })}</title>
               </line>
             ))}
@@ -815,7 +815,7 @@ export function Spark({
       {band && (
         <>
           <title>{t('charts.spark.usualRange')}</title>
-          <rect x={0} y={y(band.hi)} width={width} height={Math.max(0, y(band.lo) - y(band.hi))} fill="#a1a1aa" opacity={0.12} />
+          <rect x={0} y={y(band.hi)} width={width} height={Math.max(0, y(band.lo) - y(band.hi))} fill="var(--color-zinc-400)" opacity={0.12} />
         </>
       )}
       {paths.map((d, i) => (

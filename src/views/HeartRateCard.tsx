@@ -439,8 +439,8 @@ export function HeartRateCard({ samples, days, wide, className = '' }: {
             <svg width={plotW} height={H} className="absolute inset-0 overflow-visible" aria-hidden="true">
               <defs>
                 <linearGradient id={`${uid}-area`} x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0" stopColor="#a1a1aa" stopOpacity={0.3} />
-                  <stop offset="1" stopColor="#a1a1aa" stopOpacity={0} />
+                  <stop offset="0" stopColor="var(--color-zinc-400)" stopOpacity={0.3} />
+                  <stop offset="1" stopColor="var(--color-zinc-400)" stopOpacity={0} />
                 </linearGradient>
                 {[...new Set([...viewDays.map((d) => d.date), ...lines.map((l) => l.date)])].map((date) => (
                   <linearGradient key={date} id={`${uid}-${date}`} gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2={H}>
@@ -452,10 +452,10 @@ export function HeartRateCard({ samples, days, wide, className = '' }: {
               </defs>
 
               {grid.map((v) => (
-                <line key={v} x1={0} x2={plotW} y1={y(v)} y2={y(v)} stroke="#27272a" strokeDasharray="2 4" />
+                <line key={v} x1={0} x2={plotW} y1={y(v)} y2={y(v)} stroke="var(--color-zinc-800)" strokeDasharray="2 4" />
               ))}
               {viewDays.filter((d) => d.start > from).map((d) => (
-                <line key={d.date} x1={x(d.start)} x2={x(d.start)} y1={0} y2={H} stroke="#3f3f46" />
+                <line key={d.date} x1={x(d.start)} x2={x(d.start)} y1={0} y2={H} stroke="var(--color-zinc-700)" />
               ))}
               {/* Where each zone starts that day, faint, in the zone's colour. */}
               {guides && viewDays.map((d) => {
@@ -478,9 +478,9 @@ export function HeartRateCard({ samples, days, wide, className = '' }: {
 
               {hover && (
                 <>
-                  <line x1={hover.left} x2={hover.left} y1={0} y2={H} stroke="#52525b" strokeDasharray="3 3" />
+                  <line x1={hover.left} x2={hover.left} y1={0} y2={H} stroke="var(--color-zinc-600)" strokeDasharray="3 3" />
                   <circle
-                    cx={hover.left} cy={hover.top} r={4} stroke="#18181b" strokeWidth={2}
+                    cx={hover.left} cy={hover.top} r={4} stroke="var(--color-zinc-900)" strokeWidth={2}
                     fill={hover.zones ? ZONE_COLORS[zoneOf(hover.v, hover.zones)] : DOMAIN.cardio.hex}
                   />
                 </>
@@ -524,15 +524,15 @@ export function HeartRateCard({ samples, days, wide, className = '' }: {
           onPointerMove={onStripMove}
           onPointerUp={onStripUp}
           onPointerCancel={onStripUp}
-          className="relative mt-2 touch-pan-y select-none cursor-grab rounded-md bg-[#0c0c0e]"
+          className="relative mt-2 touch-pan-y select-none cursor-grab rounded-md bg-card"
           style={{ height: STRIP_H }}
         >
           {stripW > 0 && (
             <svg width={stripW} height={STRIP_H} className="absolute inset-0" aria-hidden="true">
               {stripDays.map((d) => (
-                <line key={d.t} x1={sx(d.t)} x2={sx(d.t)} y1={0} y2={STRIP_H} stroke="#27272a" />
+                <line key={d.t} x1={sx(d.t)} x2={sx(d.t)} y1={0} y2={STRIP_H} stroke="var(--color-zinc-800)" />
               ))}
-              <path d={mini} fill="none" stroke="#71717a" strokeWidth={1} />
+              <path d={mini} fill="none" stroke="var(--color-zinc-500)" strokeWidth={1} />
             </svg>
           )}
           {stripDays.map((d) => (

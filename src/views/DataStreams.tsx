@@ -229,7 +229,7 @@ export function DataStreams({ data }: { data: SyncResult }) {
         const total = b.to - b.from + 1;
         const at = bucket === 'day' ? formatCivilNumeric(days[b.from].date) : bucketLabel(b.date, bucket, 'full');
         if (intraday && days[b.to].date < minutesFrom) {
-          return { key: b.date, tone: 'bg-zinc-900', title: t('data.streams.notKept', { date: at, stream: name }) };
+          return { key: b.date, tone: 'bg-faint', title: t('data.streams.notKept', { date: at, stream: name }) };
         }
         let recorded = 0;
         for (let i = b.from; i <= b.to; i++) if (has[i]) recorded++;

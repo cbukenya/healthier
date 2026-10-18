@@ -1,0 +1,69 @@
+/*
+ * Colours.
+ *
+ * Classes take Tailwind's palette: text-zinc-400, bg-emerald-500/10. Anything drawn in code
+ * (charts, SVG, inline styles) takes a colour from here through var(--name), or a grey from
+ * the palette through its variable, such as var(--color-zinc-400). A hex written into code
+ * would be a colour of its own, outside the theme.
+ */
+
+:root {
+  /*
+   * The shades the charts, figures and glows are drawn in. They carry Tailwind's names, from
+   * its previous palette, a touch softer than the current one the classes use.
+   */
+  --emerald-300: #6ee7b7;
+  --emerald-400: #34d399;
+  --emerald-500: #10b981;
+  --green-500: #22c55e;
+  --lime-300: #bef264;
+  --teal-300: #5eead4;
+  --teal-400: #2dd4bf;
+  --teal-500: #14b8a6;
+  --sky-500: #0ea5e9;
+  --slate-400: #94a3b8;
+  --indigo-400: #818cf8;
+  --indigo-500: #6366f1;
+  --indigo-700: #4338ca;
+  --violet-400: #a78bfa;
+  --purple-500: #a855f7;
+  --pink-400: #f472b6;
+  --rose-400: #fb7185;
+  --rose-500: #f43f5e;
+  --red-500: #ef4444;
+  --orange-400: #fb923c;
+  --amber-400: #fbbf24;
+  --amber-500: #f59e0b;
+  --yellow-500: #eab308;
+  /* Awake, between a night's stages. */
+  --tan: #d8b48a;
+
+  /* A card that draws its own ground, and its border. */
+  --card: #0c0c0e;
+  --card-edge: #1e1e22;
+  /* A panel set into a card, and one that stands out a step more: the battery's score, a lab's plot. */
+  --panel: #111114;
+  --panel-raised: #17171b;
+  /* The faintest rule or empty track on a card. */
+  --faint: #18181b;
+  /* The sleep window's rules, faintest to strongest; the strongest is also a carousel's resting dot. */
+  --rule-faint: #141417;
+  --rule: #1c1c20;
+  --rule-strong: #2c2c32;
+  /* The night picked on the Sleep page, and the ground of a lab that found something. */
+  --picked: #1a1a22;
+  --alert-ground: #141114;
+  /* The battery's figure, before it fills. */
+  --figure: #1b1b1f;
+}
+
+@theme inline {
+  --color-card: var(--card);
+  --color-card-edge: var(--card-edge);
+  --color-panel: var(--panel);
+  --color-panel-raised: var(--panel-raised);
+  --color-faint: var(--faint);
+  --color-rule: var(--rule);
+  --color-rule-strong: var(--rule-strong);
+  --color-picked: var(--picked);
+}

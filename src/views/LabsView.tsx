@@ -11,6 +11,7 @@ import { useCycle } from '../hooks/useCycle';
 import { t, type MessageKey } from '../i18n';
 import { rich, type Wrap } from '../i18n/react';
 import { capitalize, formatCivil, formatCivilLong, formatClock, formatFixed, formatList, formatRounded } from '../i18n/format';
+import { tint } from '../ui/primitives';
 
 /**
  * 🧪 Labs: experimental views of multi-week patterns in wearable data.
@@ -52,8 +53,8 @@ interface Lab {
   parts: React.ReactNode;
 }
 
-// SVG fills, matching the Tailwind colours around them.
-const HEX = { zinc800: '#27272a', zinc500: '#71717a', zinc400: '#a1a1aa', zinc50: '#fafafa', amber: '#fbbf24', rose: '#fb7185', emerald: '#34d399' };
+// SVG fills, in the Tailwind colours around them.
+const HEX = { zinc800: 'var(--color-zinc-800)', zinc500: 'var(--color-zinc-500)', zinc400: 'var(--color-zinc-400)', zinc50: 'var(--color-zinc-50)', amber: 'var(--amber-400)', rose: 'var(--rose-400)', emerald: 'var(--emerald-400)' };
 
 // ── what each card watches, and how it works ──────────────────────────────
 
@@ -207,9 +208,9 @@ function Callout({ children }: { children: React.ReactNode }) {
     <div
       className="rounded-[10px] border px-3.5 py-3 text-caption leading-normal text-zinc-300"
       style={{
-        borderColor: 'rgba(244,63,94,.22)',
-        backgroundColor: '#141114',
-        backgroundImage: 'radial-gradient(140% 140% at 100% 100%, rgba(244,63,94,.30) 0%, rgba(244,63,94,.09) 45%, rgba(244,63,94,0) 72%)',
+        borderColor: tint('var(--rose-500)', 22),
+        backgroundColor: 'var(--alert-ground)',
+        backgroundImage: `radial-gradient(140% 140% at 100% 100%, ${tint('var(--rose-500)', 30)} 0%, ${tint('var(--rose-500)', 9)} 45%, transparent 72%)`,
       }}
     >
       {children}
@@ -222,7 +223,7 @@ const lead: Wrap = (w) => <b className="text-rose-300 font-semibold">{w}</b>;
 
 function DeviceNote() {
   return (
-    <p className="rounded-[10px] border border-zinc-800/80 bg-[#111114] px-3 py-2.5 text-caption leading-normal text-zinc-300">
+    <p className="rounded-[10px] border border-zinc-800/80 bg-panel px-3 py-2.5 text-caption leading-normal text-zinc-300">
       {rich('labs.irn.reported.note', { b: (w) => <b className="font-semibold text-zinc-50">{w}</b> })}
     </p>
   );
@@ -232,7 +233,7 @@ function Spec({ k }: { k: LabKey }) {
   const { watch, light } = SPEC[k];
   const b: Wrap = (w) => <b className="font-semibold text-zinc-100">{w}</b>;
   return (
-    <div className="flex flex-col gap-2 px-3 py-[11px] rounded-xl border border-[#1c1c20] bg-[#111114]">
+    <div className="flex flex-col gap-2 px-3 py-[11px] rounded-xl border border-rule bg-panel">
       <p className="flex gap-2 text-caption leading-normal text-zinc-400">
         <Eye size={13} aria-hidden className="shrink-0 mt-[3px]" />
         <span>{rich(watch, { b })}</span>
@@ -926,7 +927,7 @@ function NightTraceChart({ trace, compact = false }: { trace: NightTrace; compac
   return (
     <div aria-hidden={compact || undefined}>
       <svg
-        viewBox={`0 0 1000 ${H}`} preserveAspectRatio="none" width="100%" height={H} className={`block ${compact ? 'rounded' : 'rounded-md'} bg-[#17171b]`}
+        viewBox={`0 0 1000 ${H}`} preserveAspectRatio="none" width="100%" height={H} className={`block ${compact ? 'rounded' : 'rounded-md'} bg-panel-raised`}
         role={compact ? undefined : 'img'}
         aria-label={compact ? undefined : t('labs.tachy.trace.aria', { kind: what, date: formatCivilLong(trace.date), count: trace.stretches.length })}
       >
@@ -967,7 +968,7 @@ function EmptyNight({ compact = false }: { compact?: boolean }) {
       aria-hidden={compact || undefined}
       aria-label={compact ? undefined : t('labs.tachy.empty.aria')}
     >
-      <div className={`relative ${compact ? 'h-[22px] rounded' : 'h-10 rounded-md'} bg-[#17171b]`}>
+      <div className={`relative ${compact ? 'h-[22px] rounded' : 'h-10 rounded-md'} bg-panel-raised`}>
         <span className={`absolute inset-x-0 ${compact ? 'top-1.5' : 'top-[10px]'} border-t border-dashed border-rose-400/45`} />
         {!compact && (
           <>
@@ -1110,7 +1111,7 @@ function TileHead({ lab, chevron, center = false }: { lab: Lab; chevron: React.R
 
 function LabCard({ lab }: { lab: Lab }) {
   return (
-    <section id={`lab-${lab.key}`} aria-label={lab.title} className="scroll-mt-20 min-w-0 bg-[#0c0c0e] border border-zinc-800/80 rounded-2xl p-5 flex flex-col gap-3">
+    <section id={`lab-${lab.key}`} aria-label={lab.title} className="scroll-mt-20 min-w-0 bg-card border border-zinc-800/80 rounded-2xl p-5 flex flex-col gap-3">
       <div className="flex items-start justify-between gap-2.5">
         <div className="min-w-0">
           <h3 className="font-display text-title leading-tight text-zinc-100">{lab.title}</h3>
@@ -1128,7 +1129,7 @@ function LabCard({ lab }: { lab: Lab }) {
 /** A phone tile: the glance and its graph closed; the whole card, in the same tile, open. */
 function LabRow({ lab }: { lab: Lab }) {
   return (
-    <details className="group bg-[#0c0c0e] border border-zinc-800/80 rounded-2xl px-3.5">
+    <details className="group bg-card border border-zinc-800/80 rounded-2xl px-3.5">
       <summary className="list-none [&::-webkit-details-marker]:hidden cursor-pointer block py-3.5">
         <TileHead
           lab={lab} center
@@ -1157,7 +1158,7 @@ function Overview({ labs }: { labs: Lab[] }) {
       {labs.map((lab) => (
         <a
           key={lab.key} href={`#lab-${lab.key}`} onClick={(e) => jump(e, lab.key)}
-          className="flex flex-col gap-3 px-3.5 pt-3 pb-3.5 rounded-[14px] bg-[#0c0c0e] border border-zinc-800/80 hover:border-zinc-700 transition-colors"
+          className="flex flex-col gap-3 px-3.5 pt-3 pb-3.5 rounded-[14px] bg-card border border-zinc-800/80 hover:border-zinc-700 transition-colors"
         >
           <TileHead lab={lab} chevron={<ChevronRight size={14} aria-hidden className="self-start mt-0.5 shrink-0 text-zinc-600" />} />
           <span className="block mt-auto">{lab.graph}</span>

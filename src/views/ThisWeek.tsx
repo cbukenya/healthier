@@ -27,7 +27,7 @@ const barStyle = (score: number | null, lit: boolean, maxPx = BAR_MAX_PX): React
   const hex = score === null ? null : TIER_STYLE[batteryTier(score).tag].hex;
   return {
     height: score === null ? 3 : Math.max(4, (score / 100) * maxPx),
-    background: hex ?? '#27272a',
+    background: hex ?? 'var(--color-zinc-800)',
     opacity: hex && !lit ? 0.55 : 1,
   };
 };
@@ -111,7 +111,7 @@ export function ThisWeek({ week, days, needMin, className = '' }: {
   const title = t(isMonth ? 'today.week.title.month' : 'today.week.title.week');
 
   return (
-    <section aria-label={title} className={`bg-[#0c0c0e] border border-[#1e1e22] rounded-[20px] px-4 pt-[18px] pb-4 md:px-5 md:pt-5 ${className}`}>
+    <section aria-label={title} className={`bg-card border border-card-edge rounded-[20px] px-4 pt-[18px] pb-4 md:px-5 md:pt-5 ${className}`}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h2 className="font-display text-title text-zinc-50">{title}</h2>
@@ -136,7 +136,7 @@ export function ThisWeek({ week, days, needMin, className = '' }: {
         </div>
       </div>
 
-      <div className="mt-3.5 text-eyebrow uppercase text-[#6b6f78]">{t('today.week.battery')}</div>
+      <div className="mt-3.5 text-eyebrow uppercase text-zinc-500">{t('today.week.battery')}</div>
       {isMonth ? (
         <>
           <div className="mt-2 relative h-[116px]">
@@ -213,7 +213,7 @@ export function ThisWeek({ week, days, needMin, className = '' }: {
           value={perWeek === null ? '—' : formatInteger(perWeek)}
           unit={isMonth ? t('today.week.active.perWeek') : t('today.week.active.ofWho', { target: WHO_WEEK })}
           pct={perWeek === null ? null : (perWeek / WHO_WEEK) * 100}
-          color="#10b981"
+          color="var(--emerald-500)"
           note={activeNote}
         />
         <WeekRow
@@ -238,7 +238,7 @@ function WeekRow({ label, value, unit, pct, color, note }: {
   note: string;
 }) {
   return (
-    <div className="py-[11px] border-t border-[#18181b] last:pb-0">
+    <div className="py-[11px] border-t border-faint last:pb-0">
       <div className="flex items-baseline justify-between gap-3">
         <span className="text-body text-zinc-200">{label}</span>
         <span className="text-body font-semibold text-zinc-50 tabular-nums">
