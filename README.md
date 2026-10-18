@@ -236,6 +236,10 @@ the app, then:
 
 Session cookies are marked `Secure` automatically when `APP_URL` is https.
 
+Over https, Healthier can also be installed as an app, with its own icon and window and no
+browser bars. Chrome on Android and on computers offers to install it; on an iPhone, it's Share,
+then Add to Home Screen. Browsers only offer this over https, or on `localhost`.
+
 ## Contributing
 
 Healthier gets better the more people look at their own data with it and say what they find. Here
