@@ -82,6 +82,7 @@
       "signOut": "Sign Out"
     },
     "nav": {
+      "label": "Pages",
       "today": "Today",
       "activity": "Activity",
       "sleep": "Sleep",

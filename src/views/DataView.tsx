@@ -43,8 +43,8 @@ const LOOK: Record<SectionId, { title: MessageKey; icon: LucideIcon; tile: strin
   account: { title: 'data.account.title', icon: CircleUserRound, tile: 'bg-zinc-800 text-zinc-300' },
 };
 
-/** Where an open section's top sits on a wide screen: under the sticky header, with a gap. */
-const PANE_TOP = 72;
+/** Where an open section's top sits on a wide screen: under the pinned bar, with a gap. */
+const paneTop = () => (parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--bar-height')) || 56) + 16;
 
 /** The section a history entry opened, if any. */
 function sectionIn(state: unknown): SectionId | null {
@@ -108,8 +108,9 @@ export function DataView({
     if (was === section) return;
     shown.current = section;
     if (wide) {
-      const top = pane.current?.getBoundingClientRect().top ?? PANE_TOP;
-      if (top < PANE_TOP) window.scrollBy({ top: top - PANE_TOP });
+      const want = paneTop();
+      const top = pane.current?.getBoundingClientRect().top ?? want;
+      if (top < want) window.scrollBy({ top: top - want });
       return;
     }
     if (section) {
@@ -198,7 +199,10 @@ export function DataView({
         {/* As tall as the open section, so the list can stay in view beside a long one. */}
         <aside className="w-80 shrink-0 space-y-3">
           {status}
-          <nav aria-label={t('data.overview.label')} className="sticky top-18 p-1.5 bg-zinc-900/70 border border-zinc-800 rounded-2xl">
+          <nav
+            aria-label={t('data.overview.label')}
+            className="sticky top-[calc(var(--bar-height,56px)+16px)] p-1.5 bg-zinc-900/70 border border-zinc-800 rounded-2xl"
+          >
             {GROUPS.map((g) => (
               <div key={g.title}>
                 <h2 className="px-2.5 pt-3 pb-1 text-eyebrow uppercase text-zinc-500">{t(g.title)}</h2>

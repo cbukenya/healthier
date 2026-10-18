@@ -140,6 +140,10 @@
 }
 
 @layer base {
+  /* Safari colours its own bars from the page's background, so the page's own is never left unset. */
+  html {
+    @apply bg-black;
+  }
   body {
     @apply bg-black text-zinc-300 font-sans antialiased;
   }
