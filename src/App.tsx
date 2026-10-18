@@ -323,7 +323,10 @@ function PageNav({ view, setView }: { view: View; setView: (view: View) => void 
         active={view === 'labs'} onClick={() => setView('labs')}
         icon={<FlaskConical size={14} />} label={t('app.nav.labs')} color="text-yellow-400"
       />
-      <div className="hidden md:block w-px h-4 bg-zinc-800 mx-2 shrink-0" />
+      {/* Sets Data apart. On phones it gives way when the row is full, so it never pushes Data out of view. */}
+      <div className="flex justify-center w-[19px] -mx-px min-w-0 shrink overflow-hidden md:w-auto md:mx-2 md:shrink-0">
+        <div className="w-px h-4 shrink-0 bg-zinc-800" />
+      </div>
       <NavButton
         active={view === 'data'} onClick={() => setView('data')}
         icon={<FileCode2 size={14} />} label={t('app.nav.data')} color="text-zinc-400"
