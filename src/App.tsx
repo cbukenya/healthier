@@ -18,7 +18,7 @@ import { failureText } from './i18n/sync';
 import { api } from './lib/api';
 import type { Gender } from './pipeline/registry';
 import { readGoals, type Goals } from './pipeline/goals';
-import type { GoalsResponse, ProfileResponse } from './types/api';
+import type { ApiUser, GoalsResponse, ProfileResponse } from './types/api';
 
 import { DOMAIN, NavButton } from './ui/primitives';
 import { TodayView } from './views/TodayView';
@@ -26,7 +26,7 @@ import { ActivityView } from './views/ActivityView';
 import { SleepView } from './views/SleepView';
 import { VitalsView } from './views/VitalsView';
 import { BodyView } from './views/BodyView';
-import { DataView } from './views/DataView';
+import { DataView, type SectionId } from './views/DataView';
 import { LabsView } from './views/LabsView';
 import { AboutYourData, GoogleG, SignInNote } from './views/SignInParts';
 
@@ -102,6 +102,12 @@ export default function App() {
   }, [health.data]);
 
   const [view, setView] = useState<View>('today');
+  // A Data section to open: the chip in the bar asks for Account.
+  const [dataRequest, setDataRequest] = useState<{ section: SectionId; at: number } | null>(null);
+  const openAccount = () => {
+    setView('data');
+    setDataRequest({ section: 'account', at: Date.now() });
+  };
   // The data's last day: yours on live data, the fixture's in demo mode.
   const today = health.data?.days.at(-1)?.date ?? null;
 
@@ -243,6 +249,8 @@ export default function App() {
                 syncing={health.phase === 'revalidating'}
                 failure={health.error}
                 email={demo ? null : user?.email ?? null}
+                request={dataRequest}
+                onRequestDone={() => setDataRequest(null)}
                 onFullSync={health.fullSync}
                 onRetry={health.refresh}
                 onSignIn={signIn}
@@ -278,27 +286,7 @@ export default function App() {
               </span>
             )}
             
-            {user && !demo && (
-              <div className="flex items-center gap-2 px-2 py-1 rounded-full bg-zinc-900 border border-zinc-800/80">
-                {user.pictureUrl ? (
-                  <img src={user.pictureUrl} alt={t('app.header.picture')} className="w-5 h-5 rounded-full object-cover" referrerPolicy="no-referrer" />
-                ) : (
-                  <div className="w-5 h-5 rounded-full bg-zinc-800 flex items-center justify-center">
-                    <User size={10} className="text-zinc-400" />
-                  </div>
-                )}
-                <span className="text-caption font-medium text-zinc-300 pr-1">
-                  {user.name?.split(' ')[0] || t('app.header.someone')}
-                </span>
-              </div>
-            )}
-
-            <button
-              onClick={leave}
-              className="min-h-11 md:min-h-0 px-3 py-1.5 rounded-lg text-detail md:text-caption font-medium text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
-            >
-              {demo ? t('app.header.exitDemo') : t('app.header.signOut')}
-            </button>
+            {(demo || user) && <AccountChip user={demo ? null : user} onClick={openAccount} />}
           </div>
         </div>
         <div className="max-w-5xl mx-auto px-4 pt-1 md:pt-2">
@@ -318,6 +306,32 @@ export default function App() {
 }
 
 type View = 'today' | 'activity' | 'sleep' | 'vitals' | 'body' | 'cycle' | 'labs' | 'data';
+
+/**
+ * Who's here, in the bar: their picture and first name, or Demo in demo mode. It opens the Data
+ * page at Account, where the theme is set and where signing out, or leaving the demo, now lives.
+ */
+function AccountChip({ user, onClick }: { user: ApiUser | null; onClick: () => void }) {
+  const name = user ? user.name?.split(' ')[0] || t('app.header.someone') : t('app.header.demo');
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={t('app.header.account', { name })}
+      // The ::before widens what a finger can hit to 44px tall, without making the chip bigger.
+      className="relative flex items-center gap-2 px-2 py-1 rounded-full bg-zinc-900 border border-zinc-800/80 hover:bg-zinc-800 transition-colors before:absolute before:-inset-y-2 before:inset-x-0 before:content-[''] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-400"
+    >
+      {user?.pictureUrl ? (
+        <img src={user.pictureUrl} alt="" className="w-5 h-5 rounded-full object-cover" referrerPolicy="no-referrer" />
+      ) : (
+        <span className="w-5 h-5 rounded-full bg-zinc-800 flex items-center justify-center">
+          <User size={10} className="text-zinc-400" />
+        </span>
+      )}
+      <span className="text-caption font-medium text-zinc-300 pr-1">{name}</span>
+    </button>
+  );
+}
 
 /**
  * The bar's height as `--bar-height` on the page, for whatever sticks under the bar: the Data

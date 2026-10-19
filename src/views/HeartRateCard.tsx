@@ -379,7 +379,7 @@ export function HeartRateCard({ samples, days, wide, className = '' }: {
                 type="button"
                 aria-pressed={on}
                 onClick={() => (following ? show(end - o.ms, o.ms) : show(from + span / 2 - o.ms / 2, o.ms))}
-                className={`min-h-9 md:min-h-0 px-2.5 py-1 rounded-[6px] text-caption font-medium transition-colors ${on ? 'bg-zinc-800 text-zinc-100' : 'text-zinc-500 hover:text-zinc-300'}`}
+                className={`px-2 py-[3px] rounded-[6px] text-note font-medium transition-colors ${on ? 'bg-zinc-800 text-zinc-100' : 'text-zinc-500 hover:text-zinc-300'}`}
               >
                 {t(o.label)}
               </button>
@@ -390,7 +390,7 @@ export function HeartRateCard({ samples, days, wide, className = '' }: {
           <button
             type="button"
             onClick={() => setView({ span, to: null })}
-            className="min-h-9 md:min-h-0 px-2.5 py-1 rounded-lg border border-zinc-800 text-caption font-medium text-zinc-300 hover:bg-zinc-900 transition-colors"
+            className="px-2.5 py-[5px] rounded-lg border border-zinc-800 text-note font-medium text-zinc-300 hover:bg-zinc-900 transition-colors"
           >
             {t('vitals.heartRate.backToNow')}
           </button>
@@ -524,7 +524,8 @@ export function HeartRateCard({ samples, days, wide, className = '' }: {
           onPointerMove={onStripMove}
           onPointerUp={onStripUp}
           onPointerCancel={onStripUp}
-          className="relative mt-2 touch-pan-y select-none cursor-grab rounded-md bg-card"
+          // Too small to grab with a finger: a phone pans by dragging the chart itself.
+          className="relative mt-2 hidden md:block touch-pan-y select-none cursor-grab rounded-md bg-card"
           style={{ height: STRIP_H }}
         >
           {stripW > 0 && (

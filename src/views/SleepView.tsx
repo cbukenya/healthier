@@ -245,14 +245,14 @@ export function SleepView({ data, clock, intraday }: { data: SyncResult; clock?:
               title={t('sleep.architecture.title')}
             />
             <div className="flex-1 flex flex-col pt-2">
-              <ArchitectureMeasures session={latest} />
-
+              {/* The night first, then the measures read from it. */}
               <div className="flex-1">
                 <Hypnogram session={latest} height={200} />
               </div>
               <StageLegend />
-              
-              <p className="px-5 pb-5 mt-3 text-caption leading-relaxed text-zinc-500">
+              <ArchitectureMeasures session={latest} />
+
+              <p className="px-5 pb-5 text-caption leading-relaxed text-zinc-500">
                 {t('sleep.architecture.caveat')}
               </p>
             </div>

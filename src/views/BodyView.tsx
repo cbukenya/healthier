@@ -192,16 +192,6 @@ export function BodyView({ data, gender, onGender, clock, intraday }: {
       {/* Who you are and the newest readings, whatever span is chosen below. On wide screens, profile, weight and BMI share a row. */}
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-2.5 md:gap-3">
         {profile}
-        <div className="col-span-2 lg:col-span-3 lg:order-1 flex items-baseline justify-between gap-2 px-1">
-          <h2 className="text-section uppercase text-page-ink">{t('body.latest.title')}</h2>
-          <span className="text-caption text-page-ink">
-            {rich('body.latest.from', {
-              date: formatCivilLong(latest.date),
-              ago: ago(daysOld),
-              age: (w) => <span className={daysOld > 14 ? 'text-amber-400' : undefined}>{w}</span>,
-            })}
-          </span>
-        </div>
         <div className="min-w-0 lg:order-3 grid">
           <Tile
             label={t('body.latest.weight.label')}
@@ -209,6 +199,8 @@ export function BodyView({ data, gender, onGender, clock, intraday }: {
             value={<Value value={latest.value} size="md" digits={1} unit={t('units.kg')} />}
             chart={body.weighIns.length > 1 && <Spark series={body.weighIns} color={DOMAIN.body.hex} height={28} />}
             rows={[[t('body.latest.weight.fromPrevious'), previous && changeText(latest.value - previous.value, t('units.kg'))]]}
+            // Weigh-ins are occasional: one more than two weeks old says when it was.
+            note={daysOld > 14 ? t('body.latest.from', { date: formatCivilLong(latest.date), ago: ago(daysOld) }) : null}
           />
         </div>
         <div className="min-w-0 lg:order-4 grid">
