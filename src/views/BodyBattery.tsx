@@ -224,9 +224,10 @@ export function BodyBattery({ score, parts, confidence, label, missing, calibrat
     <div className={`bg-card border border-card-edge rounded-[28px] p-[30px_24px] md:p-[44px_48px_40px] w-full max-w-[920px] mx-auto ${className}`}>
       <div className="grid grid-cols-1 md:grid-cols-[minmax(280px,1fr)_minmax(300px,440px)] gap-3 items-start">
         <div>
-          <h1 className="font-display text-display-lg flex items-baseline gap-3 flex-wrap text-zinc-100">
+          {/* A card title, as This week's is. */}
+          <h1 className="font-display text-title flex items-baseline gap-2.5 flex-wrap text-zinc-50">
             {t('today.battery.title')}
-            {z.noData && <span className="font-sans text-tag-lg text-zinc-500">{z.noData}</span>}
+            {z.noData && <span className="font-sans text-tag text-zinc-500">{z.noData}</span>}
           </h1>
           <p className="mt-[18px] text-lead text-zinc-400 max-w-[30ch]">
             {t('today.battery.composition', { days: BASELINE_DAYS })}
