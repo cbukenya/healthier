@@ -4,7 +4,7 @@ import { rich } from '../i18n/react';
 import { formatCivilLong, formatCivilRange, formatClock, formatFixed, formatHours, weekdayLetter, weekdayShort } from '../i18n/format';
 import { bedtimeConsistency, type PeriodShift, type SleepDebt } from '../pipeline/derive';
 import { scoreSleep } from '../pipeline/sleep';
-import { Card, CardHead, DURATION_UNIT, Delta, Row, fmtDuration, withUnits } from '../ui/primitives';
+import { Card, CardHead, DURATION_UNIT, Delta, Row, fmtDuration, tint, withUnits } from '../ui/primitives';
 import type { DailyRecord, SleepSession } from '../types/health';
 import { Stat, statUnit } from './ActivityCards';
 
@@ -12,52 +12,52 @@ export function getScoreTier(total: number) {
   if (total >= 85) {
     return {
       name: t('sleep.night.score.tiers.excellent'),
-      color: "#10b981",
-      dotColor: "#22c55e",
+      color: "var(--emerald-500)",
+      dotColor: "var(--green-500)",
       bg: "bg-emerald-500/10",
       text: "text-emerald-400",
       border: "border-emerald-500/30",
-      glow: "0 0 10px rgba(34,197,94,0.6)",
+      glow: `0 0 10px ${tint('var(--green-500)', 60)}`,
     };
   }
   if (total >= 70) {
     return {
       name: t('sleep.night.score.tiers.good'),
-      color: "#818cf8",
-      dotColor: "#818cf8",
+      color: "var(--indigo-400)",
+      dotColor: "var(--indigo-400)",
       bg: "bg-indigo-500/10",
       text: "text-indigo-400",
       border: "border-indigo-500/30",
-      glow: "0 0 10px rgba(129,140,248,0.6)",
+      glow: `0 0 10px ${tint('var(--indigo-400)', 60)}`,
     };
   }
   if (total >= 50) {
     return {
       name: t('sleep.night.score.tiers.fair'),
-      color: "#f59e0b",
-      dotColor: "#fbbf24",
+      color: "var(--amber-500)",
+      dotColor: "var(--amber-400)",
       bg: "bg-amber-500/10",
       text: "text-amber-400",
       border: "border-amber-500/30",
-      glow: "0 0 10px rgba(245,158,11,0.6)",
+      glow: `0 0 10px ${tint('var(--amber-500)', 60)}`,
     };
   }
   return {
     name: t('sleep.night.score.tiers.poor'),
-    color: "#f43f5e",
-    dotColor: "#ef4444",
+    color: "var(--rose-500)",
+    dotColor: "var(--red-500)",
     bg: "bg-rose-500/10",
     text: "text-rose-400",
     border: "border-rose-500/30",
-    glow: "0 0 10px rgba(244,63,94,0.6)",
+    glow: `0 0 10px ${tint('var(--rose-500)', 60)}`,
   };
 }
 
 /** The stages a night's bar stacks, bottom up, in the hypnogram's colours. */
 const STAGES = [
-  { key: 'deep', label: 'sleep.stages.deep', color: '#4338ca' },
-  { key: 'light', label: 'sleep.stages.light', color: '#818cf8' },
-  { key: 'rem', label: 'sleep.stages.rem', color: '#a78bfa' },
+  { key: 'deep', label: 'sleep.stages.deep', color: 'var(--indigo-700)' },
+  { key: 'light', label: 'sleep.stages.light', color: 'var(--indigo-400)' },
+  { key: 'rem', label: 'sleep.stages.rem', color: 'var(--violet-400)' },
 ] as const;
 
 /** A need as a short label: "7h", or "~7h" when it isn't a whole hour. */
@@ -209,7 +209,7 @@ function NightBars({ days, needMin, need, wide }: { days: DailyRecord[]; needMin
       </div>
       <div className={`relative ${columns} mt-1`}>
         {scored.map((n) => (
-          <span key={n.date} className="text-center text-caption font-semibold tabular-nums" style={{ color: n.score === null ? '#52525b' : getScoreTier(n.score).dotColor }}>
+          <span key={n.date} className="text-center text-caption font-semibold tabular-nums" style={{ color: n.score === null ? 'var(--color-zinc-600)' : getScoreTier(n.score).dotColor }}>
             {n.score ?? '–'}
           </span>
         ))}
@@ -267,7 +267,7 @@ export function Naps({ naps, spanDays, wide }: { naps: SleepSession[]; spanDays:
             type="button"
             onClick={() => setShowAll(!showAll)}
             aria-expanded={showAll}
-            className="mt-2 w-full min-h-11 rounded-xl border border-[#27272a] text-body-sm text-[#a1a1aa] hover:text-zinc-100 hover:bg-zinc-900 transition-colors"
+            className="mt-2 w-full min-h-11 rounded-xl border border-zinc-800 text-body-sm text-zinc-400 hover:text-zinc-100 hover:bg-zinc-900 transition-colors"
           >
             {showAll ? t('sleep.naps.showLatest', { count: NAPS_SHOWN }) : t('sleep.naps.showAll', { count: naps.length })}
           </button>

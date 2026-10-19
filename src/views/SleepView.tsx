@@ -76,17 +76,17 @@ export function SleepView({ data, clock, intraday }: { data: SyncResult; clock?:
   );
   const remCard = (
     <Card>
-      <CardHead domain="sleep" title={t('sleep.rem.title')} hint={t('sleep.rem.hint')} right={<CardSummary isSleep data={remWin} color="#a78bfa" format={(v) => fmtDuration(v)} />} />
+      <CardHead domain="sleep" title={t('sleep.rem.title')} hint={t('sleep.rem.hint')} right={<CardSummary isSleep data={remWin} color="var(--violet-400)" format={(v) => fmtDuration(v)} />} />
       <div className="px-2 pb-3">
-        <BarSeries series={groupSeries(remWin, bucket)} bucket={bucket} color="#a78bfa" unit={t('units.minutes')} height={150} />
+        <BarSeries series={groupSeries(remWin, bucket)} bucket={bucket} color="var(--violet-400)" unit={t('units.minutes')} height={150} />
       </div>
     </Card>
   );
   const deepCard = (
     <Card>
-      <CardHead domain="sleep" title={t('sleep.deep.title')} hint={t('sleep.deep.hint')} right={<CardSummary isSleep data={deepWin} color="#4338ca" format={(v) => fmtDuration(v)} />} />
+      <CardHead domain="sleep" title={t('sleep.deep.title')} hint={t('sleep.deep.hint')} right={<CardSummary isSleep data={deepWin} color="var(--indigo-700)" format={(v) => fmtDuration(v)} />} />
       <div className="px-2 pb-3">
-        <BarSeries series={groupSeries(deepWin, bucket)} bucket={bucket} color="#4338ca" unit={t('units.minutes')} height={150} />
+        <BarSeries series={groupSeries(deepWin, bucket)} bucket={bucket} color="var(--indigo-700)" unit={t('units.minutes')} height={150} />
       </div>
     </Card>
   );
@@ -154,7 +154,7 @@ export function SleepView({ data, clock, intraday }: { data: SyncResult; clock?:
                   pct: Math.min(100, Math.max(0, Math.round((score.duration / 50) * 100))),
                   points: score.duration,
                   max: 50,
-                  color: "#818cf8", // Light Indigo
+                  color: "var(--indigo-400)",
                   detail: latest ? t('sleep.night.score.duration.detail', { duration: fmtDuration(latest.minutesAsleep) }) : "",
                 },
                 {
@@ -162,7 +162,7 @@ export function SleepView({ data, clock, intraday }: { data: SyncResult; clock?:
                   pct: Math.min(100, Math.max(0, Math.round((score.restoration / 25) * 100))),
                   points: score.restoration,
                   max: 25,
-                  color: "#6366f1", // Indigo / Purple
+                  color: "var(--indigo-500)",
                   detail: score.restorativePct !== null
                     ? t('sleep.night.score.restoration.detail', { percent: score.restorativePct })
                     : t('sleep.night.score.restoration.noStages'),
@@ -172,7 +172,7 @@ export function SleepView({ data, clock, intraday }: { data: SyncResult; clock?:
                   pct: Math.min(100, Math.max(0, Math.round((score.efficiency / 25) * 100))),
                   points: score.efficiency,
                   max: 25,
-                  color: "#10b981", // Emerald
+                  color: "var(--emerald-500)",
                   detail: latest ? t('sleep.night.score.efficiency.detail', { percent: Math.round(latest.efficiency) }) : "",
                 },
               ];
@@ -191,7 +191,7 @@ export function SleepView({ data, clock, intraday }: { data: SyncResult; clock?:
                         </span>
                         <span className="text-detail text-zinc-500 font-medium">/ 100</span>
                       </div>
-                      <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#18181b] border border-zinc-800 shadow-sm">
+                      <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-zinc-900 border border-zinc-800 shadow-sm">
                         <span
                           className="w-2.5 h-2.5 rounded-full inline-block shrink-0"
                           style={{
@@ -216,7 +216,7 @@ export function SleepView({ data, clock, intraday }: { data: SyncResult; clock?:
                             {c.label}
                           </span>
                           <div className="flex-1 flex items-center h-3 relative mx-2">
-                            <div className="w-full h-1.5 bg-zinc-900 rounded-full overflow-hidden flex">
+                            <div className="w-full h-1.5 bg-faint rounded-full overflow-hidden flex">
                               <div
                                 className="h-full rounded-full transition-all duration-300"
                                 style={{ width: `${c.pct}%`, backgroundColor: c.color }}
@@ -408,7 +408,7 @@ function ArchitectureMeasures({ session }: { session: SleepSession }) {
   return (
     <div className="px-5 mb-4">
       {/* Desktop: every measure says what it means. */}
-      <div className="hidden md:grid grid-cols-3 gap-x-5 gap-y-3.5 px-4 py-3.5 rounded-xl bg-[#111114] border border-zinc-800/60">
+      <div className="hidden md:grid grid-cols-3 gap-x-5 gap-y-3.5 px-4 py-3.5 rounded-xl bg-panel border border-zinc-800/60">
         {measures.map((m) => (
           <div key={m.id} className="flex flex-col gap-0.5 min-w-0">
             <span className="text-eyebrow-sm uppercase text-zinc-500">{m.label}</span>
@@ -431,7 +431,7 @@ function ArchitectureMeasures({ session }: { session: SleepSession }) {
               onClick={() => setPicked(picked === i ? null : i)}
               aria-pressed={picked === i}
               className={`min-h-14 px-2.5 py-2 rounded-xl border text-left flex flex-col justify-center gap-0.5 transition-colors ${
-                picked === i ? 'border-indigo-400 bg-[#1a1a22]' : 'border-zinc-800/80 bg-[#0c0c0e]'
+                picked === i ? 'border-indigo-400 bg-picked' : 'border-zinc-800/80 bg-card'
               }`}
             >
               <span className="text-eyebrow-sm uppercase text-zinc-500">{m.short}</span>
@@ -439,7 +439,7 @@ function ArchitectureMeasures({ session }: { session: SleepSession }) {
             </button>
           ))}
         </div>
-        <div aria-live="polite" className="mt-2.5 px-3.5 py-3 rounded-xl bg-[#17171c] border border-zinc-800">
+        <div aria-live="polite" className="mt-2.5 px-3.5 py-3 rounded-xl bg-panel-raised border border-zinc-800">
           {shown ? (
             <>
               <div className="text-detail font-semibold text-zinc-100">{shown.label}</div>

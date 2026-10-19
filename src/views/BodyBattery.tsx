@@ -24,10 +24,10 @@ interface BodyBatteryProps {
  * sentence per tier, so a language can inflect the name in it); the thresholds themselves live in BATTERY_TIERS.
  */
 export const TIER_STYLE: Record<(typeof BATTERY_TIERS)[number]['tag'], { text: string; hex: string; name: MessageKey; badge: MessageKey; figure: MessageKey }> = {
-  CHARGED: { text: 'text-emerald-500', hex: '#10b981', name: 'today.battery.tiers.charged.name', badge: 'today.battery.tiers.charged.tag', figure: 'today.battery.tiers.charged.figure' },
-  BALANCED: { text: 'text-lime-300', hex: '#bef264', name: 'today.battery.tiers.balanced.name', badge: 'today.battery.tiers.balanced.tag', figure: 'today.battery.tiers.balanced.figure' },
-  LOW: { text: 'text-amber-500', hex: '#f59e0b', name: 'today.battery.tiers.low.name', badge: 'today.battery.tiers.low.tag', figure: 'today.battery.tiers.low.figure' },
-  DRAINED: { text: 'text-rose-500', hex: '#f43f5e', name: 'today.battery.tiers.drained.name', badge: 'today.battery.tiers.drained.tag', figure: 'today.battery.tiers.drained.figure' },
+  CHARGED: { text: 'text-emerald-500', hex: 'var(--emerald-500)', name: 'today.battery.tiers.charged.name', badge: 'today.battery.tiers.charged.tag', figure: 'today.battery.tiers.charged.figure' },
+  BALANCED: { text: 'text-lime-300', hex: 'var(--lime-300)', name: 'today.battery.tiers.balanced.name', badge: 'today.battery.tiers.balanced.tag', figure: 'today.battery.tiers.balanced.figure' },
+  LOW: { text: 'text-amber-500', hex: 'var(--amber-500)', name: 'today.battery.tiers.low.name', badge: 'today.battery.tiers.low.tag', figure: 'today.battery.tiers.low.figure' },
+  DRAINED: { text: 'text-rose-500', hex: 'var(--rose-500)', name: 'today.battery.tiers.drained.name', badge: 'today.battery.tiers.drained.tag', figure: 'today.battery.tiers.drained.figure' },
 };
 
 /** What the line under the score says about its confidence. */
@@ -138,13 +138,13 @@ function BatteryFigure({ score, gender, labelled, className }: {
         </g>
       </g>
 
-      <path d={body} fill="#1b1b1f" />
+      <path d={body} fill="var(--figure)" />
 
       <g clipPath={`url(#${id}-body)`}>
         <g clipPath={`url(#${id}-level)`}>
           <rect x="20" y="9" width="200" height="453" fill={`url(#${id}-charge)`}/>
         </g>
-        <rect x="20" y={fillY - 1} width="200" height="2" fill="#ffffff" opacity={level > 0 && level < 100 ? 0.35 : 0}/>
+        <rect x="20" y={fillY - 1} width="200" height="2" fill="var(--color-white)" opacity={level > 0 && level < 100 ? 0.35 : 0}/>
       </g>
 
       {BATTERY_TIERS.map((stage, i) => {
@@ -163,8 +163,8 @@ function BatteryFigure({ score, gender, labelled, className }: {
             />
             {labelled && (
               <>
-                <text fontSize={18} fontWeight={700} x="264" y={centre - 2} fill={on ? style.hex : '#71717a'}>{t(style.name)}</text>
-                <text className="tabular-nums" fontSize={13.5} x="264" y={centre + 17} fill={on ? '#9ca0a8' : '#52525b'}>
+                <text fontSize={18} fontWeight={700} x="264" y={centre - 2} fill={on ? style.hex : 'var(--color-zinc-500)'}>{t(style.name)}</text>
+                <text className="tabular-nums" fontSize={13.5} x="264" y={centre + 17} fill={on ? 'var(--color-zinc-400)' : 'var(--color-zinc-600)'}>
                   {t('today.battery.range', { min: stage.min, max: tierMax(i) })}
                 </text>
               </>
@@ -175,10 +175,10 @@ function BatteryFigure({ score, gender, labelled, className }: {
       {score !== null && (
         <g>
           <line
-            x1="210" y1={fillY} x2={rail.tickX - 1} y2={fillY} strokeLinecap="round" stroke="#52525b"
+            x1="210" y1={fillY} x2={rail.tickX - 1} y2={fillY} strokeLinecap="round" stroke="var(--color-zinc-600)"
             strokeDasharray={labelled ? '1.5 5' : '4 8'} strokeWidth={labelled ? 1.5 : 3}
           />
-          <rect x={rail.tickX} y={fillY - rail.tickHeight / 2} width={rail.tickWidth} height={rail.tickHeight} rx={rail.tickHeight / 2} fill="#f4f4f5" />
+          <rect x={rail.tickX} y={fillY - rail.tickHeight / 2} width={rail.tickWidth} height={rail.tickHeight} rx={rail.tickHeight / 2} fill="var(--color-zinc-100)" />
         </g>
       )}
     </svg>
@@ -195,19 +195,19 @@ const byImpact = (parts: ReadinessPart[]) => [...parts].sort((a, b) => Math.abs(
 function ContributorRow({ part, maxAbs, large = false }: { part: ReadinessPart; maxAbs: number; large?: boolean }) {
   const pos = part.contribution >= 0;
   return (
-    <div className={`grid items-center border-t border-[#18181b] ${large ? 'grid-cols-[minmax(0,1fr)_minmax(96px,140px)_56px] gap-4 py-3' : 'grid-cols-[minmax(0,1fr)_72px_40px] gap-2.5 py-[9px]'}`}>
+    <div className={`grid items-center border-t border-faint ${large ? 'grid-cols-[minmax(0,1fr)_minmax(96px,140px)_56px] gap-4 py-3' : 'grid-cols-[minmax(0,1fr)_72px_40px] gap-2.5 py-[9px]'}`}>
       <div className="min-w-0">
-        <div className={`${large ? 'text-body-lg' : 'text-body'} text-[#d4d6db]`}>{part.label}</div>
-        <div className={`mt-px ${large ? 'text-body' : 'text-detail'} text-[#6b6f78]`}>{part.detail}</div>
+        <div className={`${large ? 'text-body-lg' : 'text-body'} text-zinc-300`}>{part.label}</div>
+        <div className={`mt-px ${large ? 'text-body' : 'text-detail'} text-zinc-500`}>{part.detail}</div>
       </div>
       <div className={`relative ${large ? 'h-[10px]' : 'h-1.5'}`}>
-        <div className={`absolute left-1/2 ${large ? '-top-[7px] -bottom-[7px] w-[1.5px]' : '-top-[5px] -bottom-[5px] w-px'} bg-[#3f3f46]`} />
+        <div className={`absolute left-1/2 ${large ? '-top-[7px] -bottom-[7px] w-[1.5px]' : '-top-[5px] -bottom-[5px] w-px'} bg-zinc-700`} />
         <div
-          className={`absolute top-0 h-full rounded-full transition-all duration-700 ${pos ? 'bg-[#22c55e]' : 'bg-[#f43f5e]'}`}
+          className={`absolute top-0 h-full rounded-full transition-all duration-700 ${pos ? 'bg-(--green-500)' : 'bg-(--rose-500)'}`}
           style={{ width: `${(Math.abs(part.contribution) / maxAbs) * 45}%`, ...(pos ? { left: '50%' } : { right: '50%' }) }}
         />
       </div>
-      <span className={`${large ? 'text-body-lg' : 'text-body'} font-semibold text-right tabular-nums ${pos ? 'text-[#22c55e]' : 'text-[#f43f5e]'}`}>
+      <span className={`${large ? 'text-body-lg' : 'text-body'} font-semibold text-right tabular-nums ${pos ? 'text-(--green-500)' : 'text-(--rose-500)'}`}>
         {pos ? '+' : '−'}{formatFixed(Math.abs(part.contribution), 1)}
       </span>
     </div>
@@ -221,29 +221,29 @@ export function BodyBattery({ score, parts, confidence, label, missing, calibrat
   const maxAbs = Math.max(...parts.map(p => Math.abs(p.contribution)), 1);
 
   return (
-    <div className={`bg-[#0c0c0e] border border-[#1e1e22] rounded-[28px] p-[30px_24px] md:p-[44px_48px_40px] w-full max-w-[920px] mx-auto ${className}`}>
+    <div className={`bg-card border border-card-edge rounded-[28px] p-[30px_24px] md:p-[44px_48px_40px] w-full max-w-[920px] mx-auto ${className}`}>
       <div className="grid grid-cols-1 md:grid-cols-[minmax(280px,1fr)_minmax(300px,440px)] gap-3 items-start">
         <div>
-          <h1 className="font-display text-display-lg flex items-baseline gap-3 flex-wrap text-[#f4f4f5]">
+          <h1 className="font-display text-display-lg flex items-baseline gap-3 flex-wrap text-zinc-100">
             {t('today.battery.title')} <span className={`font-sans text-tag-lg ${z.color}`}>{z.tag}</span>
           </h1>
-          <p className="mt-[18px] text-lead text-[#9ca0a8] max-w-[30ch]">
+          <p className="mt-[18px] text-lead text-zinc-400 max-w-[30ch]">
             {t('today.battery.composition', { days: BASELINE_DAYS })}
           </p>
-          <div className="mt-[30px] inline-block bg-[#17171a] rounded-[20px] px-[30px] pt-[10px] pb-[14px]">
+          <div className="mt-[30px] inline-block bg-panel-raised rounded-[20px] px-[30px] pt-[10px] pb-[14px]">
             <div className="flex items-baseline gap-1">
-              <span className="font-display text-number-3xl tabular-nums text-[#f4f4f5]">
+              <span className="font-display text-number-3xl tabular-nums text-zinc-100">
                 {score ?? '—'}
               </span>
-              <span className="text-body-lg text-[#9ca0a8]">
+              <span className="text-body-lg text-zinc-400">
                 {t('today.battery.outOf')}
               </span>
             </div>
           </div>
-          <div className="mt-[18px] font-display text-headline-lg text-[#f4f4f5]">
+          <div className="mt-[18px] font-display text-headline-lg text-zinc-100">
             {label}
           </div>
-          {z.basis && <p className="mt-2 text-body text-[#6b6f78]">{z.basis}</p>}
+          {z.basis && <p className="mt-2 text-body text-zinc-500">{z.basis}</p>}
         </div>
 
         <div className="w-full max-w-[340px] md:max-w-none mx-auto md:mx-0 mt-2 md:mt-0">
@@ -253,7 +253,7 @@ export function BodyBattery({ score, parts, confidence, label, missing, calibrat
 
       {parts.length > 0 && (
         <div className="mt-[26px]">
-          <Contributors heading="text-eyebrow-lg uppercase text-[#6b6f78] mb-2">
+          <Contributors heading="text-eyebrow-lg uppercase text-zinc-500 mb-2">
             {byImpact(parts).map((p) => <ContributorRow key={p.id} part={p} maxAbs={maxAbs} large />)}
           </Contributors>
         </div>
@@ -273,8 +273,8 @@ export function BodyBatteryCompact({ score, parts, confidence, label, missing, c
   const maxAbs = Math.max(...parts.map((p) => Math.abs(p.contribution)), 1);
 
   return (
-    <section aria-label={t('today.battery.title')} className={`bg-[#0c0c0e] border border-[#1e1e22] rounded-[24px] p-5 flex flex-col gap-4 ${className}`}>
-      <h1 className="flex items-baseline gap-2.5 flex-wrap font-display text-display text-[#f4f4f5]">
+    <section aria-label={t('today.battery.title')} className={`bg-card border border-card-edge rounded-[24px] p-5 flex flex-col gap-4 ${className}`}>
+      <h1 className="flex items-baseline gap-2.5 flex-wrap font-display text-display text-zinc-100">
         {t('today.battery.title')} <span className={`font-sans text-tag ${z.color}`}>{z.tag}</span>
       </h1>
 
@@ -282,16 +282,16 @@ export function BodyBatteryCompact({ score, parts, confidence, label, missing, c
       <div className="grid grid-cols-1 min-[360px]:grid-cols-[minmax(0,1fr)_auto] items-center gap-2.5">
         <div className="min-w-0">
           {/* The figure takes the room it needs, so the number steps down a size on narrower phones, and once more for a full 100. */}
-          <div className="inline-flex items-baseline gap-1 bg-[#17171a] rounded-2xl px-3 min-[380px]:px-3.5 pt-1 pb-2">
+          <div className="inline-flex items-baseline gap-1 bg-panel-raised rounded-2xl px-3 min-[380px]:px-3.5 pt-1 pb-2">
             <span
-              className={`font-display ${score === 100 ? 'text-number-lg min-[380px]:text-number-xl' : 'text-number-xl min-[380px]:text-number-2xl'} tabular-nums text-[#f4f4f5]`}
+              className={`font-display ${score === 100 ? 'text-number-lg min-[380px]:text-number-xl' : 'text-number-xl min-[380px]:text-number-2xl'} tabular-nums text-zinc-100`}
             >
               {score ?? '—'}
             </span>
-            <span className="text-body-sm text-[#9ca0a8] whitespace-nowrap">{t('today.battery.outOf')}</span>
+            <span className="text-body-sm text-zinc-400 whitespace-nowrap">{t('today.battery.outOf')}</span>
           </div>
-          <div className="mt-2.5 font-display text-headline-sm min-[380px]:text-headline text-[#f4f4f5]">{label}</div>
-          {z.basis && <p className="mt-1.5 text-detail text-[#6b6f78]">{z.basis}</p>}
+          <div className="mt-2.5 font-display text-headline-sm min-[380px]:text-headline text-zinc-100">{label}</div>
+          {z.basis && <p className="mt-1.5 text-detail text-zinc-500">{z.basis}</p>}
         </div>
         {/* The figure and its rail on the right, as on desktop, with each stage's range beside its band. */}
         <div className="flex items-stretch gap-1 justify-self-center min-[360px]:justify-self-auto">
@@ -303,8 +303,8 @@ export function BodyBatteryCompact({ score, parts, confidence, label, missing, c
               const on = z.tier?.tag === stage.tag;
               return (
                 <div key={stage.tag} className="absolute left-0 -translate-y-1/2 leading-tight" style={{ top: `${(centre / 480) * 100}%` }}>
-                  <div className="text-detail leading-tight font-bold" style={{ color: on ? style.hex : '#71717a' }}>{t(style.name)}</div>
-                  <div className="text-note leading-tight tabular-nums" style={{ color: on ? '#9ca0a8' : '#52525b' }}>
+                  <div className="text-detail leading-tight font-bold" style={{ color: on ? style.hex : 'var(--color-zinc-500)' }}>{t(style.name)}</div>
+                  <div className="text-note leading-tight tabular-nums" style={{ color: on ? 'var(--color-zinc-400)' : 'var(--color-zinc-600)' }}>
                     {t('today.battery.rangeNarrow', { min: stage.min, max: tierMax(i) })}
                   </div>
                 </div>

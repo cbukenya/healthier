@@ -25,7 +25,7 @@ import { InsightsCarousel } from '../components/InsightsCarousel';
 import { Tile } from '../ui/Tile';
 
 /** Breathing's colour on the Vitals page. */
-const BREATHING_HEX = '#a855f7';
+const BREATHING_HEX = 'var(--purple-500)';
 
 /** A comparison's usual range for a sparkline's band, once it has a baseline. */
 const usual = (c: Comparison | null) =>

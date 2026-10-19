@@ -22,7 +22,7 @@ import { usePageInsights, type Clock } from '../hooks/usePageInsights';
 import type { IntradayDays } from '../pipeline/labs';
 
 const LEAN_HEX = DOMAIN.body.hex;
-const FAT_HEX = '#fbbf24';
+const FAT_HEX = 'var(--amber-400)';
 
 type BodyChart = 'weight' | 'fat' | 'composition';
 
@@ -175,7 +175,7 @@ export function BodyView({ data, gender, onGender, clock, intraday }: {
         )}
       />
       <div className="px-2 pb-3">
-        <TrendChart series={groupSeries(fatWin, fatBucket)} bucket={fatBucket} color="#a1a1aa" height={160} unit={t('units.percent')} format={(v) => fmtNum(v, 1)} meanWindow={null} />
+        <TrendChart series={groupSeries(fatWin, fatBucket)} bucket={fatBucket} color="var(--color-zinc-400)" height={160} unit={t('units.percent')} format={(v) => fmtNum(v, 1)} meanWindow={null} />
       </div>
     </Card>
   );
@@ -269,7 +269,7 @@ function ProfileTile({ age, heightCm, gender, onGender, className = '' }: {
   const label = 'text-eyebrow-sm uppercase text-zinc-500 lg:text-detail lg:font-normal lg:normal-case lg:tracking-normal';
   const value = 'font-display text-number-xs text-zinc-50 tabular-nums';
   return (
-    <section aria-label={t('body.profile.title')} className={`min-w-0 bg-[#0c0c0e] border border-[#1e1e22] rounded-[18px] p-3.5 lg:p-4 flex flex-col gap-2.5 ${className}`}>
+    <section aria-label={t('body.profile.title')} className={`min-w-0 bg-card border border-card-edge rounded-[18px] p-3.5 lg:p-4 flex flex-col gap-2.5 ${className}`}>
       <div className="flex items-center justify-between gap-2">
         <Label>{t('body.profile.title')}</Label>
         <User size={14} className="text-zinc-400" />
