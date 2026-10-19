@@ -211,7 +211,7 @@ export default function App() {
         {/* First sync (or a rebuild after an upgrade): the insights need the whole window, so wait for it. */}
         {health.phase === 'loading' && !demo && (
           <div className="mt-12 max-w-md mx-auto p-6 rounded-2xl bg-card border border-card-edge">
-            <h2 className="font-display text-title-sm text-white">{t('app.firstSync.title')}</h2>
+            <h2 className="card-title-detail text-white">{t('app.firstSync.title')}</h2>
             <p className="mt-2 text-detail text-zinc-400 leading-relaxed">{t('app.firstSync.body', { days: DASHBOARD_WINDOW_DAYS })}</p>
             <div className="mt-5 h-1.5 rounded-full bg-zinc-800 overflow-hidden">
               <div

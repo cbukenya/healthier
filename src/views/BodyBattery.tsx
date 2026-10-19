@@ -20,14 +20,14 @@ interface BodyBatteryProps {
 }
 
 /**
- * One colour per tier, with its name, its badge and the figure's label for a screen reader (a whole
+ * One colour per tier, with its name and the figure's label for a screen reader (a whole
  * sentence per tier, so a language can inflect the name in it); the thresholds themselves live in BATTERY_TIERS.
  */
-export const TIER_STYLE: Record<(typeof BATTERY_TIERS)[number]['tag'], { text: string; hex: string; name: MessageKey; badge: MessageKey; figure: MessageKey }> = {
-  CHARGED: { text: 'text-emerald-500', hex: 'var(--emerald-500)', name: 'today.battery.tiers.charged.name', badge: 'today.battery.tiers.charged.tag', figure: 'today.battery.tiers.charged.figure' },
-  BALANCED: { text: 'text-lime-300', hex: 'var(--lime-300)', name: 'today.battery.tiers.balanced.name', badge: 'today.battery.tiers.balanced.tag', figure: 'today.battery.tiers.balanced.figure' },
-  LOW: { text: 'text-amber-500', hex: 'var(--amber-500)', name: 'today.battery.tiers.low.name', badge: 'today.battery.tiers.low.tag', figure: 'today.battery.tiers.low.figure' },
-  DRAINED: { text: 'text-rose-500', hex: 'var(--rose-500)', name: 'today.battery.tiers.drained.name', badge: 'today.battery.tiers.drained.tag', figure: 'today.battery.tiers.drained.figure' },
+export const TIER_STYLE: Record<(typeof BATTERY_TIERS)[number]['tag'], { hex: string; name: MessageKey; figure: MessageKey }> = {
+  CHARGED: { hex: 'var(--emerald-500)', name: 'today.battery.tiers.charged.name', figure: 'today.battery.tiers.charged.figure' },
+  BALANCED: { hex: 'var(--lime-300)', name: 'today.battery.tiers.balanced.name', figure: 'today.battery.tiers.balanced.figure' },
+  LOW: { hex: 'var(--amber-500)', name: 'today.battery.tiers.low.name', figure: 'today.battery.tiers.low.figure' },
+  DRAINED: { hex: 'var(--rose-500)', name: 'today.battery.tiers.drained.name', figure: 'today.battery.tiers.drained.figure' },
 };
 
 /** What the line under the score says about its confidence. */
@@ -53,7 +53,7 @@ const CALIBRATING_SIGNALS = {
 /** A tier's top score: the next tier's floor less one. */
 const tierMax = (i: number) => (i === 0 ? 100 : BATTERY_TIERS[i - 1].min - 1);
 
-/** The tag, its colour and the line saying what the score stands on; shared by both layouts. */
+/** The tier, a note when there's no score, and the line saying what the score stands on; shared by both layouts. */
 function batteryText({ score, confidence, missing, calibrating }: Pick<BodyBatteryProps, 'score' | 'confidence' | 'missing' | 'calibrating'>) {
   // Too little data is not the same as being drained.
   const tier = score === null ? null : batteryTier(score);
@@ -68,8 +68,8 @@ function batteryText({ score, confidence, missing, calibrating }: Pick<BodyBatte
   ].filter(Boolean).join(' · ');
   return {
     tier,
-    tag: t(tier ? TIER_STYLE[tier.tag].badge : 'today.battery.noData'),
-    color: tier ? TIER_STYLE[tier.tag].text : 'text-zinc-500',
+    // The rail beside the figure names the tier, so the title only speaks up when there's no score.
+    noData: tier ? null : t('today.battery.noData'),
     basis,
   };
 }
@@ -224,8 +224,10 @@ export function BodyBattery({ score, parts, confidence, label, missing, calibrat
     <div className={`bg-card border border-card-edge rounded-[28px] p-[30px_24px] md:p-[44px_48px_40px] w-full max-w-[920px] mx-auto ${className}`}>
       <div className="grid grid-cols-1 md:grid-cols-[minmax(280px,1fr)_minmax(300px,440px)] gap-3 items-start">
         <div>
-          <h1 className="font-display text-display-lg flex items-baseline gap-3 flex-wrap text-zinc-100">
-            {t('today.battery.title')} <span className={`font-sans text-tag-lg ${z.color}`}>{z.tag}</span>
+          {/* A card title, as This week's is. */}
+          <h1 className="card-title-detail flex items-baseline gap-2.5 flex-wrap text-zinc-50">
+            {t('today.battery.title')}
+            {z.noData && <span className="font-sans text-tag text-zinc-500">{z.noData}</span>}
           </h1>
           <p className="mt-[18px] text-lead text-zinc-400 max-w-[30ch]">
             {t('today.battery.composition', { days: BASELINE_DAYS })}
@@ -274,8 +276,10 @@ export function BodyBatteryCompact({ score, parts, confidence, label, missing, c
 
   return (
     <section aria-label={t('today.battery.title')} className={`bg-card border border-card-edge rounded-[24px] p-5 flex flex-col gap-4 ${className}`}>
-      <h1 className="flex items-baseline gap-2.5 flex-wrap font-display text-display text-zinc-100">
-        {t('today.battery.title')} <span className={`font-sans text-tag ${z.color}`}>{z.tag}</span>
+      {/* A card title, as This week's is. */}
+      <h1 className="card-title-detail flex items-baseline gap-2.5 flex-wrap text-zinc-50">
+        {t('today.battery.title')}
+        {z.noData && <span className="font-sans text-tag text-zinc-500">{z.noData}</span>}
       </h1>
 
       {/* Side by side from 360px; the narrowest phones stack the figure under the score instead of shrinking it. */}

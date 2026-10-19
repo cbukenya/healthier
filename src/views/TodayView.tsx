@@ -12,7 +12,7 @@ import { todaySummary } from '../pipeline/insights';
 import type { IntradayDays } from '../pipeline/labs';
 import { Spark } from '../charts';
 import {
-  BandPill, Card, DOMAIN, EmptyState, Label, Meter, Row, Value,
+  BandPill, Card, DOMAIN, EmptyState, Meter, Row, Value,
   fmtDuration, fmtNum,
 } from '../ui/primitives';
 import type { SyncResult } from '../pipeline/sync';
@@ -167,7 +167,7 @@ export function TodayView({
           <Card className="flex flex-col">
             <div className="px-4 pt-4 pb-3 flex-1 flex flex-col">
               <div className="flex items-start justify-between">
-                <Label>{t('today.sleep.title')}</Label>
+                <span className="card-title-glance text-zinc-500">{t('today.sleep.title')}</span>
                 <Moon size={14} className={DOMAIN.sleep.text} />
               </div>
               {sl ? (
@@ -207,7 +207,7 @@ export function TodayView({
           <Card className="flex flex-col">
             <div className="px-4 pt-4 pb-3 flex-1 flex flex-col">
               <div className="flex items-start justify-between">
-                <Label>{movementIsToday ? t('today.activity.today') : t('today.activity.latest')}</Label>
+                <span className="card-title-glance text-zinc-500">{movementIsToday ? t('today.activity.today') : t('today.activity.latest')}</span>
                 <Footprints size={14} className={DOMAIN.movement.text} />
               </div>
               {mv ? (
@@ -250,7 +250,7 @@ export function TodayView({
           <Card className="flex flex-col">
             <div className="px-4 pt-4 pb-3 flex-1 flex flex-col">
               <div className="flex items-start justify-between">
-                <Label>{t('today.vitals.title')}</Label>
+                <span className="card-title-glance text-zinc-500">{t('today.vitals.title')}</span>
                 <Heart size={14} className={DOMAIN.cardio.text} />
               </div>
               {vitalsDate ? (

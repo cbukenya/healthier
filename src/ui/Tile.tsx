@@ -1,5 +1,5 @@
 import React from 'react';
-import { Label, Row } from './primitives';
+import { Row } from './primitives';
 
 /** An at-a-glance tile: the number, its verdict, a trend, then the details as label–value rows. */
 export function Tile({ label, icon, value, pill, chart, rows, empty, note }: {
@@ -18,7 +18,7 @@ export function Tile({ label, icon, value, pill, chart, rows, empty, note }: {
   return (
     <article className="min-w-0 bg-card border border-card-edge rounded-[18px] p-3.5 flex flex-col gap-1.5">
       <div className="flex items-center justify-between gap-2">
-        <Label className="truncate">{label}</Label>
+        <span className="card-title-glance text-zinc-500 truncate">{label}</span>
         {icon}
       </div>
       <div>{value}</div>

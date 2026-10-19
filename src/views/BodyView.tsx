@@ -263,7 +263,7 @@ function ProfileTile({ age, heightCm, gender, onGender, className = '' }: {
   return (
     <section aria-label={t('body.profile.title')} className={`min-w-0 bg-card border border-card-edge rounded-[18px] p-3.5 lg:p-4 flex flex-col gap-2.5 ${className}`}>
       <div className="flex items-center justify-between gap-2">
-        <Label>{t('body.profile.title')}</Label>
+        <span className="card-title-glance text-zinc-500">{t('body.profile.title')}</span>
         <User size={14} className="text-zinc-400" />
       </div>
       <dl className="grid grid-cols-3 lg:grid-cols-1 gap-2 lg:flex-1 lg:content-around">
@@ -305,7 +305,7 @@ function CompositionNow({ now, before }: { now: CompositionPair; before: Composi
   return (
     <Card className="px-[18px] pt-4 pb-[18px] md:px-6 flex flex-col gap-3.5">
       <div className="flex items-baseline justify-between gap-2">
-        <h2 className="font-display text-title text-zinc-50">{t('body.composition.title')}</h2>
+        <h2 className="card-title-detail text-zinc-50">{t('body.composition.title')}</h2>
         <span className="text-detail text-zinc-500">{formatCivilLong(now.date)}</span>
       </div>
       <div className="flex items-end justify-between gap-4">

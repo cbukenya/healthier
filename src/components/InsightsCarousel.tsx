@@ -180,7 +180,7 @@ export function InsightsCarousel({ observations, page }: { observations: Observa
       <div className="bg-card border border-zinc-800/80 rounded-[20px] pt-5 pb-4 md:pt-6 md:pb-5 overflow-hidden w-full relative flex-1 flex flex-col">
         <div className="flex justify-between items-center md:items-start gap-3 md:gap-6 px-4 md:px-6 pb-4">
           <div>
-            <h2 className="font-display text-title text-zinc-100">{t(copy?.title ?? 'insights.carousel.title')}</h2>
+            <h2 className="card-title-detail text-zinc-50">{t(copy?.title ?? 'insights.carousel.title')}</h2>
             {/* A phone has room for the count, not the explanation. */}
             <p className="md:hidden text-detail text-zinc-500 mt-0.5 tabular-nums">
               {t('insights.carousel.position', { index: activeIndex + 1, count: observations.length })}

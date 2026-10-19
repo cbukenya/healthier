@@ -84,7 +84,7 @@ export function CardHead({
     <div className="px-5 pt-4 pb-3">
       {/* A summary that doesn't fit beside the title moves under it, rather than cutting the title short. */}
       <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-1">
-        <h3 className="font-display text-title-sm text-zinc-100 flex items-center gap-2 min-w-0">
+        <h3 className="card-title-detail text-zinc-50 flex items-center gap-2 min-w-0">
           {domain && <span className={`shrink-0 w-1.5 h-1.5 rounded-full ${DOMAIN[domain].bg} ring-2 ${DOMAIN[domain].ring}`} />}
           <span className="truncate">{title}</span>
         </h3>

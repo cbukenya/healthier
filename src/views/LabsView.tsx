@@ -1101,7 +1101,7 @@ function TileHead({ lab, chevron, center = false }: { lab: Lab; chevron: React.R
     <span className={`flex gap-3 ${center ? 'items-center' : ''}`}>
       <span className={`flex ${center ? '' : 'self-start'}`}><StatusIcon mark={lab.mark} /></span>
       <span className="flex-1 min-w-0">
-        <span className="block font-display text-title-sm leading-snug text-zinc-100">{lab.title}</span>
+        <span className="block card-title-detail text-zinc-50">{lab.title}</span>
         <span className={`block mt-0.5 text-caption leading-snug ${GLANCE[lab.tone]}`}>{lab.glance}</span>
       </span>
       {chevron}
@@ -1114,7 +1114,7 @@ function LabCard({ lab }: { lab: Lab }) {
     <section id={`lab-${lab.key}`} aria-label={lab.title} className="scroll-mt-20 min-w-0 bg-card border border-zinc-800/80 rounded-2xl p-5 flex flex-col gap-3">
       <div className="flex items-start justify-between gap-2.5">
         <div className="min-w-0">
-          <h3 className="font-display text-title leading-tight text-zinc-100">{lab.title}</h3>
+          <h3 className="card-title-detail text-zinc-50">{lab.title}</h3>
           <p className="mt-[3px] text-caption text-zinc-500">{lab.gloss}</p>
         </div>
         <Chip lab={lab} />
