@@ -1,9 +1,10 @@
 import { Router } from 'express';
 import type {
   CycleDayResponse, CycleLogResponse, CycleRejectedResponse, CycleSettingsResponse, DatasetResponse, GoalsResponse, HistoryResponse,
-  InstanceResponse, MeResponse, ProfileResponse, SourcesResponse, SyncResponse,
+  InstanceResponse, MeResponse, ProfileResponse, SourcesResponse, SyncResponse, ThemeResponse,
 } from '../src/types/api';
 import { parseGoals } from '../src/pipeline/goals';
+import { parseTheme } from '../src/lib/theme';
 import { parseSourcePrefs, readSourcePrefs } from '../src/pipeline/sources';
 import { hasEntry, parseCycleDay, parseCycleSettings, withDay, withRejected } from '../src/pipeline/cycle';
 import { SLEEP_HR_FLOOR } from '../src/pipeline/registry';
@@ -14,7 +15,7 @@ import { revokeToken } from './google';
 import { asyncHandler, type Deps } from './http';
 import {
   deleteCycleLog,
-  purgeStream, deleteUser, getCycleLog, getTokens, getUser, hasTokens, setGender, setGoals, setSourcePrefs, setTimeZone, updateCycleLog,
+  purgeStream, deleteUser, getCycleLog, getTokens, getUser, hasTokens, setGender, setGoals, setSourcePrefs, setTheme, setTimeZone, updateCycleLog,
 } from './repo';
 import { describeSources, followSourceChoice, historyInfo, loadDataset, loadHistory, refetchTotals, startSync, syncStatus } from './sync';
 
@@ -42,6 +43,7 @@ export function apiRoutes(deps: Deps): Router {
       const body: MeResponse = {
         user: { id: user.id, name: user.name, email: user.email, pictureUrl: user.pictureUrl },
         needsReconnect: !(await hasTokens(deps.db, userId)),
+        theme: user.theme,
       };
       res.json(body);
     }),
@@ -86,6 +88,21 @@ export function apiRoutes(deps: Deps): Router {
       }
       await setGoals(deps.db, res.locals.userId, goals);
       const body: GoalsResponse = { goals };
+      res.json(body);
+    }),
+  );
+
+  /** How the app looks for the person, set on the Data tab: dark, light, or whichever their device is set to. */
+  router.put(
+    '/theme',
+    asyncHandler(async (req, res) => {
+      const theme = parseTheme(req.body?.theme);
+      if (!theme) {
+        res.status(400).json({ error: 'invalid_theme' });
+        return;
+      }
+      await setTheme(deps.db, res.locals.userId, theme);
+      const body: ThemeResponse = { theme };
       res.json(body);
     }),
   );

@@ -79,7 +79,7 @@ place at a time: on Today while it matters, otherwise on its own page.
   </tr>
   <tr>
     <td valign="top"><img src="docs/screenshots/labs.png" alt="The Labs page"><br><b>Labs.</b> Six experiments with multi-week patterns: breathing during sleep, signs of strain, irregular rhythm notifications from your device, heart rate dipping at night, HRV entropy, and fast heart rate during sleep.</td>
-    <td valign="top"><img src="docs/screenshots/data.png" alt="The Data page"><br><b>Data.</b> Every stream Healthier reads, what arrived and when, coverage day by day, and your goals.</td>
+    <td valign="top"><img src="docs/screenshots/data.png" alt="The Data page"><br><b>Data.</b> Every stream Healthier reads, what arrived and when, coverage day by day, your goals, and a dark or light theme.</td>
   </tr>
 </table>
 

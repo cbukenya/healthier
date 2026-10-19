@@ -40,10 +40,10 @@ function bucketRows(days: DailyRecord[], bucket: Bucket): DailyRecord[] {
 }
 
 const STAGE_FILL: [key: 'deep' | 'rem' | 'light' | 'awake', color: string][] = [
-  ['deep', 'var(--indigo-700)'],
-  ['rem', 'var(--violet-400)'],
-  ['light', 'var(--indigo-400)'],
-  ['awake', 'var(--tan)'],
+  ['deep', 'var(--stage-deep)'],
+  ['rem', 'var(--stage-rem)'],
+  ['light', 'var(--stage-light)'],
+  ['awake', 'var(--stage-awake)'],
 ];
 
 /** The stages' names, the same set the hypnogram and every sleep card use. */

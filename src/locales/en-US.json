@@ -2172,8 +2172,8 @@
         "goals": "{steps} steps · {brisk} brisk min · {sleep} sleep",
         "cycle": "{tracking, select, on {{cards, select, yes {On · cards on Today} other {On}}} other {Off}}",
         "facts": "How your numbers are worked out",
-        "account": "Sign out, or disconnect and delete",
-        "accountDemo": "Leave the demo"
+        "account": "{theme, select, dark {Dark theme · Sign out, or disconnect and delete} light {Light theme · Sign out, or disconnect and delete} other {Your device's theme · Sign out, or disconnect and delete}}",
+        "accountDemo": "{theme, select, dark {Dark theme · Leave the demo} light {Light theme · Leave the demo} other {Your device's theme · Leave the demo}}"
       }
     },
     "status": {
@@ -2235,7 +2235,18 @@
     },
     "account": {
       "title": "Account",
-      "hint": "Your connection to Google Health, and your data here.",
+      "hint": "How Healthier looks for you, your connection to Google Health, and your data here.",
+      "theme": {
+        "label": "Theme",
+        "text": "Kept with your account, so every device you sign in on shows it.",
+        "textDemo": "Only while the demo lasts.",
+        "options": {
+          "dark": "Dark",
+          "light": "Light",
+          "system": "Match device"
+        },
+        "failed": "Couldn't save that change, so your theme is as it was. Try again."
+      },
       "google": {
         "label": "Google Health",
         "connected": "Connected. Signing out keeps your data here for when you sign back in.",
@@ -2244,7 +2255,7 @@
       },
       "delete": {
         "label": "Disconnect and delete",
-        "text": "Ends Healthier's access to your Google account and deletes everything it stored for you here: your days, goals, device choices and cycle log. Your data in Google Health isn't touched.",
+        "text": "Ends Healthier's access to your Google account and deletes everything it stored for you here: your days, goals, device choices, theme and cycle log. Your data in Google Health isn't touched.",
         "action": "Disconnect & delete data"
       },
       "demo": {

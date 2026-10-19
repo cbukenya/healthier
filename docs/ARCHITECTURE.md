@@ -59,7 +59,7 @@ browser (React)  ──/api──▶  Express server  ──▶  Postgres
 
 | Table | Holds |
 | --- | --- |
-| `users` | Google subject, profile, IANA time zone (decides what "today" means on the server), gender (set on the Body page), goals and the choice of devices (set on the Data tab) |
+| `users` | Google subject, profile, IANA time zone (decides what "today" means on the server), gender (set on the Body page), goals, the choice of devices and the theme (set on the Data tab) |
 | `google_tokens` | encrypted tokens and granted scopes |
 | `sessions` | hashed session ids |
 | `stream_days (user_id, data_type, date)` | what one stream (steps, sleep, HRV…) contributed to one civil day: only the `DailyRecord` fields it set, plus provenance, and each source's own reading when more than one reported the day (see Devices and sources). Kept for `HISTORY_DAYS` |
@@ -344,7 +344,7 @@ one file. The h and m of a big duration are set as units by `withUnits` in
 `src/ui/primitives.tsx`. Chart ticks share `TICK` in `src/charts/index.tsx`, because SVG text
 can't read the CSS tokens.
 
-## Colours
+## Colours and themes
 
 Classes take Tailwind's palette. Anything drawn in code (charts, the battery figure, glows,
 inline styles) takes its colour from `src/theme.css` through `var(--name)`: the shades the
@@ -353,6 +353,19 @@ Greys come from the palette through its variables, such as `var(--color-zinc-400
 keeps its colour in `DOMAIN` (`src/ui/primitives.tsx`), for its classes and its charts alike. A
 test fails on any hex or `rgb()` written into the code; it names the two files allowed their
 own: the Cycle page's phase colours, which are blended in code, and Google's G.
+
+Everything is written for the dark theme, the default. The light one is the same names given
+other values, under `:root[data-theme='light']` in `src/theme.css`: the greys flip, so the page
+is light grey, cards white and text dark, and each colour takes its own family's darker shade,
+so it reads on white and every page keeps its colour. The Cycle page's phase colours have a
+light set of their own in `src/views/cycleColours.ts`.
+
+The theme is dark, light, or whichever the device is set to (`src/lib/theme.ts`), picked in the
+Data page's Account section. It's kept on the account (`users.theme`, set with
+`PUT /api/theme` and sent with `/api/me`), so it follows the person to every device, and on the
+device too, so `index.html` opens in it before anything else loads. `useTheme` puts it on the
+page as `data-theme` and colours the browser's bar to match. In demo mode a choice lasts as long
+as the demo.
 
 ## Languages
 

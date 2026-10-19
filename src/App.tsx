@@ -7,6 +7,7 @@ import { useHealth } from './hooks/useHealth';
 import { HistoryProvider } from './hooks/useHistory';
 import { GoalsProvider } from './hooks/useGoals';
 import { CycleProvider, useCycleTracking } from './hooks/useCycle';
+import { ThemeProvider } from './hooks/useTheme';
 import { CycleView } from './views/CycleView';
 import { DASHBOARD_WINDOW_DAYS } from './pipeline/sync';
 import { DEMO_CLOCK } from './pipeline/demo';
@@ -30,7 +31,7 @@ import { LabsView } from './views/LabsView';
 import { AboutYourData, GoogleG, SignInNote } from './views/SignInParts';
 
 export default function App() {
-  const { user, needsReconnect, ready, signIn, signOut, deleteAccount, reload } = useAuth();
+  const { user, needsReconnect, theme, ready, signIn, signOut, deleteAccount, reload } = useAuth();
   const instance = useInstance();
   const [demo, setDemo] = useState(false);
   // Set by the server when a Google sign-in comes back with an error, e.g. ?auth_error=access_denied.
@@ -117,8 +118,11 @@ export default function App() {
 
   const bar = usePinnedHeight();
 
+  // Every screen in the person's theme, the sign-in screen included.
+  const themed = (screen: React.ReactNode) => <ThemeProvider saved={user ? theme : undefined} demo={demo}>{screen}</ThemeProvider>;
+
   if (!ready || !instance) {
-    return (
+    return themed(
       <div className="min-h-screen bg-black flex items-center justify-center">
         <div className="w-5 h-5 rounded-full border-2 border-zinc-800 border-t-zinc-400 animate-spin" />
       </div>
@@ -126,7 +130,7 @@ export default function App() {
   }
 
   if ((!user || needsReconnect) && !demo) {
-    return (
+    return themed(
       <div className="min-h-screen bg-black flex items-center justify-center p-6">
         <div className="relative max-w-md w-full p-8 rounded-2xl bg-zinc-900 border border-zinc-800 shadow-2xl">
           <AboutYourData />
@@ -305,7 +309,7 @@ export default function App() {
     </>
   );
 
-  return (
+  return themed(
     <div className="min-h-screen bg-black text-zinc-300 font-sans selection:bg-zinc-800 selection:text-white">
       {/* Cycle tracking reaches the page icons as well as the pages. */}
       {health.data ? <CycleProvider data={health.data} live={!demo}>{page}</CycleProvider> : page}

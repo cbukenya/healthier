@@ -9,6 +9,7 @@ import cookieParser from 'cookie-parser';
 import { isAllowed, parseAccessList } from '../access';
 import { ConfigError, loadConfig } from '../config';
 import { apiRoutes } from '../api';
+import { SESSION_COOKIE } from '../auth';
 import type { Db } from '../db';
 import { decrypt, encrypt } from '../crypto';
 import { authorizationUrl, identityFromIdToken } from '../google';
@@ -104,6 +105,56 @@ describe('instance', () => {
       assert.equal(instance.status, 200);
       assert.deepEqual(await instance.json(), { demo: false, note: 'Email me to join.' });
       assert.equal((await fetch(`${base}/me`)).status, 401, 'everything else still needs a session');
+    } finally {
+      server.close();
+    }
+  });
+});
+
+describe('theme', () => {
+  it("keeps each person's theme on their account: dark, light or their device's, and nothing else", async () => {
+    // A database with one signed-in person, enough for the session check, /me and the theme.
+    let theme: string | null = null;
+    const db = {
+      query: async (sql: string, params: unknown[] = []) => {
+        if (sql.includes('FROM sessions')) return { rows: [{ userId: 'u1', email: 'a@example.com' }], rowCount: 1 };
+        if (sql.startsWith('UPDATE users SET theme')) {
+          theme = params[1] as string;
+          return { rows: [], rowCount: 1 };
+        }
+        if (sql.includes('FROM users')) return { rows: [{ id: 'u1', email: 'a@example.com', name: 'A', pictureUrl: null, theme }], rowCount: 1 };
+        if (sql.includes('FROM google_tokens')) return { rows: [{}], rowCount: 1 };
+        throw new Error(`unexpected query: ${sql}`);
+      },
+    } as unknown as Db;
+    const app = express();
+    app.use(cookieParser());
+    app.use(express.json());
+    app.use('/api', apiRoutes({ config: loadConfig(VALID_ENV), db }));
+    const server = await new Promise<Server>((resolve) => {
+      const s = app.listen(0, () => resolve(s));
+    });
+    try {
+      const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}/api`;
+      const headers = { Cookie: `${SESSION_COOKIE}=token`, 'Content-Type': 'application/json' };
+      const put = (body: unknown) => fetch(`${base}/theme`, { method: 'PUT', headers, body: JSON.stringify(body) });
+      const me = async () => ((await (await fetch(`${base}/me`, { headers })).json()) as { theme: string | null }).theme;
+
+      assert.equal(await me(), null, 'none until they pick one');
+      const saved = await put({ theme: 'light' });
+      assert.equal(saved.status, 200);
+      assert.deepEqual(await saved.json(), { theme: 'light' });
+      assert.equal(await me(), 'light');
+      assert.equal((await put({ theme: 'system' })).status, 200);
+      assert.equal(await me(), 'system');
+
+      for (const wrong of ['blue', null, 1, undefined]) {
+        const refused = await put({ theme: wrong });
+        assert.equal(refused.status, 400);
+        assert.deepEqual(await refused.json(), { error: 'invalid_theme' });
+      }
+      assert.equal(await me(), 'system', 'a refused theme changes nothing');
+      assert.equal((await fetch(`${base}/theme`, { method: 'PUT', body: '{}' })).status, 401, 'only for someone signed in');
     } finally {
       server.close();
     }

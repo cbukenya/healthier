@@ -10,7 +10,8 @@ import {
 import {
   currentShape, cycleShape, dayPlusMinus, lengthPlusMinus, ovulationWindow, phaseOn, type CycleShape, type Phase,
 } from '../pipeline/cyclePhases';
-import { CARD_GROUND, OVULATION_DASH, PAGE_GROUND, PHASE_HEX, PHASE_TEXT, dayColour, mix, ovulationAlpha } from './cycleColours';
+import { cyclePalette, dayColour, mix, ovulationAlpha, ovulationDash } from './cycleColours';
+import { useTheme } from '../hooks/useTheme';
 import { useCycle } from '../hooks/useCycle';
 import { usePageInsights, type Clock } from '../hooks/usePageInsights';
 import { InsightsCarousel } from '../components/InsightsCarousel';
@@ -123,10 +124,14 @@ const soft = (w: React.ReactNode) => <span className="text-zinc-400">{w}</span>;
 /** "Day 22", or "About day 22 ±3" when the start was found in the nights. */
 const dayWords = (day: number, pm: number) => (pm ? rich('cycle.aboutDay', { day, pm, soft }) : t('cycle.day', { day }));
 
+/** The phase colours for the theme on screen. */
+const useCyclePalette = () => cyclePalette(useTheme().look);
+
 /** An ovulation mark inside a day: a short amber bar at its foot, as bright as it is likely. */
 function OvulationBar({ alpha, inset = 'inset-x-[18%]' }: { alpha: number; inset?: string }) {
+  const colours = useCyclePalette();
   if (alpha <= 0) return null;
-  return <span aria-hidden="true" className={`absolute ${inset} bottom-[3px] h-[3px] rounded-full`} style={{ background: tint('var(--amber-400)', Math.round(alpha * 100)) }} />;
+  return <span aria-hidden="true" className={`absolute ${inset} bottom-[3px] h-[3px] rounded-full`} style={{ background: tint(colours.phase.ovulation, Math.round(alpha * 100)) }} />;
 }
 
 function CycleHero({
@@ -140,6 +145,7 @@ function CycleHero({
   onStarted: (suggest: CivilDate | null) => void;
   className?: string;
 }) {
+  const colours = useCyclePalette();
   const { setDay, setRejected } = useCycle();
   const c = summary.current;
   const actions = (
@@ -244,7 +250,7 @@ function CycleHero({
               </span>
             )}
           </h1>
-          <p className="mt-2 font-display text-display" style={{ color: PHASE_TEXT[phase] }}>{dayWords(c.day, pm)}</p>
+          <p className="mt-2 font-display text-display" style={{ color: colours.text[phase] }}>{dayWords(c.day, pm)}</p>
           <p className="mt-2.5 text-body-lg text-zinc-300 max-w-[46ch]">
             {t('cycle.start', { source: c.source, date: formatDayMonthLong(c.start) })} {nextLine}
           </p>
@@ -322,6 +328,7 @@ function placeLabels(labels: StripLabel[], cells: number, width: number): StripL
  * the days the next period is likely on dashed.
  */
 function CycleStrip({ summary }: { summary: CycleSummary }) {
+  const colours = useCyclePalette();
   const c = summary.current!;
   const shape = currentShape(summary)!;
   const next = summary.next;
@@ -334,21 +341,21 @@ function CycleStrip({ summary }: { summary: CycleSummary }) {
     const d = i + 1;
     const past = d <= c.day;
     const inNext = from !== null && to !== null && d >= from && d <= to;
-    const colour = dayColour(d, shape);
+    const colour = dayColour(d, shape, colours);
     const style: React.CSSProperties = inNext
       ? { background: d === likely ? tint('var(--pink-400)', 28) : 'transparent', border: `1px dashed ${PINK}` }
-      : { background: past ? colour : mix(colour, PAGE_GROUND, 0.62) };
+      : { background: past ? colour : mix(colour, colours.page, 0.62) };
     return { d, style, height: d === c.day ? 34 : 24, ovulation: inNext ? 0 : ovulationAlpha(d, shape, !past) };
   });
 
   const phase = phaseOn(c.day, shape);
   const ovulation = ovulationWindow(shape);
   const candidates: StripLabel[] = [
-    { key: 'today', text: t(PHASE_KEY[phase]), color: PHASE_TEXT[phase], at: c.day, anchor: 'centre' },
-    ...(phase === 'menstrual' ? [] : [{ key: 'menstrual', text: t(PHASE_KEY.menstrual), color: PHASE_TEXT.menstrual, at: 1, anchor: 'start' as const }]),
-    ...(from !== null && from > c.day ? [{ key: 'next', text: t('cycle.strip.next'), color: PHASE_TEXT.menstrual, at: length, anchor: 'end' as const }] : []),
-    ...(ovulation && phase !== 'ovulation' ? [{ key: 'ovulation', text: t(PHASE_KEY.ovulation), color: PHASE_TEXT.ovulation, at: ovulation.day, anchor: 'centre' as const }] : []),
-    ...(phase === 'follicular' ? [] : [{ key: 'follicular', text: t(PHASE_KEY.follicular), color: PHASE_TEXT.follicular, at: shape.periodDays + 2, anchor: 'start' as const }]),
+    { key: 'today', text: t(PHASE_KEY[phase]), color: colours.text[phase], at: c.day, anchor: 'centre' },
+    ...(phase === 'menstrual' ? [] : [{ key: 'menstrual', text: t(PHASE_KEY.menstrual), color: colours.text.menstrual, at: 1, anchor: 'start' as const }]),
+    ...(from !== null && from > c.day ? [{ key: 'next', text: t('cycle.strip.next'), color: colours.text.menstrual, at: length, anchor: 'end' as const }] : []),
+    ...(ovulation && phase !== 'ovulation' ? [{ key: 'ovulation', text: t(PHASE_KEY.ovulation), color: colours.text.ovulation, at: ovulation.day, anchor: 'centre' as const }] : []),
+    ...(phase === 'follicular' ? [] : [{ key: 'follicular', text: t(PHASE_KEY.follicular), color: colours.text.follicular, at: shape.periodDays + 2, anchor: 'start' as const }]),
   ];
   const row = (labels: StripLabel[]) => labels.map((l) => (
     <span
@@ -399,6 +406,7 @@ function CycleStrip({ summary }: { summary: CycleSummary }) {
 
 /** Where in the cycle today is, and how the nights since the luteal phase began differ from the ones before it. */
 function NowCard({ summary, nights, className = '' }: { summary: CycleSummary; nights: Night[]; className?: string }) {
+  const colours = useCyclePalette();
   const c = summary.current;
   if (!c) return null;
   const shape = currentShape(summary)!;
@@ -418,7 +426,7 @@ function NowCard({ summary, nights, className = '' }: { summary: CycleSummary; n
     : [];
   return (
     <Card className={`p-5 ${className}`}>
-      <p className="text-eyebrow uppercase" style={{ color: PHASE_TEXT[phase] }}>{t(PHASE_KEY[phase])}</p>
+      <p className="text-eyebrow uppercase" style={{ color: colours.text[phase] }}>{t(PHASE_KEY[phase])}</p>
       <p className="mt-2 font-display text-number-md text-zinc-50">
         {dayWords(after ? c.day - c.riseDay! + 1 : c.day, pm)}
         {after && (
@@ -447,9 +455,10 @@ function NowCard({ summary, nights, className = '' }: { summary: CycleSummary; n
 }
 
 /** A found period's swatch: dim pink brightening, as the strip and the bars draw it. */
-const FoundSwatch = () => (
-  <span aria-hidden="true" className="inline-block w-3.5 h-2.5 rounded-[3px] shrink-0" style={{ background: `linear-gradient(to right, ${mix(PHASE_HEX.menstrual, PAGE_GROUND, 0.8)}, ${mix(PHASE_HEX.menstrual, PAGE_GROUND, 0.35)})` }} />
-);
+function FoundSwatch() {
+  const colours = useCyclePalette();
+  return <span aria-hidden="true" className="inline-block w-3.5 h-2.5 rounded-[3px] shrink-0" style={{ background: `linear-gradient(to right, ${mix(colours.phase.menstrual, colours.page, 0.8)}, ${mix(colours.phase.menstrual, colours.page, 0.35)})` }} />;
+}
 
 /**
  * The last period: the one found in the nights when this cycle's start was found after the last
@@ -568,6 +577,7 @@ const MEASURES = [
  * shaded by this cycle's phases as the strip draws them. The legend names only what's drawn.
  */
 function BodyThroughCycle({ summary, nights }: { summary: CycleSummary; nights: Night[] }) {
+  const colours = useCyclePalette();
   const c = summary.current;
   const shifts = sinceRise(nights, summary);
   const rows = MEASURES.map((m) => ({ ...m, points: byCycleDay(nights, summary, m.field, CHART_DAYS) }));
@@ -593,7 +603,7 @@ function BodyThroughCycle({ summary, nights }: { summary: CycleSummary; nights: 
             ? <span className="flex items-center gap-1.5"><FoundSwatch />{t('cycle.body.legend.periodFound')}</span>
             : <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-pink-400/35" />{t('cycle.body.legend.period')}</span>)}
           {shape?.luteal && <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-violet-400/35" />{t('cycle.body.legend.luteal')}</span>}
-          {shape?.luteal && <span className="flex items-center gap-1.5"><span className="w-4 h-[3px] rounded-full" style={{ background: OVULATION_DASH }} />{t('cycle.body.legend.ovulation')}</span>}
+          {shape?.luteal && <span className="flex items-center gap-1.5"><span className="w-4 h-[3px] rounded-full" style={{ background: ovulationDash(colours) }} />{t('cycle.body.legend.ovulation')}</span>}
         </div>
         {rows.map((r) => {
           const latest = [...r.points].reverse().find((p) => p.mine !== null)?.mine ?? null;
@@ -661,6 +671,7 @@ function CycleChart({
   shape: CycleShape | null;
   label: string;
 }) {
+  const colours = useCyclePalette();
   const gid = useId().replace(/:/g, '');
   const W = 340;
   const H = 90;
@@ -702,15 +713,15 @@ function CycleChart({
             : <><stop offset="0" stopColor={PINK} stopOpacity={0.13} /><stop offset="1" stopColor={PINK} stopOpacity={0.13} /></>}
         </linearGradient>
         <linearGradient id={`${gid}l`} x1="0" x2="1" y1="0" y2="0">
-          <stop offset="0" stopColor={PHASE_HEX.earlyLuteal} stopOpacity={0} />
-          <stop offset={luteal?.ramp ?? 0} stopColor={PHASE_HEX.earlyLuteal} stopOpacity={0.12} />
-          <stop offset="1" stopColor={PHASE_HEX.earlyLuteal} stopOpacity={0.12} />
+          <stop offset="0" stopColor={colours.phase.earlyLuteal} stopOpacity={0} />
+          <stop offset={luteal?.ramp ?? 0} stopColor={colours.phase.earlyLuteal} stopOpacity={0.12} />
+          <stop offset="1" stopColor={colours.phase.earlyLuteal} stopOpacity={0.12} />
         </linearGradient>
         <linearGradient id={`${gid}o`} x1="0" x2="1" y1="0" y2="0">
-          <stop offset="0" stopColor={PHASE_HEX.ovulation} stopOpacity={0} />
-          <stop offset="0.4" stopColor={PHASE_HEX.ovulation} stopOpacity={0.95} />
-          <stop offset="0.6" stopColor={PHASE_HEX.ovulation} stopOpacity={0.95} />
-          <stop offset="1" stopColor={PHASE_HEX.ovulation} stopOpacity={0} />
+          <stop offset="0" stopColor={colours.phase.ovulation} stopOpacity={0} />
+          <stop offset="0.4" stopColor={colours.phase.ovulation} stopOpacity={0.95} />
+          <stop offset="0.6" stopColor={colours.phase.ovulation} stopOpacity={0.95} />
+          <stop offset="1" stopColor={colours.phase.ovulation} stopOpacity={0} />
         </linearGradient>
       </defs>
       {period && <rect x={period.from} y={0} width={period.to - period.from} height={H} fill={`url(#${gid}p)`} />}
@@ -741,10 +752,14 @@ const BAR_DAYS = 35;
 const pct = (days: number) => `${(Math.max(0, Math.min(days, BAR_DAYS)) / BAR_DAYS) * 100}%`;
 
 /** A phase's swatch in a legend. */
-const PhaseSwatch = ({ phase }: { phase: Phase }) => <span aria-hidden="true" className="inline-block w-3.5 h-2.5 rounded-[3px] shrink-0" style={{ background: PHASE_HEX[phase] }} />;
+function PhaseSwatch({ phase }: { phase: Phase }) {
+  const colours = useCyclePalette();
+  return <span aria-hidden="true" className="inline-block w-3.5 h-2.5 rounded-[3px] shrink-0" style={{ background: colours.phase[phase] }} />;
+}
 
 /** Each cycle as a bar, newest first, shaded from phase to phase, with how far its length may be off. */
 function CycleHistory({ summary, today, className = '' }: { summary: CycleSummary; today: CivilDate; className?: string }) {
+  const colours = useCyclePalette();
   const rows = [...summary.cycles].reverse().slice(0, 8);
   const nextOf = (c: Cycle) => summary.cycles[summary.cycles.indexOf(c) + 1] ?? null;
   return (
@@ -761,7 +776,7 @@ function CycleHistory({ summary, today, className = '' }: { summary: CycleSummar
             <span className="flex items-center gap-1.5"><PhaseSwatch phase="follicular" />{t('cycle.phases.follicular')}</span>
             <span className="flex items-center gap-1.5"><PhaseSwatch phase="earlyLuteal" />{t('cycle.phases.earlyLuteal')}</span>
             <span className="flex items-center gap-1.5"><PhaseSwatch phase="lateLuteal" />{t('cycle.phases.lateLuteal')}</span>
-            <span className="flex items-center gap-1.5"><span aria-hidden="true" className="inline-block w-[18px] h-[3px] rounded-full" style={{ background: OVULATION_DASH }} />{t('cycle.history.legend.ovulation')}</span>
+            <span className="flex items-center gap-1.5"><span aria-hidden="true" className="inline-block w-[18px] h-[3px] rounded-full" style={{ background: ovulationDash(colours) }} />{t('cycle.history.legend.ovulation')}</span>
             <span className="flex items-center gap-1.5"><FoundSwatch />{t('cycle.history.legend.found')}</span>
           </div>
         )}
@@ -793,12 +808,13 @@ function Stat({ label, value, unit }: { label: string; value: string; unit: stri
 }
 
 function CycleBar({ cycle: c, next, summary, today }: { cycle: Cycle; next: Cycle | null; summary: CycleSummary; today: CivilDate }) {
+  const colours = useCyclePalette();
   const current = c.next === null;
   const shape = cycleShape(c, next, summary);
   const end = current ? daysBetween(c.start, today) + 1 : c.length!;
   const typical = shape.length ?? 28;
   const drawn = Math.min(end, BAR_DAYS);
-  const stops = Array.from({ length: drawn }, (_, i) => `${dayColour(i + 1, shape)} ${(((i + 0.5) / BAR_DAYS) * 100).toFixed(2)}%`).join(', ');
+  const stops = Array.from({ length: drawn }, (_, i) => `${dayColour(i + 1, shape, colours)} ${(((i + 0.5) / BAR_DAYS) * 100).toFixed(2)}%`).join(', ');
   const ovulation = ovulationWindow(shape);
   const showOvulation = ovulation && (!current || end >= ovulation.day - ovulation.spread);
   const pm = current ? dayPlusMinus(c) : lengthPlusMinus(c, next);
@@ -824,7 +840,7 @@ function CycleBar({ cycle: c, next, summary, today }: { cycle: Cycle; next: Cycl
           <div className="absolute inset-y-0 box-border rounded-r-[7px]" style={{ left: pct(end), width: pct(typical - end), border: '1px dashed var(--color-zinc-500)' }} />
         )}
         {showOvulation && (
-          <div className="absolute top-1/2 -translate-y-1/2 h-[3px] rounded-full" style={{ left: pct(ovulation.day - 0.5 - ovulation.spread), width: pct(2 * ovulation.spread), background: OVULATION_DASH }} />
+          <div className="absolute top-1/2 -translate-y-1/2 h-[3px] rounded-full" style={{ left: pct(ovulation.day - 0.5 - ovulation.spread), width: pct(2 * ovulation.spread), background: ovulationDash(colours) }} />
         )}
       </div>
       <div className={`w-[72px] shrink-0 text-right text-detail tabular-nums ${current ? 'text-zinc-50' : 'text-zinc-300'}`}>{shown}</div>
@@ -855,6 +871,7 @@ function CycleCalendar({
   onPick: (date: CivilDate) => void;
   className?: string;
 }) {
+  const colours = useCyclePalette();
   const [month, setMonth] = useState(monthOf(today));
   const marks = useMemo(() => {
     const byDate = new Map(log.days.map((d) => [d.date, d]));
@@ -932,7 +949,7 @@ function CycleCalendar({
                 ? { background: tint('var(--pink-400)', 16), border: `1px dashed ${PINK}` }
                 : { border: `1px dashed ${PINK}` }
               : inCycle && !future
-                ? { background: mix(dayColour(inCycle.day, inCycle.shape), CARD_GROUND, 0.72) }
+                ? { background: mix(dayColour(inCycle.day, inCycle.shape, colours), colours.card, 0.72) }
                 : {};
             return (
               <button
@@ -960,9 +977,9 @@ function CycleCalendar({
           })}
         </div>
         <div className="mt-3.5 flex flex-wrap gap-x-3.5 gap-y-2 text-caption text-zinc-400">
-          <span className="flex items-center gap-1.5"><span className="size-3 rounded-[3px]" style={{ background: `linear-gradient(to right, ${mix(PHASE_HEX.follicular, CARD_GROUND, 0.6)}, ${mix(PHASE_HEX.earlyLuteal, CARD_GROUND, 0.6)})` }} />{t('cycle.calendar.legend.phases')}</span>
+          <span className="flex items-center gap-1.5"><span className="size-3 rounded-[3px]" style={{ background: `linear-gradient(to right, ${mix(colours.phase.follicular, colours.card, 0.6)}, ${mix(colours.phase.earlyLuteal, colours.card, 0.6)})` }} />{t('cycle.calendar.legend.phases')}</span>
           <span className="flex items-center gap-1.5"><span className="size-3 rounded-[3px] box-border" style={{ border: `1px dashed ${PINK}` }} />{t('cycle.calendar.legend.likely')}</span>
-          <span className="flex items-center gap-1.5"><span className="w-4 h-[3px] rounded-full" style={{ background: OVULATION_DASH }} />{t('cycle.calendar.legend.ovulation')}</span>
+          <span className="flex items-center gap-1.5"><span className="w-4 h-[3px] rounded-full" style={{ background: ovulationDash(colours) }} />{t('cycle.calendar.legend.ovulation')}</span>
           <span className="flex items-center gap-1.5"><span className="size-[7px] rounded-full bg-zinc-400" />{t('cycle.calendar.legend.logged')}</span>
         </div>
       </div>

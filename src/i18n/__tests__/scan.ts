@@ -55,7 +55,7 @@ const SILENT_ATTRS = new Set([
 const SILENT_CALLS = new Set([
   'require', 'DOMException', 'clsx', 'cn', 'twMerge', 'addEventListener',
   'removeEventListener', 'querySelector', 'querySelectorAll', 'getElementById', 'setAttribute', 'getAttribute',
-  'removeAttribute', 'hasAttribute', 'matchMedia', 'createElement', 'getItem', 'setItem', 'removeItem', 'fetch',
+  'removeAttribute', 'hasAttribute', 'matchMedia', 'useMediaQuery', 'createElement', 'getItem', 'setItem', 'removeItem', 'fetch',
   'api', 'parse', 'stringify', 'RegExp', 'split', 'join', 'replace', 'replaceAll', 'startsWith', 'endsWith',
   'includes', 'indexOf', 'lastIndexOf', 'padStart', 'padEnd', 'match', 'matchAll', 'test', 'exec', 'localeCompare',
   'get', 'has', 'set', 'delete', 'append', 'postMessage', 'dispatchEvent', 'Event', 'CustomEvent', 'useState',

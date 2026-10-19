@@ -3,6 +3,7 @@ import type { Goals } from '../pipeline/goals';
 import type { CycleDay, CycleLog, CycleSettings } from '../pipeline/cycle';
 import type { Gender } from '../pipeline/registry';
 import type { SourcePrefs } from '../pipeline/sources';
+import type { Theme } from '../lib/theme';
 import type { CivilDate } from '../lib/date';
 import type { DailyRecord, Platform, RecordingMethod, StreamErrorCode } from './health';
 
@@ -27,6 +28,8 @@ export interface MeResponse {
   user: ApiUser;
   /** Google access was revoked or expired; the user must sign in again to resume syncing. */
   needsReconnect: boolean;
+  /** How the app looks for them; null until they pick, when it's dark. */
+  theme: Theme | null;
 }
 
 export interface SyncStatus {
@@ -114,6 +117,11 @@ export interface SourcesResponse {
   windowDays: number;
   /** A new choice of what counts in daily totals is being fetched from Google again. */
   refetching: boolean;
+}
+
+/** PUT /api/theme, both ways. */
+export interface ThemeResponse {
+  theme: Theme;
 }
 
 /** PUT /api/goals, both ways. */

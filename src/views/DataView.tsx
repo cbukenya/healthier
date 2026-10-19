@@ -8,6 +8,7 @@ import type { SyncFailure } from '../hooks/useHealth';
 import { useHistory } from '../hooks/useHistory';
 import { useGoals } from '../hooks/useGoals';
 import { useCycle } from '../hooks/useCycle';
+import { useTheme } from '../hooks/useTheme';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 import { Card, fmtDuration } from '../ui/primitives';
 import { AccountCard, CycleCard, DataFacts, GoalsCard, SectionScreen } from './DataCards';
@@ -82,6 +83,7 @@ export function DataView({
   const sources = useSources(data, live, onSourcesChanged);
   const goals = useGoals();
   const { log } = useCycle();
+  const { theme } = useTheme();
   const autoNeed = estimatedSleepTarget(data.days);
   const [section, setSection] = useState<SectionId | null>(null);
 
@@ -146,7 +148,7 @@ export function DataView({
       cards: log.settings.todayCards ? 'yes' : 'no',
     }),
     facts: t('data.overview.summaries.facts'),
-    account: t(live ? 'data.overview.summaries.account' : 'data.overview.summaries.accountDemo'),
+    account: t(live ? 'data.overview.summaries.account' : 'data.overview.summaries.accountDemo', { theme }),
   };
 
   const render = (id: SectionId) => {
