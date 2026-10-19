@@ -159,7 +159,7 @@ export function SleepWindowChart({
     <Card>
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 sm:gap-6 px-5 pt-4 pb-1">
         <div className="min-w-0">
-          <h3 className="font-display text-title-sm text-zinc-100 flex items-center gap-2">
+          <h3 className="card-title-detail text-zinc-50 flex items-center gap-2">
             <span className="w-1.5 h-1.5 rounded-full bg-indigo-500/10 ring-2 ring-indigo-500/25" />
             {t('sleep.window.title')}
           </h3>

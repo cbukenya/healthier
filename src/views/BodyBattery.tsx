@@ -225,7 +225,7 @@ export function BodyBattery({ score, parts, confidence, label, missing, calibrat
       <div className="grid grid-cols-1 md:grid-cols-[minmax(280px,1fr)_minmax(300px,440px)] gap-3 items-start">
         <div>
           {/* A card title, as This week's is. */}
-          <h1 className="font-display text-title flex items-baseline gap-2.5 flex-wrap text-zinc-50">
+          <h1 className="card-title-detail flex items-baseline gap-2.5 flex-wrap text-zinc-50">
             {t('today.battery.title')}
             {z.noData && <span className="font-sans text-tag text-zinc-500">{z.noData}</span>}
           </h1>
@@ -277,7 +277,7 @@ export function BodyBatteryCompact({ score, parts, confidence, label, missing, c
   return (
     <section aria-label={t('today.battery.title')} className={`bg-card border border-card-edge rounded-[24px] p-5 flex flex-col gap-4 ${className}`}>
       {/* A card title, as This week's is. */}
-      <h1 className="flex items-baseline gap-2.5 flex-wrap font-display text-title text-zinc-50">
+      <h1 className="card-title-detail flex items-baseline gap-2.5 flex-wrap text-zinc-50">
         {t('today.battery.title')}
         {z.noData && <span className="font-sans text-tag text-zinc-500">{z.noData}</span>}
       </h1>

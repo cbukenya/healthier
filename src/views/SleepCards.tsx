@@ -122,7 +122,7 @@ export function LastSevenNights({ days, shift, needMin, debt, wide }: {
   return (
     <Card className="px-[18px] pt-4 pb-3.5 md:px-5 md:py-[18px] flex flex-col gap-3 md:gap-3.5">
       <div className="flex items-baseline justify-between gap-2">
-        <h2 className="font-display text-title text-zinc-50">{t('sleep.lastSeven.title')}</h2>
+        <h2 className="card-title-detail text-zinc-50">{t('sleep.lastSeven.title')}</h2>
         <span className="text-detail text-zinc-500">{formatCivilRange(days[0].date, days[days.length - 1].date)}</span>
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-[220px_minmax(0,1fr)_230px] gap-3 lg:gap-7 items-center">

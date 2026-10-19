@@ -260,7 +260,7 @@ function CycleHero({
 
       {pending && (
         <div className="rounded-2xl border border-pink-500/30 bg-pink-500/[0.06] p-4 md:p-5">
-          <h2 className="font-display text-title text-pink-100">{t('cycle.found.title')}</h2>
+          <h2 className="card-title-detail text-pink-100">{t('cycle.found.title')}</h2>
           <p className="mt-1.5 text-body-sm text-zinc-300 leading-relaxed">
             {t('cycle.found.text', { learned: summary.offsetLearned ? 'yes' : 'no', date: formatCivilLong(c.start) })}
           </p>
@@ -426,7 +426,7 @@ function NowCard({ summary, nights, className = '' }: { summary: CycleSummary; n
     : [];
   return (
     <Card className={`p-5 ${className}`}>
-      <p className="text-eyebrow uppercase" style={{ color: colours.text[phase] }}>{t(PHASE_KEY[phase])}</p>
+      <p className="card-title-glance" style={{ color: colours.text[phase] }}>{t(PHASE_KEY[phase])}</p>
       <p className="mt-2 font-display text-number-md text-zinc-50">
         {dayWords(after ? c.day - c.riseDay! + 1 : c.day, pm)}
         {after && (
@@ -484,7 +484,7 @@ function LastPeriodCard({ summary, log, today, onStarted, className = '' }: {
     return (
       <Card className={`p-5 ${className}`}>
         <div className="flex items-center justify-between gap-3">
-          <p className="text-eyebrow uppercase text-pink-300">{t('cycle.lastPeriod.eyebrow')}</p>
+          <p className="card-title-glance text-pink-300">{t('cycle.lastPeriod.eyebrow')}</p>
           <button type="button" onClick={() => onStarted(c.start)} className="-my-2 -mr-2 min-h-11 px-2 text-caption text-zinc-300 underline underline-offset-2 hover:text-zinc-100">
             {t('cycle.lastPeriod.logIt')}
           </button>
@@ -510,7 +510,7 @@ function LastPeriodCard({ summary, log, today, onStarted, className = '' }: {
   const ongoing = last.end >= addDays(today, -1);
   return (
     <Card className={`p-5 ${className}`}>
-      <p className="text-eyebrow uppercase text-pink-300">{t('cycle.lastPeriod.eyebrow')}</p>
+      <p className="card-title-glance text-pink-300">{t('cycle.lastPeriod.eyebrow')}</p>
       <p className="mt-2 font-display text-headline text-zinc-50">
         {last.start === last.end ? formatDayMonthLong(last.start) : formatCivilRange(last.start, last.end)}
       </p>
@@ -543,7 +543,7 @@ function LoggedDayCard({ log, today, onLog, className = '' }: { log: CycleLog; t
   return (
     <Card className={`p-5 ${className}`}>
       <div className="flex items-center justify-between gap-3">
-        <h2 className="text-eyebrow uppercase text-zinc-400">{t('cycle.logged.eyebrow')}</h2>
+        <h2 className="card-title-glance text-zinc-400">{t('cycle.logged.eyebrow')}</h2>
         <button type="button" onClick={onLog} className="-my-2 -mr-2 min-h-11 px-2 text-caption text-zinc-300 underline underline-offset-2 hover:text-zinc-100">
           {day ? t('cycle.logged.change') : t('cycle.logged.add')}
         </button>
@@ -897,7 +897,7 @@ function CycleCalendar({
   return (
     <Card className={className}>
       <div className="px-5 pt-4 flex items-center justify-between gap-2">
-        <h3 id={titleId} className="font-display text-title-sm text-zinc-100">{formatMonthYear(month)}</h3>
+        <h3 id={titleId} className="card-title-detail text-zinc-50">{formatMonthYear(month)}</h3>
         <div className="flex gap-1">
           <button type="button" aria-label={t('cycle.calendar.previous')} onClick={() => setMonth(shiftMonth(month, -1))} className="size-10 flex items-center justify-center rounded-full border border-zinc-700 text-zinc-300 hover:bg-zinc-800">
             <span aria-hidden="true">‹</span>

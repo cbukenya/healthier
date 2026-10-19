@@ -140,6 +140,25 @@
   --text-unit--line-height: 1;
 }
 
+/*
+ * Card titles, of two kinds, each one size everywhere; the colour is the card's own. A glanceable
+ * card, a tile read at a glance such as LAST NIGHT SLEEP or HRV, is named by an eyebrow. A detail
+ * card, such as Last 7 nights or Sleep architecture, has a title in the display face.
+ */
+@utility card-title-glance {
+  font-size: var(--text-eyebrow);
+  line-height: var(--text-eyebrow--line-height);
+  letter-spacing: var(--text-eyebrow--letter-spacing);
+  font-weight: var(--text-eyebrow--font-weight);
+  text-transform: uppercase;
+}
+@utility card-title-detail {
+  font-family: var(--font-display);
+  font-size: var(--text-title);
+  line-height: var(--text-title--line-height);
+  font-weight: var(--text-title--font-weight);
+}
+
 @layer base {
   /* Safari colours its own bars from the page's background, so the page's own is never left unset. */
   html {

@@ -344,6 +344,12 @@ one file. The h and m of a big duration are set as units by `withUnits` in
 `src/ui/primitives.tsx`. Chart ticks share `TICK` in `src/charts/index.tsx`, because SVG text
 can't read the CSS tokens.
 
+Every card's title is one of two kinds, each a single size everywhere. A glanceable card, a tile
+read at a glance such as LAST NIGHT SLEEP or HRV, is named by an eyebrow: `card-title-glance`. A
+detail card, such as Last 7 nights or Sleep architecture, has a title in the display face:
+`card-title-detail`. `CardHead` sets the detail one; a card that draws its own head uses the class
+directly. Colour is left to the card.
+
 ## Colours and themes
 
 Classes take Tailwind's palette. Anything drawn in code (charts, the battery figure, glows,

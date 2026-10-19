@@ -30,7 +30,7 @@ export function TodaySoFar({ day, isToday, wide }: { day: DailyRecord; isToday: 
   return (
     <Card className="px-[18px] pt-4 pb-[18px] md:px-5 flex flex-col gap-3.5">
       <div className="flex items-baseline justify-between gap-2">
-        <h2 className="font-display text-title text-zinc-50">{isToday ? t('activity.day.title') : t('activity.day.latest', { date: formatCivilLong(day.date) })}</h2>
+        <h2 className="card-title-detail text-zinc-50">{isToday ? t('activity.day.title') : t('activity.day.latest', { date: formatCivilLong(day.date) })}</h2>
         {goalNote && <span className="text-detail text-zinc-400 whitespace-nowrap">{goalNote}</span>}
       </div>
       {/* Distance sits under the rings and energy under the two goals, so the four figures wrap the rings at every width. */}
@@ -98,7 +98,7 @@ export function LastSevenDays({ days, shift, ratio, wide }: {
   return (
     <Card className="px-[18px] pt-4 pb-3.5 md:px-5 md:pb-[18px] flex flex-col gap-3 md:gap-3.5">
       <div className="flex items-baseline justify-between gap-2">
-        <h2 className="font-display text-title text-zinc-50">{t('activity.lastSevenDays.title')}</h2>
+        <h2 className="card-title-detail text-zinc-50">{t('activity.lastSevenDays.title')}</h2>
         <span className="text-detail text-zinc-500">{formatCivilRange(days[0].date, days[days.length - 1].date)}</span>
       </div>
       {wide ? (

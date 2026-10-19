@@ -114,7 +114,7 @@ export function ThisWeek({ week, days, needMin, className = '' }: {
     <section aria-label={title} className={`bg-card border border-card-edge rounded-[20px] px-4 pt-[18px] pb-4 md:px-5 md:pt-5 ${className}`}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h2 className="font-display text-title text-zinc-50">{title}</h2>
+          <h2 className="card-title-detail text-zinc-50">{title}</h2>
           <p className="text-detail text-zinc-500">{formatCivilRange(first, today)}</p>
         </div>
         {/* Tall enough to tap, pulled back so the header keeps its height. */}
