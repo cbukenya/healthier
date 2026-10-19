@@ -44,7 +44,7 @@ export function Sheet({
         aria-modal="true"
         aria-labelledby={labelledBy}
         tabIndex={-1}
-        className="relative w-full md:max-w-md max-h-[92vh] overflow-y-auto bg-zinc-900 border border-zinc-800 rounded-t-3xl md:rounded-3xl p-5 md:p-6 outline-none"
+        className="relative w-full md:max-w-md max-h-[92vh] overflow-y-auto bg-(--sheet) backdrop-blur-2xl border border-card-edge rounded-t-3xl md:rounded-3xl p-5 md:p-6 outline-none"
       >
         <button
           type="button"

@@ -47,23 +47,59 @@
   --stage-rem: #a78bfa;
   --stage-awake: #d8b48a;
 
-  /* A card that draws its own ground, and its border. */
-  --card: #0c0c0e;
-  --card-edge: #1e1e22;
+  /*
+   * Glass. In dark a card is smoked glass, a dark tint with a light edge; in light, a white frost.
+   * The panels and rules in a card are tints too, so the backdrop shows through everything (the
+   * backdrop is at the end of the file).
+   */
+  --card: rgb(9 9 11 / 0.5);
+  --card-edge: rgb(255 255 255 / 0.08);
   /* A panel set into a card, and one that stands out a step more: the battery's score, a lab's plot. */
-  --panel: #111114;
-  --panel-raised: #17171b;
+  --panel: rgb(255 255 255 / 0.04);
+  --panel-raised: rgb(255 255 255 / 0.07);
   /* The faintest rule or empty track on a card. */
-  --faint: #18181b;
+  --faint: rgb(255 255 255 / 0.07);
   /* The sleep window's rules, faintest to strongest; the strongest is also a carousel's resting dot. */
-  --rule-faint: #141417;
-  --rule: #1c1c20;
-  --rule-strong: #2c2c32;
+  --rule-faint: rgb(255 255 255 / 0.035);
+  --rule: rgb(255 255 255 / 0.06);
+  --rule-strong: rgb(255 255 255 / 0.12);
   /* The night picked on the Sleep page, and the ground of a lab that found something. */
-  --picked: #1a1a22;
-  --alert-ground: #141114;
+  --picked: rgb(129 140 248 / 0.14);
+  --alert-ground: rgb(244 63 94 / 0.07);
   /* The battery's figure, before it fills. */
-  --figure: #1b1b1f;
+  --figure: rgb(255 255 255 / 0.1);
+  /* How much a card frosts what's behind it. */
+  --frost: blur(24px) saturate(1.3);
+  /* The bar at the top, and a sheet, frosted harder. */
+  --bar: rgb(0 0 0 / 0.3);
+  /* A line in the bar, such as the one that sets Data apart: lighter than the glass it's on. */
+  --bar-rule: rgb(255 255 255 / 0.16);
+  --sheet: rgb(24 24 27 / 0.82);
+
+  /*
+   * The backdrop: slate, a soft blue-grey drawn after a photograph, under a veil in the theme's
+   * colour. Darkest just above the middle, lighter toward the foot, with a glow from the bottom
+   * right; within a level or so of the photograph it was measured from.
+   */
+  --backdrop:
+    radial-gradient(100% 35% at 100% 100%, rgb(255 255 255 / 0.18), transparent),
+    radial-gradient(100% 50% at 0% 0%, rgb(255 255 255 / 0.06), transparent),
+    linear-gradient(
+      to bottom,
+      rgb(45 58 67) 0%, rgb(43 57 67) 6.25%, rgb(39 55 66) 12.5%, rgb(35 53 63) 18.75%,
+      rgb(34 52 62) 25%, rgb(34 52 62) 37.5%, rgb(33 50 58) 43.75%, rgb(34 50 58) 50%,
+      rgb(36 52 60) 56.25%, rgb(44 60 68) 62.5%, rgb(54 70 77) 68.75%, rgb(62 75 82) 75%,
+      rgb(67 78 84) 81.25%, rgb(67 77 82) 87.5%, rgb(62 72 77) 93.75%, rgb(58 69 73) 100%
+    );
+  --veil: rgb(0 0 0 / 0.3);
+  /*
+   * Over the backdrop the page is no longer black, so the dimmest greys are lifted a little to
+   * keep their contrast: muted labels, and chart ticks.
+   */
+  --color-zinc-500: #84848e;
+  --color-zinc-600: #64646e;
+  /* Words set straight on the backdrop rather than on a card: the date, a section's name. */
+  --page-ink: var(--color-zinc-500);
   /* A switch's knob: white on its track in both themes. */
   --knob: #ffffff;
   --knob-shadow: rgb(0 0 0 / 0.4);
@@ -82,14 +118,17 @@
   --color-picked: var(--picked);
   --color-knob: var(--knob);
   --color-knob-shadow: var(--knob-shadow);
+  --color-page-ink: var(--page-ink);
+  --color-bar-rule: var(--bar-rule);
 }
 
 :root[data-theme='light'] {
   color-scheme: light;
 
   /*
-   * The greys flip: the page is a light grey, cards white, and text dark. Black is the page and
-   * white the strongest ink, so bg-black, from-black and text-white follow.
+   * The greys flip: text is dark and the ground light. Black is the ground under the backdrop and
+   * white the strongest ink, so bg-black, from-black and text-white follow. Muted labels sit a
+   * little darker than a flip would put them, to read over the backdrop.
    */
   --color-black: #f4f4f5;
   --color-white: #000000;
@@ -98,7 +137,7 @@
   --color-zinc-200: #27272a;
   --color-zinc-300: #3f3f46;
   --color-zinc-400: #52525b;
-  --color-zinc-500: #71717a;
+  --color-zinc-500: #62626b;
   --color-zinc-600: #a1a1aa;
   --color-zinc-700: #d4d4d8;
   --color-zinc-800: #e4e4e7;
@@ -159,17 +198,40 @@
 
   --stage-awake: #c19e74;
 
-  --card: #ffffff;
-  --card-edge: #e7e7ea;
-  --panel: #f7f7f8;
-  --panel-raised: #f0f0f2;
-  --faint: #ececef;
-  --rule-faint: #f3f3f5;
-  --rule: #eaeaed;
-  --rule-strong: #dcdce1;
-  --picked: #f1f1fd;
-  --alert-ground: #fff5f6;
-  --figure: #e4e4e7;
+  --card: rgb(255 255 255 / 0.62);
+  --card-edge: rgb(255 255 255 / 0.85);
+  --panel: rgb(255 255 255 / 0.45);
+  --panel-raised: rgb(0 0 0 / 0.04);
+  --faint: rgb(0 0 0 / 0.07);
+  --rule-faint: rgb(0 0 0 / 0.03);
+  --rule: rgb(0 0 0 / 0.05);
+  --rule-strong: rgb(0 0 0 / 0.1);
+  --picked: rgb(79 70 229 / 0.08);
+  --alert-ground: rgb(244 63 94 / 0.06);
+  --figure: rgb(0 0 0 / 0.09);
+  --bar: rgb(255 255 255 / 0.55);
+  --bar-rule: rgb(0 0 0 / 0.16);
+  --sheet: rgb(255 255 255 / 0.9);
+  --veil: rgb(244 244 245 / 0.6);
+  --backdrop-tone: saturate(2.4);
+  --page-ink: var(--color-zinc-300);
   --knob-shadow: rgb(0 0 0 / 0.25);
   --scrim: rgb(9 9 11 / 0.4);
+}
+
+/* The backdrop, fixed behind everything, the size of the window. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(var(--veil), var(--veil)), var(--backdrop);
+  /* In light, the veiled backdrop would be grey; its colour is lifted to a pale tint of its own. */
+  filter: var(--backdrop-tone, none);
+}
+
+/* A card frosts what's behind it. */
+.bg-card {
+  -webkit-backdrop-filter: var(--frost);
+  backdrop-filter: var(--frost);
 }
