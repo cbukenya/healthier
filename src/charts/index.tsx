@@ -604,12 +604,14 @@ export function Hypnogram({ session, height = 200 }: { session: SleepSession; he
     ].join(' ');
   };
 
-  // An hour label wherever there's room for one; every other hour on a long night on a phone.
+  // The time axis as a ruler, as the day axis under the bar charts: a short mark every half hour,
+  // and a longer one with its time on each hour there's room to name, every other hour on a long
+  // night on a phone.
   const startClock = segs[0].clockMin;
   const hourStep = (60 / total) * w < 44 ? 120 : 60;
-  const hourTicks: number[] = [];
-  for (let m = (60 - (startClock % 60)) % 60; m < total; m += 60) {
-    if ((startClock + m) % hourStep === 0) hourTicks.push(m);
+  const marks: { m: number; named: boolean }[] = [];
+  for (let m = (30 - (startClock % 30)) % 30; m <= total; m += 30) {
+    marks.push({ m, named: (startClock + m) % hourStep === 0 });
   }
 
   return (
@@ -666,12 +668,14 @@ export function Hypnogram({ session, height = 200 }: { session: SleepSession; he
                 <title>{t('charts.hypnogram.awakening', { time: formatClock(segs[0].clockMin + m) })}</title>
               </line>
             ))}
-            {hourTicks.map((m) => (
+            {marks.map(({ m, named }) => (
               <g key={m}>
-                <line x1={x(m)} x2={x(m)} y1={height - PB + 2} y2={height - PB + 6} stroke={GRID} />
-                <text x={x(m)} y={height - PB + 19} textAnchor="middle" fontSize={10.5} fill={AXIS}>
-                  {formatClock(startClock + m)}
-                </text>
+                <line x1={x(m)} x2={x(m)} y1={height - PB + 2} y2={height - PB + (named ? 8 : 5)} stroke={named ? AXIS : 'var(--color-zinc-700)'} strokeWidth={1} />
+                {named && (
+                  <text x={x(m)} y={height - PB + 20} textAnchor="middle" fontSize={10.5} fill={AXIS}>
+                    {formatClock(startClock + m)}
+                  </text>
+                )}
               </g>
             ))}
           </svg>

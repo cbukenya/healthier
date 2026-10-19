@@ -169,8 +169,8 @@ export function VitalsView({ data, clock, intraday }: { data: SyncResult; clock?
   return (
     <div className="space-y-3">
       <div className="flex flex-col gap-3">
-        {/* Desktop leads with the tiles; a phone leads with today's heart rate. */}
-        <div className="order-2 md:order-1 space-y-2.5">
+        {/* The latest readings first, then today's heart rate. */}
+        <div className="space-y-2.5">
           <div className="flex items-baseline justify-between gap-2 px-1">
             <h2 className="text-section uppercase text-page-ink">{t('vitals.latest.title')}</h2>
             <span className="text-caption text-page-ink">{t('vitals.latest.baseline')}</span>
@@ -219,7 +219,7 @@ export function VitalsView({ data, clock, intraday }: { data: SyncResult; clock?
         </div>
 
         {data.heartRateSamples.length > 0 && (
-          <HeartRateCard samples={data.heartRateSamples} days={days} wide={wide} className="order-1 md:order-2" />
+          <HeartRateCard samples={data.heartRateSamples} days={days} wide={wide} />
         )}
       </div>
 
