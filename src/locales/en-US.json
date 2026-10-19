@@ -1330,8 +1330,6 @@
       "detail": "Metrics come from the health_metrics_and_measurements scope."
     },
     "latest": {
-      "title": "Latest readings",
-      "baseline": "against your last 4 weeks",
       "hrv": {
         "label": "HRV",
         "empty": "No HRV readings yet"
@@ -1437,8 +1435,7 @@
       "detail": "Weight and body fat come from manual entries or smart scales."
     },
     "latest": {
-      "title": "Latest readings",
-      "from": "from {date} · <age>{ago}</age>",
+      "from": "From {date}, {ago}",
       "ago": {
         "today": "today",
         "yesterday": "yesterday",
