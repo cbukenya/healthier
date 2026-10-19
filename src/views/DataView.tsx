@@ -23,7 +23,7 @@ import { SourcesCard, sourcesSummary, useSources } from './SourcesCard';
  * open section fills the right, Devices and sources until another is picked.
  */
 
-type SectionId = 'devices' | 'streams' | 'goals' | 'cycle' | 'facts' | 'account';
+export type SectionId = 'devices' | 'streams' | 'goals' | 'cycle' | 'facts' | 'account';
 
 const GROUPS: { title: MessageKey; sections: SectionId[] }[] = [
   { title: 'data.overview.groups.data', sections: ['devices', 'streams'] },
@@ -57,7 +57,7 @@ function sectionIn(state: unknown): SectionId | null {
 const forgetSection = () => window.history.replaceState(null, '', window.location.pathname + window.location.search);
 
 export function DataView({
-  data, live, syncing, failure, email, onFullSync, onRetry, onSignIn, onSignOut, onDisconnect, onSourcesChanged,
+  data, live, syncing, failure, email, request, onRequestDone, onFullSync, onRetry, onSignIn, onSignOut, onDisconnect, onSourcesChanged,
 }: {
   data: SyncResult;
   /** False in demo mode. */
@@ -68,6 +68,10 @@ export function DataView({
   failure: SyncFailure | null;
   /** The Google account's address, when it's known. */
   email: string | null;
+  /** A section asked for from elsewhere, such as Account from the chip in the bar; `at` tells one ask from the next. */
+  request?: { section: SectionId; at: number } | null;
+  /** The asked-for section is open, so the request can go. */
+  onRequestDone?: () => void;
   onFullSync: () => void;
   onRetry: () => void;
   onSignIn: () => void;
@@ -130,6 +134,16 @@ export function DataView({
     }
     setSection(id);
   };
+  // An asked-for section opens as a tap on its row would, unless it's open already. Each ask is
+  // answered once, even where React runs an effect twice to check it.
+  const answered = useRef<number | null>(null);
+  useEffect(() => {
+    if (!request || answered.current === request.at) return;
+    answered.current = request.at;
+    if (request.section !== section) open(request.section);
+    onRequestDone?.();
+  }, [request]);
+
   const back = () => {
     if (sectionIn(window.history.state)) window.history.back();
     else setSection(null);

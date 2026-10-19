@@ -76,10 +76,9 @@
     },
     "header": {
       "syncing": "syncing",
-      "picture": "Profile",
       "someone": "User",
-      "exitDemo": "Exit Demo",
-      "signOut": "Sign Out"
+      "demo": "Demo",
+      "account": "{name}, your account"
     },
     "nav": {
       "label": "Pages",
