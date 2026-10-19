@@ -65,7 +65,7 @@ export function Card({
   label?: string;
 }) {
   return (
-    <Tag aria-label={label} className={`bg-zinc-900/70 border border-zinc-800 rounded-2xl ${className}`}>{children}</Tag>
+    <Tag aria-label={label} className={`bg-card border border-card-edge rounded-2xl ${className}`}>{children}</Tag>
   );
 }
 

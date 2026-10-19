@@ -193,8 +193,8 @@ export function BodyView({ data, gender, onGender, clock, intraday }: {
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-2.5 md:gap-3">
         {profile}
         <div className="col-span-2 lg:col-span-3 lg:order-1 flex items-baseline justify-between gap-2 px-1">
-          <h2 className="text-section uppercase text-zinc-500">{t('body.latest.title')}</h2>
-          <span className="text-caption text-zinc-500">
+          <h2 className="text-section uppercase text-page-ink">{t('body.latest.title')}</h2>
+          <span className="text-caption text-page-ink">
             {rich('body.latest.from', {
               date: formatCivilLong(latest.date),
               ago: ago(daysOld),
@@ -226,7 +226,7 @@ export function BodyView({ data, gender, onGender, clock, intraday }: {
       {body.composition && <CompositionNow now={body.composition} before={body.previousComposition} />}
 
       <div className="flex items-center justify-between px-1">
-        <h2 className="text-section uppercase text-zinc-500">{t('body.overTime.title')}</h2>
+        <h2 className="text-section uppercase text-page-ink">{t('body.overTime.title')}</h2>
         <SpanSelector state={spanState} />
       </div>
 

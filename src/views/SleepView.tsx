@@ -269,7 +269,7 @@ export function SleepView({ data, clock, intraday }: { data: SyncResult; clock?:
 
       {/* ── 3. Over time, following the span ─────────────────────────── */}
       <div className="flex items-center justify-between px-1">
-        <h2 className="text-section uppercase text-zinc-500">
+        <h2 className="text-section uppercase text-page-ink">
           {t('sleep.overTime.title')}
         </h2>
         <SpanSelector state={spanState} />

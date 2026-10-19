@@ -172,8 +172,8 @@ export function VitalsView({ data, clock, intraday }: { data: SyncResult; clock?
         {/* Desktop leads with the tiles; a phone leads with today's heart rate. */}
         <div className="order-2 md:order-1 space-y-2.5">
           <div className="flex items-baseline justify-between gap-2 px-1">
-            <h2 className="text-section uppercase text-zinc-500">{t('vitals.latest.title')}</h2>
-            <span className="text-caption text-zinc-500">{t('vitals.latest.baseline')}</span>
+            <h2 className="text-section uppercase text-page-ink">{t('vitals.latest.title')}</h2>
+            <span className="text-caption text-page-ink">{t('vitals.latest.baseline')}</span>
           </div>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 md:gap-3">
             <Tile
@@ -224,7 +224,7 @@ export function VitalsView({ data, clock, intraday }: { data: SyncResult; clock?
       </div>
 
       <div className="flex items-center justify-between px-1">
-        <h2 className="text-section uppercase text-zinc-500">
+        <h2 className="text-section uppercase text-page-ink">
           {t('vitals.trends.title')}
         </h2>
         <SpanSelector state={spanState} />

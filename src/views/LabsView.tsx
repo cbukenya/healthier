@@ -1076,7 +1076,7 @@ function Intro({ wide = false }: { wide?: boolean }) {
       <p className="text-body leading-normal text-zinc-400">
         {rich('labs.intro.lead', { b: (w) => <b className="font-semibold text-zinc-50">{w}</b> })}
       </p>
-      <p className="mt-2 flex gap-2 text-caption leading-relaxed text-zinc-500">
+      <p className="mt-2 flex gap-2 text-caption leading-relaxed text-page-ink">
         <Info size={14} aria-hidden className="shrink-0 mt-px text-zinc-400" />
         <span>{t('labs.intro.disclaimer')}</span>
       </p>
@@ -1089,7 +1089,7 @@ function Legend() {
     ['quiet', 'labs.legend.quiet'], ['collecting', 'labs.legend.collecting'], ['reported', 'labs.legend.reported'], ['found', 'labs.legend.found'],
   ];
   return (
-    <div className="flex flex-wrap gap-x-3.5 gap-y-1.5 py-2.5 text-note text-zinc-500">
+    <div className="flex flex-wrap gap-x-3.5 gap-y-1.5 py-2.5 text-note text-page-ink">
       {items.map(([mark, label]) => <span key={mark} className="flex items-center gap-1.5"><StatusIcon mark={mark} size={12} />{t(label)}</span>)}
     </div>
   );
@@ -1184,8 +1184,8 @@ export function LabsView({ data, intraday = {} }: { data: SyncResult; intraday?:
         <Intro />
         <section aria-label={t('labs.list.label')} className="mt-4 flex flex-col gap-2">
           <div className="flex items-baseline justify-between px-1">
-            <span className="text-eyebrow-sm font-bold uppercase text-zinc-500">{t('labs.list.count', { count: labs.length })}</span>
-            <span className="text-note text-zinc-600">{t('labs.list.hint')}</span>
+            <span className="text-eyebrow-sm font-bold uppercase text-page-ink">{t('labs.list.count', { count: labs.length })}</span>
+            <span className="text-note text-page-ink">{t('labs.list.hint')}</span>
           </div>
           {labs.map((lab) => <LabRow key={lab.key} lab={lab} />)}
           <div className="px-1"><Legend /></div>

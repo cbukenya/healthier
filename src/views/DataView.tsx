@@ -203,7 +203,7 @@ export function DataView({
           {status}
           <nav
             aria-label={t('data.overview.label')}
-            className="sticky top-[calc(var(--bar-height,56px)+16px)] p-1.5 bg-zinc-900/70 border border-zinc-800 rounded-2xl"
+            className="sticky top-[calc(var(--bar-height,56px)+16px)] p-1.5 bg-card border border-card-edge rounded-2xl"
           >
             {GROUPS.map((g) => (
               <div key={g.title}>
@@ -245,7 +245,7 @@ export function DataView({
       <nav aria-label={t('data.overview.label')}>
         {GROUPS.map((g) => (
           <div key={g.title}>
-            <h2 className="mt-6 mb-2 px-1 text-eyebrow uppercase text-zinc-500">{t(g.title)}</h2>
+            <h2 className="mt-6 mb-2 px-1 text-eyebrow uppercase text-page-ink">{t(g.title)}</h2>
             <Card className="overflow-hidden">
               <ul>
                 {g.sections.map((id, i) => (

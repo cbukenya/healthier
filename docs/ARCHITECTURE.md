@@ -355,10 +355,16 @@ test fails on any hex or `rgb()` written into the code; it names the two files a
 own: the Cycle page's phase colours, which are blended in code, and Google's G.
 
 Everything is written for the dark theme, the default. The light one is the same names given
-other values, under `:root[data-theme='light']` in `src/theme.css`: the greys flip, so the page
-is light grey, cards white and text dark, and each colour takes its own family's darker shade,
-so it reads on white and every page keeps its colour. The Cycle page's phase colours have a
-light set of their own in `src/views/cycleColours.ts`.
+other values, under `:root[data-theme='light']` in `src/theme.css`: the greys flip, so text is
+dark, and each colour takes its own family's darker shade, so it reads on white and every page
+keeps its colour. The Cycle page's phase colours have a light set of their own in
+`src/views/cycleColours.ts`.
+
+Behind every page is a backdrop, slate: a CSS gradient drawn after a photograph, fixed to the
+window under a veil in the theme's colour (`body::before`). Cards are glass over it: smoked in
+dark, frosted white in light, with panels and rules in them as tints, so it shows through. Words
+set straight on the backdrop, such as the date and a section's name, take `text-page-ink`, which
+stays readable over it.
 
 The theme is dark, light, or whichever the device is set to (`src/lib/theme.ts`), picked in the
 Data page's Account section. It's kept on the account (`users.theme`, set with

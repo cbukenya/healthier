@@ -123,7 +123,7 @@ export default function App() {
 
   if (!ready || !instance) {
     return themed(
-      <div className="min-h-screen bg-black flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="w-5 h-5 rounded-full border-2 border-zinc-800 border-t-zinc-400 animate-spin" />
       </div>
     );
@@ -131,8 +131,8 @@ export default function App() {
 
   if ((!user || needsReconnect) && !demo) {
     return themed(
-      <div className="min-h-screen bg-black flex items-center justify-center p-6">
-        <div className="relative max-w-md w-full p-8 rounded-2xl bg-zinc-900 border border-zinc-800 shadow-2xl">
+      <div className="min-h-screen flex items-center justify-center p-6">
+        <div className="relative max-w-md w-full p-8 rounded-2xl bg-card border border-card-edge shadow-2xl">
           <AboutYourData />
           <img src="/logo.svg" alt="" width={48} height={48} className="mb-6" />
           <h1 className="font-display text-display text-white mb-2">{t('app.name')}</h1>
@@ -174,7 +174,7 @@ export default function App() {
   const shell = (
       <div className="max-w-5xl mx-auto px-4 pt-2 pb-6 md:pt-3">
         {today && (
-          <time dateTime={today} className="block px-3 text-right text-detail text-zinc-500">
+          <time dateTime={today} className="block px-3 text-right text-detail text-page-ink">
             {formatCivilDay(today)}
           </time>
         )}
@@ -204,7 +204,7 @@ export default function App() {
 
         {/* First sync (or a rebuild after an upgrade): the insights need the whole window, so wait for it. */}
         {health.phase === 'loading' && !demo && (
-          <div className="mt-12 max-w-md mx-auto p-6 rounded-2xl bg-zinc-900 border border-zinc-800">
+          <div className="mt-12 max-w-md mx-auto p-6 rounded-2xl bg-card border border-card-edge">
             <h2 className="font-display text-title-sm text-white">{t('app.firstSync.title')}</h2>
             <p className="mt-2 text-detail text-zinc-400 leading-relaxed">{t('app.firstSync.body', { days: DASHBOARD_WINDOW_DAYS })}</p>
             <div className="mt-5 h-1.5 rounded-full bg-zinc-800 overflow-hidden">
@@ -263,7 +263,7 @@ export default function App() {
   // padding keeps the bar clear of the status bar when Healthier runs from the Home Screen.
   const page = (
     <>
-      <header ref={bar} className="sticky top-0 z-30 bg-black border-b border-zinc-800/80 pt-[env(safe-area-inset-top)]">
+      <header ref={bar} className="sticky top-0 z-30 bg-(--bar) backdrop-blur-xl border-b border-card-edge pt-[env(safe-area-inset-top)]">
         <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <img src="/logo.svg" alt="" width={28} height={28} />
@@ -310,7 +310,7 @@ export default function App() {
   );
 
   return themed(
-    <div className="min-h-screen bg-black text-zinc-300 font-sans selection:bg-zinc-800 selection:text-white">
+    <div className="min-h-screen text-zinc-300 font-sans selection:bg-zinc-800 selection:text-white">
       {/* Cycle tracking reaches the page icons as well as the pages. */}
       {health.data ? <CycleProvider data={health.data} live={!demo}>{page}</CycleProvider> : page}
     </div>
@@ -342,7 +342,7 @@ const EDGE = 48;
 /**
  * The pages, the Cycle page among them while cycle tracking is on. On a narrow phone they don't
  * all fit: the row scrolls sideways on its own, by swipe, trackpad or mouse wheel, and an edge
- * with pages past it fades out behind a small arrow that slides the row along.
+ * with pages past it shows a small arrow that slides the row along.
  */
 function PageNav({ view, setView }: { view: View; setView: (view: View) => void }) {
   const tracking = useCycleTracking();
@@ -459,8 +459,9 @@ function PageNav({ view, setView }: { view: View; setView: (view: View) => void 
 }
 
 /**
- * An edge of the page row with pages past it: a fade, and an arrow that slides the row along. Both
- * sit inside the row, pinned to its visible edge, so a swipe that starts on them still scrolls it.
+ * An edge of the page row with pages past it: an arrow that slides the row along. It sits inside
+ * the row, pinned to its visible edge, so a swipe that starts on it still scrolls it. No fade: over
+ * the glass bar, a fade would draw a band of its own colour.
  * The arrow is for fingers; a keyboard reaches every page by tabbing along the row. Its negative
  * margin takes back the row's gap, so showing an edge never changes how far the row scrolls.
  */
@@ -468,10 +469,6 @@ function RowEdge({ side, onClick }: { side: 'start' | 'end'; onClick: () => void
   const start = side === 'start';
   return (
     <div className={`sticky z-10 w-0 shrink-0 self-stretch ${start ? 'left-0 -mr-0.5 md:-mr-1' : 'right-0 -ml-0.5 md:-ml-1'}`}>
-      <div
-        aria-hidden="true"
-        className={`pointer-events-none absolute top-0 h-10 md:h-full w-14 from-black via-black/85 to-transparent ${start ? 'left-0 bg-linear-to-r' : 'right-0 bg-linear-to-l'}`}
-      />
       <button
         type="button"
         tabIndex={-1}

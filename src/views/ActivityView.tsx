@@ -238,7 +238,7 @@ export function ActivityView({ data, clock, intraday }: { data: SyncResult; cloc
       </div>
 
       <div className="flex items-center justify-between px-1">
-        <h2 className="text-section uppercase text-zinc-500">
+        <h2 className="text-section uppercase text-page-ink">
           {t('activity.overTime.title')}
         </h2>
         <SpanSelector state={spanState} />
