@@ -446,7 +446,7 @@ function PageNav({ view, setView }: { view: View; setView: (view: View) => void 
         />
         {/* Sets Data apart. On phones it gives way when the row is full, so it never pushes Data out of view. */}
         <div className="flex justify-center w-[19px] -mx-px min-w-0 shrink overflow-hidden md:w-auto md:mx-2 md:shrink-0">
-          <div className="w-px h-4 shrink-0 bg-zinc-800" />
+          <div className="w-px h-4 shrink-0 bg-bar-rule" />
         </div>
         <NavButton
           active={view === 'data'} onClick={() => setView('data')}
