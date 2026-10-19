@@ -352,7 +352,7 @@ function SourceRow({ source: s, rank, on, windowDays, today, live, first, last, 
           onClick={onToggle}
           className={`relative ml-2 shrink-0 inline-flex items-center w-11 h-6 p-0.5 rounded-full transition-colors before:absolute before:-inset-x-1.5 before:-inset-y-2.5 before:content-[''] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-300 disabled:cursor-default ${on ? 'bg-amber-500' : 'bg-zinc-700 hover:bg-zinc-600'}`}
         >
-          <span aria-hidden="true" className={`size-5 rounded-full bg-white shadow-sm shadow-black/40 transition-transform ${on ? 'translate-x-5' : 'translate-x-0'}`} />
+          <span aria-hidden="true" className={`size-5 rounded-full bg-knob shadow-sm shadow-knob-shadow transition-transform ${on ? 'translate-x-5' : 'translate-x-0'}`} />
         </button>
       </div>
     </div>

@@ -37,7 +37,7 @@ export function Sheet({
 
   return (
     <div className="fixed inset-0 z-40 flex items-end md:items-center justify-center">
-      <div aria-hidden="true" className="absolute inset-0 bg-black/70" onClick={onClose} />
+      <div aria-hidden="true" className="absolute inset-0 bg-(--scrim)" onClick={onClose} />
       <div
         ref={panel}
         role="dialog"

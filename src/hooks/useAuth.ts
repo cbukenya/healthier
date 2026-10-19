@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api, ApiError } from '../lib/api';
 import type { ApiUser, MeResponse } from '../types/api';
+import type { Theme } from '../lib/theme';
 
 /**
  * Who is signed in, according to the server.
@@ -12,6 +13,8 @@ import type { ApiUser, MeResponse } from '../types/api';
 export function useAuth() {
   const [user, setUser] = useState<ApiUser | null>(null);
   const [needsReconnect, setNeedsReconnect] = useState(false);
+  // The account's theme: null until the person picks one, undefined while no one is signed in.
+  const [theme, setTheme] = useState<Theme | null | undefined>(undefined);
   const [ready, setReady] = useState(false);
 
   const reload = useCallback(async () => {
@@ -19,10 +22,12 @@ export function useAuth() {
       const me = await api<MeResponse>('/api/me');
       setUser(me.user);
       setNeedsReconnect(me.needsReconnect);
+      setTheme(me.theme ?? null);
     } catch (err) {
       if (!(err instanceof ApiError && err.status === 401)) console.error('Failed to load session:', err);
       setUser(null);
       setNeedsReconnect(false);
+      setTheme(undefined);
     } finally {
       setReady(true);
     }
@@ -41,6 +46,7 @@ export function useAuth() {
     await api('/auth/logout', { method: 'POST' }).catch((err) => console.error('Sign-out failed:', err));
     setUser(null);
     setNeedsReconnect(false);
+    setTheme(undefined);
   }, []);
 
   /** Revoke Google access and delete everything the server stores about this user. */
@@ -48,7 +54,8 @@ export function useAuth() {
     await api('/api/me', { method: 'DELETE' });
     setUser(null);
     setNeedsReconnect(false);
+    setTheme(undefined);
   }, []);
 
-  return { user, needsReconnect, ready, signIn, signOut, deleteAccount, reload };
+  return { user, needsReconnect, theme, ready, signIn, signOut, deleteAccount, reload };
 }

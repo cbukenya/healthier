@@ -519,10 +519,10 @@ export function DivergingBars({
 // ─────────────────────────────────────────────────────────────── hypnogram
 
 const STAGE_STYLE = {
-  awake: { row: 0, label: 'sleep.stages.awake', color: 'var(--tan)' },
-  rem: { row: 1, label: 'sleep.stages.rem', color: 'var(--violet-400)' },
-  light: { row: 2, label: 'sleep.stages.light', color: 'var(--indigo-400)' },
-  deep: { row: 3, label: 'sleep.stages.deep', color: 'var(--indigo-700)' },
+  awake: { row: 0, label: 'sleep.stages.awake', color: 'var(--stage-awake)' },
+  rem: { row: 1, label: 'sleep.stages.rem', color: 'var(--stage-rem)' },
+  light: { row: 2, label: 'sleep.stages.light', color: 'var(--stage-light)' },
+  deep: { row: 3, label: 'sleep.stages.deep', color: 'var(--stage-deep)' },
 } as const satisfies Record<string, { row: number; label: MessageKey; color: string }>;
 
 /**

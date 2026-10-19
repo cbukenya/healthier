@@ -2,13 +2,15 @@ import React, { createContext, useContext, useEffect, useId, useRef, useState } 
 import { Minus, Plus } from 'lucide-react';
 import type { CivilDate } from '../lib/date';
 import { formatInteger, formatList, formatMonthYear } from '../i18n/format';
-import { t } from '../i18n';
+import { t, type MessageKey } from '../i18n';
 import { rich } from '../i18n/react';
 import { BASELINE_DAYS, NEED_ESTIMATE } from '../pipeline/derive';
 import { REFETCH_DAYS } from '../pipeline/incremental';
 import { DEFAULT_GOALS, GOAL_LIMITS, WHO_WEEK, fitGoal, sameGoals, type GoalLimit, type Goals } from '../pipeline/goals';
 import { useGoalsControl } from '../hooks/useGoals';
 import { useCycle } from '../hooks/useCycle';
+import { useTheme } from '../hooks/useTheme';
+import { THEMES, type Theme } from '../lib/theme';
 import { SPANS, spanLabel } from '../ui/span';
 import { Card, CardHead, DURATION_UNIT, fmtDuration, withUnits, type DomainKey } from '../ui/primitives';
 
@@ -307,7 +309,7 @@ function SwitchRow({ label, note, on, onToggle }: { label: string; note: string;
         onClick={onToggle}
         className={`relative shrink-0 inline-flex items-center w-11 h-6 p-0.5 rounded-full transition-colors before:absolute before:-inset-x-1.5 before:-inset-y-2.5 before:content-[''] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pink-300 ${on ? 'bg-pink-400' : 'bg-zinc-700 hover:bg-zinc-600'}`}
       >
-        <span aria-hidden="true" className={`size-5 rounded-full bg-white shadow-sm shadow-black/40 transition-transform ${on ? 'translate-x-5' : 'translate-x-0'}`} />
+        <span aria-hidden="true" className={`size-5 rounded-full bg-knob shadow-sm shadow-knob-shadow transition-transform ${on ? 'translate-x-5' : 'translate-x-0'}`} />
       </button>
     </div>
   );
@@ -360,8 +362,8 @@ function GoalRow({ label, per, badge, shown, less, more, lessLabel, moreLabel, n
 // ─────────────────────────────────────────────────────────────── account
 
 /**
- * The person's connection to Google Health: signing out, which keeps their data here, and
- * disconnecting, which deletes it. In demo mode, the way out of the demo.
+ * How Healthier looks for the person, and their connection to Google Health: signing out, which
+ * keeps their data here, and disconnecting, which deletes it. In demo mode, the way out of the demo.
  */
 export function AccountCard({ email, demo, onSignOut, onDisconnect }: {
   email: string | null;
@@ -376,6 +378,7 @@ export function AccountCard({ email, demo, onSignOut, onDisconnect }: {
   return (
     <SectionCard title={t('data.account.title')} hint={t('data.account.hint')}>
       <div className={`px-5 pb-2 ${firstRuleOff(screen)}`}>
+        <ThemeRow demo={demo} />
         {demo ? (
           <AccountRow
             label={t('data.account.demo.label')}
@@ -408,6 +411,47 @@ export function AccountCard({ email, demo, onSignOut, onDisconnect }: {
         )}
       </div>
     </SectionCard>
+  );
+}
+
+const THEME_NAMES = {
+  dark: 'data.account.theme.options.dark',
+  light: 'data.account.theme.options.light',
+  system: 'data.account.theme.options.system',
+} as const satisfies Record<Theme, MessageKey>;
+
+/**
+ * The theme: dark, light, or the device's. A choice shows at once; signed in, it's saved with the
+ * account. The options are radio buttons, so arrow keys move between them.
+ */
+function ThemeRow({ demo }: { demo: boolean }) {
+  const { theme, choose, failed } = useTheme();
+  const id = useId();
+  return (
+    <div className="py-3 border-t border-zinc-800/60">
+      <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+        <div className="min-w-0 grow basis-64">
+          <div id={id} className="text-body text-zinc-200">{t('data.account.theme.label')}</div>
+          <p className="mt-0.5 text-caption leading-relaxed text-zinc-500">
+            {t(demo ? 'data.account.theme.textDemo' : 'data.account.theme.text')}
+          </p>
+        </div>
+        <div role="radiogroup" aria-labelledby={id} className="shrink-0 inline-flex p-0.5 rounded-lg border border-zinc-800 bg-zinc-950/80">
+          {THEMES.map((option) => (
+            <label
+              key={option}
+              className={`min-h-9 px-3 flex items-center rounded-md text-caption font-medium cursor-pointer transition-colors has-focus-visible:outline-2 has-focus-visible:outline-offset-1 has-focus-visible:outline-zinc-400 ${
+                theme === option ? 'bg-zinc-800 text-zinc-100' : 'text-zinc-500 hover:text-zinc-300'
+              }`}
+            >
+              <input type="radio" name={id} value={option} checked={theme === option} onChange={() => choose(option)} className="sr-only" />
+              {t(THEME_NAMES[option])}
+            </label>
+          ))}
+        </div>
+      </div>
+      {failed && <p role="alert" className="mt-2 text-caption text-rose-400">{t('data.account.theme.failed')}</p>}
+    </div>
   );
 }
 

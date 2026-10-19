@@ -1,13 +1,19 @@
 /*
- * Colours.
+ * Colours, for the dark theme (the default) and the light one.
  *
  * Classes take Tailwind's palette: text-zinc-400, bg-emerald-500/10. Anything drawn in code
  * (charts, SVG, inline styles) takes a colour from here through var(--name), or a grey from
  * the palette through its variable, such as var(--color-zinc-400). A hex written into code
  * would be a colour of its own, outside the theme.
+ *
+ * Everything is written for the dark theme. The light one, at the end, turns each colour over:
+ * the greys flip, and each colour takes its own family's darker shade, so it reads on white
+ * and every page keeps its colour.
  */
 
 :root {
+  color-scheme: dark;
+
   /*
    * The shades the charts, figures and glows are drawn in. They carry Tailwind's names, from
    * its previous palette, a touch softer than the current one the classes use.
@@ -24,7 +30,6 @@
   --slate-400: #94a3b8;
   --indigo-400: #818cf8;
   --indigo-500: #6366f1;
-  --indigo-700: #4338ca;
   --violet-400: #a78bfa;
   --purple-500: #a855f7;
   --pink-400: #f472b6;
@@ -35,8 +40,12 @@
   --amber-400: #fbbf24;
   --amber-500: #f59e0b;
   --yellow-500: #eab308;
-  /* Awake, between a night's stages. */
-  --tan: #d8b48a;
+
+  /* A night's stages, deep the darkest, in both themes. */
+  --stage-deep: #4338ca;
+  --stage-light: #818cf8;
+  --stage-rem: #a78bfa;
+  --stage-awake: #d8b48a;
 
   /* A card that draws its own ground, and its border. */
   --card: #0c0c0e;
@@ -55,6 +64,11 @@
   --alert-ground: #141114;
   /* The battery's figure, before it fills. */
   --figure: #1b1b1f;
+  /* A switch's knob: white on its track in both themes. */
+  --knob: #ffffff;
+  --knob-shadow: rgb(0 0 0 / 0.4);
+  /* What a sheet dims the page with. */
+  --scrim: rgb(0 0 0 / 0.7);
 }
 
 @theme inline {
@@ -66,4 +80,96 @@
   --color-rule: var(--rule);
   --color-rule-strong: var(--rule-strong);
   --color-picked: var(--picked);
+  --color-knob: var(--knob);
+  --color-knob-shadow: var(--knob-shadow);
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+
+  /*
+   * The greys flip: the page is a light grey, cards white, and text dark. Black is the page and
+   * white the strongest ink, so bg-black, from-black and text-white follow.
+   */
+  --color-black: #f4f4f5;
+  --color-white: #000000;
+  --color-zinc-50: #09090b;
+  --color-zinc-100: #18181b;
+  --color-zinc-200: #27272a;
+  --color-zinc-300: #3f3f46;
+  --color-zinc-400: #52525b;
+  --color-zinc-500: #71717a;
+  --color-zinc-600: #a1a1aa;
+  --color-zinc-700: #d4d4d8;
+  --color-zinc-800: #e4e4e7;
+  --color-zinc-900: #ffffff;
+  --color-zinc-950: #f4f4f5;
+
+  /*
+   * Each colour takes its family's darker shade. Rose, pink, violet and indigo turn about their
+   * 500: 400 becomes 600, 300 becomes 700. Emerald, teal, sky, lime, yellow and amber are lighter
+   * at the same shade, so they go a step further: 400 becomes 700, 500 becomes 600. Teal's 300 is
+   * the Body page's colour, so it turns as the other pages' 400s do; lime's 300 is a battery tier,
+   * so it turns as the other tiers' 500s do. The darkest shades, under washes, become the lightest.
+   */
+  --color-pink-100: var(--color-pink-900);
+  --color-pink-200: var(--color-pink-800);
+  --color-pink-300: var(--color-pink-700);
+  --color-pink-400: var(--color-pink-600);
+  --color-rose-300: var(--color-rose-700);
+  --color-rose-400: var(--color-rose-600);
+  --color-rose-900: var(--color-rose-100);
+  --color-violet-300: var(--color-violet-700);
+  --color-violet-400: var(--color-violet-600);
+  --color-indigo-400: var(--color-indigo-600);
+  --color-emerald-300: var(--color-emerald-800);
+  --color-emerald-400: var(--color-emerald-700);
+  --color-emerald-500: var(--color-emerald-600);
+  --color-teal-300: var(--color-teal-700);
+  --color-teal-500: var(--color-teal-600);
+  --color-sky-300: var(--color-sky-800);
+  --color-sky-400: var(--color-sky-700);
+  --color-sky-500: var(--color-sky-600);
+  --color-lime-300: var(--color-lime-600);
+  --color-yellow-400: var(--color-yellow-700);
+  --color-amber-300: var(--color-amber-800);
+  --color-amber-400: var(--color-amber-700);
+  --color-amber-500: var(--color-amber-600);
+
+  /* The shades drawn in code, turned the same way, from the same previous palette. */
+  --emerald-400: #047857;
+  --emerald-500: #059669;
+  --green-500: #16a34a;
+  --lime-300: #65a30d;
+  --teal-300: #0f766e;
+  --teal-400: #0f766e;
+  --teal-500: #0d9488;
+  --sky-500: #0284c7;
+  --slate-400: #64748b;
+  --indigo-400: #4f46e5;
+  --violet-400: #7c3aed;
+  --pink-400: #db2777;
+  --rose-400: #e11d48;
+  --orange-400: #ea580c;
+  --amber-400: #b45309;
+  --amber-500: #d97706;
+  --yellow-500: #ca8a04;
+  /* Regularity's second band stays paler than its first. */
+  --emerald-300: #10b981;
+
+  --stage-awake: #c19e74;
+
+  --card: #ffffff;
+  --card-edge: #e7e7ea;
+  --panel: #f7f7f8;
+  --panel-raised: #f0f0f2;
+  --faint: #ececef;
+  --rule-faint: #f3f3f5;
+  --rule: #eaeaed;
+  --rule-strong: #dcdce1;
+  --picked: #f1f1fd;
+  --alert-ground: #fff5f6;
+  --figure: #e4e4e7;
+  --knob-shadow: rgb(0 0 0 / 0.25);
+  --scrim: rgb(9 9 11 / 0.4);
 }

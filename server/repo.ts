@@ -6,6 +6,7 @@ import type { Goals } from '../src/pipeline/goals';
 import type { SourcePrefs, SourceSeen } from '../src/pipeline/sources';
 import { EMPTY_CYCLE_LOG, readCycleLog, type CycleLog } from '../src/pipeline/cycle';
 import type { Gender, ProfileFacts } from '../src/pipeline/registry';
+import type { Theme } from '../src/lib/theme';
 import type { ApiUser } from '../src/types/api';
 import { decrypt, encrypt, randomToken, sha256 } from './crypto';
 import { withTransaction, type Db } from './db';
@@ -22,6 +23,8 @@ export interface UserRow extends ApiUser {
   goals: unknown;
   /** As stored: read it through readSourcePrefs. */
   sources: unknown;
+  /** Null until the person picks one. */
+  theme: Theme | null;
 }
 
 export async function upsertUser(db: Db, identity: GoogleIdentity): Promise<string> {
@@ -38,7 +41,7 @@ export async function upsertUser(db: Db, identity: GoogleIdentity): Promise<stri
 
 export async function getUser(db: Db, userId: string): Promise<UserRow | null> {
   const { rows } = await db.query<UserRow>(
-    `SELECT id, email, name, picture_url AS "pictureUrl", time_zone AS "timeZone", gender, goals, sources
+    `SELECT id, email, name, picture_url AS "pictureUrl", time_zone AS "timeZone", gender, goals, sources, theme
      FROM users WHERE id = $1`,
     [userId],
   );
@@ -59,6 +62,10 @@ export async function setSourcePrefs(db: Db, userId: string, prefs: SourcePrefs)
 
 export async function setGoals(db: Db, userId: string, goals: Goals): Promise<void> {
   await db.query('UPDATE users SET goals = $2::jsonb, updated_at = now() WHERE id = $1', [userId, JSON.stringify(goals)]);
+}
+
+export async function setTheme(db: Db, userId: string, theme: Theme): Promise<void> {
+  await db.query('UPDATE users SET theme = $2, updated_at = now() WHERE id = $1', [userId, theme]);
 }
 
 /** Cascades to tokens, sessions and data. */

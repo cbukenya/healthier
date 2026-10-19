@@ -129,6 +129,15 @@ const MIGRATIONS: { id: number; name: string; sql: string }[] = [
       ALTER TABLE users ADD COLUMN sources jsonb;
     `,
   },
+  {
+    id: 6,
+    name: 'user theme',
+    sql: `
+      -- Set by the person on the Data tab (Account, Theme in src/lib/theme.ts): dark, light, or
+      -- whichever their device is set to. NULL until they pick one, and the app opens dark.
+      ALTER TABLE users ADD COLUMN theme text CHECK (theme IN ('dark', 'light', 'system'));
+    `,
+  },
 ];
 
 export function createDb(connectionString: string): Db {

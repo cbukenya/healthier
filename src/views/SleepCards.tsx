@@ -55,9 +55,9 @@ export function getScoreTier(total: number) {
 
 /** The stages a night's bar stacks, bottom up, in the hypnogram's colours. */
 const STAGES = [
-  { key: 'deep', label: 'sleep.stages.deep', color: 'var(--indigo-700)' },
-  { key: 'light', label: 'sleep.stages.light', color: 'var(--indigo-400)' },
-  { key: 'rem', label: 'sleep.stages.rem', color: 'var(--violet-400)' },
+  { key: 'deep', label: 'sleep.stages.deep', color: 'var(--stage-deep)' },
+  { key: 'light', label: 'sleep.stages.light', color: 'var(--stage-light)' },
+  { key: 'rem', label: 'sleep.stages.rem', color: 'var(--stage-rem)' },
 ] as const;
 
 /** A need as a short label: "7h", or "~7h" when it isn't a whole hour. */
