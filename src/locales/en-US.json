@@ -820,25 +820,21 @@
       "title": "Body battery",
       "tiers": {
         "charged": {
-          "tag": "[CHARGED]",
           "label": "You're fully charged",
           "name": "Charged",
           "figure": "Body battery at {score}, in the Charged stage"
         },
         "balanced": {
-          "tag": "[BALANCED]",
           "label": "You've got plenty in the tank",
           "name": "Balanced",
           "figure": "Body battery at {score}, in the Balanced stage"
         },
         "low": {
-          "tag": "[LOW]",
           "label": "Go a little easier today",
           "name": "Low",
           "figure": "Body battery at {score}, in the Low stage"
         },
         "drained": {
-          "tag": "[DRAINED]",
           "label": "Your body wants a breather",
           "name": "Drained",
           "figure": "Body battery at {score}, in the Drained stage"
