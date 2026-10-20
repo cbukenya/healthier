@@ -286,7 +286,12 @@ export default function App() {
               </span>
             )}
             
-            {(demo || user) && <AccountChip user={demo ? null : user} onClick={openAccount} />}
+            {(demo || user) && (
+              <>
+                <AccountChip user={demo ? null : user} onClick={openAccount} />
+                <SettingsButton open={view === 'settings'} onClick={() => setView('settings')} />
+              </>
+            )}
           </div>
         </div>
         <div className="max-w-5xl mx-auto px-4 pt-1 md:pt-2">
@@ -335,6 +340,27 @@ function AccountChip({ user, onClick }: { user: ApiUser | null; onClick: () => v
 }
 
 /**
+ * The Settings page, from a gear beside the account chip: kept out of the row of pages, so the
+ * row has room on a phone. It looks open while Settings is.
+ */
+function SettingsButton({ open, onClick }: { open: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={t('app.nav.settings')}
+      aria-current={open ? 'page' : undefined}
+      // As the chip: as tall as it, and the ::before widens what a finger can hit to 44px.
+      className={`relative size-7.5 flex items-center justify-center rounded-full border transition-colors before:absolute before:-inset-2 before:content-[''] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-400 ${
+        open ? 'bg-zinc-800 border-zinc-700 text-white' : 'bg-zinc-900 border-zinc-800/80 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200'
+      }`}
+    >
+      <Settings size={15} aria-hidden="true" />
+    </button>
+  );
+}
+
+/**
  * The bar's height as `--bar-height` on the page, for whatever sticks under the bar: the
  * Settings page's section list. It changes with the text size, so it's measured, not assumed.
  */
@@ -355,9 +381,10 @@ function usePinnedHeight() {
 const EDGE = 48;
 
 /**
- * The pages, the Cycle page among them while cycle tracking is on. On a narrow phone they don't
- * all fit: the row scrolls sideways on its own, by swipe, trackpad or mouse wheel, and an edge
- * with pages past it shows a small arrow that slides the row along.
+ * The pages, the Cycle page among them while cycle tracking is on; Settings is the gear in the
+ * bar. When they don't all fit, on the narrowest phones or with large text, the row scrolls
+ * sideways on its own, by swipe, trackpad or mouse wheel, and an edge with pages past it shows a
+ * small arrow that slides the row along.
  */
 function PageNav({ view, setView }: { view: View; setView: (view: View) => void }) {
   const tracking = useCycleTracking();
@@ -458,14 +485,6 @@ function PageNav({ view, setView }: { view: View; setView: (view: View) => void 
         <NavButton
           active={view === 'labs'} onClick={() => setView('labs')}
           icon={<FlaskConical size={14} />} label={t('app.nav.labs')} color="text-yellow-400"
-        />
-        {/* Sets Settings apart. On phones it gives way when the row is full, so it never pushes Settings out of view. */}
-        <div className="flex justify-center w-[19px] -mx-px min-w-0 shrink overflow-hidden md:w-auto md:mx-2 md:shrink-0">
-          <div className="w-px h-4 shrink-0 bg-bar-rule" />
-        </div>
-        <NavButton
-          active={view === 'settings'} onClick={() => setView('settings')}
-          icon={<Settings size={14} />} label={t('app.nav.settings')} color="text-zinc-400"
         />
         {edges.after && <RowEdge side="end" onClick={() => slide(1)} />}
       </div>
