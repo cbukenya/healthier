@@ -449,7 +449,7 @@ export function historyDue(states: ReadonlyMap<string, StreamState>, start: Civi
  * Extend one stream's stored history back to `start`: fetch the days before its
  * current coverage and store them. Runs after the window is in place, in the
  * background, so a long backfill never delays the dashboard. The stream's last
- * report (what the Data tab shows) is left alone; only coverage moves.
+ * report (what the Settings page shows) is left alone; only coverage moves.
  */
 export async function backfillStream(
   transport: HealthTransport,

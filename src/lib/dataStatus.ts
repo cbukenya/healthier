@@ -5,7 +5,7 @@ import type { HistoryInfo } from '../types/api';
 import type { MetricDomain, StreamReport } from '../types/health';
 
 /**
- * Where the person's data stands, for the Data page's status card: the first thing worth saying,
+ * Where the person's data stands, for the Settings page's status card: the first thing worth saying,
  * from a sync that can't run at all down to everything being in. Words are the view's; this only
  * decides which state it is.
  */

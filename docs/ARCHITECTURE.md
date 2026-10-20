@@ -59,13 +59,13 @@ browser (React)  ──/api──▶  Express server  ──▶  Postgres
 
 | Table | Holds |
 | --- | --- |
-| `users` | Google subject, profile, IANA time zone (decides what "today" means on the server), gender (set on the Body page), goals, the choice of devices and the theme (set on the Data tab) |
+| `users` | Google subject, profile, IANA time zone (decides what "today" means on the server), gender (set on the Body page), goals, the choice of devices and the theme (set on the Settings page) |
 | `google_tokens` | encrypted tokens and granted scopes |
 | `sessions` | hashed session ids |
 | `stream_days (user_id, data_type, date)` | what one stream (steps, sleep, HRV…) contributed to one civil day: only the `DailyRecord` fields it set, plus provenance, and each source's own reading when more than one reported the day (see Devices and sources). Kept for `HISTORY_DAYS` |
 | `intraday_heart_rate (user_id, date)` | one civil day of minute-level heart rate, column-wise. Kept for the 62-day window |
 | `stream_days` with `data_type = 'sleep-heart-rate-floor'` | the night's heart rate floor, derived from the minutes while cycle tracking is on (see Cycles). Kept like any stream |
-| `stream_state (user_id, data_type)` | per-stream coverage and the outcome of its last fetch (shown on the Data tab) |
+| `stream_state (user_id, data_type)` | per-stream coverage and the outcome of its last fetch (shown on the Settings page) |
 | `sync_state (user_id)` | pipeline version, last sync and last full sync, profile facts (height, age) |
 | `cycle_logs (user_id)` | cycle tracking: the settings, the periods and symptoms the person logged, and found starts they said weren't a period. AES-256-GCM ciphertext under `ENCRYPTION_KEY`, read and changed whole, in a transaction |
 
@@ -94,7 +94,7 @@ without knowing where. The server applies that to Postgres; demo mode and the te
   fully succeeded. A failure (429, 5xx, network, a failed rollup chunk) replaces nothing and leaves
   coverage where it was, so the next sync retries the same range.
 - **Full rebuilds** run weekly (`FULL_RESYNC_DAYS`), after every sign-in (granted scopes may have
-  changed), from "Full sync" on the Data tab, and whenever `PIPELINE_VERSION` changes. They
+  changed), from "Full sync" on the Settings page, and whenever `PIPELINE_VERSION` changes. They
   refetch the window; history older than the window is kept, except after a `PIPELINE_VERSION`
   change, when it is dropped and backfilled again by the new code.
 - **History backfills in the background.** After a sync stores the window, each stream's coverage
@@ -126,8 +126,8 @@ without knowing where. The server applies that to Postgres; demo mode and the te
 Google Health takes readings from every device and app the person connects, and names where each
 list reading came from (`dataSource`: platform, recording method, device, app).
 `src/pipeline/sources.ts` decides which one Healthier reads. The Devices and sources card on the
-Data tab (`src/views/SourcesCard.tsx`) shows each source and sets the person's choices, which are
-kept on `users.sources` (`GET` and `PUT /api/sources`).
+Settings page (`src/views/SourcesCard.tsx`) shows each source and sets the person's choices, which
+are kept on `users.sources` (`GET` and `PUT /api/sources`).
 
 - **Every source's reading is kept.** When more than one source reported a list stream on a day
   (sleep, HRV, resting heart rate, breathing rate, skin temperature, blood oxygen, cardio fitness,
@@ -283,7 +283,7 @@ Google Health lets apps add periods but not read them back, so cycles are found 
 - **Private by default.** With tracking off, the log stays on the server and nothing cycle-aware
   runs; the dataset carries only the setting, and whether a log is kept, so it can be deleted.
 - **The page** (`src/views/CycleView.tsx`) shows only while tracking is on, which is a switch on
-  the Data page for anyone, whatever gender is set. `useCycle` holds the log for every screen: a
+  the Settings page for anyone, whatever gender is set. `useCycle` holds the log for every screen: a
   change shows at once, is saved straight away, and is undone if the save fails.
 - **Phases, not just a day.** The page leads with the phase (menstruation, follicular, ovulation,
   early or late luteal) and puts the day under it: "Day 22" when the start was logged, "About day
@@ -301,7 +301,7 @@ Google Health lets apps add periods but not read them back, so cycles are found 
   - shorter sleep before a period, the heart in the second half, and regular cycles, once enough
     cycles show them.
 
-  The first two reach Today only when the person allows it on the Data page.
+  The first two reach Today only when the person allows it on the Settings page.
 - **Allowing for the cycle elsewhere**, only while tracking is on and "Allow for your cycle on other
   pages" (`otherPages`, on by default) is too. Turned off, the other pages read the nights as for
   someone who doesn't track cycles, and the Cycle page and its cards stay. `typicalShifts` measures how
@@ -323,8 +323,8 @@ have cycles, and almost no cycle shown to people who don't.
 
 ## Goals
 
-The step goal, the daily brisk minutes and the sleep need are the person's own, set on the Data
-tab (`PUT /api/goals`) because Google Health doesn't share the goals set in Fitbit. They live in
+The step goal, the daily brisk minutes and the sleep need are the person's own, set on the Settings
+page (`PUT /api/goals`) because Google Health doesn't share the goals set in Fitbit. They live in
 `src/pipeline/goals.ts`, with the bounds each one is held to and the evidence for them; the server
 stores them on `users`, sends them with the dataset, and rejects anything off its steps or out of
 bounds. Every ring, goal line, label and insight reads them from there (the screens through
@@ -373,7 +373,7 @@ set straight on the backdrop, such as the date and a section's name, take `text-
 stays readable over it.
 
 The theme is dark, light, or whichever the device is set to (`src/lib/theme.ts`), picked in the
-Data page's Account section. It's kept on the account (`users.theme`, set with
+Settings page's Account section. It's kept on the account (`users.theme`, set with
 `PUT /api/theme` and sent with `/api/me`), so it follows the person to every device, and on the
 device too, so `index.html` opens in it before anything else loads. `useTheme` puts it on the
 page as `data-theme` and colours the browser's bar to match. In demo mode a choice lasts as long

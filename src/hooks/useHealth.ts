@@ -153,7 +153,7 @@ async function demoSync(signal: AbortSignal, onProgress: Progress): Promise<{ da
   });
 }
 
-/** The demo, with its history as the Data tab and the long views read it, and the cycle log it keeps. */
+/** The demo, with its history as the Settings page and the long views read it, and the cycle log it keeps. */
 async function demoResult(signal: AbortSignal, onProgress: Progress) {
   const { data, history } = await demoSync(signal, onProgress);
   data.profile = { ...data.profile, cycle: DEMO_CYCLE_LOG, cycleKept: true };

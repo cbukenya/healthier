@@ -19,7 +19,7 @@ import { SECTION_TONE } from './sectionTones';
 // ─────────────────────────────────────────────────────────── section frame
 
 /**
- * Whether a section fills a phone's screen of its own, opened from the Data page's list. There its
+ * Whether a section fills a phone's screen of its own, opened from the Settings page's list. There its
  * name is the screen's heading and its card holds only the content; beside the list, on a wider
  * screen, it's an ordinary card with its name at the top.
  */
@@ -33,7 +33,7 @@ export const useSectionScreen = () => useContext(ScreenContext);
  */
 export const firstRuleOff = (screen: boolean) => (screen ? '[&>:first-child]:border-t-0' : '');
 
-/** A Data page section: a card with its name and hint, or, as its own screen, a heading over the card. */
+/** A Settings page section: a card with its name and hint, or, as its own screen, a heading over the card. */
 export function SectionCard({ title, hint, right, children }: {
   title: string;
   hint?: React.ReactNode;

@@ -2700,7 +2700,7 @@ describe('goals', () => {
     assert.match(part(nine, 'sleep')!.detail, /vs 9h 00m need/, 'a need that is set is exact, not "~"');
     assert.match(part(readiness(days), 'sleep')!.detail, /vs ~7h 30m need/);
     assert.equal(cardWith(days, 'sleep-need', withGoals({ sleepNeed: 480 }))?.text,
-      'Your sleep cards measure each night against the 8h you set on the Data tab. Your nights are usually about 7h 30m.');
+      'Your sleep cards measure each night against the 8h you set in Settings. Your nights are usually about 7h 30m.');
     assert.equal(todaySummary(dsOf(days), MORNING, { goals: withGoals({ sleepNeed: 480 }) }).sleepTargetMin, 480);
   });
 });

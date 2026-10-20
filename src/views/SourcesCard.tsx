@@ -12,7 +12,7 @@ import { Switch } from '../ui/Switch';
 import { SectionCard } from './DataCards';
 import { SECTION_TONE } from './sectionTones';
 
-/** Devices and sources in its own colour, its icon's in the Data page's list. */
+/** Devices and sources in its own colour, its icon's in the Settings page's list. */
 const TONE = SECTION_TONE.devices;
 
 /**
@@ -85,7 +85,7 @@ function demoView(data: SyncResult): SourcesResponse {
   return { prefs, order: sourceRanking(seen, prefs), sources, windowDays: data.days.length, refetching: false };
 }
 
-/** The person's devices and apps, and the means to choose between them: shared by the Data page's list and the section. */
+/** The person's devices and apps, and the means to choose between them: shared by the Settings page's list and the section. */
 export interface Sources {
   /** As the server describes them, or the demo's own; null until they've loaded. */
   view: SourcesResponse | null;
@@ -137,7 +137,7 @@ export function useSources(data: SyncResult, live: boolean, onChanged: (refetchi
   return { view: live ? loaded : demo, save, refetching };
 }
 
-/** What the Data page's list says of them: "Google Fitbit Air first, then Smart scale". */
+/** What the Settings page's list says of them: "Google Fitbit Air first, then Smart scale". */
 export function sourcesSummary(view: SourcesResponse): string {
   const off = new Set(view.prefs.off);
   const used = ordered(view).filter((s) => !off.has(s.id));

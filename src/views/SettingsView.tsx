@@ -18,7 +18,7 @@ import { SourcesCard, sourcesSummary, useSources } from './SourcesCard';
 import { SECTION_TONE } from './sectionTones';
 
 /**
- * The Data page: where your data stands, then its sections in three groups, each with a line on
+ * The Settings page: where your data stands, then its sections in three groups, each with a line on
  * what's in it. On a phone a section opens as a screen of its own, a step in the browser's
  * history so the back gesture closes it; on a wide screen the list stays on the left and the
  * open section fills the right, Devices and sources until another is picked.
@@ -28,7 +28,7 @@ export type SectionId = 'devices' | 'streams' | 'goals' | 'cycle' | 'facts' | 'a
 
 const GROUPS: { title: MessageKey; sections: SectionId[] }[] = [
   { title: 'data.overview.groups.data', sections: ['devices', 'streams'] },
-  { title: 'data.overview.groups.settings', sections: ['goals', 'cycle'] },
+  { title: 'data.overview.groups.preferences', sections: ['goals', 'cycle'] },
   { title: 'data.overview.groups.about', sections: ['facts', 'account'] },
 ];
 const SECTIONS = GROUPS.flatMap((g) => g.sections);
@@ -51,14 +51,14 @@ const paneTop = () => (parseFloat(getComputedStyle(document.documentElement).get
 
 /** The section a history entry opened, if any. */
 function sectionIn(state: unknown): SectionId | null {
-  const id = (state as { dataSection?: unknown } | null)?.dataSection;
+  const id = (state as { settingsSection?: unknown } | null)?.settingsSection;
   return SECTIONS.includes(id as SectionId) ? (id as SectionId) : null;
 }
 
 /** Leave the page's address as it was before any section opened. */
 const forgetSection = () => window.history.replaceState(null, '', window.location.pathname + window.location.search);
 
-export function DataView({
+export function SettingsView({
   data, live, syncing, failure, email, request, onRequestDone, onFullSync, onRetry, onSignIn, onSignOut, onDisconnect, onSourcesChanged,
 }: {
   data: SyncResult;
@@ -132,7 +132,7 @@ export function DataView({
   const open = (id: SectionId) => {
     if (!wide) {
       overviewScroll.current = window.scrollY;
-      window.history.pushState({ dataSection: id }, '', `#data/${id}`);
+      window.history.pushState({ settingsSection: id }, '', `#settings/${id}`);
     }
     setSection(id);
   };
@@ -248,7 +248,7 @@ export function DataView({
           className="-ml-2 min-h-11 inline-flex items-center gap-0.5 pl-1 pr-3 rounded-full text-body-sm font-medium text-zinc-300 hover:bg-zinc-800/60 transition-colors"
         >
           <ChevronLeft size={18} aria-hidden="true" />
-          {t('app.nav.data')}
+          {t('app.nav.settings')}
         </button>
         {render(section)}
       </SectionScreen>

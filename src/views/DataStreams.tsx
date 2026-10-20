@@ -63,7 +63,7 @@ function streamCounts(reports: StreamReport[], today: CivilDate) {
     .filter((c) => c.n > 0);
 }
 
-/** The counts in plain words, for the Data page's list: "20 up to date · 4 with nothing recorded". */
+/** The counts in plain words, for the Settings page's list: "20 up to date · 4 with nothing recorded". */
 export function streamsSummary(data: SyncResult): string {
   return streamCounts(data.meta.streams, data.meta.to)
     .map(({ kind, n }) => t(KIND[kind].summary, { count: n }))

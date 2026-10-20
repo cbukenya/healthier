@@ -23,7 +23,7 @@ export function cycleCards(ctx: InsightContext, add: Add): void {
   steady(ctx, add);
 }
 
-/** Cycle cards reach Today only when the person allows it on the Data page. */
+/** Cycle cards reach Today only when the person allows it on the Settings page. */
 const todayWhen = (ctx: InsightContext, when: 'while-true' | 'as-news') => (ctx.cycle!.log.settings.todayCards ? when : 'never');
 
 /** A period that's likely within the next few days, from the person's own cycles. */

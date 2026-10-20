@@ -99,8 +99,6 @@
   --frost: blur(24px) saturate(1.3);
   /* The bar at the top, and a sheet, frosted harder. */
   --bar: rgb(0 0 0 / 0.3);
-  /* A line in the bar, such as the one that sets Data apart: lighter than the glass it's on. */
-  --bar-rule: rgb(255 255 255 / 0.16);
   --sheet: rgb(24 24 27 / 0.82);
 
   /*
@@ -150,7 +148,6 @@
   --color-switch-off: var(--switch-off);
   --color-switch-off-hover: var(--switch-off-hover);
   --color-page-ink: var(--page-ink);
-  --color-bar-rule: var(--bar-rule);
 }
 
 :root[data-theme='light'] {
@@ -276,7 +273,6 @@
   --frost: none;
   /* A little of the page shows through the bar as it scrolls under. */
   --bar: rgb(245 245 246 / 0.5);
-  --bar-rule: rgb(0 0 0 / 0.14);
   --sheet: rgb(255 255 255 / 0.97);
   /* No backdrop: the ground is the flat grey under it. */
   --backdrop: none;

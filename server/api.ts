@@ -77,7 +77,7 @@ export function apiRoutes(deps: Deps): Router {
     }),
   );
 
-  /** The person's goals, set on the Data tab. Each must sit inside its bounds (GOAL_LIMITS). */
+  /** The person's goals, set on the Settings page. Each must sit inside its bounds (GOAL_LIMITS). */
   router.put(
     '/goals',
     asyncHandler(async (req, res) => {
@@ -92,7 +92,7 @@ export function apiRoutes(deps: Deps): Router {
     }),
   );
 
-  /** How the app looks for the person, set on the Data tab: dark, light, or whichever their device is set to. */
+  /** How the app looks for the person, set on the Settings page: dark, light, or whichever their device is set to. */
   router.put(
     '/theme',
     asyncHandler(async (req, res) => {

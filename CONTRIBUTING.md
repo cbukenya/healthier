@@ -6,7 +6,7 @@ all welcome.
 
 ## Ways to help
 
-- **Report what's wrong or unclear.** Use the bug template. The Data page shows which streams
+- **Report what's wrong or unclear.** Use the bug template. The Settings page shows which streams
   arrived and from where, and that often explains a lot. Never paste health data, tokens or your
   `.env`.
 - **Insight cards:** check the arithmetic behind a card, make its words clearer, or add one. See

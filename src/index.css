@@ -8,6 +8,8 @@
    * corners (SOFT 100, fixed in the font link). Everything else is set in --font-sans.
    */
   --font-display: "Fraunces", Georgia, "Times New Roman", serif;
+  /* The name beside the logo, in the bar and on the sign-in screen: Urbanist, weight 600 only. */
+  --font-wordmark: "Urbanist", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 
   /*
    * Type roles. Each sets a size, plus the line height, tracking and weight the role is

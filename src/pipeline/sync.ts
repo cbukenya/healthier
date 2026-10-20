@@ -21,7 +21,7 @@ import { HealthTransport, pool, type FetchLike } from './transport';
  *   - **Failure is per-stream.** A 400 on a stream must not blank the
  *     dashboard. Each stream returns a status and the rest carry on.
  *   - **Everything is measured.** Requests, pages, milliseconds and truncation are
- *     recorded per stream, which is what the Data tab renders. If a number on the
+ *     recorded per stream, which is what the Settings page renders. If a number on the
  *     dashboard looks wrong, the report says how it was obtained.
  */
 

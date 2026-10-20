@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { IntradaySample } from './types/health';
-import { ChevronLeft, ChevronRight, CircleDotDashed, FileCode2, FlaskConical, Footprints, Heart, Moon, RefreshCw, User, ShieldAlert, PersonStanding } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CircleDotDashed, FlaskConical, Footprints, Heart, Moon, RefreshCw, Settings, User, ShieldAlert, PersonStanding } from 'lucide-react';
 import { useAuth } from './hooks/useAuth';
 import { useInstance } from './hooks/useInstance';
 import { useHealth } from './hooks/useHealth';
@@ -26,7 +26,7 @@ import { ActivityView } from './views/ActivityView';
 import { SleepView } from './views/SleepView';
 import { VitalsView } from './views/VitalsView';
 import { BodyView } from './views/BodyView';
-import { DataView, type SectionId } from './views/DataView';
+import { SettingsView, type SectionId } from './views/SettingsView';
 import { LabsView } from './views/LabsView';
 import { AboutYourData, GoogleG, SignInNote } from './views/SignInParts';
 
@@ -102,11 +102,11 @@ export default function App() {
   }, [health.data]);
 
   const [view, setView] = useState<View>('today');
-  // A Data section to open: the chip in the bar asks for Account.
-  const [dataRequest, setDataRequest] = useState<{ section: SectionId; at: number } | null>(null);
+  // A Settings section to open: the chip in the bar asks for Account.
+  const [settingsRequest, setSettingsRequest] = useState<{ section: SectionId; at: number } | null>(null);
   const openAccount = () => {
-    setView('data');
-    setDataRequest({ section: 'account', at: Date.now() });
+    setView('settings');
+    setSettingsRequest({ section: 'account', at: Date.now() });
   };
   // The data's last day: yours on live data, the fixture's in demo mode.
   const today = health.data?.days.at(-1)?.date ?? null;
@@ -141,7 +141,7 @@ export default function App() {
         <div className="relative max-w-md w-full p-8 rounded-2xl bg-card border border-card-edge shadow-2xl">
           <AboutYourData />
           <img src="/logo.svg" alt="" width={48} height={48} className="mb-6" />
-          <h1 className="font-display text-display text-white mb-2">{t('app.name')}</h1>
+          <h1 className="font-wordmark text-display text-white mb-2">{t('app.name')}</h1>
           <p className="text-body text-zinc-400 mb-8 leading-relaxed">
             {needsReconnect ? t('app.signIn.expired') : t('app.signIn.intro')}
           </p>
@@ -242,15 +242,15 @@ export default function App() {
             {view === 'body' && <BodyView data={health.data} gender={gender} onGender={chooseGender} intraday={intradayDays} clock={demo ? DEMO_CLOCK : undefined} />}
             {view === 'cycle' && <CycleView data={health.data} intraday={intradayDays} clock={demo ? DEMO_CLOCK : undefined} />}
             {view === 'labs' && <LabsView data={health.data} intraday={intradayDays} />}
-            {view === 'data' && (
-              <DataView
+            {view === 'settings' && (
+              <SettingsView
                 data={health.data}
                 live={!demo}
                 syncing={health.phase === 'revalidating'}
                 failure={health.error}
                 email={demo ? null : user?.email ?? null}
-                request={dataRequest}
-                onRequestDone={() => setDataRequest(null)}
+                request={settingsRequest}
+                onRequestDone={() => setSettingsRequest(null)}
                 onFullSync={health.fullSync}
                 onRetry={health.refresh}
                 onSignIn={signIn}
@@ -275,7 +275,7 @@ export default function App() {
         <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <img src="/logo.svg" alt="" width={28} height={28} />
-            <span className="text-body font-semibold text-white tracking-wide">{t('app.name')}</span>
+            <span className="font-wordmark text-body font-semibold text-white tracking-wide">{t('app.name')}</span>
           </div>
           
           <div className="flex items-center gap-3">
@@ -286,7 +286,12 @@ export default function App() {
               </span>
             )}
             
-            {(demo || user) && <AccountChip user={demo ? null : user} onClick={openAccount} />}
+            {(demo || user) && (
+              <>
+                <AccountChip user={demo ? null : user} onClick={openAccount} />
+                <SettingsButton open={view === 'settings'} onClick={() => setView('settings')} />
+              </>
+            )}
           </div>
         </div>
         <div className="max-w-5xl mx-auto px-4 pt-1 md:pt-2">
@@ -305,11 +310,12 @@ export default function App() {
   );
 }
 
-type View = 'today' | 'activity' | 'sleep' | 'vitals' | 'body' | 'cycle' | 'labs' | 'data';
+type View = 'today' | 'activity' | 'sleep' | 'vitals' | 'body' | 'cycle' | 'labs' | 'settings';
 
 /**
- * Who's here, in the bar: their picture and first name, or Demo in demo mode. It opens the Data
- * page at Account, where the theme is set and where signing out, or leaving the demo, now lives.
+ * Who's here, in the bar: their picture and first name, or Demo in demo mode. It opens the
+ * Settings page at Account, where the theme is set and where signing out, or leaving the demo,
+ * now lives.
  */
 function AccountChip({ user, onClick }: { user: ApiUser | null; onClick: () => void }) {
   const name = user ? user.name?.split(' ')[0] || t('app.header.someone') : t('app.header.demo');
@@ -334,8 +340,29 @@ function AccountChip({ user, onClick }: { user: ApiUser | null; onClick: () => v
 }
 
 /**
- * The bar's height as `--bar-height` on the page, for whatever sticks under the bar: the Data
- * page's section list. It changes with the text size, so it's measured, not assumed.
+ * The Settings page, from a gear beside the account chip: kept out of the row of pages, so the
+ * row has room on a phone. It looks open while Settings is.
+ */
+function SettingsButton({ open, onClick }: { open: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={t('app.nav.settings')}
+      aria-current={open ? 'page' : undefined}
+      // As the chip: as tall as it, and the ::before widens what a finger can hit to 44px.
+      className={`relative size-7.5 flex items-center justify-center rounded-full border transition-colors before:absolute before:-inset-2 before:content-[''] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-400 ${
+        open ? 'bg-zinc-800 border-zinc-700 text-white' : 'bg-zinc-900 border-zinc-800/80 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200'
+      }`}
+    >
+      <Settings size={15} aria-hidden="true" />
+    </button>
+  );
+}
+
+/**
+ * The bar's height as `--bar-height` on the page, for whatever sticks under the bar: the
+ * Settings page's section list. It changes with the text size, so it's measured, not assumed.
  */
 function usePinnedHeight() {
   const observer = useRef<ResizeObserver | null>(null);
@@ -354,13 +381,14 @@ function usePinnedHeight() {
 const EDGE = 48;
 
 /**
- * The pages, the Cycle page among them while cycle tracking is on. On a narrow phone they don't
- * all fit: the row scrolls sideways on its own, by swipe, trackpad or mouse wheel, and an edge
- * with pages past it shows a small arrow that slides the row along.
+ * The pages, the Cycle page among them while cycle tracking is on; Settings is the gear in the
+ * bar. When they don't all fit, on the narrowest phones or with large text, the row scrolls
+ * sideways on its own, by swipe, trackpad or mouse wheel, and an edge with pages past it shows a
+ * small arrow that slides the row along.
  */
 function PageNav({ view, setView }: { view: View; setView: (view: View) => void }) {
   const tracking = useCycleTracking();
-  // Turning tracking off on the Data page takes the Cycle page away; never leave anyone on it.
+  // Turning tracking off on the Settings page takes the Cycle page away; never leave anyone on it.
   useEffect(() => {
     if (view === 'cycle' && !tracking) setView('today');
   }, [view, tracking, setView]);
@@ -457,14 +485,6 @@ function PageNav({ view, setView }: { view: View; setView: (view: View) => void 
         <NavButton
           active={view === 'labs'} onClick={() => setView('labs')}
           icon={<FlaskConical size={14} />} label={t('app.nav.labs')} color="text-yellow-400"
-        />
-        {/* Sets Data apart. On phones it gives way when the row is full, so it never pushes Data out of view. */}
-        <div className="flex justify-center w-[19px] -mx-px min-w-0 shrink overflow-hidden md:w-auto md:mx-2 md:shrink-0">
-          <div className="w-px h-4 shrink-0 bg-bar-rule" />
-        </div>
-        <NavButton
-          active={view === 'data'} onClick={() => setView('data')}
-          icon={<FileCode2 size={14} />} label={t('app.nav.data')} color="text-zinc-400"
         />
         {edges.after && <RowEdge side="end" onClick={() => slide(1)} />}
       </div>

@@ -79,14 +79,14 @@ place at a time: on Today while it matters, otherwise on its own page.
   </tr>
   <tr>
     <td valign="top"><img src="docs/screenshots/labs.png" alt="The Labs page"><br><b>Labs.</b> Six experiments with multi-week patterns: breathing during sleep, signs of strain, irregular rhythm notifications from your device, heart rate dipping at night, HRV entropy, and fast heart rate during sleep.</td>
-    <td valign="top"><img src="docs/screenshots/data.png" alt="The Data page"><br><b>Data.</b> Every stream Healthier reads, what arrived and when, coverage day by day, your goals, and a dark or light theme.</td>
+    <td valign="top"><img src="docs/screenshots/settings.png" alt="The Settings page"><br><b>Settings.</b> Every stream Healthier reads, what arrived and when, coverage day by day. Your devices, your goals, and a dark or light theme.</td>
   </tr>
 </table>
 
 <table>
   <tr>
     <td width="50%" valign="top"><img src="docs/screenshots/cycle.png" alt="The Cycle page: early luteal on day 22, the next period as a range, and the contributors"></td>
-    <td width="50%" valign="top"><b>Cycle.</b> For anyone who has periods, and off until it's turned on in Data. Healthier finds your cycles in your nightly heart rate, HRV, temperature and breathing, whether or not you log anything. It names the phase you're likely in, says how sure it is, shows your body through the cycle, and gives the next period as a range from your own cycles. Anything you log, kept encrypted on your own server, makes the cycles more certain. While it's on, the other pages allow for your cycle, so the usual rise in its second half isn't called unusual, unless you turn that off in Data.</td>
+    <td width="50%" valign="top"><b>Cycle.</b> For anyone who has periods, and off until it's turned on in Settings. Healthier finds your cycles in your nightly heart rate, HRV, temperature and breathing, whether or not you log anything. It names the phase you're likely in, says how sure it is, shows your body through the cycle, and gives the next period as a range from your own cycles. Anything you log, kept encrypted on your own server, makes the cycles more certain. While it's on, the other pages allow for your cycle, so the usual rise in its second half isn't called unusual, unless you turn that off in Settings.</td>
   </tr>
 </table>
 
@@ -126,12 +126,12 @@ your Google Health account can show up in it.
   Apple Health as well.
 
 Apple Health data is new to Healthier, and what arrives depends on what Google Health imports.
-The **Data** page shows every stream and where it came from. If you try it, please
+The **Settings** page shows every stream and where it came from. If you try it, please
 [open an issue](https://github.com/cbukenya/healthier/issues/new/choose) and tell us what works
 and what doesn't. Leave out any health data.
 
 **Several devices at once.** If a watch and a ring both report your nights, the **Devices and
-sources** card on the Data page shows which one each reading comes from. Put the one you trust
+sources** card on the Settings page shows which one each reading comes from. Put the one you trust
 first, or switch one off, and the change applies to all your history at once. A night the first
 one missed is filled from the next, and judged only against that device's own nights. Daily
 totals such as steps come already added up by Google, so for those you choose which kinds of

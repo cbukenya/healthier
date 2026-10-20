@@ -3,7 +3,7 @@
  * measure against.
  *
  * Google Health doesn't share the goals set in Fitbit, so they're set on the
- * Data tab and kept on the account. Every screen and rule reads them from here;
+ * Settings page and kept on the account. Every screen and rule reads them from here;
  * none of the figures below appears as a literal anywhere else.
  */
 export interface Goals {

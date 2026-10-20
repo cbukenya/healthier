@@ -1,7 +1,7 @@
-import type { SectionId } from './DataView';
+import type { SectionId } from './SettingsView';
 
 /**
- * Each Data page section's colour: the colour of its icon in the list, carried into the card it
+ * Each Settings page section's colour: the colour of its icon in the list, carried into the card it
  * opens, so a section's switches, choices and marks match the icon that opened it. Warnings keep
  * their own colours: amber for a stream that's behind, rose for one that failed or for deleting.
  */
