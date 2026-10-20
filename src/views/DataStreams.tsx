@@ -355,17 +355,19 @@ function StreamItem({ row, open, onToggle, hours }: { row: StreamRow; open: bool
   );
 }
 
-/** The span as a strip of blocks. Many blocks run together, so a gap in the data still shows. */
+/**
+ * The span as a strip of blocks, one per day, week or month, always apart like the bars on the
+ * other pages. A long span packs them closer, a pixel apart, but never into one bar.
+ */
 const Strip = memo(function Strip({ cells }: { cells: Cell[] }) {
   const n = cells.length;
-  const gap = n <= 31 ? 'gap-0.5' : n <= 62 ? 'gap-px' : 'gap-0 rounded-sm overflow-hidden';
   return (
-    <span aria-hidden="true" className={`col-span-3 row-start-2 @xl:col-span-1 @xl:row-start-auto flex h-2.5 @xl:h-3 ${gap}`}>
+    <span aria-hidden="true" className={`col-span-3 row-start-2 @xl:col-span-1 @xl:row-start-auto flex h-2.5 @xl:h-3 ${n <= 31 ? 'gap-0.5' : 'gap-px'}`}>
       {cells.map((c) => (
         <span
           key={c.key}
           title={c.title}
-          className={`flex-1 min-w-0 ${n <= 62 ? 'rounded-[1.5px]' : ''} ${c.tone}`}
+          className={`flex-1 min-w-0 ${n <= 62 ? 'rounded-[1.5px]' : 'rounded-[1px]'} ${c.tone}`}
           style={c.opacity === undefined ? undefined : { opacity: c.opacity }}
         />
       ))}
