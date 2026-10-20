@@ -21,16 +21,14 @@ import { durationPieces, formatDuration, formatFixed, formatNumber, formatRounde
  */
 
 export const DOMAIN = {
-  movement: { text: 'text-emerald-400', bg: 'bg-emerald-500/10', ring: 'ring-emerald-500/25', hex: 'var(--emerald-400)' },
-  sleep: { text: 'text-indigo-400', bg: 'bg-indigo-500/10', ring: 'ring-indigo-500/25', hex: 'var(--indigo-400)' },
-  cardio: { text: 'text-rose-400', bg: 'bg-rose-500/10', ring: 'ring-rose-500/25', hex: 'var(--rose-400)' },
-  body: { text: 'text-teal-300', bg: 'bg-teal-500/10', ring: 'ring-teal-500/25', hex: 'var(--teal-300)' },
-  data: { text: 'text-amber-400', bg: 'bg-amber-500/10', ring: 'ring-amber-500/25', hex: 'var(--amber-400)' },
-  wellbeing: { text: 'text-violet-400', bg: 'bg-violet-500/10', ring: 'ring-violet-500/25', hex: 'var(--violet-400)' },
-  cycle: { text: 'text-pink-400', bg: 'bg-pink-500/10', ring: 'ring-pink-500/25', hex: 'var(--pink-400)' },
+  movement: { text: 'text-emerald-400', hex: 'var(--emerald-400)' },
+  sleep: { text: 'text-indigo-400', hex: 'var(--indigo-400)' },
+  cardio: { text: 'text-rose-400', hex: 'var(--rose-400)' },
+  body: { text: 'text-teal-300', hex: 'var(--teal-300)' },
+  data: { text: 'text-amber-400', hex: 'var(--amber-400)' },
+  wellbeing: { text: 'text-violet-400', hex: 'var(--violet-400)' },
+  cycle: { text: 'text-pink-400', hex: 'var(--pink-400)' },
 } as const;
-
-export type DomainKey = keyof typeof DOMAIN;
 
 /**
  * Effort, from light to peak: the body battery's colours the other way up (charged green for an
@@ -73,21 +71,16 @@ export function CardHead({
   title,
   hint,
   right,
-  domain,
 }: {
   title: string;
   hint?: React.ReactNode;
   right?: React.ReactNode;
-  domain?: DomainKey;
 }) {
   return (
     <div className="px-5 pt-4 pb-3">
       {/* A summary that doesn't fit beside the title moves under it, rather than cutting the title short. */}
       <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-1">
-        <h3 className="card-title-detail text-zinc-50 flex items-center gap-2 min-w-0">
-          {domain && <span className={`shrink-0 w-1.5 h-1.5 rounded-full ${DOMAIN[domain].bg} ring-2 ${DOMAIN[domain].ring}`} />}
-          <span className="truncate">{title}</span>
-        </h3>
+        <h3 className="card-title-detail text-zinc-50 min-w-0 truncate">{title}</h3>
         {right && <div className="shrink-0 text-caption text-zinc-500">{right}</div>}
       </div>
       {hint && <div className="text-caption text-zinc-500 mt-1.5 leading-relaxed">{hint}</div>}

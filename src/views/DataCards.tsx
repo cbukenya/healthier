@@ -12,7 +12,9 @@ import { useCycle } from '../hooks/useCycle';
 import { useTheme } from '../hooks/useTheme';
 import { THEMES, type Theme } from '../lib/theme';
 import { SPANS, spanLabel } from '../ui/span';
-import { Card, CardHead, DURATION_UNIT, fmtDuration, withUnits, type DomainKey } from '../ui/primitives';
+import { Card, CardHead, DURATION_UNIT, fmtDuration, withUnits } from '../ui/primitives';
+import { Switch } from '../ui/Switch';
+import { SECTION_TONE } from './sectionTones';
 
 // ─────────────────────────────────────────────────────────── section frame
 
@@ -32,11 +34,10 @@ export const useSectionScreen = () => useContext(ScreenContext);
 export const firstRuleOff = (screen: boolean) => (screen ? '[&>:first-child]:border-t-0' : '');
 
 /** A Data page section: a card with its name and hint, or, as its own screen, a heading over the card. */
-export function SectionCard({ title, hint, right, domain, children }: {
+export function SectionCard({ title, hint, right, children }: {
   title: string;
   hint?: React.ReactNode;
   right?: React.ReactNode;
-  domain?: DomainKey;
   children: React.ReactNode;
 }) {
   const screen = useSectionScreen();
@@ -49,7 +50,7 @@ export function SectionCard({ title, hint, right, domain, children }: {
   if (!screen) {
     return (
       <Card>
-        <CardHead title={title} hint={hint} right={right} domain={domain} />
+        <CardHead title={title} hint={hint} right={right} />
         {children}
       </Card>
     );
@@ -103,7 +104,7 @@ export function DataFacts({ windowDays, windowFrom, historyFrom }: {
     ['minutes', t('data.facts.minutes.lead'), t('data.facts.minutes.text')],
   ];
   return (
-    <SectionCard title={t('data.facts.title')} hint={t('data.facts.hint')} domain="data">
+    <SectionCard title={t('data.facts.title')} hint={t('data.facts.hint')}>
       <ul className="px-5 pb-2">
         {facts.map(([id, lead, text], i) => (
           <li key={id} className={i ? 'py-3 border-t border-zinc-800/60' : 'pt-1 pb-3'}>
@@ -244,7 +245,7 @@ export function CycleCard({ kept }: {
     }
   };
   return (
-    <SectionCard title={t('data.cycle.title')} hint={t('data.cycle.hint')} domain="cycle">
+    <SectionCard title={t('data.cycle.title')} hint={t('data.cycle.hint')}>
       <div className="@container px-5 pb-4">
         <div className={`grid grid-cols-1 @2xl:grid-cols-2 @2xl:gap-x-8 ${screen ? '[&>:first-child]:border-t-0 @2xl:[&>:nth-child(2)]:border-t-0' : ''}`}>
           <SwitchRow
@@ -289,7 +290,7 @@ export function CycleCard({ kept }: {
   );
 }
 
-/** A setting that's on or off: its name, a line on what it does, and a switch. */
+/** A cycle setting that's on or off: its name, a line on what it does, and a switch in the section's colour. */
 function SwitchRow({ label, note, on, onToggle }: { label: string; note: string; on: boolean; onToggle: () => void }) {
   const id = useId();
   return (
@@ -298,19 +299,7 @@ function SwitchRow({ label, note, on, onToggle }: { label: string; note: string;
         <div id={id} className="text-body text-zinc-200">{label}</div>
         <p className="mt-0.5 text-caption leading-relaxed text-zinc-500">{note}</p>
       </div>
-      {/* Track and knob in the same units, so a browser's larger default text size scales both
-          together, and the knob is centred by the track rather than placed by offsets. The
-          ::before widens what a finger can hit to 44px tall. */}
-      <button
-        type="button"
-        role="switch"
-        aria-checked={on}
-        aria-labelledby={id}
-        onClick={onToggle}
-        className={`relative shrink-0 inline-flex items-center w-11 h-6 p-0.5 rounded-full transition-colors before:absolute before:-inset-x-1.5 before:-inset-y-2.5 before:content-[''] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pink-300 ${on ? 'bg-pink-400' : 'bg-zinc-700 hover:bg-zinc-600'}`}
-      >
-        <span aria-hidden="true" className={`size-5 rounded-full bg-knob shadow-sm shadow-knob-shadow transition-transform ${on ? 'translate-x-5' : 'translate-x-0'}`} />
-      </button>
+      <Switch on={on} onToggle={onToggle} tone={SECTION_TONE.cycle} labelledBy={id} />
     </div>
   );
 }

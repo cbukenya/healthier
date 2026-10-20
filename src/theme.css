@@ -110,8 +110,10 @@
   --color-zinc-600: #64646e;
   /* Words set straight on the backdrop rather than on a card: the date, a section's name. */
   --page-ink: var(--color-zinc-500);
-  /* A switch's knob: white on its track in both themes. */
+  /* A switch's knob: white on its track in both themes. Off, the track is grey. */
   --knob: #ffffff;
+  --switch-off: var(--color-zinc-700);
+  --switch-off-hover: var(--color-zinc-600);
   --knob-shadow: rgb(0 0 0 / 0.4);
   /* What a sheet dims the page with. */
   --scrim: rgb(0 0 0 / 0.7);
@@ -128,6 +130,8 @@
   --color-picked: var(--picked);
   --color-knob: var(--knob);
   --color-knob-shadow: var(--knob-shadow);
+  --color-switch-off: var(--switch-off);
+  --color-switch-off-hover: var(--switch-off-hover);
   --color-page-ink: var(--page-ink);
   --color-bar-rule: var(--bar-rule);
 }
@@ -245,6 +249,9 @@
   --veil: transparent;
   --page-ink: var(--color-zinc-500);
   --knob-shadow: rgb(0 0 0 / 0.25);
+  /* The faintest grey is dark enough to be read in light, so an off switch has its own. */
+  --switch-off: #e4e4e7;
+  --switch-off-hover: #d4d4d8;
   --scrim: rgb(9 9 11 / 0.4);
 }
 

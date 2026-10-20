@@ -85,7 +85,6 @@ export function ActivityView({ data, clock, intraday }: { data: SyncResult; cloc
   const stepsCard = (
     <Card>
       <CardHead
-        domain="movement"
         title={t('activity.steps.title')}
         hint={t('activity.steps.hint', { goal: fmtNum(goal, 0) })}
         right={<CardSummary data={stepsWin} color={DOMAIN.movement.hex} format={(v) => fmtNum(v, 0)} />}
@@ -97,7 +96,7 @@ export function ActivityView({ data, clock, intraday }: { data: SyncResult; cloc
   );
   const energyCard = (
     <Card>
-      <CardHead domain="movement" title={t('activity.energy.title')} hint={t('activity.energy.hint')} right={<CardSummary data={kcalWin} color="var(--amber-400)" unit={t('units.kcal')} format={(v) => fmtNum(v, 0)} />} />
+      <CardHead title={t('activity.energy.title')} hint={t('activity.energy.hint')} right={<CardSummary data={kcalWin} color="var(--amber-400)" unit={t('units.kcal')} format={(v) => fmtNum(v, 0)} />} />
       <div className="px-2 pb-3">
         <BarSeries series={groupSeries(kcalWin, bucket)} bucket={bucket} color="var(--amber-400)" unit={t('units.kcal')} height={200} />
       </div>
@@ -106,7 +105,6 @@ export function ActivityView({ data, clock, intraday }: { data: SyncResult; cloc
   const intensityCard = (
     <Card>
       <CardHead
-        domain="movement"
         title={t('activity.mix.title')}
         hint={
           <span>
@@ -149,7 +147,7 @@ export function ActivityView({ data, clock, intraday }: { data: SyncResult; cloc
   );
   const distanceCard = (
     <Card>
-      <CardHead domain="movement" title={t('activity.distance.title')} hint={t('activity.distance.hint')} right={<CardSummary data={distWin} color="var(--teal-400)" unit={t('units.km')} format={(v) => fmtNum(v, 2)} />} />
+      <CardHead title={t('activity.distance.title')} hint={t('activity.distance.hint')} right={<CardSummary data={distWin} color="var(--teal-400)" unit={t('units.km')} format={(v) => fmtNum(v, 2)} />} />
       <div className="px-2 pb-3">
         <TrendChart series={groupSeries(distWin, bucket)} bucket={bucket} color="var(--teal-400)" unit={t('units.km')} height={150} format={(v) => fmtNum(v, 2)} />
       </div>
@@ -165,7 +163,7 @@ export function ActivityView({ data, clock, intraday }: { data: SyncResult; cloc
   const total = (s: Point[]) => stats(values(s))?.sum;
   const summaryCard = (
     <Card>
-      <CardHead domain="movement" title={spanSummaryTitle(spanState)} />
+      <CardHead title={spanSummaryTitle(spanState)} />
       <div className="px-5 pb-4 md:pb-5">
         <Row dense={!wide} label={t('activity.summary.typicalDay')}>
           {t('activity.summary.typicalSteps', { count: Math.round(typical ?? 0), steps: fmtNum(typical, 0) })}
@@ -207,7 +205,7 @@ export function ActivityView({ data, clock, intraday }: { data: SyncResult; cloc
   );
   const weekdayCard = (
     <Card className="flex flex-col">
-      <CardHead domain="movement" title={t('activity.weekdays.title')} hint={t('activity.weekdays.hint')} />
+      <CardHead title={t('activity.weekdays.title')} hint={t('activity.weekdays.hint')} />
       {/* Wider screens stretch the chart to the summary beside it; a phone shows it alone, at a fixed height. */}
       {wide ? (
         <div className="flex-1 flex flex-col min-h-[170px]">
