@@ -142,7 +142,9 @@ export function StatusCard({ data, history, syncing, failure, demo, onFullSync, 
 
   return (
     <Card label={t('data.status.label')} className="p-4 md:px-5">
-      <div className="flex items-center justify-between gap-3">
+      <h2 className="font-display text-headline text-zinc-50">{title}</h2>
+      {/* When it last synced, under the title, with the button that fits beside it. */}
+      <div className="mt-2 flex items-center justify-between gap-3">
         <p className="min-w-0 flex items-center gap-2.5 text-detail text-zinc-400">
           <span aria-hidden="true" className={`size-2 shrink-0 rounded-full ring-3 ${DOT[status.kind]} ${syncing ? 'animate-pulse' : ''}`} />
           <span className="truncate">{eyebrow}</span>
@@ -159,8 +161,7 @@ export function StatusCard({ data, history, syncing, failure, demo, onFullSync, 
           {action.label}
         </button>
       </div>
-      <h2 className="mt-3 font-display text-headline text-zinc-50">{title}</h2>
-      <p className="mt-1.5 text-detail leading-relaxed text-zinc-400">{sub}</p>
+      <p className="mt-2 text-detail leading-relaxed text-zinc-400">{sub}</p>
       {reason && <p className="mt-2 text-caption leading-relaxed text-rose-300/90 break-words">{reason}</p>}
       <dl className="mt-4 pt-3.5 border-t border-zinc-800/60 grid grid-cols-3 gap-3">
         <Fact

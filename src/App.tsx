@@ -141,7 +141,7 @@ export default function App() {
         <div className="relative max-w-md w-full p-8 rounded-2xl bg-card border border-card-edge shadow-2xl">
           <AboutYourData />
           <img src="/logo.svg" alt="" width={48} height={48} className="mb-6" />
-          <h1 className="font-display text-display text-white mb-2">{t('app.name')}</h1>
+          <h1 className="font-wordmark text-display text-white mb-2">{t('app.name')}</h1>
           <p className="text-body text-zinc-400 mb-8 leading-relaxed">
             {needsReconnect ? t('app.signIn.expired') : t('app.signIn.intro')}
           </p>
@@ -275,7 +275,7 @@ export default function App() {
         <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <img src="/logo.svg" alt="" width={28} height={28} />
-            <span className="text-body font-semibold text-white tracking-wide">{t('app.name')}</span>
+            <span className="font-wordmark text-body font-semibold text-white tracking-wide">{t('app.name')}</span>
           </div>
           
           <div className="flex items-center gap-3">
