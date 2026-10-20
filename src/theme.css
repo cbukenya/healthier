@@ -42,7 +42,7 @@
   --yellow-500: #eab308;
 
   /*
-   * The battery's charge, one colour per tier: it fills the figure and marks the rail. The tier's
+   * The battery's charge, one colour per tier, for This week's bars. The tier's
    * name is written in the tier's own shade above, which light darkens for words; the fill stays
    * bright.
    */
@@ -50,6 +50,23 @@
   --charge-balanced: var(--lime-300);
   --charge-low: var(--amber-500);
   --charge-drained: var(--rose-500);
+  /* The figure and its rail fill in dark's shades in both themes, so they look the same on either. */
+  --figure-charged: #10b981;
+  --figure-balanced: #bef264;
+  --figure-low: #f59e0b;
+  --figure-drained: #f43f5e;
+  /* The bright line along the top of the charge, white on either. */
+  --figure-level: #ffffff;
+  /* The tier's name, in its figure's colour; light writes it a shade darker. */
+  --figure-ink-charged: var(--figure-charged);
+  --figure-ink-balanced: var(--figure-balanced);
+  --figure-ink-low: var(--figure-low);
+  --figure-ink-drained: var(--figure-drained);
+
+  /* An insight card's glow in its far corner: good, worth watching, neither. */
+  --glow-good: var(--emerald-400);
+  --glow-watch: var(--amber-500);
+  --glow-neutral: var(--slate-400);
 
   /* A night's stages, deep the darkest, in both themes. */
   --stage-deep: #4338ca;
@@ -216,7 +233,21 @@
   --amber-500: #b45309;
   --yellow-500: #a16207;
 
-  /* The battery's figure keeps the brighter shades: it's filled, not read. */
+  /*
+   * The battery's figure and rail keep dark's bright colours; the tier's name beside them takes its
+   * hue's darker shade, so it reads on white (4.5:1 and more).
+   */
+  --figure-ink-charged: #047857;
+  --figure-ink-balanced: #4d7c0f;
+  --figure-ink-low: #b45309;
+  --figure-ink-drained: #be123c;
+
+  /* An insight card's glow takes dark's brighter shades too: on white the darker ones turn muddy. */
+  --glow-good: #34d399;
+  --glow-watch: #f59e0b;
+  --glow-neutral: #94a3b8;
+
+  /* This week's bars keep brighter shades: they're filled, not read. */
   --charge-charged: #059669;
   --charge-balanced: #65a30d;
   --charge-low: #d97706;

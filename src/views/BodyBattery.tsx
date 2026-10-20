@@ -20,15 +20,17 @@ interface BodyBatteryProps {
 }
 
 /**
- * One colour per tier, for its name (hex) and for the charge that fills the figure and the rail
- * (fill), with its name and the figure's label for a screen reader (a whole sentence per tier, so a
- * language can inflect the name in it); the thresholds themselves live in BATTERY_TIERS.
+ * One colour per tier: for This week's bars (fill), for the charge that fills the figure and its
+ * rail (body, the same in both themes) and for the tier's name beside it (ink, the same colour in
+ * dark, a shade darker in light so it reads on white). Also its name and the
+ * figure's label for a screen reader (a whole sentence per tier, so a language can inflect the name
+ * in it); the thresholds themselves live in BATTERY_TIERS.
  */
-export const TIER_STYLE: Record<(typeof BATTERY_TIERS)[number]['tag'], { hex: string; fill: string; name: MessageKey; figure: MessageKey }> = {
-  CHARGED: { hex: 'var(--emerald-500)', fill: 'var(--charge-charged)', name: 'today.battery.tiers.charged.name', figure: 'today.battery.tiers.charged.figure' },
-  BALANCED: { hex: 'var(--lime-300)', fill: 'var(--charge-balanced)', name: 'today.battery.tiers.balanced.name', figure: 'today.battery.tiers.balanced.figure' },
-  LOW: { hex: 'var(--amber-500)', fill: 'var(--charge-low)', name: 'today.battery.tiers.low.name', figure: 'today.battery.tiers.low.figure' },
-  DRAINED: { hex: 'var(--rose-500)', fill: 'var(--charge-drained)', name: 'today.battery.tiers.drained.name', figure: 'today.battery.tiers.drained.figure' },
+export const TIER_STYLE: Record<(typeof BATTERY_TIERS)[number]['tag'], { fill: string; body: string; ink: string; name: MessageKey; figure: MessageKey }> = {
+  CHARGED: { fill: 'var(--charge-charged)', body: 'var(--figure-charged)', ink: 'var(--figure-ink-charged)', name: 'today.battery.tiers.charged.name', figure: 'today.battery.tiers.charged.figure' },
+  BALANCED: { fill: 'var(--charge-balanced)', body: 'var(--figure-balanced)', ink: 'var(--figure-ink-balanced)', name: 'today.battery.tiers.balanced.name', figure: 'today.battery.tiers.balanced.figure' },
+  LOW: { fill: 'var(--charge-low)', body: 'var(--figure-low)', ink: 'var(--figure-ink-low)', name: 'today.battery.tiers.low.name', figure: 'today.battery.tiers.low.figure' },
+  DRAINED: { fill: 'var(--charge-drained)', body: 'var(--figure-drained)', ink: 'var(--figure-ink-drained)', name: 'today.battery.tiers.drained.name', figure: 'today.battery.tiers.drained.figure' },
 };
 
 /** What the line under the score says about its confidence. */
@@ -113,9 +115,9 @@ function BatteryFigure({ score, gender, labelled, className }: {
     >
       <defs>
         <linearGradient id={`${id}-charge`} x1="0" y1="1" x2="0" y2="0">
-          <stop offset="0" stopColor={TIER_STYLE.DRAINED.fill}/>
-          {gradientStops.map((s) => <stop key={s.tag} offset={s.offset} stopColor={TIER_STYLE[s.tag].fill}/>)}
-          <stop offset="1" stopColor={TIER_STYLE.CHARGED.fill}/>
+          <stop offset="0" stopColor={TIER_STYLE.DRAINED.body}/>
+          {gradientStops.map((s) => <stop key={s.tag} offset={s.offset} stopColor={TIER_STYLE[s.tag].body}/>)}
+          <stop offset="1" stopColor={TIER_STYLE.CHARGED.body}/>
         </linearGradient>
 
         <filter id={`${id}-glow`} x="-40%" y="-40%" width="180%" height="180%">
@@ -145,7 +147,7 @@ function BatteryFigure({ score, gender, labelled, className }: {
         <g clipPath={`url(#${id}-level)`}>
           <rect x="20" y="9" width="200" height="453" fill={`url(#${id}-charge)`}/>
         </g>
-        <rect x="20" y={fillY - 1} width="200" height="2" fill="var(--color-white)" opacity={level > 0 && level < 100 ? 0.35 : 0}/>
+        <rect x="20" y={fillY - 1} width="200" height="2" fill="var(--figure-level)" opacity={level > 0 && level < 100 ? 0.35 : 0}/>
       </g>
 
       {BATTERY_TIERS.map((stage, i) => {
@@ -158,13 +160,13 @@ function BatteryFigure({ score, gender, labelled, className }: {
         return (
           <g key={stage.tag}>
             <rect
-              x={rail.x} width={rail.width} rx={rail.width / 2} fill={style.fill} opacity={on ? 1 : 0.22}
+              x={rail.x} width={rail.width} rx={rail.width / 2} fill={style.body} opacity={on ? 1 : 0.22}
               y={top + (max === 100 ? 0 : 0.75)}
               height={bottom - top - (max === 100 ? 0 : 0.75) - (stage.min === 0 ? 0 : 0.75)}
             />
             {labelled && (
               <>
-                <text fontSize={18} fontWeight={700} x="264" y={centre - 2} fill={on ? style.hex : 'var(--color-zinc-500)'}>{t(style.name)}</text>
+                <text fontSize={18} fontWeight={700} x="264" y={centre - 2} fill={on ? style.ink : 'var(--color-zinc-500)'}>{t(style.name)}</text>
                 <text className="tabular-nums" fontSize={13.5} x="264" y={centre + 17} fill={on ? 'var(--color-zinc-400)' : 'var(--color-zinc-600)'}>
                   {t('today.battery.range', { min: stage.min, max: tierMax(i) })}
                 </text>
@@ -308,7 +310,7 @@ export function BodyBatteryCompact({ score, parts, confidence, label, missing, c
               const on = z.tier?.tag === stage.tag;
               return (
                 <div key={stage.tag} className="absolute left-0 -translate-y-1/2 leading-tight" style={{ top: `${(centre / 480) * 100}%` }}>
-                  <div className="text-detail leading-tight font-bold" style={{ color: on ? style.hex : 'var(--color-zinc-500)' }}>{t(style.name)}</div>
+                  <div className="text-detail leading-tight font-bold" style={{ color: on ? style.ink : 'var(--color-zinc-500)' }}>{t(style.name)}</div>
                   <div className="text-note leading-tight tabular-nums" style={{ color: on ? 'var(--color-zinc-400)' : 'var(--color-zinc-600)' }}>
                     {t('today.battery.rangeNarrow', { min: stage.min, max: tierMax(i) })}
                   </div>

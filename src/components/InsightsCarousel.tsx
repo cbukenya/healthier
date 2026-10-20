@@ -31,16 +31,16 @@ const glow = (colour: string, strong: number, soft: number) =>
 
 const TONE_STYLES: Record<string, { bg: string, border: string }> = {
   good: {
-    bg: glow('var(--emerald-400)', 34, 10),
-    border: tint('var(--emerald-400)', 16),
+    bg: glow('var(--glow-good)', 34, 10),
+    border: tint('var(--glow-good)', 16),
   },
   watch: {
-    bg: glow('var(--amber-500)', 32, 9),
-    border: tint('var(--amber-500)', 15),
+    bg: glow('var(--glow-watch)', 32, 9),
+    border: tint('var(--glow-watch)', 15),
   },
   neutral: {
-    bg: glow('var(--slate-400)', 20, 6),
-    border: tint('var(--slate-400)', 15),
+    bg: glow('var(--glow-neutral)', 20, 6),
+    border: tint('var(--glow-neutral)', 15),
   },
 };
 
