@@ -151,7 +151,8 @@ export function StatusCard({ data, history, syncing, failure, demo, onFullSync, 
             type="button"
             onClick={action.onClick}
             title={action.hint}
-            className="min-h-11 md:min-h-9 inline-flex items-center gap-1.5 px-3.5 rounded-full border border-zinc-800 bg-zinc-900 text-caption font-medium text-zinc-200 hover:bg-zinc-800 transition-colors"
+            // As tall and round as the account chip; the ::before widens what a finger can hit to 44px.
+            className="relative h-7.5 inline-flex items-center gap-1.5 px-3 rounded-full border border-zinc-800 bg-zinc-900 text-caption font-medium text-zinc-200 hover:bg-zinc-800 transition-colors before:absolute before:-inset-y-2 before:inset-x-0 before:content-['']"
           >
             {status.kind === 'expired'
               ? <LogIn size={12} aria-hidden="true" />
