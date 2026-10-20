@@ -20,14 +20,15 @@ interface BodyBatteryProps {
 }
 
 /**
- * One colour per tier, with its name and the figure's label for a screen reader (a whole
- * sentence per tier, so a language can inflect the name in it); the thresholds themselves live in BATTERY_TIERS.
+ * One colour per tier, for its name (hex) and for the charge that fills the figure and the rail
+ * (fill), with its name and the figure's label for a screen reader (a whole sentence per tier, so a
+ * language can inflect the name in it); the thresholds themselves live in BATTERY_TIERS.
  */
-export const TIER_STYLE: Record<(typeof BATTERY_TIERS)[number]['tag'], { hex: string; name: MessageKey; figure: MessageKey }> = {
-  CHARGED: { hex: 'var(--emerald-500)', name: 'today.battery.tiers.charged.name', figure: 'today.battery.tiers.charged.figure' },
-  BALANCED: { hex: 'var(--lime-300)', name: 'today.battery.tiers.balanced.name', figure: 'today.battery.tiers.balanced.figure' },
-  LOW: { hex: 'var(--amber-500)', name: 'today.battery.tiers.low.name', figure: 'today.battery.tiers.low.figure' },
-  DRAINED: { hex: 'var(--rose-500)', name: 'today.battery.tiers.drained.name', figure: 'today.battery.tiers.drained.figure' },
+export const TIER_STYLE: Record<(typeof BATTERY_TIERS)[number]['tag'], { hex: string; fill: string; name: MessageKey; figure: MessageKey }> = {
+  CHARGED: { hex: 'var(--emerald-500)', fill: 'var(--charge-charged)', name: 'today.battery.tiers.charged.name', figure: 'today.battery.tiers.charged.figure' },
+  BALANCED: { hex: 'var(--lime-300)', fill: 'var(--charge-balanced)', name: 'today.battery.tiers.balanced.name', figure: 'today.battery.tiers.balanced.figure' },
+  LOW: { hex: 'var(--amber-500)', fill: 'var(--charge-low)', name: 'today.battery.tiers.low.name', figure: 'today.battery.tiers.low.figure' },
+  DRAINED: { hex: 'var(--rose-500)', fill: 'var(--charge-drained)', name: 'today.battery.tiers.drained.name', figure: 'today.battery.tiers.drained.figure' },
 };
 
 /** What the line under the score says about its confidence. */
@@ -112,9 +113,9 @@ function BatteryFigure({ score, gender, labelled, className }: {
     >
       <defs>
         <linearGradient id={`${id}-charge`} x1="0" y1="1" x2="0" y2="0">
-          <stop offset="0" stopColor={TIER_STYLE.DRAINED.hex}/>
-          {gradientStops.map((s) => <stop key={s.tag} offset={s.offset} stopColor={TIER_STYLE[s.tag].hex}/>)}
-          <stop offset="1" stopColor={TIER_STYLE.CHARGED.hex}/>
+          <stop offset="0" stopColor={TIER_STYLE.DRAINED.fill}/>
+          {gradientStops.map((s) => <stop key={s.tag} offset={s.offset} stopColor={TIER_STYLE[s.tag].fill}/>)}
+          <stop offset="1" stopColor={TIER_STYLE.CHARGED.fill}/>
         </linearGradient>
 
         <filter id={`${id}-glow`} x="-40%" y="-40%" width="180%" height="180%">
@@ -157,7 +158,7 @@ function BatteryFigure({ score, gender, labelled, className }: {
         return (
           <g key={stage.tag}>
             <rect
-              x={rail.x} width={rail.width} rx={rail.width / 2} fill={style.hex} opacity={on ? 1 : 0.22}
+              x={rail.x} width={rail.width} rx={rail.width / 2} fill={style.fill} opacity={on ? 1 : 0.22}
               y={top + (max === 100 ? 0 : 0.75)}
               height={bottom - top - (max === 100 ? 0 : 0.75) - (stage.min === 0 ? 0 : 0.75)}
             />

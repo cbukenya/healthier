@@ -24,11 +24,11 @@ type View = 'week' | 'month';
 
 /** A morning's bar: its height and colour, dimmed unless it's the day in focus. */
 const barStyle = (score: number | null, lit: boolean, maxPx = BAR_MAX_PX): React.CSSProperties => {
-  const hex = score === null ? null : TIER_STYLE[batteryTier(score).tag].hex;
+  const fill = score === null ? null : TIER_STYLE[batteryTier(score).tag].fill;
   return {
     height: score === null ? 3 : Math.max(4, (score / 100) * maxPx),
-    background: hex ?? 'var(--color-zinc-800)',
-    opacity: hex && !lit ? 0.55 : 1,
+    background: fill ?? 'var(--color-zinc-800)',
+    opacity: fill && !lit ? 0.55 : 1,
   };
 };
 
