@@ -60,7 +60,6 @@ export function SleepView({ data, clock, intraday }: { data: SyncResult; clock?:
   const durationCard = (
     <Card>
       <CardHead
-        domain="sleep"
         title={t('sleep.duration.title')}
         hint={t('sleep.duration.hint')}
         right={<CardSummary isSleep data={sleepWin} color={DOMAIN.sleep.hex} format={(v) => fmtDuration(v)} />}
@@ -76,7 +75,7 @@ export function SleepView({ data, clock, intraday }: { data: SyncResult; clock?:
   );
   const remCard = (
     <Card>
-      <CardHead domain="sleep" title={t('sleep.rem.title')} hint={t('sleep.rem.hint')} right={<CardSummary isSleep data={remWin} color="var(--stage-rem)" format={(v) => fmtDuration(v)} />} />
+      <CardHead title={t('sleep.rem.title')} hint={t('sleep.rem.hint')} right={<CardSummary isSleep data={remWin} color="var(--stage-rem)" format={(v) => fmtDuration(v)} />} />
       <div className="px-2 pb-3">
         <BarSeries series={groupSeries(remWin, bucket)} bucket={bucket} color="var(--stage-rem)" unit={t('units.minutes')} height={150} />
       </div>
@@ -84,7 +83,7 @@ export function SleepView({ data, clock, intraday }: { data: SyncResult; clock?:
   );
   const deepCard = (
     <Card>
-      <CardHead domain="sleep" title={t('sleep.deep.title')} hint={t('sleep.deep.hint')} right={<CardSummary isSleep data={deepWin} color="var(--stage-deep)" format={(v) => fmtDuration(v)} />} />
+      <CardHead title={t('sleep.deep.title')} hint={t('sleep.deep.hint')} right={<CardSummary isSleep data={deepWin} color="var(--stage-deep)" format={(v) => fmtDuration(v)} />} />
       <div className="px-2 pb-3">
         <BarSeries series={groupSeries(deepWin, bucket)} bucket={bucket} color="var(--stage-deep)" unit={t('units.minutes')} height={150} />
       </div>
@@ -98,7 +97,7 @@ export function SleepView({ data, clock, intraday }: { data: SyncResult; clock?:
   const restingHr = typical((d) => d.restingHr);
   const summaryCard = (
     <Card>
-      <CardHead domain="sleep" title={spanSummaryTitle(spanState)} />
+      <CardHead title={spanSummaryTitle(spanState)} />
       <div className="px-5 pb-4 md:pb-5">
         <Row dense={!wide} label={t('sleep.summary.typicalNight')}>{fmtDuration(typical((d) => d.sleep?.minutesAsleep ?? null))}</Row>
         <Row dense={!wide} label={t('sleep.summary.typicalEfficiency')}>{efficiency === undefined ? '—' : `${Math.round(efficiency)}${t('units.percent')}`}</Row>
@@ -138,7 +137,6 @@ export function SleepView({ data, clock, intraday }: { data: SyncResult; clock?:
           <CardHead
             title={t(latestRow && isRecent(latestRow.date, days.at(-1)?.date) ? 'sleep.night.last' : 'sleep.night.latest')}
             hint={latestRow ? formatCivilLong(latestRow.date) : ''}
-            domain="sleep"
           />
           <div className="px-5 pb-4 flex-1 flex flex-col">
             <div className="mt-1">

@@ -15,6 +15,7 @@ import { useMediaQuery } from '../hooks/useMediaQuery';
 import { Segmented } from '../ui/primitives';
 import { SpanSelector, useSpan } from '../ui/span';
 import { SectionCard, useSectionScreen } from './DataCards';
+import { SECTION_TONE } from './sectionTones';
 
 /**
  * Data streams: everything Healthier reads from Google Health, one row each, grouped like the
@@ -30,7 +31,7 @@ import { SectionCard, useSectionScreen } from './DataCards';
  */
 
 const KIND: Record<StreamKind, { summary: MessageKey; text: string; dot: string }> = {
-  ok: { summary: 'data.streams.summary.ok', text: 'text-zinc-300', dot: 'bg-emerald-400' },
+  ok: { summary: 'data.streams.summary.ok', text: 'text-zinc-300', dot: SECTION_TONE.streams.fill },
   behind: { summary: 'data.streams.summary.behind', text: 'text-amber-300', dot: 'bg-amber-400' },
   empty: { summary: 'data.streams.summary.empty', text: 'text-zinc-500', dot: 'ring-1 ring-inset ring-zinc-600' },
   unshared: { summary: 'data.streams.summary.unshared', text: 'text-zinc-400', dot: '' },
@@ -235,7 +236,7 @@ export function DataStreams({ data }: { data: SyncResult }) {
         for (let i = b.from; i <= b.to; i++) if (has[i]) recorded++;
         return {
           key: b.date,
-          tone: recorded ? 'bg-emerald-500' : 'bg-zinc-800',
+          tone: recorded ? 'bg-sky-500' : 'bg-zinc-800',
           opacity: recorded && bucket !== 'day' ? 0.25 + 0.75 * (recorded / total) : undefined,
           title: bucket === 'day'
             ? t(recorded ? 'charts.coverage.dayRecorded' : 'charts.coverage.dayMissing', { date: at, stream: name })
@@ -260,7 +261,7 @@ export function DataStreams({ data }: { data: SyncResult }) {
   const ticks = blocks.length ? [blocks[0], blocks[Math.floor(blocks.length / 2)], blocks[blocks.length - 1]] : [];
 
   return (
-    <SectionCard title={t('data.streams.title')} domain="data" hint={t(HINTS[span.bucket])} right={<SpanSelector state={span} />}>
+    <SectionCard title={t('data.streams.title')} hint={t(HINTS[span.bucket])} right={<SpanSelector state={span} />}>
       <div className="@container px-5 pb-3">
         <ul aria-label={t('data.streams.summary.label')} className={`${screen ? 'pt-3' : '-mt-1'} flex flex-wrap gap-x-4 gap-y-1 text-caption text-zinc-400`}>
           {counts.map(({ kind, n }) => (
@@ -354,17 +355,19 @@ function StreamItem({ row, open, onToggle, hours }: { row: StreamRow; open: bool
   );
 }
 
-/** The span as a strip of blocks. Many blocks run together, so a gap in the data still shows. */
+/**
+ * The span as a strip of blocks, one per day, week or month, always apart like the bars on the
+ * other pages. A long span packs them closer, a pixel apart, but never into one bar.
+ */
 const Strip = memo(function Strip({ cells }: { cells: Cell[] }) {
   const n = cells.length;
-  const gap = n <= 31 ? 'gap-0.5' : n <= 62 ? 'gap-px' : 'gap-0 rounded-sm overflow-hidden';
   return (
-    <span aria-hidden="true" className={`col-span-3 row-start-2 @xl:col-span-1 @xl:row-start-auto flex h-2.5 @xl:h-3 ${gap}`}>
+    <span aria-hidden="true" className={`col-span-3 row-start-2 @xl:col-span-1 @xl:row-start-auto flex h-2.5 @xl:h-3 ${n <= 31 ? 'gap-0.5' : 'gap-px'}`}>
       {cells.map((c) => (
         <span
           key={c.key}
           title={c.title}
-          className={`flex-1 min-w-0 ${n <= 62 ? 'rounded-[1.5px]' : ''} ${c.tone}`}
+          className={`flex-1 min-w-0 ${n <= 62 ? 'rounded-[1.5px]' : 'rounded-[1px]'} ${c.tone}`}
           style={c.opacity === undefined ? undefined : { opacity: c.opacity }}
         />
       ))}
@@ -468,4 +471,4 @@ function MinuteHours({ data, minutesByDay }: { data: SyncResult; minutesByDay: M
 const NO_HOURS: number[] = new Array(24).fill(0);
 
 /** An hour's colour by the minutes recorded in it: most of it reads solid. */
-const tone = (m: number) => (m === 0 ? 'bg-zinc-800/60' : m < 15 ? 'bg-emerald-500/25' : m < 45 ? 'bg-emerald-500/55' : 'bg-emerald-500');
+const tone = (m: number) => (m === 0 ? 'bg-zinc-800/60' : m < 15 ? 'bg-sky-500/25' : m < 45 ? 'bg-sky-500/55' : 'bg-sky-500');

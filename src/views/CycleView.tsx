@@ -593,7 +593,6 @@ function BodyThroughCycle({ summary, nights }: { summary: CycleSummary; nights: 
       <CardHead
         title={t('cycle.body.title')}
         hint={hasBand ? t('cycle.body.hint', { count: pastCount }) : t('cycle.body.hintFew')}
-        domain="cycle"
       />
       <div className="px-5 pb-4">
         <div className="pb-3 flex flex-wrap gap-x-3.5 gap-y-1.5 text-caption text-zinc-400">
@@ -764,7 +763,7 @@ function CycleHistory({ summary, today, className = '' }: { summary: CycleSummar
   const nextOf = (c: Cycle) => summary.cycles[summary.cycles.indexOf(c) + 1] ?? null;
   return (
     <Card className={className}>
-      <CardHead title={t('cycle.history.title')} hint={t('cycle.history.hint')} domain="cycle" />
+      <CardHead title={t('cycle.history.title')} hint={t('cycle.history.hint')} />
       <div className="px-5 pb-5">
         {!rows.length && <p className="py-6 text-center text-detail text-zinc-500">{t('cycle.history.empty')}</p>}
         {rows.map((c) => (

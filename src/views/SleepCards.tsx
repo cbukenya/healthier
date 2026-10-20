@@ -241,7 +241,6 @@ export function Naps({ naps, spanDays, wide }: { naps: SleepSession[]; spanDays:
   return (
     <Card>
       <CardHead
-        domain="sleep"
         title={t('sleep.naps.title')}
         hint={t('sleep.naps.hint')}
         right={naps.length > 0 && (

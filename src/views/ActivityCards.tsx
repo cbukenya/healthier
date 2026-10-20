@@ -176,7 +176,6 @@ export function WeeklyTotals({ weeks }: { weeks: WeekTotal[] }) {
   return (
     <Card>
       <CardHead
-        domain="movement"
         title={t('activity.weekly.title')}
         hint={t('activity.weekly.hint')}
         right={<CardSummary vals={weeks.map((w) => w.total).reverse()} color={DOMAIN.movement.hex} format={(v) => fmtNum(v, 0)} />}

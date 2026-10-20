@@ -234,7 +234,6 @@ export function VitalsView({ data, clock, intraday }: { data: SyncResult; clock?
         {shown.map((m) => (
           <Card key={m.key}>
             <CardHead
-              domain="cardio"
               title={m.title}
               right={m.latest && <span>{rich('vitals.trends.latest', { value: <span className="font-medium" style={{ color: m.color }}>{m.latest}</span> })}</span>}
               hint={

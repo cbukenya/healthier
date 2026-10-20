@@ -15,6 +15,7 @@ import { AccountCard, CycleCard, DataFacts, GoalsCard, SectionScreen } from './D
 import { DataStreams, streamsSummary } from './DataStreams';
 import { StatusCard } from './DataStatus';
 import { SourcesCard, sourcesSummary, useSources } from './SourcesCard';
+import { SECTION_TONE } from './sectionTones';
 
 /**
  * The Data page: where your data stands, then its sections in three groups, each with a line on
@@ -35,13 +36,14 @@ const SECTIONS = GROUPS.flatMap((g) => g.sections);
 /** What a wide screen shows beside the list until another section is picked. */
 const FIRST: SectionId = 'devices';
 
-const LOOK: Record<SectionId, { title: MessageKey; icon: LucideIcon; tile: string }> = {
-  devices: { title: 'data.sources.title', icon: Watch, tile: 'bg-sky-400/12 text-sky-400' },
-  streams: { title: 'data.streams.title', icon: Database, tile: 'bg-amber-400/12 text-amber-400' },
-  goals: { title: 'data.goals.title', icon: Target, tile: 'bg-emerald-400/12 text-emerald-400' },
-  cycle: { title: 'data.cycle.title', icon: CircleDotDashed, tile: 'bg-pink-400/12 text-pink-400' },
-  facts: { title: 'data.facts.title', icon: BookOpen, tile: 'bg-violet-400/12 text-violet-400' },
-  account: { title: 'data.account.title', icon: CircleUserRound, tile: 'bg-zinc-800 text-zinc-300' },
+/** Each section's name and icon; its colour is in SECTION_TONE. */
+const LOOK: Record<SectionId, { title: MessageKey; icon: LucideIcon }> = {
+  devices: { title: 'data.sources.title', icon: Watch },
+  streams: { title: 'data.streams.title', icon: Database },
+  goals: { title: 'data.goals.title', icon: Target },
+  cycle: { title: 'data.cycle.title', icon: CircleDotDashed },
+  facts: { title: 'data.facts.title', icon: BookOpen },
+  account: { title: 'data.account.title', icon: CircleUserRound },
 };
 
 /** Where an open section's top sits on a wide screen: under the pinned bar, with a gap. */
@@ -286,7 +288,8 @@ function SectionButton({ id, summary, wide, current, onClick, buttonRef }: {
   onClick: () => void;
   buttonRef: (el: HTMLButtonElement | null) => void;
 }) {
-  const { title, icon: Icon, tile } = LOOK[id];
+  const { title, icon: Icon } = LOOK[id];
+  const { tile, picked } = SECTION_TONE[id];
   return (
     <button
       ref={buttonRef}
@@ -295,7 +298,7 @@ function SectionButton({ id, summary, wide, current, onClick, buttonRef }: {
       aria-current={current ? 'true' : undefined}
       className={
         wide
-          ? `w-full min-h-14 flex items-center gap-3 px-2.5 py-2 rounded-xl text-left transition-colors ${current ? 'bg-zinc-800/80' : 'hover:bg-zinc-800/40'}`
+          ? `w-full min-h-14 flex items-center gap-3 px-2.5 py-2 rounded-xl text-left transition-colors ${current ? picked : 'hover:bg-zinc-800/40'}`
           : 'w-full min-h-17 flex items-center gap-3.5 px-3.5 py-3 text-left transition-colors hover:bg-zinc-800/30 active:bg-zinc-800/50'
       }
     >
