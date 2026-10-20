@@ -179,8 +179,10 @@
   /*
    * Each colour takes its family's darker shade, dark enough for small words on white and on the
    * grey. Rose and pink go three steps (400 to 700), violet and indigo two (400 to 600). Emerald,
-   * teal, sky, lime, yellow and amber are lighter at the same shade, so they go to 700. A 300, the brighter word in dark, goes a step past its 400. The 500s, the
-   * washes behind a word, go to 600. The darkest shades, under washes, become the lightest.
+   * teal, sky, lime and amber are lighter at the same shade, so they go to 700, and yellow a
+   * touch past its 700, so the Labs label reads through the bar. A 300, the brighter word in
+   * dark, goes a step past its 400. The 500s, the washes behind a word, go to 600. The darkest
+   * shades, under washes, become the lightest.
    */
   --color-pink-100: var(--color-pink-900);
   --color-pink-200: var(--color-pink-900);
@@ -201,7 +203,7 @@
   --color-sky-400: var(--color-sky-700);
   --color-sky-500: var(--color-sky-600);
   --color-lime-300: var(--color-lime-700);
-  --color-yellow-400: var(--color-yellow-700);
+  --color-yellow-400: #9a5800;
   --color-amber-300: var(--color-amber-800);
   --color-amber-400: var(--color-amber-700);
   --color-amber-500: var(--color-amber-600);
@@ -272,7 +274,8 @@
   --alert-ground: rgb(225 29 72 / 0.06);
   --figure: rgb(0 0 0 / 0.08);
   --frost: none;
-  --bar: rgb(245 245 246 / 0.88);
+  /* A little of the page shows through the bar as it scrolls under. */
+  --bar: rgb(245 245 246 / 0.78);
   --bar-rule: rgb(0 0 0 / 0.14);
   --sheet: rgb(255 255 255 / 0.97);
   /* No backdrop: the ground is the flat grey under it. */
