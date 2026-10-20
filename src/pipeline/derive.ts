@@ -398,7 +398,7 @@ export function estimatedSleepTarget(days: DailyRecord[]): number {
 
 /**
  * The sleep need every night is judged against: the person's own figure when
- * they've set one (a goal, on the Data tab), else the estimate from these nights.
+ * they've set one (a goal, on the Settings page), else the estimate from these nights.
  */
 export const sleepNeedFor = (days: DailyRecord[], set?: number | null): number => set ?? estimatedSleepTarget(days);
 

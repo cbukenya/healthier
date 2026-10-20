@@ -63,7 +63,7 @@ export interface StreamDescriptor {
   note?: string;
   /**
    * Readings that come now and then rather than every day (a weigh-in, an ECG, a logged meal),
-   * so a long gap since the last one is normal and the Data tab doesn't call it behind.
+   * so a long gap since the last one is normal and the Settings page doesn't call it behind.
    */
   occasional?: boolean;
 }
@@ -637,7 +637,7 @@ export const INTRADAY_HEART_RATE = {
 /**
  * The night's heart rate floor, computed by Healthier from the minute heart rate during the main
  * sleep while cycle tracking is on (sleepHrFloor.ts). Stored and reported like a stream, so it
- * outlives the minute data, which is kept for the window only, and shows on the Data page.
+ * outlives the minute data, which is kept for the window only, and shows on the Settings page.
  */
 export const SLEEP_HR_FLOOR = {
   dataType: 'sleep-heart-rate-floor',
@@ -659,7 +659,7 @@ export interface ProfileFacts {
   age?: number | null;
   /** Set by the person in the app: Google Health doesn't provide it. */
   gender?: Gender | null;
-  /** The person's goals, set on the Data tab: Google Health doesn't share the ones set in Fitbit. */
+  /** The person's goals, set on the Settings page: Google Health doesn't share the ones set in Fitbit. */
   goals?: Goals;
   /** Cycle tracking and the person's cycle log: Google Health doesn't let other apps read periods. */
   cycle?: CycleLog;

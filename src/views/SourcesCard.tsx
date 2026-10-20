@@ -80,7 +80,7 @@ function demoView(data: SyncResult): SourcesResponse {
   return { prefs, order: sourceRanking(seen, prefs), sources, windowDays: data.days.length, refetching: false };
 }
 
-/** The person's devices and apps, and the means to choose between them: shared by the Data page's list and the section. */
+/** The person's devices and apps, and the means to choose between them: shared by the Settings page's list and the section. */
 export interface Sources {
   /** As the server describes them, or the demo's own; null until they've loaded. */
   view: SourcesResponse | null;
@@ -132,7 +132,7 @@ export function useSources(data: SyncResult, live: boolean, onChanged: (refetchi
   return { view: live ? loaded : demo, save, refetching };
 }
 
-/** What the Data page's list says of them: "Google Fitbit Air first, then Smart scale". */
+/** What the Settings page's list says of them: "Google Fitbit Air first, then Smart scale". */
 export function sourcesSummary(view: SourcesResponse): string {
   const off = new Set(view.prefs.off);
   const used = ordered(view).filter((s) => !off.has(s.id));
@@ -342,7 +342,7 @@ function SourceRow({ source: s, rank, on, windowDays, today, live, first, last, 
         <button type="button" aria-label={t('data.sources.move.down', { name: s.label })} disabled={!live || last} onClick={onDown} className={arrow}>
           <ArrowDown size={16} aria-hidden />
         </button>
-        {/* As the Data page's other switches: track and knob in the same units, 44px to hit. */}
+        {/* As the Settings page's other switches: track and knob in the same units, 44px to hit. */}
         <button
           type="button"
           role="switch"

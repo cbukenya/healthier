@@ -71,7 +71,7 @@
       "reconnect": "Reconnect Google Account",
       "demo": "Demo mode",
       "about": "How Healthier uses your data",
-      "disclosure": "Healthier reads your health and fitness data from Google Health (activity, sleep, heart rate, vitals and body measurements) to show your trends, work out your personal baselines and generate insights. It is stored only on the server running this app, used for nothing else, and never shared. You can disconnect and delete it at any time from the Data tab.",
+      "disclosure": "Healthier reads your health and fitness data from Google Health (activity, sleep, heart rate, vitals and body measurements) to show your trends, work out your personal baselines and generate insights. It is stored only on the server running this app, used for nothing else, and never shared. You can disconnect and delete it at any time in Settings.",
       "wellness": "For general wellness only. Healthier is not a medical device and doesn't diagnose, detect or monitor any condition."
     },
     "header": {
@@ -89,7 +89,7 @@
       "body": "Body",
       "cycle": "Cycle",
       "labs": "Labs",
-      "data": "Data"
+      "settings": "Settings"
     },
     "syncFailed": {
       "title": "Sync Failed",
@@ -597,7 +597,7 @@
       },
       "sleepNeed": {
         "title": "How much sleep you need",
-        "textSet": "Your sleep cards measure each night against the {need} you set on the Data tab. Your nights are usually about {usual}.",
+        "textSet": "Your sleep cards measure each night against the {need} you set in Settings. Your nights are usually about {usual}.",
         "textFloor": "Your sleep cards measure each night against {hours, plural, one {# hour} other {# hours}}. Your nights are usually shorter, about {usual}, but most adults need at least {hours, plural, one {# hour} other {# hours}}.",
         "textCeiling": "Your sleep cards measure each night against {need}. You usually sleep longer, about {usual}, but the cards don't aim higher than {need}.",
         "textEstimate": "Your sleep cards measure each night against about {need}. That's the middle of your last {nights, plural, one {# recorded night} other {# recorded nights}}."
@@ -1005,7 +1005,7 @@
   "activity": {
     "empty": {
       "title": "No movement data in this window",
-      "detail": "Steps, distance and active minutes come from the activity_and_fitness scope. The Data tab shows exactly what each stream returned."
+      "detail": "Steps, distance and active minutes come from the activity_and_fitness scope. Data streams, in Settings, shows exactly what each stream returned."
     },
     "day": {
       "title": "Today so far",
@@ -2151,8 +2151,8 @@
       "failed": "That couldn't be saved. Try again in a moment."
     },
     "overview": {
-      "label": "Data sections",
-      "back": "Back to Data",
+      "label": "Settings sections",
+      "back": "Back to Settings",
       "groups": {
         "data": "Your data",
         "settings": "Data settings",

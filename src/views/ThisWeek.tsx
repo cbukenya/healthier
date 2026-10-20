@@ -34,7 +34,7 @@ const barStyle = (score: number | null, lit: boolean, maxPx = BAR_MAX_PX): React
 
 /**
  * The last seven days at a glance, or with Month the last 30: the battery each morning, then
- * sleep, WHO minutes and steps against their bars. Where the numbers came from lives on the Data tab.
+ * sleep, WHO minutes and steps against their bars. Where the numbers came from lives on the Settings page.
  */
 export function ThisWeek({ week, days, needMin, className = '' }: {
   week: PeriodSummary;

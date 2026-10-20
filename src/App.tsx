@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { IntradaySample } from './types/health';
-import { ChevronLeft, ChevronRight, CircleDotDashed, FileCode2, FlaskConical, Footprints, Heart, Moon, RefreshCw, User, ShieldAlert, PersonStanding } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CircleDotDashed, FlaskConical, Footprints, Heart, Moon, RefreshCw, Settings, User, ShieldAlert, PersonStanding } from 'lucide-react';
 import { useAuth } from './hooks/useAuth';
 import { useInstance } from './hooks/useInstance';
 import { useHealth } from './hooks/useHealth';
@@ -26,7 +26,7 @@ import { ActivityView } from './views/ActivityView';
 import { SleepView } from './views/SleepView';
 import { VitalsView } from './views/VitalsView';
 import { BodyView } from './views/BodyView';
-import { DataView, type SectionId } from './views/DataView';
+import { SettingsView, type SectionId } from './views/SettingsView';
 import { LabsView } from './views/LabsView';
 import { AboutYourData, GoogleG, SignInNote } from './views/SignInParts';
 
@@ -102,11 +102,11 @@ export default function App() {
   }, [health.data]);
 
   const [view, setView] = useState<View>('today');
-  // A Data section to open: the chip in the bar asks for Account.
-  const [dataRequest, setDataRequest] = useState<{ section: SectionId; at: number } | null>(null);
+  // A Settings section to open: the chip in the bar asks for Account.
+  const [settingsRequest, setSettingsRequest] = useState<{ section: SectionId; at: number } | null>(null);
   const openAccount = () => {
-    setView('data');
-    setDataRequest({ section: 'account', at: Date.now() });
+    setView('settings');
+    setSettingsRequest({ section: 'account', at: Date.now() });
   };
   // The data's last day: yours on live data, the fixture's in demo mode.
   const today = health.data?.days.at(-1)?.date ?? null;
@@ -242,15 +242,15 @@ export default function App() {
             {view === 'body' && <BodyView data={health.data} gender={gender} onGender={chooseGender} intraday={intradayDays} clock={demo ? DEMO_CLOCK : undefined} />}
             {view === 'cycle' && <CycleView data={health.data} intraday={intradayDays} clock={demo ? DEMO_CLOCK : undefined} />}
             {view === 'labs' && <LabsView data={health.data} intraday={intradayDays} />}
-            {view === 'data' && (
-              <DataView
+            {view === 'settings' && (
+              <SettingsView
                 data={health.data}
                 live={!demo}
                 syncing={health.phase === 'revalidating'}
                 failure={health.error}
                 email={demo ? null : user?.email ?? null}
-                request={dataRequest}
-                onRequestDone={() => setDataRequest(null)}
+                request={settingsRequest}
+                onRequestDone={() => setSettingsRequest(null)}
                 onFullSync={health.fullSync}
                 onRetry={health.refresh}
                 onSignIn={signIn}
@@ -305,11 +305,12 @@ export default function App() {
   );
 }
 
-type View = 'today' | 'activity' | 'sleep' | 'vitals' | 'body' | 'cycle' | 'labs' | 'data';
+type View = 'today' | 'activity' | 'sleep' | 'vitals' | 'body' | 'cycle' | 'labs' | 'settings';
 
 /**
- * Who's here, in the bar: their picture and first name, or Demo in demo mode. It opens the Data
- * page at Account, where the theme is set and where signing out, or leaving the demo, now lives.
+ * Who's here, in the bar: their picture and first name, or Demo in demo mode. It opens the
+ * Settings page at Account, where the theme is set and where signing out, or leaving the demo,
+ * now lives.
  */
 function AccountChip({ user, onClick }: { user: ApiUser | null; onClick: () => void }) {
   const name = user ? user.name?.split(' ')[0] || t('app.header.someone') : t('app.header.demo');
@@ -334,8 +335,8 @@ function AccountChip({ user, onClick }: { user: ApiUser | null; onClick: () => v
 }
 
 /**
- * The bar's height as `--bar-height` on the page, for whatever sticks under the bar: the Data
- * page's section list. It changes with the text size, so it's measured, not assumed.
+ * The bar's height as `--bar-height` on the page, for whatever sticks under the bar: the
+ * Settings page's section list. It changes with the text size, so it's measured, not assumed.
  */
 function usePinnedHeight() {
   const observer = useRef<ResizeObserver | null>(null);
@@ -360,7 +361,7 @@ const EDGE = 48;
  */
 function PageNav({ view, setView }: { view: View; setView: (view: View) => void }) {
   const tracking = useCycleTracking();
-  // Turning tracking off on the Data page takes the Cycle page away; never leave anyone on it.
+  // Turning tracking off on the Settings page takes the Cycle page away; never leave anyone on it.
   useEffect(() => {
     if (view === 'cycle' && !tracking) setView('today');
   }, [view, tracking, setView]);
@@ -458,13 +459,13 @@ function PageNav({ view, setView }: { view: View; setView: (view: View) => void 
           active={view === 'labs'} onClick={() => setView('labs')}
           icon={<FlaskConical size={14} />} label={t('app.nav.labs')} color="text-yellow-400"
         />
-        {/* Sets Data apart. On phones it gives way when the row is full, so it never pushes Data out of view. */}
+        {/* Sets Settings apart. On phones it gives way when the row is full, so it never pushes Settings out of view. */}
         <div className="flex justify-center w-[19px] -mx-px min-w-0 shrink overflow-hidden md:w-auto md:mx-2 md:shrink-0">
           <div className="w-px h-4 shrink-0 bg-bar-rule" />
         </div>
         <NavButton
-          active={view === 'data'} onClick={() => setView('data')}
-          icon={<FileCode2 size={14} />} label={t('app.nav.data')} color="text-zinc-400"
+          active={view === 'settings'} onClick={() => setView('settings')}
+          icon={<Settings size={14} />} label={t('app.nav.settings')} color="text-zinc-400"
         />
         {edges.after && <RowEdge side="end" onClick={() => slide(1)} />}
       </div>

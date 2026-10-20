@@ -7,7 +7,7 @@ import { STREAMS_BY_TYPE } from '../registry';
 import type { StreamReport } from '../../types/health';
 
 /**
- * The Data page's status card says one thing first: a sync that can't run, a sync that failed,
+ * The Settings page's status card says one thing first: a sync that can't run, a sync that failed,
  * history still importing, streams Google refused, streams that stopped arriving, or that
  * everything is in.
  */

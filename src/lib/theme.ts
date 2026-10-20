@@ -1,7 +1,7 @@
 /**
  * How Healthier looks for a person: dark, light, or whichever their device is set to.
  *
- * Dark until they pick another on the Data page's Account section. The choice is kept on their
+ * Dark until they pick another on the Settings page's Account section. The choice is kept on their
  * account, so it follows them to every device, and on the device too, so the page opens in it
  * before anything else has loaded (index.html).
  */

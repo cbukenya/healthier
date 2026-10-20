@@ -27,7 +27,7 @@ export interface TransportOptions {
   /** Parallel in-flight requests. Google tolerates a handful; 4 is comfortable. */
   concurrency?: number;
   maxRetries?: number;
-  /** Called on every completed request, for the Data tab's request counter. */
+  /** Called on every completed request, for the Settings page's request counter. */
   onRequest?: (info: { dataType: string; status: number; ms: number; attempt: number }) => void;
   signal?: AbortSignal;
 }

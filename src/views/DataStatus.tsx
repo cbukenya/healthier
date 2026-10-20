@@ -13,7 +13,7 @@ import { Card } from '../ui/primitives';
 import { when } from './DataStreams';
 
 /**
- * The first thing on the Data page: where your data stands, in a sentence, with what to do
+ * The first thing on the Settings page: where your data stands, in a sentence, with what to do
  * about it. Up to date, a stream that's stopped arriving, history still importing, or a sync
  * that's failing, each with the button that fits: a full sync, a retry, or signing in again.
  * Under it, the window, how far back history goes, and the last sync's cost.
