@@ -2154,8 +2154,8 @@
       "label": "Settings sections",
       "back": "Back to Settings",
       "groups": {
-        "data": "Your data",
-        "settings": "Data settings",
+        "sources": "Data sources",
+        "preferences": "Preferences",
         "about": "About"
       },
       "summaries": {

@@ -26,8 +26,8 @@ import { SourcesCard, sourcesSummary, useSources } from './SourcesCard';
 export type SectionId = 'devices' | 'streams' | 'goals' | 'cycle' | 'facts' | 'account';
 
 const GROUPS: { title: MessageKey; sections: SectionId[] }[] = [
-  { title: 'data.overview.groups.data', sections: ['devices', 'streams'] },
-  { title: 'data.overview.groups.settings', sections: ['goals', 'cycle'] },
+  { title: 'data.overview.groups.sources', sections: ['devices', 'streams'] },
+  { title: 'data.overview.groups.preferences', sections: ['goals', 'cycle'] },
   { title: 'data.overview.groups.about', sections: ['facts', 'account'] },
 ];
 const SECTIONS = GROUPS.flatMap((g) => g.sections);
