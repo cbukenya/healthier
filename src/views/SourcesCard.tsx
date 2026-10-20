@@ -8,7 +8,12 @@ import { addDays } from '../lib/date';
 import { DEFAULT_SOURCE_PREFS, READING_STREAMS, sourceRanking, type SourcePrefs, type SourceSeen, type TotalsFamily } from '../pipeline/sources';
 import type { SyncResult } from '../pipeline/sync';
 import type { SourceSummary, SourcesResponse } from '../types/api';
+import { Switch } from '../ui/Switch';
 import { SectionCard } from './DataCards';
+import { SECTION_TONE } from './sectionTones';
+
+/** Devices and sources in its own colour, its icon's in the Settings page's list. */
+const TONE = SECTION_TONE.devices;
 
 /**
  * Devices and sources (pipeline/sources.ts): which of the person's devices and apps each reading
@@ -155,7 +160,7 @@ export function SourcesCard({ data, live, sources }: {
   const rows = useMemo(() => (view ? ordered(view) : []), [view]);
   if (!view) {
     return (
-      <SectionCard title={t('data.sources.title')} hint={t('data.sources.hint')} domain="data">
+      <SectionCard title={t('data.sources.title')} hint={t('data.sources.hint')}>
         <p role="status" className="px-5 pb-5 text-caption text-zinc-500 animate-pulse">{t('data.sources.loading')}</p>
       </SectionCard>
     );
@@ -181,7 +186,6 @@ export function SourcesCard({ data, live, sources }: {
     <SectionCard
       title={t('data.sources.title')}
       hint={t('data.sources.hint')}
-      domain="data"
       right={rows.length > 1 && (
         <button
           type="button"
@@ -240,10 +244,10 @@ export function SourcesCard({ data, live, sources }: {
                   aria-checked={on}
                   disabled={!live || refetching}
                   onClick={() => setAsking(f === prefs.totals ? null : f)}
-                  className={`min-h-11 p-3 text-left rounded-xl border transition-colors disabled:cursor-default ${on ? 'border-amber-400/60 bg-amber-400/[0.06]' : 'border-zinc-800 hover:bg-zinc-800/50'}`}
+                  className={`min-h-11 p-3 text-left rounded-xl border transition-colors disabled:cursor-default ${on ? TONE.choice : 'border-zinc-800 hover:bg-zinc-800/50'}`}
                 >
                   <span className="flex items-center gap-2">
-                    <span aria-hidden="true" className={`size-3.5 shrink-0 rounded-full ${on ? 'border-4 border-amber-400' : 'border-2 border-zinc-600'}`} />
+                    <span aria-hidden="true" className={`size-3.5 shrink-0 rounded-full ${on ? `border-4 ${TONE.mark}` : 'border-2 border-zinc-600'}`} />
                     <span className="text-body-sm text-zinc-100">{t(TOTALS_WORDS[f].name)}</span>
                   </span>
                   <span className="block mt-1 pl-5.5 text-caption leading-relaxed text-zinc-400">{t(TOTALS_WORDS[f].note)}</span>
@@ -324,7 +328,7 @@ function SourceRow({ source: s, rank, on, windowDays, today, live, first, last, 
       <span aria-hidden="true" className={`hidden sm:flex size-6 mt-1 shrink-0 items-center justify-center rounded-full border border-zinc-700 text-caption font-semibold tabular-nums ${on ? 'text-zinc-200' : 'text-zinc-600'}`}>
         {rank ?? '–'}
       </span>
-      <span aria-hidden="true" className={`size-8 shrink-0 rounded-lg bg-zinc-800/80 flex items-center justify-center ${on ? 'text-amber-400' : 'text-zinc-600'}`}>
+      <span aria-hidden="true" className={`size-8 shrink-0 rounded-lg flex items-center justify-center ${on ? TONE.tile : 'bg-zinc-800/80 text-zinc-600'}`}>
         <Icon size={16} />
       </span>
       <div className="min-w-0 flex-[1_1_14rem]">
@@ -342,18 +346,7 @@ function SourceRow({ source: s, rank, on, windowDays, today, live, first, last, 
         <button type="button" aria-label={t('data.sources.move.down', { name: s.label })} disabled={!live || last} onClick={onDown} className={arrow}>
           <ArrowDown size={16} aria-hidden />
         </button>
-        {/* As the Settings page's other switches: track and knob in the same units, 44px to hit. */}
-        <button
-          type="button"
-          role="switch"
-          aria-checked={on}
-          aria-labelledby={id}
-          disabled={!live}
-          onClick={onToggle}
-          className={`relative ml-2 shrink-0 inline-flex items-center w-11 h-6 p-0.5 rounded-full transition-colors before:absolute before:-inset-x-1.5 before:-inset-y-2.5 before:content-[''] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-300 disabled:cursor-default ${on ? 'bg-amber-500' : 'bg-zinc-700 hover:bg-zinc-600'}`}
-        >
-          <span aria-hidden="true" className={`size-5 rounded-full bg-knob shadow-sm shadow-knob-shadow transition-transform ${on ? 'translate-x-5' : 'translate-x-0'}`} />
-        </button>
+        <Switch on={on} onToggle={onToggle} tone={TONE} labelledBy={id} disabled={!live} className="ml-2" />
       </div>
     </div>
   );
@@ -424,7 +417,7 @@ function PerReading({ rows, prefs, live, onPick }: {
                             onClick={() => pick(dt, s.id)}
                             className="size-11 inline-flex items-center justify-center disabled:cursor-default"
                           >
-                            <span aria-hidden="true" className={`size-4.5 rounded-full ${isOff ? 'border-2 border-zinc-800' : on ? 'border-[5px] border-amber-400' : 'border-2 border-zinc-600'}`} />
+                            <span aria-hidden="true" className={`size-4.5 rounded-full ${isOff ? 'border-2 border-zinc-800' : on ? `border-[5px] ${TONE.mark}` : 'border-2 border-zinc-600'}`} />
                           </button>
                         ) : (
                           <span className="text-caption text-zinc-700">—</span>
