@@ -121,7 +121,7 @@ export function BodyView({ data, gender, onGender, clock, intraday }: {
 
   const summaryCard = (
     <Card className="lg:col-span-4">
-      <CardHead domain="body" title={spanSummaryTitle(spanState)} />
+      <CardHead title={spanSummaryTitle(spanState)} />
       <div className="px-5 pb-4 md:pb-5">
         <Row dense={!wide} label={t('body.summary.weighIns')}>
           {weighIns.length || (spanState.loading ? t('body.summary.loading') : t('body.summary.none', { count: window.length }))}
@@ -146,7 +146,6 @@ export function BodyView({ data, gender, onGender, clock, intraday }: {
   const weightCard = (
     <Card className="lg:col-span-8">
       <CardHead
-        domain="body"
         title={t('body.weightChart.title')}
         hint={t('body.weightChart.hint')}
         right={latestInSpan && (
@@ -166,7 +165,6 @@ export function BodyView({ data, gender, onGender, clock, intraday }: {
   const fatCard = everFat && (
     <Card>
       <CardHead
-        domain="body"
         title={t('body.fatChart.title')}
         right={latestFat !== undefined && (
           <span>
@@ -357,7 +355,7 @@ function CompositionTrend({ comp }: { comp: BodyComposition | null }) {
   if (!comp) {
     return (
       <Card className="flex flex-col">
-        <CardHead domain="body" title={t('body.compositionTrend.title')} hint={t('body.compositionTrend.hint', { skipped: 0 })} />
+        <CardHead title={t('body.compositionTrend.title')} hint={t('body.compositionTrend.hint', { skipped: 0 })} />
         <p className="px-5 pb-5 flex-1 flex items-center justify-center text-center text-caption text-zinc-600 min-h-[120px]">
           {t('body.compositionTrend.needsMore')}
         </p>
@@ -371,7 +369,6 @@ function CompositionTrend({ comp }: { comp: BodyComposition | null }) {
   return (
     <Card className="flex flex-col">
       <CardHead
-        domain="body"
         title={t('body.compositionTrend.title')}
         hint={t('body.compositionTrend.hint', { skipped: comp.rejectedForSource })}
         right={t('body.compositionTrend.readings', { pairs: comp.pairs, days: comp.spanDays })}

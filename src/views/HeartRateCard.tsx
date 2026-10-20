@@ -355,10 +355,7 @@ export function HeartRateCard({ samples, days, wide, className = '' }: {
     <Card className={className}>
       <div className="px-5 pt-4 flex flex-wrap items-end justify-between gap-x-8 gap-y-3">
         <div className="min-w-0">
-          <h3 className="card-title-detail text-zinc-50 flex items-center gap-2">
-            <span className={`shrink-0 w-1.5 h-1.5 rounded-full ${DOMAIN.cardio.bg} ring-2 ${DOMAIN.cardio.ring}`} />
-            {t('vitals.heartRate.title')}
-          </h3>
+          <h3 className="card-title-detail text-zinc-50">{t('vitals.heartRate.title')}</h3>
           <p className="text-caption text-zinc-500 mt-1.5 tabular-nums">{subtitle}</p>
         </div>
         {/* Spread across a phone; side by side beside the title on wider screens. */}

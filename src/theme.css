@@ -41,6 +41,33 @@
   --amber-500: #f59e0b;
   --yellow-500: #eab308;
 
+  /*
+   * The battery's charge, one colour per tier, for This week's bars. The tier's
+   * name is written in the tier's own shade above, which light darkens for words; the fill stays
+   * bright.
+   */
+  --charge-charged: var(--emerald-500);
+  --charge-balanced: var(--lime-300);
+  --charge-low: var(--amber-500);
+  --charge-drained: var(--rose-500);
+  /* The figure and its rail fill in dark's shades in both themes, so they look the same on either. */
+  --figure-charged: #10b981;
+  --figure-balanced: #bef264;
+  --figure-low: #f59e0b;
+  --figure-drained: #f43f5e;
+  /* The bright line along the top of the charge, white on either. */
+  --figure-level: #ffffff;
+  /* The tier's name, in its figure's colour; light writes it a shade darker. */
+  --figure-ink-charged: var(--figure-charged);
+  --figure-ink-balanced: var(--figure-balanced);
+  --figure-ink-low: var(--figure-low);
+  --figure-ink-drained: var(--figure-drained);
+
+  /* An insight card's glow in its far corner: good, worth watching, neither. */
+  --glow-good: var(--emerald-400);
+  --glow-watch: var(--amber-500);
+  --glow-neutral: var(--slate-400);
+
   /* A night's stages, deep the darkest, in both themes. */
   --stage-deep: #4338ca;
   --stage-light: #818cf8;
@@ -48,9 +75,9 @@
   --stage-awake: #d8b48a;
 
   /*
-   * Glass. In dark a card is smoked glass, a dark tint with a light edge; in light, a white frost.
-   * The panels and rules in a card are tints too, so the backdrop shows through everything (the
-   * backdrop is at the end of the file).
+   * Glass. In dark a card is smoked glass, a dark tint with a light edge, and the panels and rules
+   * in a card are tints too, so the backdrop shows through everything (the backdrop is at the end
+   * of the file). Light has plain white cards instead.
    */
   --card: rgb(9 9 11 / 0.5);
   --card-edge: rgb(255 255 255 / 0.08);
@@ -98,8 +125,10 @@
   --color-zinc-600: #64646e;
   /* Words set straight on the backdrop rather than on a card: the date, a section's name. */
   --page-ink: var(--color-zinc-500);
-  /* A switch's knob: white on its track in both themes. */
+  /* A switch's knob: white on its track in both themes. Off, the track is grey. */
   --knob: #ffffff;
+  --switch-off: var(--color-zinc-700);
+  --switch-off-hover: var(--color-zinc-600);
   --knob-shadow: rgb(0 0 0 / 0.4);
   /* What a sheet dims the page with. */
   --scrim: rgb(0 0 0 / 0.7);
@@ -116,6 +145,8 @@
   --color-picked: var(--picked);
   --color-knob: var(--knob);
   --color-knob-shadow: var(--knob-shadow);
+  --color-switch-off: var(--switch-off);
+  --color-switch-off-hover: var(--switch-off-hover);
   --color-page-ink: var(--page-ink);
 }
 
@@ -123,37 +154,39 @@
   color-scheme: light;
 
   /*
-   * The greys flip: text is dark and the ground light. Black is the ground under the backdrop and
-   * white the strongest ink, so bg-black, from-black and text-white follow. Muted labels sit a
-   * little darker than a flip would put them, to read over the backdrop.
+   * Light is plain where dark is glass: white cards on a flat pale grey, the way a page of paper
+   * reads. Every word meets WCAG AA (4.5:1, 3:1 when large) on the card and on the grey, so the
+   * greys flip with the muted ones held dark enough to read. Black is the ground and white the
+   * strongest ink, so bg-black, from-black and text-white follow.
    */
-  --color-black: #f4f4f5;
+  --color-black: #f5f5f6;
   --color-white: #000000;
   --color-zinc-50: #09090b;
   --color-zinc-100: #18181b;
   --color-zinc-200: #27272a;
   --color-zinc-300: #3f3f46;
-  --color-zinc-400: #52525b;
-  --color-zinc-500: #62626b;
-  --color-zinc-600: #a1a1aa;
+  --color-zinc-400: #4f4f58;
+  --color-zinc-500: #5c5c65;
+  --color-zinc-600: #6b6b74;
   --color-zinc-700: #d4d4d8;
   --color-zinc-800: #e4e4e7;
   --color-zinc-900: #ffffff;
-  --color-zinc-950: #f4f4f5;
+  --color-zinc-950: #f5f5f6;
 
   /*
-   * Each colour takes its family's darker shade. Rose, pink, violet and indigo turn about their
-   * 500: 400 becomes 600, 300 becomes 700. Emerald, teal, sky, lime, yellow and amber are lighter
-   * at the same shade, so they go a step further: 400 becomes 700, 500 becomes 600. Teal's 300 is
-   * the Body page's colour, so it turns as the other pages' 400s do; lime's 300 is a battery tier,
-   * so it turns as the other tiers' 500s do. The darkest shades, under washes, become the lightest.
+   * Each colour takes its family's darker shade, dark enough for small words on white and on the
+   * grey. Rose and pink go three steps (400 to 700), violet and indigo two (400 to 600). Emerald,
+   * teal, sky, lime and amber are lighter at the same shade, so they go to 700, and yellow a
+   * touch past its 700, so the Labs label reads through the bar. A 300, the brighter word in
+   * dark, goes a step past its 400. The 500s, the washes behind a word, go to 600. The darkest
+   * shades, under washes, become the lightest.
    */
   --color-pink-100: var(--color-pink-900);
-  --color-pink-200: var(--color-pink-800);
-  --color-pink-300: var(--color-pink-700);
-  --color-pink-400: var(--color-pink-600);
-  --color-rose-300: var(--color-rose-700);
-  --color-rose-400: var(--color-rose-600);
+  --color-pink-200: var(--color-pink-900);
+  --color-pink-300: var(--color-pink-800);
+  --color-pink-400: var(--color-pink-700);
+  --color-rose-300: var(--color-rose-800);
+  --color-rose-400: var(--color-rose-700);
   --color-rose-900: var(--color-rose-100);
   --color-violet-300: var(--color-violet-700);
   --color-violet-400: var(--color-violet-600);
@@ -166,52 +199,89 @@
   --color-sky-300: var(--color-sky-800);
   --color-sky-400: var(--color-sky-700);
   --color-sky-500: var(--color-sky-600);
-  --color-lime-300: var(--color-lime-600);
-  --color-yellow-400: var(--color-yellow-700);
+  --color-lime-300: var(--color-lime-700);
+  --color-yellow-400: #9a5800;
   --color-amber-300: var(--color-amber-800);
   --color-amber-400: var(--color-amber-700);
   --color-amber-500: var(--color-amber-600);
 
-  /* The shades drawn in code, turned the same way, from the same previous palette. */
+  /*
+   * The shades drawn in code, turned the same way from the same previous palette. Charts write
+   * their labels in these too, so each reads as a word on white.
+   */
+  --emerald-300: #047857;
   --emerald-400: #047857;
-  --emerald-500: #059669;
-  --green-500: #16a34a;
-  --lime-300: #65a30d;
+  --emerald-500: #047857;
+  --green-500: #15803d;
+  --lime-300: #4d7c0f;
   --teal-300: #0f766e;
   --teal-400: #0f766e;
-  --teal-500: #0d9488;
-  --sky-500: #0284c7;
+  --teal-500: #0f766e;
+  --sky-500: #0369a1;
   --slate-400: #64748b;
   --indigo-400: #4f46e5;
+  --indigo-500: #4338ca;
   --violet-400: #7c3aed;
-  --pink-400: #db2777;
-  --rose-400: #e11d48;
-  --orange-400: #ea580c;
+  --purple-500: #9333ea;
+  --pink-400: #be185d;
+  --rose-400: #be123c;
+  --rose-500: #e11d48;
+  --red-500: #dc2626;
+  --orange-400: #c2410c;
   --amber-400: #b45309;
-  --amber-500: #d97706;
-  --yellow-500: #ca8a04;
-  /* Regularity's second band stays paler than its first. */
-  --emerald-300: #10b981;
+  --amber-500: #b45309;
+  --yellow-500: #a16207;
 
-  --stage-awake: #c19e74;
+  /*
+   * The battery's figure and rail keep dark's bright colours; the tier's name beside them takes its
+   * hue's darker shade, so it reads on white (4.5:1 and more).
+   */
+  --figure-ink-charged: #047857;
+  --figure-ink-balanced: #4d7c0f;
+  --figure-ink-low: #b45309;
+  --figure-ink-drained: #be123c;
 
-  --card: rgb(255 255 255 / 0.62);
-  --card-edge: rgb(255 255 255 / 0.85);
-  --panel: rgb(255 255 255 / 0.45);
-  --panel-raised: rgb(0 0 0 / 0.04);
+  /* An insight card's glow takes dark's brighter shades too: on white the darker ones turn muddy. */
+  --glow-good: #34d399;
+  --glow-watch: #f59e0b;
+  --glow-neutral: #94a3b8;
+
+  /* This week's bars keep brighter shades: they're filled, not read. */
+  --charge-charged: #059669;
+  --charge-balanced: #65a30d;
+  --charge-low: #d97706;
+  --charge-drained: #f43f5e;
+
+  /* A night's stages, deep still the darkest, each dark enough to name its own minutes. */
+  --stage-deep: #312e81;
+  --stage-light: #4f46e5;
+  --stage-rem: #7c3aed;
+  --stage-awake: #8a6a3f;
+
+  /* Plain white cards with a hairline edge; panels and rules are a shade of grey on them. */
+  --card: #ffffff;
+  --card-edge: rgb(0 0 0 / 0.06);
+  --panel: rgb(0 0 0 / 0.03);
+  --panel-raised: rgb(0 0 0 / 0.05);
   --faint: rgb(0 0 0 / 0.07);
-  --rule-faint: rgb(0 0 0 / 0.03);
-  --rule: rgb(0 0 0 / 0.05);
-  --rule-strong: rgb(0 0 0 / 0.1);
+  --rule-faint: rgb(0 0 0 / 0.04);
+  --rule: rgb(0 0 0 / 0.06);
+  --rule-strong: rgb(0 0 0 / 0.12);
   --picked: rgb(79 70 229 / 0.08);
-  --alert-ground: rgb(244 63 94 / 0.06);
-  --figure: rgb(0 0 0 / 0.09);
-  --bar: rgb(255 255 255 / 0.55);
-  --sheet: rgb(255 255 255 / 0.9);
-  --veil: rgb(244 244 245 / 0.6);
-  --backdrop-tone: saturate(2.4);
-  --page-ink: var(--color-zinc-300);
+  --alert-ground: rgb(225 29 72 / 0.06);
+  --figure: rgb(0 0 0 / 0.08);
+  --frost: none;
+  /* A little of the page shows through the bar as it scrolls under. */
+  --bar: rgb(245 245 246 / 0.5);
+  --sheet: rgb(255 255 255 / 0.97);
+  /* No backdrop: the ground is the flat grey under it. */
+  --backdrop: none;
+  --veil: transparent;
+  --page-ink: var(--color-zinc-500);
   --knob-shadow: rgb(0 0 0 / 0.25);
+  /* The faintest grey is dark enough to be read in light, so an off switch has its own. */
+  --switch-off: #e4e4e7;
+  --switch-off-hover: #d4d4d8;
   --scrim: rgb(9 9 11 / 0.4);
 }
 
@@ -222,8 +292,6 @@ body::before {
   inset: 0;
   z-index: -1;
   background: linear-gradient(var(--veil), var(--veil)), var(--backdrop);
-  /* In light, the veiled backdrop would be grey; its colour is lifted to a pale tint of its own. */
-  filter: var(--backdrop-tone, none);
 }
 
 /* A card frosts what's behind it. */
