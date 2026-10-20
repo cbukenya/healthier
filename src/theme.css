@@ -275,7 +275,7 @@
   --figure: rgb(0 0 0 / 0.08);
   --frost: none;
   /* A little of the page shows through the bar as it scrolls under. */
-  --bar: rgb(245 245 246 / 0.78);
+  --bar: rgb(245 245 246 / 0.5);
   --bar-rule: rgb(0 0 0 / 0.14);
   --sheet: rgb(255 255 255 / 0.97);
   /* No backdrop: the ground is the flat grey under it. */
