@@ -102,7 +102,7 @@ const MIGRATIONS: { id: number; name: string; sql: string }[] = [
     id: 3,
     name: 'user goals',
     sql: `
-      -- Set by the person on the Settings page (Goals in src/pipeline/goals.ts); NULL until they change one.
+      -- Set by the person on the Data tab (Goals in src/pipeline/goals.ts); NULL until they change one.
       ALTER TABLE users ADD COLUMN goals jsonb;
     `,
   },
@@ -124,7 +124,7 @@ const MIGRATIONS: { id: number; name: string; sql: string }[] = [
     id: 5,
     name: 'user sources',
     sql: `
-      -- Set by the person on the Settings page (Devices and sources, SourcePrefs in src/pipeline/sources.ts):
+      -- Set by the person on the Data tab (Devices and sources, SourcePrefs in src/pipeline/sources.ts):
       -- which devices count, in what order, and which kinds of source Google adds up. NULL until set.
       ALTER TABLE users ADD COLUMN sources jsonb;
     `,
@@ -133,7 +133,7 @@ const MIGRATIONS: { id: number; name: string; sql: string }[] = [
     id: 6,
     name: 'user theme',
     sql: `
-      -- Set by the person on the Settings page (Account, Theme in src/lib/theme.ts): dark, light, or
+      -- Set by the person on the Data tab (Account, Theme in src/lib/theme.ts): dark, light, or
       -- whichever their device is set to. NULL until they pick one, and the app opens dark.
       ALTER TABLE users ADD COLUMN theme text CHECK (theme IN ('dark', 'light', 'system'));
     `,
