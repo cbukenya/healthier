@@ -142,26 +142,30 @@ export function StatusCard({ data, history, syncing, failure, demo, onFullSync, 
 
   return (
     <Card label={t('data.status.label')} className="p-4 md:px-5">
-      <h2 className="font-display text-headline text-zinc-50">{title}</h2>
-      {/* When it last synced, under the title, with the button that fits beside it. */}
-      <div className="mt-2 flex items-center justify-between gap-3">
-        <p className="min-w-0 flex items-center gap-2.5 text-detail text-zinc-400">
-          <span aria-hidden="true" className={`size-2 shrink-0 rounded-full ring-3 ${DOT[status.kind]} ${syncing ? 'animate-pulse' : ''}`} />
-          <span className="truncate">{eyebrow}</span>
-        </p>
-        <button
-          type="button"
-          onClick={action.onClick}
-          title={action.hint}
-          className="-my-1 shrink-0 min-h-11 md:min-h-9 inline-flex items-center gap-1.5 px-3.5 rounded-full border border-zinc-800 bg-zinc-900 text-caption font-medium text-zinc-200 hover:bg-zinc-800 transition-colors"
-        >
-          {status.kind === 'expired'
-            ? <LogIn size={12} aria-hidden="true" />
-            : <RefreshCw size={12} aria-hidden="true" className={syncing ? 'animate-spin' : ''} />}
-          {action.label}
-        </button>
+      {/* The title with the button that fits beside it, top right, however many lines the title takes. */}
+      <div className="flex items-start justify-between gap-3">
+        <h2 className="min-w-0 font-display text-headline text-balance text-zinc-50">{title}</h2>
+        {/* As tall as the title's first line, so the button is centred on it. */}
+        <div className="shrink-0 h-[calc(var(--text-headline)*var(--text-headline--line-height))] flex items-center">
+          <button
+            type="button"
+            onClick={action.onClick}
+            title={action.hint}
+            className="min-h-11 md:min-h-9 inline-flex items-center gap-1.5 px-3.5 rounded-full border border-zinc-800 bg-zinc-900 text-caption font-medium text-zinc-200 hover:bg-zinc-800 transition-colors"
+          >
+            {status.kind === 'expired'
+              ? <LogIn size={12} aria-hidden="true" />
+              : <RefreshCw size={12} aria-hidden="true" className={syncing ? 'animate-spin' : ''} />}
+            {action.label}
+          </button>
+        </div>
       </div>
-      <p className="mt-2 text-detail leading-relaxed text-zinc-400">{sub}</p>
+      {/* When it last synced, under the title. */}
+      <p className="mt-2 flex items-center gap-2.5 text-detail text-zinc-400">
+        <span aria-hidden="true" className={`size-2 shrink-0 rounded-full ring-3 ${DOT[status.kind]} ${syncing ? 'animate-pulse' : ''}`} />
+        <span className="min-w-0 truncate">{eyebrow}</span>
+      </p>
+      <p className="mt-1.5 text-detail leading-relaxed text-zinc-400">{sub}</p>
       {reason && <p className="mt-2 text-caption leading-relaxed text-rose-300/90 break-words">{reason}</p>}
       <dl className="mt-4 pt-3.5 border-t border-zinc-800/60 grid grid-cols-3 gap-3">
         <Fact
