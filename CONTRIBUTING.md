@@ -56,11 +56,10 @@ Read [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) first if you're changing sync 
 - **Arithmetic, not guesswork.** Every score and insight is worked out from the person's own data,
   the same way every time, and can be traced back to the readings behind it. No AI writes or
   guesses anything shown.
-- **Changes to the cycle finder are measured.** If you change `src/pipeline/cycle.ts`,
-  `cycleShapes.ts` or `sleepHrFloor.ts`, run `npm run eval:cycles` before and after, and put both
-  sets of totals in the pull request (see `scripts/cycle-eval/README.md`). It needs mcPHASES, which
-  PhysioNet shares with credentialed researchers. If you don't have it, say so, and a maintainer
-  will run it.
+- **Measure changes to cycle detection.** If you change `src/pipeline/cycle.ts`, `cycleShapes.ts`
+  or `sleepHrFloor.ts`, run `npm run eval:cycles` before and after, and put both results in the
+  pull request (see `scripts/cycle-eval/README.md`). It needs the mcPHASES data from PhysioNet. If
+  you can't get it, say so and a maintainer will run it.
 - **Changing normalisation means bumping `PIPELINE_VERSION`** in `src/pipeline/incremental.ts`.
   Stored data was produced by the old code; the bump makes every install rebuild it.
 - **Migrations are append-only.** Add a new entry in `server/db.ts`; never edit one that has been

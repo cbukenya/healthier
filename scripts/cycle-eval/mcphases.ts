@@ -4,25 +4,18 @@ import { basename, dirname, join } from 'node:path';
 import { sleepHrFloor } from '../../src/pipeline/sleepHrFloor.ts';
 
 /**
- * mcPHASES read into the nights the cycle finder reads (src/pipeline/cycle.ts, Night), with the
- * phases its daily hormone tests mark as the truth to score against.
+ * Reads mcPHASES into the nights the cycle finder reads (cycle.ts, Night), and the phases its daily
+ * hormone tests mark, to check the finder against.
  *
- * mcPHASES: Lin, Li, Kalani, Truong and Mariakakis; PhysioNet, 2025; doi:10.13026/zx6a-2c81. 42
- * people who menstruate, each wearing a Fitbit Sense for about three months, some of them in two
- * stretches years apart. It is restricted data: reading it needs PhysioNet's credentialed access
- * and its data use agreement, and it never goes in this repo. Neither does anything read from it
- * person by person: the nights are cached beside the dataset, and the evaluation prints totals.
+ * mcPHASES (Lin, Li, Kalani, Truong and Mariakakis; PhysioNet, 2025; doi:10.13026/zx6a-2c81)
+ * followed 42 people wearing a Fitbit Sense for about three months, some of them twice, two years
+ * apart. It's restricted data: never put it, or anything read from it about one person, in this
+ * repo. The nights are cached beside the dataset, not here.
  *
- * Each night is filed under the study day it ends on, as Healthier files a night under the morning.
- * - **Skin temperature:** the night's average from its baseline, from the reading with most samples.
- * - **Resting heart rate and breathing:** Fitbit's own nightly figures.
- * - **HRV:** the night's average RMSSD, from at least six of its five-minute readings.
- * - **Sleeping heart rate:** the night's floor, computed by the server's own code (sleepHrFloor.ts)
- *   from one-minute averages rounded to whole beats, as Google sends them. Beside it, the average
- *   over light and deep sleep, what Google Health sends as the non-REM heart rate.
- * - **Lining up the minutes:** mcPHASES stamps its heart rate in UTC and its sleep logs in local
- *   time. Each study stretch takes the whole-hour shift that puts its lowest heart rate inside its
- *   sleeps, as checked by hand: heart rate is lowest four to five hours after the logged times.
+ * Each night is filed under the day it ends on, as the app does. The sleeping heart rate is worked
+ * out by the server's own code (sleepHrFloor.ts), from the minute heart rate rounded to whole beats
+ * as Google sends it. mcPHASES stamps its heart rate in UTC and its sleep in local time, so each
+ * round's minutes are moved by the whole hours that put the lowest heart rate inside the sleeps.
  */
 
 /** Bump when what's read changes, so an older cache is read again. */
@@ -51,22 +44,22 @@ export interface Person {
   nights: Map<number, StudyNight>;
   /** The phase the hormone tests mark for each study day: Menstrual, Follicular, Fertility or Luteal. */
   phase: Map<number, string>;
-  /** The study stretch each labelled day belongs to. */
+  /** The study round each labelled day belongs to. */
   interval: Map<number, string>;
 }
 
-/** One study stretch and what happened in it, by the hormone tests. */
-export interface Stretch {
+/** One study round and what happened in it, by the hormone tests. */
+export interface Round {
   from: number;
   to: number;
-  /** First days of each period, after the stretch's first day. */
+  /** First days of each period, after the round's first day. */
   starts: number[];
   /** First days of each second half: the first luteal day after the fertile days. */
   luteal: number[];
 }
 
-/** The study stretches of a person, and the period and second-half starts the labels mark in each. */
-export function stretches(p: Person): Stretch[] {
+/** A person's study rounds, and the period and second-half starts the hormone tests mark in each. */
+export function rounds(p: Person): Round[] {
   const byInterval = new Map<string, number[]>();
   for (const [day, interval] of p.interval) {
     const days = byInterval.get(interval) ?? [];
@@ -74,7 +67,7 @@ export function stretches(p: Person): Stretch[] {
     byInterval.set(interval, days);
   }
   const menstrual = (d: number) => p.phase.get(d) === 'Menstrual';
-  const out: Stretch[] = [];
+  const out: Round[] = [];
   for (const days of byInterval.values()) {
     days.sort((a, b) => a - b);
     const from = days[0];

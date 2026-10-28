@@ -21,8 +21,8 @@ import type { HistoryAnswers, HistoryQueries } from './history';
  * is stored. It describes cycles after the fact and gives ranges from the person's own; it never
  * marks fertile days and is not a form of contraception.
  *
- * How well it finds starts is measured on mcPHASES by scripts/cycle-eval (`npm run eval:cycles`):
- * run it before and after changing the finder, its shapes or the floor it reads.
+ * scripts/cycle-eval measures how well this finds period starts. Run it before and after you
+ * change it.
  */
 
 // ─────────────────────────────────────────────────────────────── the log

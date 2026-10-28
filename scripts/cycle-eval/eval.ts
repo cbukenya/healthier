@@ -1,78 +1,42 @@
 import { addDays, daysBetween, type CivilDate } from '../../src/lib/date.ts';
 import { CYCLE_HISTORY_DAYS, standardized, summarizeCycles, type CycleLog, type CycleSummary, type Night } from '../../src/pipeline/cycle.ts';
 import { SHAPE_FROM, SHAPES, type ShapeMeasure } from '../../src/pipeline/cycleShapes.ts';
-import { DAY_ONE, loadPeople, stretches, type Person, type StudyNight } from './mcphases.ts';
+import { DAY_ONE, loadPeople, rounds, type Person, type StudyNight } from './mcphases.ts';
 
 /**
- * How well the cycle finder (src/pipeline/cycle.ts) does on mcPHASES, measured the same way every
- * time it changes. It runs the app's own code: the finder, the floor (sleepHrFloor.ts) and the bar.
+ * Measures how well the cycle finder (src/pipeline/cycle.ts) finds period starts, on mcPHASES.
+ * See README.md beside this file.
  *
- *   npm run eval:cycles -- <the mcPHASES folder>     (or set MCPHASES_DIR)
+ *   npm run eval:cycles -- <the mcPHASES folder> [--non-rem] [--rebuild]
  *
- * Add --rebuild to read the dataset again, and --print-shapes for the shapes rebuilt from all 42
- * people, as cycleShapes.ts holds them. It prints totals only: nothing about any one person.
- *
- * - **Leaving each person out.** Each person is scored with shapes made from everyone else's nights,
- *   so no one is judged by a shape their own nights helped make.
- * - **As the app sees it.** Each study stretch is read on its last day, with the nights the app
- *   would have then: CYCLE_HISTORY_DAYS back, nothing after.
- * - **Against the hormone tests.** A period start is the first day mcPHASES's hormone tests mark
- *   menstrual. A found start is right within 3 days of one. The finder's starts are where the
- *   nights' shape puts them, before the person's offset to their first day of bleeding.
- * - **With the sleeping heart rate the app reads:** the night's floor, and beside it Google's non-REM
- *   heart rate, which the finder reads until the floor covers the nights.
- * - **False cycles:** people simulated without cycles, with the noise mcPHASES shows once its cycles
- *   are taken out, as the bar was set (at most 1 in 20 may see one); and the real nights shuffled
- *   a week at a time, which keeps their noise and breaks their monthly rhythm.
- * - **How soon a start shows**, reading each stretch morning by morning, and whether it moves later.
+ * --non-rem reads Google's non-REM heart rate as the sleeping heart rate instead of the night's
+ * floor. --rebuild reads the dataset again instead of the cached nights.
  */
 
 const MEASURES = Object.keys(SHAPES) as ShapeMeasure[];
-type Shape = { size: number; shape: readonly number[] };
-type Shapes = Record<ShapeMeasure, Shape>;
-/** The sleeping heart rate the finder reads: the night's floor, or Google's non-REM heart rate. */
-type Input = 'floor' | 'nonRem';
+type Shapes = Record<ShapeMeasure, { size: number; shape: readonly number[] }>;
 
 const args = process.argv.slice(2);
 const dir = args.find((a) => !a.startsWith('--')) ?? process.env.MCPHASES_DIR;
 if (!dir) {
-  console.error('Usage: npm run eval:cycles -- <the mcPHASES folder> [--rebuild] [--print-shapes]');
+  console.error('Usage: npm run eval:cycles -- <the mcPHASES folder> [--non-rem] [--rebuild]');
   process.exit(1);
 }
+const sleepHr = args.includes('--non-rem') ? 'nonRem' : 'floor';
 const people = await loadPeople(dir, { rebuild: args.includes('--rebuild') });
 
 const dateOf = (day: number): CivilDate => addDays(DAY_ONE, day - 1);
 const dayOf = (date: CivilDate) => daysBetween(DAY_ONE, date) + 1;
-const isNum = (v: number | null | undefined): v is number => typeof v === 'number' && Number.isFinite(v);
 const pct = (a: number, b: number) => (b ? `${Math.round((100 * a) / b)}%` : '—');
-/** A rate with its 95% interval (Wilson's), for a sense of how much the people chosen could move it. */
-const rate = (a: number, b: number) => {
-  if (!b) return '—';
-  const z = 1.96;
-  const p = a / b;
-  const d = 1 + (z * z) / b;
-  const centre = (p + (z * z) / (2 * b)) / d;
-  const half = (z * Math.sqrt((p * (1 - p)) / b + (z * z) / (4 * b * b))) / d;
-  return `${pct(a, b)} (${Math.round(100 * (centre - half))}–${Math.round(100 * (centre + half))})`;
-};
-const median = (xs: number[]) => {
-  const s = [...xs].sort((a, b) => a - b);
-  const m = s.length >> 1;
-  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
-};
+const read = (n: StudyNight | undefined, m: ShapeMeasure) => (!n ? null : m === 'sleepHr' ? n[sleepHr] : n[m]);
+const firstDay = (p: Person) => Math.min(...p.nights.keys());
 
-const read = (n: StudyNight | undefined, m: ShapeMeasure, input: Input): number | null => (!n ? null : m === 'sleepHr' ? n[input] : n[m]);
-const daysOf = (p: Person) => {
-  const days = [...p.nights.keys()];
-  return { lo: Math.min(...days), hi: Math.max(...days) };
-};
-
-/** The nights the app would have on `day`: from CYCLE_HISTORY_DAYS before it, or the first. */
-function nightsUpTo(p: Person, input: Input, day: number, from = day - CYCLE_HISTORY_DAYS): Night[] {
+/** The nights the app would have on `day`: it looks back CYCLE_HISTORY_DAYS, never further. */
+function nightsOn(p: Person, day: number): Night[] {
   const out: Night[] = [];
-  for (let d = Math.max(from, daysOf(p).lo); d <= day; d++) {
+  for (let d = Math.max(day - CYCLE_HISTORY_DAYS, firstDay(p)); d <= day; d++) {
     const n = p.nights.get(d);
-    out.push({ date: dateOf(d), temp: read(n, 'temp', input), restingHr: read(n, 'restingHr', input), hrv: read(n, 'hrv', input), sleepHr: read(n, 'sleepHr', input), breath: read(n, 'breath', input) });
+    out.push({ date: dateOf(d), temp: read(n, 'temp'), restingHr: read(n, 'restingHr'), hrv: read(n, 'hrv'), sleepHr: read(n, 'sleepHr'), breath: read(n, 'breath') });
   }
   return out;
 }
@@ -82,64 +46,67 @@ const log = (days: number[] = []): CycleLog => ({
   days: days.map((d) => ({ date: dateOf(d), flow: 'medium' })),
   rejected: [],
 });
-/** A period's days as someone would log them: from its first day while the tests mark it menstrual. */
+/** A period's days, as someone would log them. */
 const periodDays = (p: Person, start: number) => {
   const days: number[] = [];
   for (let d = start; p.phase.get(d) === 'Menstrual'; d++) days.push(d);
   return days;
 };
-/** Where the nights put each start: the shown starts, less the person's offset to bleeding. */
-const atNights = (sum: CycleSummary, source?: 'found') => sum.cycles.filter((c) => !source || c.source === source).map((c) => dayOf(c.start) - sum.offset);
-const nearest = (days: number[], t: number) => days.reduce((best, x) => Math.min(best, Math.abs(x - t)), Infinity);
+/**
+ * The starts the app shows, moved back by the person's offset: the app shows the first day of
+ * bleeding, a day after the start the hormone tests mark.
+ */
+const shownStarts = (sum: CycleSummary, foundOnly = false) =>
+  sum.cycles.filter((c) => !foundOnly || c.source === 'found').map((c) => dayOf(c.start) - sum.offset);
+const distance = (days: number[], day: number) => Math.min(Infinity, ...days.map((d) => Math.abs(d - day)));
 
-// ──────────────────────────────────────────────────────────── shapes
+// ───────────────────────────────────────────────────────────────── shapes
 
-type Profile = { sum: number[]; n: number[] };
-
-/** Each person's nights around their period starts, per measure, in spreads (cycle.ts, standardized). */
-function profiles(input: Input): Map<string, Record<ShapeMeasure, Profile>> {
-  const length = SHAPES.sleepHr.shape.length;
-  const out = new Map<string, Record<ShapeMeasure, Profile>>();
-  for (const p of people) {
-    const { lo, hi } = daysOf(p);
-    const starts = stretches(p).flatMap((s) => s.starts);
-    const rec = {} as Record<ShapeMeasure, Profile>;
-    for (const m of MEASURES) {
-      const x: (number | null)[] = [];
-      for (let d = lo; d <= hi; d++) x.push(read(p.nights.get(d), m, input));
-      const z = standardized(x);
-      const pr: Profile = { sum: new Array(length).fill(0), n: new Array(length).fill(0) };
-      for (const st of starts) {
-        for (let j = 0; j < length; j++) {
-          const v = z[st + SHAPE_FROM + j - lo];
-          if (isNum(v)) {
-            pr.sum[j] += v;
-            pr.n[j]++;
-          }
+/**
+ * The shapes the finder looks for, made the way cycleShapes.ts was: each measure in spreads from the
+ * 61 nights around (cycle.ts, standardized), averaged around every period start. Each person is
+ * tested with shapes made from everyone else, so their own nights never help find their cycles.
+ */
+type Sums = Record<ShapeMeasure, { sum: number[]; n: number[] }>;
+const sums = new Map<string, Sums>();
+for (const p of people) {
+  const first = firstDay(p);
+  const last = Math.max(...p.nights.keys());
+  const starts = rounds(p).flatMap((s) => s.starts);
+  const rec = {} as Sums;
+  for (const m of MEASURES) {
+    const values: (number | null)[] = [];
+    for (let d = first; d <= last; d++) values.push(read(p.nights.get(d), m));
+    const z = standardized(values);
+    const length = SHAPES[m].shape.length;
+    rec[m] = { sum: new Array(length).fill(0), n: new Array(length).fill(0) };
+    for (const start of starts) {
+      for (let k = 0; k < length; k++) {
+        const v = z[start + SHAPE_FROM + k - first];
+        if (v !== null && v !== undefined) {
+          rec[m].sum[k] += v;
+          rec[m].n[k]++;
         }
       }
-      rec[m] = pr;
     }
-    out.set(p.id, rec);
   }
-  return out;
+  sums.set(p.id, rec);
 }
 
-/** The shapes as cycleShapes.ts makes them, from everyone but `without`: mean zero, length one, and their size. */
-function shapesFrom(per: Map<string, Record<ShapeMeasure, Profile>>, without?: string): Shapes {
+function shapesWithout(id: string): Shapes {
   const out = {} as Shapes;
   for (const m of MEASURES) {
     const length = SHAPES[m].shape.length;
-    const sum = new Array(length).fill(0);
-    const n = new Array(length).fill(0);
-    for (const [id, rec] of per) {
-      if (id === without) continue;
-      for (let j = 0; j < length; j++) {
-        sum[j] += rec[m].sum[j];
-        n[j] += rec[m].n[j];
+    const avg = new Array(length).fill(0).map((_, k) => {
+      let sum = 0;
+      let n = 0;
+      for (const [other, rec] of sums) {
+        if (other === id) continue;
+        sum += rec[m].sum[k];
+        n += rec[m].n[k];
       }
-    }
-    const avg = sum.map((v, j) => (n[j] ? v / n[j] : 0));
+      return n ? sum / n : 0;
+    });
     const mid = avg.reduce((a, b) => a + b, 0) / length;
     const centred = avg.map((v) => v - mid);
     const size = Math.sqrt(centred.reduce((a, v) => a + v * v, 0));
@@ -148,251 +115,143 @@ function shapesFrom(per: Map<string, Record<ShapeMeasure, Profile>>, without?: s
   return out;
 }
 
-/** The app's shapes are read where the finder runs; these swap them for a while. */
-const live = SHAPES as unknown as Record<ShapeMeasure, { size: number; shape: readonly number[] }>;
+// The finder reads SHAPES as it runs, so swapping them in place changes what it looks for.
+const live = SHAPES as unknown as Shapes;
 const shipped = {} as Shapes;
-for (const m of MEASURES) shipped[m] = { size: SHAPES[m].size, shape: SHAPES[m].shape };
-function useShapes(shapes: Shapes) {
-  for (const m of MEASURES) {
-    live[m].size = shapes[m].size;
-    live[m].shape = shapes[m].shape;
-  }
-}
-
-// ──────────────────────────────────────────────────────────── accuracy
-
-function accuracy(input: Input) {
-  const per = profiles(input);
-  const t = {
-    stretches: 0, shown: 0, starts: 0, within3: 0, within5: 0, found: 0, real: 0, ended: 0, endedRight: 0,
-    later: 0, laterWithin3: 0, laterWithin5: 0, loggedEnded: 0, loggedRight: 0,
-  };
-  for (const p of people) {
-    useShapes(shapesFrom(per, p.id));
-    for (const s of stretches(p)) {
-      if (!s.starts.length) continue;
-      t.stretches++;
-      const nights = nightsUpTo(p, input, s.to);
-      const today = dateOf(s.to);
-      // Nothing logged.
-      const sum = summarizeCycles(nights, log(), today);
-      if (sum.cycles.length) t.shown++;
-      const at = atNights(sum);
-      for (const st of s.starts) {
-        t.starts++;
-        const off = nearest(at, st);
-        if (off <= 3) t.within3++;
-        if (off <= 5) t.within5++;
-      }
-      for (const x of at) {
-        if (x < s.from + 3 || x > s.to - 3) continue;
-        t.found++;
-        if (nearest(s.starts, x) <= 3) t.real++;
-      }
-      // The second half of each ended cycle shown, counted back from the next start, against the tests.
-      const secondHalf = (summary: CycleSummary, ended: () => void, right: () => void) => {
-        for (const c of summary.cycles) {
-          if (!c.next || !c.rise) continue;
-          ended();
-          const near = s.luteal.filter((l) => l >= dayOf(c.start) - 3 && l <= dayOf(c.next!) + 3);
-          if (nearest(near, dayOf(c.rise)) <= 3) right();
-        }
-      };
-      secondHalf(sum, () => t.ended++, () => t.endedRight++);
-      // The first period logged: the later starts the nights show.
-      const withFirst = summarizeCycles(nights, log(periodDays(p, s.starts[0])), today);
-      const found = atNights(withFirst, 'found');
-      for (const st of s.starts.slice(1)) {
-        t.later++;
-        const off = nearest(found, st);
-        if (off <= 3) t.laterWithin3++;
-        if (off <= 5) t.laterWithin5++;
-      }
-      // Every period logged.
-      const withAll = summarizeCycles(nights, log(s.starts.flatMap((st) => periodDays(p, st))), today);
-      secondHalf(withAll, () => t.loggedEnded++, () => t.loggedRight++);
-    }
-  }
-  useShapes(shipped);
-  return t;
-}
-
-/**
- * How soon a start shows, reading each stretch morning by morning, and whether it moves later: with
- * nothing logged, or with the stretch's first period logged (the starts after it).
- */
-function timing(input: Input, logged: boolean) {
-  const per = profiles(input);
-  const t = { judged: 0, days: [] as number[], kept: 0, moved: 0 };
-  for (const p of people) {
-    useShapes(shapesFrom(per, p.id));
-    for (const s of stretches(p)) {
-      const first = logged ? periodDays(p, s.starts[0] ?? NaN) : [];
-      for (const st of logged ? s.starts.slice(1) : s.starts) {
-        // Starts with ten nights before them in the stretch and two weeks after.
-        if (st - 10 < s.from || st + 14 > s.to) continue;
-        t.judged++;
-        const shownOn = (day: number) => {
-          const sum = summarizeCycles(nightsUpTo(p, input, day), log(first), dateOf(day));
-          return atNights(sum, logged ? 'found' : undefined).filter((x) => Math.abs(x - st) <= 3);
-        };
-        let seen: { day: number; at: number } | null = null;
-        for (let day = st; day <= st + 14 && !seen; day++) {
-          const at = shownOn(day);
-          if (at.length) seen = { day, at: at.reduce((b, x) => (Math.abs(x - st) < Math.abs(b - st) ? x : b)) };
-        }
-        if (!seen) continue;
-        t.days.push(seen.day - st);
-        const end = shownOn(s.to);
-        if (!end.length) continue;
-        t.kept++;
-        if (Math.min(...end.map((x) => Math.abs(x - seen!.at))) >= 1) t.moved++;
-      }
-    }
-  }
-  useShapes(shipped);
-  return t;
-}
-
-// ──────────────────────────────────────────────────────────── false cycles
-
-function seeded(seed: number) {
-  let a = seed >>> 0;
-  return () => {
-    a = (a + 0x6d2b79f5) >>> 0;
-    let t = a;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-const gauss = (r: () => number) => {
-  let s = 0;
-  for (let i = 0; i < 12; i++) s += r();
-  return s - 6;
+for (const m of MEASURES) shipped[m] = { ...SHAPES[m] };
+const useShapes = (shapes: Shapes) => {
+  for (const m of MEASURES) Object.assign(live[m], shapes[m]);
 };
 
+// ───────────────────────────────────────────────────────────── real people
+
+const t = { rounds: 0, shown: 0, starts: 0, in3: 0, in5: 0, found: 0, real: 0, ended: 0, endedIn3: 0, later: 0, laterIn3: 0, laterIn5: 0, logged: 0, loggedIn3: 0 };
+for (const p of people) {
+  useShapes(shapesWithout(p.id));
+  for (const s of rounds(p)) {
+    if (!s.starts.length) continue;
+    t.rounds++;
+    // Each study round as the app would see it on its last day.
+    const nights = nightsOn(p, s.to);
+    const today = dateOf(s.to);
+    // The second half of each finished cycle, counted back from the next start, against the hormone tests.
+    const secondHalves = (sum: CycleSummary) => sum.cycles.filter((c) => c.next && c.rise).map((c) => {
+      const tested = s.luteal.filter((d) => d >= dayOf(c.start) - 3 && d <= dayOf(c.next!) + 3);
+      return distance(tested, dayOf(c.rise!)) <= 3;
+    });
+
+    // Nothing logged.
+    const sum = summarizeCycles(nights, log(), today);
+    const shown = shownStarts(sum);
+    if (shown.length) t.shown++;
+    for (const start of s.starts) {
+      t.starts++;
+      if (distance(shown, start) <= 3) t.in3++;
+      if (distance(shown, start) <= 5) t.in5++;
+    }
+    for (const day of shown) {
+      if (day < s.from + 3 || day > s.to - 3) continue;
+      t.found++;
+      if (distance(s.starts, day) <= 3) t.real++;
+    }
+    for (const right of secondHalves(sum)) {
+      t.ended++;
+      if (right) t.endedIn3++;
+    }
+
+    // The first period logged: the starts after it, as found in the nights.
+    const found = shownStarts(summarizeCycles(nights, log(periodDays(p, s.starts[0])), today), true);
+    for (const start of s.starts.slice(1)) {
+      t.later++;
+      if (distance(found, start) <= 3) t.laterIn3++;
+      if (distance(found, start) <= 5) t.laterIn5++;
+    }
+
+    // Every period logged.
+    for (const right of secondHalves(summarizeCycles(nights, log(s.starts.flatMap((start) => periodDays(p, start))), today))) {
+      t.logged++;
+      if (right) t.loggedIn3++;
+    }
+  }
+}
+useShapes(shipped);
+
+// ──────────────────────────────────────────────────── people without cycles
+
 /**
- * One person without cycles, `length` nights long, with the noise mcPHASES shows once its cycles are
- * taken out: a factor shared by heart rate, HRV and breathing, each measure's own pull from one
- * night to the next, missing nights, the watch off now and then, and a few sick or late-night spells.
+ * Made-up people without cycles, with the night-to-night noise mcPHASES shows once its cycles are
+ * taken out: a pull shared by heart rate, HRV and breathing, each measure's own wander, missed
+ * nights, and now and then a few sick or late nights. The bar in cycle.ts was set so at most 1 in
+ * 20 of them see a cycle.
  */
 function withoutCycles(seed: number, length: number): Night[] {
-  const r = seeded(seed);
-  const load: Record<ShapeMeasure, number> = { sleepHr: 0.93, restingHr: 0.37, hrv: -0.71, temp: 0, breath: 0.26 };
-  const stick: Record<ShapeMeasure, number> = { sleepHr: 0.15, restingHr: 0.48, hrv: 0.24, temp: 0.14, breath: 0.08 };
-  const miss: Record<ShapeMeasure, number> = { sleepHr: 0.05, restingHr: 0.15, hrv: 0.08, temp: 0.08, breath: 0.1 };
-  // In everyday units, rounded as the watch reports them.
-  const units: Record<ShapeMeasure, { base: number; scale: number; step: number }> = {
-    sleepHr: { base: 56, scale: 2.5, step: 1 }, restingHr: { base: 60, scale: 2, step: 1 }, hrv: { base: 45, scale: 7, step: 1 },
-    temp: { base: 0, scale: 0.15, step: 0.01 }, breath: { base: 15, scale: 0.5, step: 0.1 },
+  let a = seed >>> 0;
+  const random = () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let x = a;
+    x = Math.imul(x ^ (x >>> 15), x | 1);
+    x ^= x + Math.imul(x ^ (x >>> 7), x | 61);
+    return ((x ^ (x >>> 14)) >>> 0) / 4294967296;
   };
-  const order: ShapeMeasure[] = ['sleepHr', 'restingHr', 'hrv', 'temp', 'breath'];
+  const gauss = () => {
+    let s = 0;
+    for (let i = 0; i < 12; i++) s += random();
+    return s - 6;
+  };
+  const measures: ShapeMeasure[] = ['sleepHr', 'restingHr', 'hrv', 'temp', 'breath'];
+  const shared: Record<ShapeMeasure, number> = { sleepHr: 0.93, restingHr: 0.37, hrv: -0.71, temp: 0, breath: 0.26 };
+  const wander: Record<ShapeMeasure, number> = { sleepHr: 0.15, restingHr: 0.48, hrv: 0.24, temp: 0.14, breath: 0.08 };
+  const missed: Record<ShapeMeasure, number> = { sleepHr: 0.05, restingHr: 0.15, hrv: 0.08, temp: 0.08, breath: 0.1 };
+  const sick: Record<ShapeMeasure, number> = { sleepHr: 1, restingHr: 1, hrv: -1, temp: 0.6, breath: 0.5 };
+  // Everyday units, rounded as the watch reports them.
+  const units: Record<ShapeMeasure, [base: number, scale: number, step: number]> = {
+    sleepHr: [56, 2.5, 1], restingHr: [60, 2, 1], hrv: [45, 7, 1], temp: [0, 0.15, 0.01], breath: [15, 0.5, 0.1],
+  };
   const own: Record<ShapeMeasure, number> = { sleepHr: 0, restingHr: 0, hrv: 0, temp: 0, breath: 0 };
-  let shared = 0;
+  let common = 0;
   let spell = 0;
   let spellSize = 0;
   const nights: Night[] = [];
   for (let d = 0; d < length; d++) {
-    shared = 0.2 * shared + Math.sqrt(1 - 0.04) * gauss(r);
-    if (spell <= 0 && r() < 1 / 45) {
-      spell = 2 + Math.floor(r() * 5);
-      spellSize = 1 + 1.5 * r();
+    common = 0.2 * common + Math.sqrt(1 - 0.04) * gauss();
+    if (spell <= 0 && random() < 1 / 45) {
+      spell = 2 + Math.floor(random() * 5);
+      spellSize = 1 + 1.5 * random();
     }
     const bump = spell-- > 0 ? spellSize : 0;
-    const off = r() < 0.05;
+    const watchOff = random() < 0.05;
     const night: Night = { date: addDays('2025-01-01', d), temp: null, restingHr: null, hrv: null, sleepHr: null, breath: null };
-    for (const m of order) {
-      own[m] = stick[m] * own[m] + Math.sqrt(1 - stick[m] ** 2) * gauss(r);
-      let v = load[m] * shared + Math.sqrt(1 - load[m] ** 2) * own[m];
-      v += bump * (m === 'hrv' ? -1 : m === 'temp' ? 0.6 : m === 'breath' ? 0.5 : 1);
-      if (!off && r() >= miss[m]) night[m] = Math.round((units[m].base + units[m].scale * v) / units[m].step) * units[m].step;
+    for (const m of measures) {
+      own[m] = wander[m] * own[m] + Math.sqrt(1 - wander[m] ** 2) * gauss();
+      const v = shared[m] * common + Math.sqrt(1 - shared[m] ** 2) * own[m] + bump * sick[m];
+      const [base, scale, step] = units[m];
+      if (!watchOff && random() >= missed[m]) night[m] = Math.round((base + scale * v) / step) * step;
     }
     nights.push(night);
   }
   return nights;
 }
 
-function simulated() {
-  return [90, 150, 240, 365].map((length) => {
-    let shown = 0;
-    for (let i = 0; i < 300; i++) {
-      const nights = withoutCycles(1000 * length + i, length);
-      if (summarizeCycles(nights, log(), nights[nights.length - 1].date).cycles.length) shown++;
-    }
-    return { length, shown: shown / 300 };
-  });
-}
-
-/** The real stretches, their nights shuffled a week at a time (the same order for every measure). */
-function shuffled(input: Input) {
-  const per = profiles(input);
-  const t = { stretches: 0, real: 0, trials: 0, shuffled: 0 };
-  let k = 0;
-  for (const p of people) {
-    useShapes(shapesFrom(per, p.id));
-    for (const s of stretches(p)) {
-      const n = s.to - s.from + 1;
-      if (n < 60 || !s.starts.length) continue;
-      t.stretches++;
-      k++;
-      const nights = nightsUpTo(p, input, s.to, s.from);
-      if (summarizeCycles(nights, log(), nights[nights.length - 1].date).cycles.length) t.real++;
-      for (let seed = 1; seed <= 3; seed++) {
-        const r = seeded(seed * 1000 + k);
-        const blocks = Array.from({ length: Math.ceil(nights.length / 7) }, (_, i) => i);
-        for (let i = blocks.length - 1; i > 0; i--) {
-          const j = Math.floor(r() * (i + 1));
-          [blocks[i], blocks[j]] = [blocks[j], blocks[i]];
-        }
-        const order = blocks.flatMap((b) => Array.from({ length: 7 }, (_, i) => b * 7 + i)).filter((i) => i < nights.length);
-        const mixed = nights.map((night, i) => ({ ...nights[order[i]], date: night.date }));
-        t.trials++;
-        if (summarizeCycles(mixed, log(), mixed[mixed.length - 1].date).cycles.length) t.shuffled++;
-      }
-    }
+const falseCycles = [90, 150, 240, 365].map((length) => {
+  let shown = 0;
+  for (let i = 0; i < 300; i++) {
+    const nights = withoutCycles(1000 * length + i, length);
+    if (summarizeCycles(nights, log(), nights[nights.length - 1].date).cycles.length) shown++;
   }
-  useShapes(shipped);
-  return t;
-}
+  return `${pct(shown, 300)} after ${length} nights`;
+});
 
-// ──────────────────────────────────────────────────────────── report
+// ───────────────────────────────────────────────────────────────── report
 
-const allStretches = people.flatMap((p) => stretches(p).filter((s) => s.starts.length));
-const counted = people.filter((p) => stretches(p).some((s) => s.starts.length)).length;
-console.log(`mcPHASES: ${counted} people, ${allStretches.length} study stretches with a period start, ${allStretches.reduce((a, s) => a + s.starts.length, 0)} period starts.`);
-console.log('Each person scored with shapes made without their own nights; 95% intervals in brackets.\n');
-
-for (const input of ['floor', 'nonRem'] as const) {
-  const t = accuracy(input);
-  console.log(input === 'floor'
-    ? 'Sleeping heart rate from the night\'s floor, as the app reads it:'
-    : 'Sleeping heart rate from Google\'s non-REM heart rate, as the app reads it until the floor covers the nights:');
-  console.log(`  cycles shown in ${rate(t.shown, t.stretches)} of ${t.stretches} stretches`);
-  console.log(`  nothing logged: starts within 3 days ${rate(t.within3, t.starts)}, within 5 ${pct(t.within5, t.starts)} of ${t.starts}; shown starts real ${rate(t.real, t.found)} of ${t.found}`);
-  console.log(`  ended cycles shown: second half within 3 days of the hormone-marked one in ${pct(t.endedRight, t.ended)} of ${t.ended}`);
-  console.log(`  first period logged: later starts within 3 days ${rate(t.laterWithin3, t.later)}, within 5 ${pct(t.laterWithin5, t.later)} of ${t.later}`);
-  console.log(`  every period logged: second half within 3 days of the hormone-marked one in ${pct(t.loggedRight, t.loggedEnded)} of ${t.loggedEnded}\n`);
-}
-
-console.log('How soon a period start shows, read morning by morning (starts with ten nights before them and two weeks after):');
-for (const logged of [false, true]) {
-  const t = timing('floor', logged);
-  const by = (days: number) => pct(t.days.filter((d) => d <= days).length, t.judged);
-  console.log(`  ${logged ? 'first period logged, the starts after it' : 'nothing logged'} (${t.judged}): shown within 4 days ${by(4)}, within 7 ${by(7)}, within 14 ${by(14)}; when shown, ${median(t.days)} days after it began (median)`);
-  console.log(`    still shown at the stretch's end ${pct(t.kept, t.days.length)}; of those, moved by a day or more since it first showed ${pct(t.moved, t.kept)}`);
-}
-console.log('');
-
-console.log('False cycles, nothing logged:');
-console.log(`  people simulated without cycles shown cycles: ${simulated().map((x) => `${x.length} nights ${pct(x.shown, 1)}`).join(', ')} (the bar lets at most 5% through)`);
-const shuf = shuffled('floor');
-console.log(`  real stretches of 60 nights or more show cycles in ${pct(shuf.real, shuf.stretches)} of ${shuf.stretches}; shuffled a week at a time, in ${pct(shuf.shuffled, shuf.trials)} of ${shuf.trials}\n`);
-
-const rebuilt = shapesFrom(profiles('floor'));
-const dot = (a: readonly number[], b: readonly number[]) => a.reduce((s, v, i) => s + v * b[i], 0);
-console.log(`The shapes rebuilt from all ${people.length} people against the ones the app ships (cycleShapes.ts):`);
-console.log(`  ${MEASURES.map((m) => `${m} alike ${dot(rebuilt[m].shape, shipped[m].shape).toFixed(3)}, size ${rebuilt[m].size.toFixed(3)} against ${shipped[m].size}`).join('; ')}`);
-if (args.includes('--print-shapes')) {
-  for (const m of MEASURES) console.log(JSON.stringify({ [m]: { size: Number(rebuilt[m].size.toFixed(3)), shape: rebuilt[m].shape.map((v) => Number(v.toFixed(3))) } }));
-}
+console.log(`mcPHASES: ${people.length} people, ${t.rounds} study rounds of about three months, ${t.starts} period starts.`);
+console.log(`Sleeping heart rate: ${sleepHr === 'floor' ? 'the night\'s floor' : 'Google\'s non-REM heart rate'}.\n`);
+console.log('Nothing logged');
+console.log(`  Cycles shown: ${pct(t.shown, t.rounds)} of rounds`);
+console.log(`  Period starts found within 3 days: ${pct(t.in3, t.starts)} (within 5: ${pct(t.in5, t.starts)})`);
+console.log(`  Found starts that were real: ${pct(t.real, t.found)} of ${t.found}`);
+console.log(`  Second half within 3 days: ${pct(t.endedIn3, t.ended)} of ${t.ended} finished cycles\n`);
+console.log('First period logged');
+console.log(`  Later period starts found within 3 days: ${pct(t.laterIn3, t.later)} (within 5: ${pct(t.laterIn5, t.later)})\n`);
+console.log('Every period logged');
+console.log(`  Second half within 3 days: ${pct(t.loggedIn3, t.logged)} of ${t.logged} cycles\n`);
+console.log(`Made-up people without cycles who see one anyway: ${falseCycles.join(', ')}. The limit is 5%.`);
