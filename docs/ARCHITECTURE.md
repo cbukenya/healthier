@@ -239,7 +239,7 @@ Google Health lets apps add periods but not read them back, so cycles are found 
 - **Sleeping heart rate is the night's floor:** the tenth percentile of the one-minute heart rate
   during the main sleep (`src/pipeline/sleepHrFloor.ts`). The luteal phase lifts the body's floor,
   and the floor shows it more clearly than Google's non-REM average does: on mcPHASES the finder
-  placed 52% of period starts within 3 days with the floor against 37% with the average. The
+  finds 33% of period starts within 3 days with the floor against 24% with the average. The
   server computes it after each sync from the minutes it fetches, for every night with a main
   sleep (the one the person's choice of device reads) and at least half its minutes recorded, and stores it as the stream
   `sleep-heart-rate-floor`, so it outlives the minute data. Older nights are filled in by the history
@@ -260,7 +260,9 @@ Google Health lets apps add periods but not read them back, so cycles are found 
 - **Only when they stand out.** With nothing logged, found starts are shown only when their mean
   score clears a bar set on simulated people without cycles. The simulation used the noise
   mcPHASES shows once its cycles are taken out, and the bar lets at most 1 in 20 such people see
-  a cycle. A period logged within the nights shows there are cycles, and lifts the bar.
+  a cycle. Real nights are harder: shuffled a week at a time, which keeps their noise and breaks
+  their monthly rhythm, 11% of mcPHASES's stretches still show cycles. A period logged within the
+  nights shows there are cycles, and lifts the bar.
 - **The second half's start** is counted back 11 days from the next start, the usual length of
   the second half in mcPHASES, which changes little from one cycle to the next. That lands within
   3 days of the hormone-marked day more often than matching the nights' shapes does: in 81% of
@@ -268,15 +270,19 @@ Google Health lets apps add periods but not read them back, so cycles are found 
   way, it's counted back from the day the next period is likely, once that day has come.
 - **The next period** is a range from the last six cycles' lengths, once there are three. With two,
   it's an early guess: their lengths, two days wider either side.
-- **How accurate.** On mcPHASES with nothing logged, cycles show for 63% of three-month stretches.
-  52% of starts are found within 3 days and 56% within 5, and 77% of the starts shown are real.
-  With the first period logged, 67% of the later starts are within 3 days and 79% within 5. Of
-  the ended cycles shown, 53% have their second half within 3 days of the hormone-marked one (78%
-  with every period logged). Each person is scored with shapes made without their own nights, and
-  the sleeping heart rate is the night's floor, computed from mcPHASES's minute heart rate the
-  way the server computes it. With Google's non-REM heart rate instead, 37% of starts are within 3
-  days and cycles show for 50% of stretches. A strong fever just after a period can pull a start a
-  few days early.
+- **How accurate.** `npm run eval:cycles` measures it on mcPHASES (`scripts/cycle-eval`). Each
+  person is scored with shapes made without their own nights, each study stretch is read with the
+  nights the app would have on its last day, and the sleeping heart rate is the night's floor,
+  computed by the server's own code.
+  - With nothing logged, cycles show for 42% of three-month stretches. 33% of starts are found
+    within 3 days and 36% within 5, and 77% of the starts shown are real. Of the ended cycles
+    shown, 81% have their second half within 3 days of the hormone-marked one.
+  - With the first period logged, 68% of the later starts are found within 3 days and 80% within
+    5. 81% show within a week of the start, a median of 2 days after it.
+  - With every period logged, 79% of second halves are within 3 days of the hormone-marked one.
+  - With Google's non-REM heart rate instead of the floor, 24% of starts are found within 3 days,
+    and cycles show for 31% of stretches.
+  - A strong fever just after a period can pull a start a few days early.
 - **Logs win.** A logged or confirmed start beats a found one nearby and counts twice as much in the
   typical cycle. Only logged periods have a length.
 - **Older nights** come from history queries grouped by day, 240 days back.
