@@ -21,8 +21,8 @@ interface BodyBatteryProps {
 
 /**
  * One colour per tier: for This week's bars (fill), for the charge that fills the figure and its
- * rail (body, the same in both themes) and for the tier's name beside it (ink, the same colour in
- * dark, a shade darker in light so it reads on white). Also its name and the
+ * rail (body, the same in both themes) and for the tier's name beside it and by the title (ink, the
+ * same colour in dark, a shade darker in light so it reads on white). Also its name and the
  * figure's label for a screen reader (a whole sentence per tier, so a language can inflect the name
  * in it); the thresholds themselves live in BATTERY_TIERS.
  */
@@ -71,10 +71,21 @@ function batteryText({ score, confidence, missing, calibrating }: Pick<BodyBatte
   ].filter(Boolean).join(' · ');
   return {
     tier,
-    // The rail beside the figure names the tier, so the title only speaks up when there's no score.
-    noData: tier ? null : t('today.battery.noData'),
+    // The tier by the title, in its own colour; before there's a score, a grey note instead.
+    status: tier
+      ? { text: t(TIER_STYLE[tier.tag].name), color: TIER_STYLE[tier.tag].ink }
+      : { text: t('today.battery.noData'), color: 'var(--color-zinc-500)' },
     basis,
   };
+}
+
+/** The tier by the title, in capitals and its colour: BALANCED. */
+function TierWord({ status, className = '' }: { status: { text: string; color: string }; className?: string }) {
+  return (
+    <span className={`font-sans text-tag uppercase ${className}`} style={{ color: status.color }}>
+      {status.text}
+    </span>
+  );
 }
 
 const TOP = 9;
@@ -227,10 +238,10 @@ export function BodyBattery({ score, parts, confidence, label, missing, calibrat
     <div className={`bg-card border border-card-edge rounded-[28px] p-[30px_24px] md:p-[44px_48px_40px] w-full max-w-[920px] mx-auto ${className}`}>
       <div className="grid grid-cols-1 md:grid-cols-[minmax(280px,1fr)_minmax(300px,440px)] gap-3 items-start">
         <div>
-          {/* A card title, as This week's is. */}
-          <h1 className="card-title-detail flex items-baseline gap-2.5 flex-wrap text-zinc-50">
+          {/* A card title, as This week's is, with the tier to its right. */}
+          <h1 className="card-title-detail flex items-baseline gap-3 flex-wrap text-zinc-50">
             {t('today.battery.title')}
-            {z.noData && <span className="font-sans text-tag text-zinc-500">{z.noData}</span>}
+            <TierWord status={z.status} />
           </h1>
           <p className="mt-[18px] text-lead text-zinc-400 max-w-[30ch]">
             {t('today.battery.composition', { days: BASELINE_DAYS })}
@@ -279,11 +290,11 @@ export function BodyBatteryCompact({ score, parts, confidence, label, missing, c
 
   return (
     <section aria-label={t('today.battery.title')} className={`bg-card border border-card-edge rounded-[24px] p-5 flex flex-col gap-4 ${className}`}>
-      {/* A card title, as This week's is. */}
-      <h1 className="card-title-detail flex items-baseline gap-2.5 flex-wrap text-zinc-50">
-        {t('today.battery.title')}
-        {z.noData && <span className="font-sans text-tag text-zinc-500">{z.noData}</span>}
-      </h1>
+      {/* A card title, as This week's is, with the tier under it. */}
+      <div>
+        <h1 className="card-title-detail text-zinc-50">{t('today.battery.title')}</h1>
+        <TierWord status={z.status} className="block mt-0.5" />
+      </div>
 
       {/* Always side by side, never the figure under the score: the score keeps the room it needs and the figure shrinks into what's left. */}
       <div className="flex items-center gap-2.5">

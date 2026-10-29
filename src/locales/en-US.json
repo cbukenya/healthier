@@ -840,7 +840,7 @@
           "figure": "Body battery at {score}, in the Drained stage"
         }
       },
-      "noData": "[NO DATA]",
+      "noData": "No data",
       "composition": "Composed from HRV, resting heart rate, holistic sleep score & architecture against your personal {days}-day baselines, and multi-day ACWR training load.",
       "outOf": "/ 100",
       "noReadingsSince": "No readings since {date}",
