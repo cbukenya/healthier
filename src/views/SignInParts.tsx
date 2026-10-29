@@ -1,15 +1,31 @@
-import React, { useCallback, useId, useState } from 'react';
+import React, { useCallback, useId, useState, type ReactNode } from 'react';
 import { Info } from 'lucide-react';
 import { t } from '../i18n';
+import { rich } from '../i18n/react';
 import { linkify } from '../lib/linkify';
 import { Sheet } from '../ui/Sheet';
 
+/** How Healthier uses the data it reads, a point at a time. */
+const DATA_POINTS = ['reads', 'uses', 'keeps', 'delete'] as const;
+
+const LINK = 'text-zinc-200 underline decoration-zinc-600 underline-offset-2 hover:decoration-zinc-300';
+
+/** A web link on the sign-in screen: it opens beside it, so the screen stays where it was. */
+function WebLink({ href, children }: { href: string; children: ReactNode }) {
+  return (
+    <a href={href} target="_blank" rel="noopener noreferrer" className={LINK}>
+      {children}
+    </a>
+  );
+}
+
 /**
- * The sign-in card's info button and what it opens: how Healthier uses the data it reads, and that
- * it's for general wellness only. Google asks for this disclosure in the app itself for the Health
- * API's restricted scopes, so it stays one tap from the sign-in screen.
+ * The sign-in card's info button and what it opens: how Healthier uses the data it reads, the
+ * install's privacy notice if it has one, and that it's for general wellness only. Google asks for
+ * this disclosure in the app itself for the Health API's restricted scopes, so it stays one tap
+ * from the sign-in screen.
  */
-export function AboutYourData() {
+export function AboutYourData({ privacy }: { privacy: string | null }) {
   const [open, setOpen] = useState(false);
   const close = useCallback(() => setOpen(false), []);
   const titleId = useId();
@@ -27,11 +43,40 @@ export function AboutYourData() {
       {open && (
         <Sheet labelledBy={titleId} onClose={close}>
           <h2 id={titleId} className="pr-12 font-display text-headline text-zinc-50">{t('app.signIn.about')}</h2>
-          <p className="mt-3 text-body-sm leading-relaxed text-zinc-300">{t('app.signIn.disclosure')}</p>
-          <p className="mt-3 text-detail leading-relaxed text-zinc-500">{t('app.signIn.wellness')}</p>
+          <ul className="mt-4 space-y-3 text-body-sm leading-relaxed text-zinc-300">
+            {DATA_POINTS.map((point) => (
+              <li key={point} className="flex gap-3">
+                <span aria-hidden="true" className="mt-2 size-1.5 shrink-0 rounded-full bg-zinc-500" />
+                {t(`app.signIn.data.${point}`)}
+              </li>
+            ))}
+          </ul>
+          {privacy && (
+            <p className="mt-4 text-body-sm">
+              <WebLink href={privacy}>{t('app.signIn.data.privacy')}</WebLink>
+            </p>
+          )}
+          <p className="mt-4 pt-4 border-t border-zinc-800 text-detail leading-relaxed text-zinc-500">{t('app.signIn.wellness')}</p>
         </Sheet>
       )}
     </>
+  );
+}
+
+/**
+ * Under the sign-in buttons, when the install has them (TERMS_URL, PRIVACY_URL): connecting means
+ * accepting its terms and privacy notice, each a link.
+ */
+export function SignInConsent({ terms, privacy }: { terms: string | null; privacy: string | null }) {
+  if (!terms && !privacy) return null;
+  const key = terms && privacy ? 'app.signIn.consent.both' : terms ? 'app.signIn.consent.terms' : 'app.signIn.consent.privacy';
+  return (
+    <p className="mt-4 text-detail leading-relaxed text-zinc-500">
+      {rich(key, {
+        terms: (words) => (terms ? <WebLink href={terms}>{words}</WebLink> : words),
+        privacy: (words) => (privacy ? <WebLink href={privacy}>{words}</WebLink> : words),
+      })}
+    </p>
   );
 }
 
@@ -40,20 +85,16 @@ export function SignInNote({ note }: { note: string }) {
   return (
     <p className="mt-6 pt-5 border-t border-zinc-800 text-detail leading-relaxed text-zinc-400">
       {linkify(note).map((run, i) => {
+        if (!run.href) return <React.Fragment key={i}>{run.text}</React.Fragment>;
         // A web link opens beside the sign-in screen; an address opens the mail app.
-        const web = !!run.href && !run.href.startsWith('mailto:');
-        return run.href ? (
-          <a
-            key={i}
-            href={run.href}
-            target={web ? '_blank' : undefined}
-            rel={web ? 'noopener noreferrer' : undefined}
-            className="text-zinc-200 underline decoration-zinc-600 underline-offset-2 hover:decoration-zinc-300"
-          >
+        return run.href.startsWith('mailto:') ? (
+          <a key={i} href={run.href} className={LINK}>
             {run.text}
           </a>
         ) : (
-          <React.Fragment key={i}>{run.text}</React.Fragment>
+          <WebLink key={i} href={run.href}>
+            {run.text}
+          </WebLink>
         );
       })}
     </p>

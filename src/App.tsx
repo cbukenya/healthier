@@ -28,7 +28,7 @@ import { VitalsView } from './views/VitalsView';
 import { BodyView } from './views/BodyView';
 import { SettingsView, type SectionId } from './views/SettingsView';
 import { LabsView } from './views/LabsView';
-import { AboutYourData, GoogleG, SignInNote } from './views/SignInParts';
+import { AboutYourData, GoogleG, SignInConsent, SignInNote } from './views/SignInParts';
 
 export default function App() {
   const { user, needsReconnect, theme, ready, signIn, signOut, deleteAccount, reload } = useAuth();
@@ -139,7 +139,7 @@ export default function App() {
     return themed(
       <div className="min-h-screen flex items-center justify-center p-6">
         <div className="relative max-w-md w-full p-8 rounded-2xl bg-card border border-card-edge shadow-2xl">
-          <AboutYourData />
+          <AboutYourData privacy={instance.privacy} />
           <img src="/logo.svg" alt="" width={48} height={48} className="mb-6" />
           <h1 className="font-wordmark text-display text-white mb-2">{t('app.name')}</h1>
           <p className="text-body text-zinc-400 mb-8 leading-relaxed">
@@ -171,6 +171,7 @@ export default function App() {
               </button>
             )}
           </div>
+          <SignInConsent terms={instance.terms} privacy={instance.privacy} />
           {instance.note && <SignInNote note={instance.note} />}
         </div>
       </div>
