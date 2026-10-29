@@ -278,16 +278,14 @@ export function entropyShift(days: DailyRecord[]): EntropyShift {
   };
 }
 
-/** One session's minute-level heart rate, in minutes since bedtime, with its stretches above 100 bpm. */
-export interface NightTrace {
-  /** The day the session is filed under. */
+/** One day of the scanned window, its night and any naps together. */
+export interface TachyNight {
+  /** The day the sleep is filed under. */
   date: string;
-  isNap: boolean;
-  bedtimeMin: number;
-  wakeMin: number;
-  durationMin: number;
-  points: { min: number; bpm: number }[];
-  stretches: { from: number; to: number }[];
+  /** The highest heart rate held for ten minutes in a row while asleep; null when it wasn't scanned. */
+  bpm: number | null;
+  /** Whether it had a stretch above 100 bpm. */
+  above: boolean;
 }
 
 export interface TachycardiaEvent {
@@ -318,16 +316,12 @@ export function nocturnalTachycardia(days: DailyRecord[], intraday: IntradayDays
   nightsScanned: number;
   events: TachycardiaEvent[];
   highestSustained: { bpm: number; minutes: number } | null;
-  /** One scanned session to draw: the latest with a stretch, else the latest night. */
-  trace: NightTrace | null;
+  /** Every day from the first scanned to the latest, so the whole window can be drawn. */
+  nights: TachyNight[];
 } {
   const MAX_GAP_MS = 2 * 60_000;
   const events: TachycardiaEvent[] = [];
-  const scannedDates = new Set<string>();
-  type Scanned = { dayDate: string; session: SleepSession; isNap: boolean; startMs: number; endMs: number; samples: { s: IntradaySample; t: number }[]; stretches: { from: number; to: number }[] };
-  let latestWithStretch: Scanned | null = null;
-  let latestNight: Scanned | null = null;
-  let latestAny: Scanned | null = null;
+  const scanned = new Map<string, { bpm: number | null; above: boolean }>();
 
   const validSamples = (date: string): IntradaySample[] =>
     (intraday[date] ?? []).filter((s) => s && typeof s.value === 'number' && !isNaN(s.value));
@@ -353,7 +347,6 @@ export function nocturnalTachycardia(days: DailyRecord[], intraday: IntradayDays
 
     const windowMin = (endMs - startMs) / 60_000;
     if (samples.length < windowMin * 0.5) continue;
-    scannedDates.add(dayDate);
 
     const stageAt = (ms: number) => {
       const offset = (ms - startMs) / 60_000;
@@ -362,7 +355,7 @@ export function nocturnalTachycardia(days: DailyRecord[], intraday: IntradayDays
     const from = formatClock(session.bedtimeMin);
     const to = formatClock(session.wakeMin);
     const sleepWindow = t('labs.tachy.events.window', { kind: isNap ? 'nap' : 'night', from, to });
-    const stretches: { from: number; to: number }[] = [];
+    let stretches = 0;
 
     let run: { s: IntradaySample; t: number }[] = [];
     const close = () => {
@@ -371,7 +364,7 @@ export function nocturnalTachycardia(days: DailyRecord[], intraday: IntradayDays
         const last = run[run.length - 1];
         const peak = run.reduce((a, b) => (b.s.value > a.s.value ? b : a));
         const stage = stageAt(peak.t);
-        stretches.push({ from: (first.t - startMs) / 60_000, to: (last.t - startMs) / 60_000 });
+        stretches++;
         events.push({
           date: first.s.date || dayDate,
           startMin: first.s.minutesOfDay,
@@ -386,35 +379,45 @@ export function nocturnalTachycardia(days: DailyRecord[], intraday: IntradayDays
       run = [];
     };
 
+    // Also the highest heart rate held for ten minutes in a row: the lowest of each ten readings in
+    // a row, at its best. Gaps and awake minutes break it as they end a stretch, so it's above
+    // 100 bpm exactly when the session has a stretch.
+    let held: number | null = null;
+    let lastTen: { s: IntradaySample; t: number }[] = [];
     for (const item of samples) {
       const awake = stageAt(item.t) === 'awake';
       const gap = run.length > 0 && item.t - run[run.length - 1].t > MAX_GAP_MS;
       if (gap || awake || item.s.value <= 100) close();
       if (!awake && item.s.value > 100) run.push(item);
+
+      if (awake || (lastTen.length > 0 && item.t - lastTen[lastTen.length - 1].t > MAX_GAP_MS)) lastTen = [];
+      if (awake) continue;
+      lastTen.push(item);
+      if (lastTen.length > 10) lastTen.shift();
+      if (lastTen.length === 10) {
+        const low = Math.min(...lastTen.map((x) => x.s.value));
+        held = held === null ? low : Math.max(held, low);
+      }
     }
     close();
 
-    // Sessions run in date order, so the last one seen of each kind is the latest.
-    const scanned: Scanned = { dayDate, session, isNap, startMs, endMs, samples, stretches };
-    latestAny = scanned;
-    if (!isNap) latestNight = scanned;
-    if (stretches.length) latestWithStretch = scanned;
+    // A day's night and naps are drawn together, at the higher of them.
+    const day = scanned.get(dayDate) ?? { bpm: null, above: false };
+    scanned.set(dayDate, {
+      bpm: held === null ? day.bpm : Math.max(day.bpm ?? 0, Math.round(held)),
+      above: day.above || stretches > 0,
+    });
   }
 
   const highest = events.length ? events.reduce((a, b) => (a.peakBpm > b.peakBpm ? a : b)) : null;
-  const nightsScanned = scannedDates.size;
-  const drawn: Scanned | null = latestWithStretch ?? latestNight ?? latestAny;
-  const trace: NightTrace | null = drawn && {
-    date: drawn.dayDate,
-    isNap: drawn.isNap,
-    bedtimeMin: drawn.session.bedtimeMin,
-    wakeMin: drawn.session.wakeMin,
-    durationMin: (drawn.endMs - drawn.startMs) / 60_000,
-    points: drawn.samples.map(({ s, t: ms }) => ({ min: (ms - drawn.startMs) / 60_000, bpm: s.value })),
-    stretches: drawn.stretches,
-  };
+  const nightsScanned = scanned.size;
+  const dates = [...scanned.keys()].sort();
+  const nights: TachyNight[] = [];
+  for (let date = dates[0]; date && date <= dates[dates.length - 1]; date = addDays(date, 1)) {
+    nights.push({ date, ...(scanned.get(date) ?? { bpm: null, above: false }) });
+  }
   return {
-    trace,
+    nights,
     status: nightsScanned > 0 && events.length > 0 ? 'events' : nightsScanned > 0 ? 'monitor' : 'collecting',
     nightsScanned,
     events,

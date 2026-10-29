@@ -3,8 +3,8 @@ import { Bell, BellOff, ChevronDown, ChevronRight, CircleCheck, CircleDashed, Cl
 import type { SyncResult } from '../pipeline/sync';
 import {
   completedIntradayDays, dipping, entropyShift, illnessDates, nocturnalTachycardia, sdbScreen, strainToday,
-  type DipCategory, type EntropyShift, type IntradayDays, type NightTrace, type SdbNight, type StrainKey, type StrainSignal, type StrainToday,
-  type TachycardiaEvent,
+  type DipCategory, type EntropyShift, type IntradayDays, type SdbNight, type StrainKey, type StrainSignal, type StrainToday,
+  type TachycardiaEvent, type TachyNight,
 } from '../pipeline/labs';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 import { useCycle } from '../hooks/useCycle';
@@ -44,11 +44,11 @@ interface Lab {
   tone: Tone;
   mark: Mark;
   chip: string;
-  /** The status line on the phone tiles and the desktop glance tiles. */
+  /** Where the lab stands, in a sentence under a tile's graph, on phones and on desktop. */
   glance: string;
   /** Something was found: its callout says what, so the Watches / Lights up box steps aside. */
   found: boolean;
-  /** The card's picture, cut down to sit under the status line of a tile. */
+  /** The card's picture, cut down to sit in a tile. */
   graph: React.ReactNode;
   parts: React.ReactNode;
 }
@@ -378,8 +378,9 @@ function sdbLab(days: Days): Lab {
 
   if (r.status === 'pattern') {
     const chip = t('labs.sdb.pattern.chip', { count: r.firedCount });
+    const glance = t('labs.sdb.pattern.glance', { count: r.firedCount });
     return {
-      ...base, tone: 'found', mark: 'found', chip, glance: chip, found: true,
+      ...base, tone: 'found', mark: 'found', chip, glance, found: true,
       parts: (
         <>
           <Answer text={t('labs.sdb.pattern.text', { count: r.firedCount })} />
@@ -523,8 +524,9 @@ function strainLab(days: Days, cycleDays: Days | null): Lab {
   }
   if (r.level === 'high') {
     const chip = t('labs.strain.high.chip', { count: r.off });
+    const glance = t('labs.strain.high.glance', { count: r.off });
     return {
-      ...base, tone: 'found', mark: 'found', chip, glance: chip, found: true,
+      ...base, tone: 'found', mark: 'found', chip, glance, found: true,
       parts: (
         <>
           <Answer text={t('labs.strain.high.text', { count: r.off })} />
@@ -536,7 +538,7 @@ function strainLab(days: Days, cycleDays: Days | null): Lab {
   }
   if (r.level === 'elevated') {
     return {
-      ...base, tone: 'wait', mark: 'notice', chip: t('labs.strain.elevated.chip'), glance: t('labs.strain.elevated.chip'), found: true,
+      ...base, tone: 'wait', mark: 'notice', chip: t('labs.strain.elevated.chip'), glance: t('labs.strain.elevated.glance'), found: true,
       parts: (
         <>
           <Answer
@@ -593,8 +595,9 @@ function irnLab(data: SyncResult): Lab {
 
   if (events.length) {
     const text = t('labs.irn.reported.text', { count: events.length });
+    const glance = t('labs.irn.reported.glance', { count: events.length });
     return {
-      ...base, tone: 'wait', mark: 'reported', chip: t('labs.irn.reported.chip'), glance: text, found: true, graph: <IrnStrip days={days} compact />,
+      ...base, tone: 'wait', mark: 'reported', chip: t('labs.irn.reported.chip'), glance, found: true, graph: <IrnStrip days={days} compact />,
       parts: (
         <>
           <Answer text={text} />
@@ -607,13 +610,13 @@ function irnLab(data: SyncResult): Lab {
   }
   if (!synced) {
     return {
-      ...base, tone: 'wait', mark: 'unsynced', chip: t('labs.irn.unsynced.chip'), glance: t('labs.irn.unsynced.chip'), found: false,
+      ...base, tone: 'wait', mark: 'unsynced', chip: t('labs.irn.unsynced.chip'), glance: t('labs.irn.unsynced.text'), found: false,
       graph: <IrnStrip days={days} ghost compact />,
       parts: <><Answer text={t('labs.irn.unsynced.text')} sub={t('labs.irn.unsynced.sub')} /><IrnStrip days={days} ghost /></>,
     };
   }
   return {
-    ...base, tone: 'neutral', mark: 'none', chip: t('labs.irn.none.chip'), glance: t('labs.irn.none.chip'), found: false, graph: <IrnStrip days={days} compact />,
+    ...base, tone: 'neutral', mark: 'none', chip: t('labs.irn.none.chip'), glance: t('labs.irn.none.glance'), found: false, graph: <IrnStrip days={days} compact />,
     parts: <><Answer text={t('labs.irn.none.text')} sub={t('labs.irn.none.sub', { count: days.length })} /><IrnStrip days={days} /></>,
   };
 }
@@ -733,7 +736,7 @@ function dipLab(days: Days, intraday: IntradayDays, judged: Days | null): Lab {
       ? t('labs.dip.answer.higher', { value: -median })
       : median === 0 ? t('labs.dip.answer.flat') : t('labs.dip.answer.drops', { value: median });
     return {
-      ...base, tone: 'found', mark: 'found', chip, glance: r.riser ? chip : t('labs.dip.pattern.glance', { median }), found: true,
+      ...base, tone: 'found', mark: 'found', chip, glance: r.riser ? t('labs.dip.pattern.glanceHigher') : t('labs.dip.pattern.glance', { median }), found: true,
       graph: <Corridor median={median} rose compact />,
       parts: (
         <>
@@ -751,7 +754,7 @@ function dipLab(days: Days, intraday: IntradayDays, judged: Days | null): Lab {
   const label = t(DROP_LABEL[r.category]);
   const band = r.category === 'extreme-dipper' ? 'large' : 'typical';
   return {
-    ...base, tone: 'quiet', mark: 'quiet', chip: label, glance: t('labs.dip.quiet.glance', { label, median }), found: false,
+    ...base, tone: 'quiet', mark: 'quiet', chip: label, glance: t('labs.dip.quiet.glance', { band, median }), found: false,
     graph: <Corridor median={median} compact />,
     parts: (
       <>
@@ -867,9 +870,10 @@ function entropyLab(days: Days): Lab {
   }
   if (r.status === 'shift') {
     const chip = t('labs.entropy.shift.chip', { count: r.shiftNights });
+    const glance = t('labs.entropy.shift.glance', { count: r.shiftNights });
     const below = r.recent[r.recent.length - 1].side < 0;
     return {
-      ...base, tone: 'found', mark: 'found', chip, glance: chip, found: true,
+      ...base, tone: 'found', mark: 'found', chip, glance, found: true,
       parts: (
         <>
           <Answer text={t('labs.entropy.shift.text', { side: below ? 'below' : 'above', count: r.shiftNights })} />
@@ -901,59 +905,45 @@ function entropyLab(days: Days): Lab {
 /** 40 bpm at the bottom of an h-unit box and 120 at the top, so 100 bpm sits a quarter of the way down. */
 const bpmY = (bpm: number, h = 40) => h - ((Math.min(Math.max(bpm, 40), 120) - 40) / 80) * h;
 
-/** Polylines through the trace, broken wherever readings are more than five minutes apart. */
-function traceLines(trace: NightTrace, xOf: (min: number) => number, yOf: (bpm: number) => number, from = -Infinity, to = Infinity): string[] {
-  const lines: string[] = [];
-  let current: string[] = [];
-  let prev: number | null = null;
-  for (const p of trace.points) {
-    if (p.min < from || p.min > to) continue;
-    if (prev !== null && p.min - prev > 5) {
-      if (current.length > 1) lines.push(current.join(' '));
-      current = [];
-    }
-    current.push(`${xOf(p.min).toFixed(1)},${yOf(p.bpm).toFixed(1)}`);
-    prev = p.min;
-  }
-  if (current.length > 1) lines.push(current.join(' '));
-  return lines;
-}
-
-function NightTraceChart({ trace, compact = false }: { trace: NightTrace; compact?: boolean }) {
-  const H = compact ? 22 : 40;
-  const X = (min: number) => (min / trace.durationMin) * 1000;
-  const Y = (bpm: number) => bpmY(bpm, H);
-  const what = trace.isNap ? 'nap' : 'night';
+/**
+ * Every day of the scanned window at its highest heart rate held for ten minutes while asleep,
+ * against the 100 bpm line. The days with a stretch sit above it, in rose; a day that wasn't
+ * scanned leaves a gap.
+ */
+function NightsChart({ nights, compact = false }: { nights: TachyNight[]; compact?: boolean }) {
+  const [ref, W] = useWidth<HTMLDivElement>();
+  const H = compact ? 28 : 66;
+  const pad = compact ? 3 : 6;
+  const y = (bpm: number) => pad + bpmY(bpm, H - 2 * pad);
+  const inset = compact ? 4 : 8;
+  const x = (i: number) => (nights.length === 1 ? W / 2 : inset + i * ((W - 2 * inset) / (nights.length - 1)));
+  const scanned = nights.filter((n) => n.bpm !== null).length;
+  const above = nights.filter((n) => n.above).length;
   return (
     <div aria-hidden={compact || undefined}>
-      <svg
-        viewBox={`0 0 1000 ${H}`} preserveAspectRatio="none" width="100%" height={H} className={`block ${compact ? 'rounded' : 'rounded-md'} bg-panel-raised`}
-        role={compact ? undefined : 'img'}
-        aria-label={compact ? undefined : t('labs.tachy.trace.aria', { kind: what, date: formatCivilLong(trace.date), count: trace.stretches.length })}
-      >
-        {trace.stretches.map((s, i) => (
-          <rect key={i} x={X(s.from)} y={0} width={Math.max(X(s.to) - X(s.from), 3)} height={H} fill={HEX.rose} opacity={0.14} />
-        ))}
-        <line x1={0} x2={1000} y1={Y(100)} y2={Y(100)} stroke={HEX.rose} strokeOpacity={0.45} strokeDasharray={compact ? '3 3' : '4 4'} vectorEffect="non-scaling-stroke" />
-        {traceLines(trace, X, Y).map((pts, i) => (
-          <polyline key={i} points={pts} fill="none" stroke={HEX.zinc500} strokeWidth={compact ? 1.1 : 1.5} strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
-        ))}
-        {trace.stretches.flatMap((s, i) => traceLines(trace, X, Y, s.from, s.to).map((pts, j) => (
-          <polyline key={`${i}-${j}`} points={pts} fill="none" stroke={HEX.rose} strokeWidth={compact ? 1.6 : 2} strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
-        )))}
-      </svg>
-      <Ends
-        compact={compact} left={formatClock(trace.bedtimeMin)}
-        mid={t('labs.tachy.trace.mid', { kind: what, date: formatCivilLong(trace.date) })} right={formatClock(trace.wakeMin)}
-      />
+      <div ref={ref} style={{ height: H }}>
+        {W > 0 && (
+          <svg
+            width={W} height={H} className={`block ${compact ? 'rounded' : 'rounded-md'} bg-panel-raised`}
+            role={compact ? undefined : 'img'} aria-label={compact ? undefined : t('labs.tachy.nights.aria', { count: scanned, above })}
+          >
+            <line x1={0} x2={W} y1={y(100)} y2={y(100)} stroke={HEX.rose} strokeOpacity={0.45} strokeDasharray={compact ? '3 3' : '4 4'} />
+            {nights.map((n, i) => n.bpm !== null && (
+              <circle
+                key={n.date} cx={x(i)} cy={y(n.bpm)}
+                r={n.above ? (compact ? 2.6 : 3.4) : (compact ? 1.4 : 2.2)} fill={n.above ? HEX.rose : HEX.zinc500}
+              />
+            ))}
+          </svg>
+        )}
+      </div>
+      <Ends compact={compact} left={formatCivil(nights[0].date)} right={formatCivil(nights[nights.length - 1].date)} />
       {!compact && (
-        <div className="mt-2">
+        <div className="mt-1.5">
           <Keys items={[
-            [<span className="w-3.5 border-t border-dashed border-rose-400/60" />, t('labs.tachy.trace.keys.line')],
-            [<span className="w-3.5 h-0.5 rounded-full bg-zinc-500" />, t('labs.tachy.trace.keys.hr')],
-            ...(trace.stretches.length
-              ? [[<span className="w-3.5 h-0.5 rounded-full bg-rose-400" />, t('labs.tachy.trace.keys.above')] as [React.ReactNode, string]]
-              : []),
+            [<span className="w-3.5 border-t border-dashed border-rose-400/60" />, t('labs.tachy.nights.keys.line')],
+            [<Dot className="bg-zinc-500" />, t('labs.tachy.nights.keys.held')],
+            ...(above ? [[<Dot className="bg-rose-400" />, t('labs.tachy.nights.keys.above')] as [React.ReactNode, string]] : []),
           ]} />
         </div>
       )}
@@ -1013,9 +1003,8 @@ function EventRows({ events }: { events: TachycardiaEvent[] }) {
 function tachyLab(days: Days, intraday: IntradayDays): Lab {
   const r = nocturnalTachycardia(days, intraday);
   const base = { key: 'tachy' as const, title: t('labs.tachy.title'), gloss: t('labs.tachy.gloss') };
-  const trace = r.trace;
 
-  if (r.status === 'collecting' || !trace) {
+  if (r.status === 'collecting' || !r.nights.length) {
     const collected = Math.min(completedIntradayDays(intraday).length, 7);
     return {
       ...base, tone: 'wait', mark: 'collecting', chip: t('labs.tachy.collecting.chip'), glance: t('labs.tachy.collecting.glance', { done: collected }), found: false,
@@ -1034,18 +1023,19 @@ function tachyLab(days: Days, intraday: IntradayDays): Lab {
     };
   }
 
-  const graph = <NightTraceChart trace={trace} compact />;
+  const graph = <NightsChart nights={r.nights} compact />;
   if (r.status === 'events') {
     const n = r.events.length;
     const longest = r.events.reduce((a, e) => Math.max(a, e.durationMin), 0);
     const peak = Math.max(...r.events.map((e) => e.peakBpm));
     const chip = t('labs.tachy.events.chip', { count: n, nights: r.nightsScanned });
+    const glance = t('labs.tachy.events.text', { count: n, nights: r.nightsScanned });
     return {
-      ...base, tone: 'found', mark: 'found', chip, glance: chip, found: true, graph,
+      ...base, tone: 'found', mark: 'found', chip, glance, found: true, graph,
       parts: (
         <>
           <Answer text={t('labs.tachy.events.text', { count: n, nights: r.nightsScanned })} />
-          <NightTraceChart trace={trace} />
+          <NightsChart nights={r.nights} />
           <EventRows events={r.events.slice(-6).reverse()} />
           <Callout>{rich('labs.tachy.events.callout', { count: n, nights: r.nightsScanned, b: lead })}</Callout>
           <Stats items={[
@@ -1061,7 +1051,7 @@ function tachyLab(days: Days, intraday: IntradayDays): Lab {
     parts: (
       <>
         <Answer text={t('labs.tachy.none.text')} sub={t('labs.tachy.none.sub', { count: r.nightsScanned })} />
-        <NightTraceChart trace={trace} />
+        <NightsChart nights={r.nights} />
         <Stats items={[[t('labs.tachy.stats.nights'), r.nightsScanned], [t('labs.tachy.stats.stretches'), 0]]} />
       </>
     ),
@@ -1095,18 +1085,23 @@ function Legend() {
   );
 }
 
-/** Icon, title and status line: the head of every tile. */
+/** Icon, title and what the lab looks at: the head of every tile. */
 function TileHead({ lab, chevron, center = false }: { lab: Lab; chevron: React.ReactNode; center?: boolean }) {
   return (
     <span className={`flex gap-3 ${center ? 'items-center' : ''}`}>
       <span className={`flex ${center ? '' : 'self-start'}`}><StatusIcon mark={lab.mark} /></span>
       <span className="flex-1 min-w-0">
         <span className="block card-title-detail text-zinc-50">{lab.title}</span>
-        <span className={`block mt-0.5 text-caption leading-snug ${GLANCE[lab.tone]}`}>{lab.glance}</span>
+        <span className="block mt-0.5 text-caption leading-snug text-zinc-500">{lab.gloss}</span>
       </span>
       {chevron}
     </span>
   );
+}
+
+/** Where the lab stands, under a tile's graph, in its tone's colour. */
+function TileGlance({ lab, className = '' }: { lab: Lab; className?: string }) {
+  return <span className={`block text-caption leading-snug ${GLANCE[lab.tone]} ${className}`}>{lab.glance}</span>;
 }
 
 function LabCard({ lab }: { lab: Lab }) {
@@ -1137,9 +1132,9 @@ function LabRow({ lab }: { lab: Lab }) {
         />
         {/* The full picture is in the card once the tile is open. */}
         <span className="block mt-2.5 group-open:hidden">{lab.graph}</span>
+        <TileGlance lab={lab} className="mt-2 group-open:hidden" />
       </summary>
       <div className="border-t border-zinc-800/80 pt-3 flex flex-col gap-3">
-        <p className="text-caption text-zinc-500">{lab.gloss}</p>
         {lab.parts}
         {!lab.found && <Spec k={lab.key} />}
         <HowItWorks k={lab.key} />
@@ -1162,6 +1157,7 @@ function Overview({ labs }: { labs: Lab[] }) {
         >
           <TileHead lab={lab} chevron={<ChevronRight size={14} aria-hidden className="self-start mt-0.5 shrink-0 text-zinc-600" />} />
           <span className="block mt-auto">{lab.graph}</span>
+          <TileGlance lab={lab} className="-mt-1" />
         </a>
       ))}
     </nav>
