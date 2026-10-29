@@ -11,7 +11,7 @@ import type { HealthTransport } from './transport';
  * Progesterone lifts the body's floor through the luteal phase, and the floor shows that lift more
  * clearly than the night's average does: on mcPHASES it moved by 0.8 of a night's noise between the
  * halves of a cycle, against 0.7 for the average over light and deep sleep (Google's non-REM
- * heart rate), and the finder placed 52% of period starts within 3 days with it against 37%.
+ * heart rate), and the finder finds 33% of period starts within 3 days with it against 24%.
  *
  * Healthier computes it on the server from the minute heart rate the window sync fetches, for every
  * night with a main sleep and at least half its minutes recorded, while cycle tracking is on. It is
