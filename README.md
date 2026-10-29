@@ -223,6 +223,8 @@ reference.
 | `HISTORY_DAYS` | no | Days of daily history kept and imported per user. Default `730` (62–3650). |
 | `DEMO_MODE` | no | Offer **Demo mode** on the sign-in screen. Default `true`; `false` hides it. |
 | `SIGN_IN_NOTE` | no | Your own note under the sign-in buttons, such as how to join. Plain text, up to 600 characters; email addresses and links in it become links. Empty shows none. |
+| `TERMS_URL` | no | The web address of your terms. When set, the sign-in screen says that connecting means accepting them, with a link. |
+| `PRIVACY_URL` | no | The web address of your privacy notice. When set, it's linked the same way, and from the sign-in screen's ⓘ. |
 
 ## Running behind a domain
 

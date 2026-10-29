@@ -22,6 +22,9 @@ export interface InstanceResponse {
   demo: boolean;
   /** The install's own note under the sign-in buttons (SIGN_IN_NOTE), in its own words; null for none. */
   note: string | null;
+  /** Web addresses of the install's terms (TERMS_URL) and privacy notice (PRIVACY_URL); null for none. */
+  terms: string | null;
+  privacy: string | null;
 }
 
 export interface MeResponse {

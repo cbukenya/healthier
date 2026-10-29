@@ -82,6 +82,20 @@ describe('config', () => {
     );
   });
 
+  it('reads the addresses of the terms and privacy notice, and takes only web addresses', () => {
+    const plain = loadConfig(VALID_ENV);
+    assert.equal(plain.termsUrl, null);
+    assert.equal(plain.privacyUrl, null);
+    const linked = loadConfig({ ...VALID_ENV, TERMS_URL: ' https://example.com/terms ', PRIVACY_URL: 'https://example.com/privacy' });
+    assert.equal(linked.termsUrl, 'https://example.com/terms');
+    assert.equal(linked.privacyUrl, 'https://example.com/privacy');
+    assert.throws(
+      () => loadConfig({ ...VALID_ENV, TERMS_URL: 'example.com/terms', PRIVACY_URL: 'javascript:alert(1)' }),
+      (err: unknown) =>
+        err instanceof ConfigError && err.invalid.some((m) => m.startsWith('TERMS_URL')) && err.invalid.some((m) => m.startsWith('PRIVACY_URL')),
+    );
+  });
+
   it('rejects malformed numbers and URLs', () => {
     assert.throws(
       () => loadConfig({ ...VALID_ENV, PORT: 'abc', APP_URL: 'localhost:3000', SYNC_INTERVAL_MINUTES: '-5' }),
@@ -91,11 +105,18 @@ describe('config', () => {
 });
 
 describe('instance', () => {
-  it("tells the sign-in screen whether demo mode is offered, and the install's note, before anyone signs in", async () => {
+  it("tells the sign-in screen whether demo mode is offered, and the install's note, terms and privacy notice, before anyone signs in", async () => {
     const app = express();
     app.use(cookieParser());
+    const config = loadConfig({
+      ...VALID_ENV,
+      DEMO_MODE: 'false',
+      SIGN_IN_NOTE: 'Email me to join.',
+      TERMS_URL: 'https://example.com/terms',
+      PRIVACY_URL: 'https://example.com/privacy',
+    });
     // No route here may reach the database without a session, so it isn't given one.
-    app.use('/api', apiRoutes({ config: loadConfig({ ...VALID_ENV, DEMO_MODE: 'false', SIGN_IN_NOTE: 'Email me to join.' }), db: {} as Db }));
+    app.use('/api', apiRoutes({ config, db: {} as Db }));
     const server = await new Promise<Server>((resolve) => {
       const s = app.listen(0, () => resolve(s));
     });
@@ -103,7 +124,12 @@ describe('instance', () => {
       const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}/api`;
       const instance = await fetch(`${base}/instance`);
       assert.equal(instance.status, 200);
-      assert.deepEqual(await instance.json(), { demo: false, note: 'Email me to join.' });
+      assert.deepEqual(await instance.json(), {
+        demo: false,
+        note: 'Email me to join.',
+        terms: 'https://example.com/terms',
+        privacy: 'https://example.com/privacy',
+      });
       assert.equal((await fetch(`${base}/me`)).status, 401, 'everything else still needs a session');
     } finally {
       server.close();

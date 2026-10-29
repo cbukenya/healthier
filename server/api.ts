@@ -25,7 +25,8 @@ export function apiRoutes(deps: Deps): Router {
 
   /** What this install offers, for the sign-in screen: it's read before anyone has signed in. */
   router.get('/instance', (req, res) => {
-    const body: InstanceResponse = { demo: deps.config.demoMode, note: deps.config.signInNote };
+    const { demoMode, signInNote, termsUrl, privacyUrl } = deps.config;
+    const body: InstanceResponse = { demo: demoMode, note: signInNote, terms: termsUrl, privacy: privacyUrl };
     res.json(body);
   });
 

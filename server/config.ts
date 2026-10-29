@@ -39,6 +39,9 @@ export interface Config {
   demoMode: boolean;
   /** This install's own note under the sign-in buttons, such as how to join; null for none. */
   signInNote: string | null;
+  /** Web addresses of this install's terms and privacy notice, linked from the sign-in screen; null for none. */
+  termsUrl: string | null;
+  privacyUrl: string | null;
 }
 
 export class ConfigError extends Error {
@@ -100,6 +103,14 @@ export function loadConfig(env: Env = process.env): Config {
     invalid.push(`SIGN_IN_NOTE must be at most ${MAX_SIGN_IN_NOTE} characters, got ${signInNote.length}`);
   }
 
+  const webAddress = (name: string) => {
+    const value = optional(name) ?? null;
+    if (value && !/^https?:\/\/\S+$/.test(value)) {
+      invalid.push(`${name} must be a web address starting with http:// or https://, got "${value}"`);
+    }
+    return value;
+  };
+
   let allowedEmails: AccessList | null = null;
   const rawAllowed = optional('ALLOWED_EMAILS');
   if (rawAllowed) {
@@ -123,6 +134,8 @@ export function loadConfig(env: Env = process.env): Config {
     allowedEmails,
     demoMode: flag('DEMO_MODE', true),
     signInNote,
+    termsUrl: webAddress('TERMS_URL'),
+    privacyUrl: webAddress('PRIVACY_URL'),
   };
 
   if (missing.length || invalid.length) throw new ConfigError(missing, invalid);
