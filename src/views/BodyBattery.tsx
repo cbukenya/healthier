@@ -79,10 +79,16 @@ function batteryText({ score, confidence, missing, calibrating }: Pick<BodyBatte
   };
 }
 
-/** The tier by the title, in capitals and its colour: BALANCED. */
+/**
+ * The tier by the title, in capitals and its colour, after a dot of the same colour: • BALANCED.
+ * The dot sits halfway up the capitals (DM Sans's are 0.7em tall), not halfway up a lower-case x.
+ */
 function TierWord({ status, className = '' }: { status: { text: string; color: string }; className?: string }) {
   return (
-    <span className={`font-sans text-tag uppercase ${className}`} style={{ color: status.color }}>
+    <span
+      className={`font-sans text-tag uppercase before:content-[''] before:inline-block before:size-1.5 before:mr-1.5 before:rounded-full before:bg-current before:align-[calc(0.35em_-_3px)] ${className}`}
+      style={{ color: status.color }}
+    >
       {status.text}
     </span>
   );
