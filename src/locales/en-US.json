@@ -62,7 +62,7 @@
   "app": {
     "name": "Healthier",
     "signIn": {
-      "intro": "Your health data, finally explained. Healthier is a personalized health and fitness dashboard that gives you traceable insights from your Google Health data.",
+      "intro": "Healthier is a personalized health and fitness dashboard that gives you traceable insights from your Google Health data.",
       "expired": "Your Google connection has expired or was revoked. Reconnect to resume syncing; your stored data is still here.",
       "cancelled": "Google sign-in was cancelled.",
       "notInvited": "This Healthier instance is invite-only, and that Google account is not on its list. Ask whoever runs it to add you.",
