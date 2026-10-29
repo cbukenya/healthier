@@ -1062,14 +1062,18 @@ function tachyLab(days: Days, intraday: IntradayDays): Lab {
 
 function Intro({ wide = false }: { wide?: boolean }) {
   return (
-    <header className={`px-1 ${wide ? 'max-w-3xl' : ''}`}>
-      <p className="text-body leading-normal text-zinc-400">
+    <header className={wide ? 'max-w-3xl' : ''}>
+      <p className="px-1 text-body leading-normal text-zinc-400">
         {rich('labs.intro.lead', { b: (w) => <b className="font-semibold text-zinc-50">{w}</b> })}
       </p>
-      <p className="mt-2 flex gap-2 text-caption leading-relaxed text-page-ink">
-        <Info size={14} aria-hidden className="shrink-0 mt-px text-zinc-400" />
-        <span>{t('labs.intro.disclaimer')}</span>
-      </p>
+      {/* A quiet card of its own: read once, then easy to pass over on the way to the labs. */}
+      <aside className="mt-3 flex gap-3 rounded-2xl border border-card-edge bg-panel px-4 py-3 text-caption leading-relaxed">
+        <Info size={16} aria-hidden className="shrink-0 mt-0.5 text-zinc-400" />
+        <div>
+          <p className="font-semibold text-zinc-200">{t('labs.intro.notice.title')}</p>
+          <p className="mt-0.5 text-zinc-400">{t('labs.intro.notice.text')}</p>
+        </div>
+      </aside>
     </header>
   );
 }

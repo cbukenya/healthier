@@ -1717,7 +1717,10 @@
   "labs": {
     "intro": {
       "lead": "Experimental views of <b>multi-week patterns in your wearable data</b>, each against your own usual range.",
-      "disclaimer": "Healthier is not a medical device: these cards don't detect, screen for or rule out any condition, and a quiet card isn't an all-clear. If you have symptoms or concerns, talk to a clinician."
+      "notice": {
+        "title": "Not a medical device",
+        "text": "These cards don't detect, screen for or rule out any condition, and a quiet card isn't an all-clear. If you have symptoms or concerns, talk to a clinician."
+      }
     },
     "overview": {
       "label": "Labs at a glance"
