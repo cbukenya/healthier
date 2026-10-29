@@ -1728,7 +1728,10 @@
   "labs": {
     "intro": {
       "lead": "Experimental views of <b>multi-week patterns in your wearable data</b>, each against your own usual range.",
-      "disclaimer": "Healthier is not a medical device: these cards don't detect, screen for or rule out any condition, and a quiet card isn't an all-clear. If you have symptoms or concerns, talk to a clinician."
+      "notice": {
+        "title": "Not a medical device",
+        "text": "These cards don't detect, screen for or rule out any condition, and a quiet card isn't an all-clear. If you have symptoms or concerns, talk to a clinician."
+      }
     },
     "overview": {
       "label": "Labs at a glance"
@@ -1746,23 +1749,24 @@
     },
     "sdb": {
       "title": "Sleep-disordered breathing patterns",
-      "gloss": "breathing during sleep",
+      "gloss": "How you breathe during sleep",
       "collecting": {
         "chip": "Collecting",
-        "glance": "Collecting · {done} of {total, plural, one {# night} other {# nights}}",
+        "glance": "{done} of {total, plural, one {# night} other {# nights}} collected so far",
         "text": "Learning your usual range",
         "progress": "{done} of {total, plural, one {# night} other {# nights}}",
         "note": "Needs about four weeks of nights: 14 to learn your usual range, then 7 recent ones to compare with it."
       },
       "pattern": {
         "chip": "{count, plural, one {# night} other {# nights}} · last 14",
+        "glance": "{count, plural, one {# of your last 14 nights was} other {# of your last 14 nights were}} outside your usual range",
         "text": "{count} of the last 14 nights had two or more off together",
         "signalsOff": "{signals, select, oxygenBreathing {Oxygen, breathing} oxygenAwake {Oxygen, time awake} breathingAwake {Breathing, time awake} other {All three}}",
         "callout": "<b>On {count} of the last 14 nights, two or more of these were outside your usual range together.</b> A cold, alcohol, a stuffy or hot room, altitude or a late meal can all do this. If you also snore heavily, wake unrefreshed or feel very sleepy during the day, that's worth raising with a clinician."
       },
       "quiet": {
         "chip": "No pattern",
-        "glance": "No pattern · last 14 nights",
+        "glance": "No pattern in your last 14 nights",
         "text": "No pattern in the last 14 nights",
         "fired": "{count, plural, one {# night} other {# nights}} had two or more off together; it takes 3 in 14 nights to count.",
         "single": "{signal, select, oxygen {On {date} only oxygen was off.} breathing {On {date} only breathing was off.} other {On {date} only time awake was off.}} One signal on its own doesn't count.",
@@ -1799,10 +1803,10 @@
     },
     "strain": {
       "title": "System Strain Radar",
-      "gloss": "physiological deviations",
+      "gloss": "How many of your vitals are off today",
       "collecting": {
         "chip": "Collecting",
-        "glance": "Collecting · learning your ranges",
+        "glance": "Learning your usual ranges",
         "text": "Learning your usual ranges",
         "sub": "Needs about four weeks of readings before today can be compared with them."
       },
@@ -1814,17 +1818,19 @@
       },
       "high": {
         "chip": "High · {count, plural, one {# signal off} other {# signals off}}",
+        "glance": "High today: {count} of your 4 vitals are off",
         "text": "{count} of 4 signals off today",
         "callout": "<b>{signals} were all outside your usual range today.</b> Several at once often follows hard training, short sleep, alcohol, heat or travel, or feeling under the weather."
       },
       "elevated": {
         "chip": "Elevated · 2 signals off",
+        "glance": "Elevated today: 2 of your 4 vitals are off",
         "text": "2 of 4 signals off today",
         "sub": "{signals} are outside your usual range. Several at once often follows hard training, short sleep, alcohol, heat or travel."
       },
       "baseline": {
         "chip": "Baseline",
-        "glance": "Baseline · {count} of 4 off",
+        "glance": "{count, plural, =0 {Baseline today: none of your vitals are off} one {Baseline today: 1 of your 4 vitals is off} other {Baseline today: # of your 4 vitals are off}}",
         "text": "Baseline today",
         "one": "{signal, select, restingHr {Only resting HR is above usual.} breathing {Only breathing rate is above usual.} hrv {Only HRV is below usual.} other {Only skin temperature is above usual.}} One on its own doesn't count.",
         "allIn": "All four are inside your usual range.",
@@ -1877,9 +1883,10 @@
     },
     "irn": {
       "title": "Irregular rhythm notifications",
-      "gloss": "reported by your device",
+      "gloss": "Alerts your device sent about your heart rhythm",
       "reported": {
         "chip": "Reported",
+        "glance": "Your device sent notifications on {count, plural, one {# day} other {# days}}",
         "text": "{count, plural, one {# day} other {# days}} with notifications",
         "count": "{count, plural, one {# notification} other {# notifications}}",
         "note": "<b>As your device reported them.</b> Healthier doesn't analyse heart rhythm: for anything your device flags, follow its maker's guidance and talk to a clinician."
@@ -1891,6 +1898,7 @@
       },
       "none": {
         "chip": "None synced",
+        "glance": "No notifications from your device",
         "text": "No notifications synced",
         "sub": "Nothing in the last {count, plural, one {# day} other {# days}}."
       },
@@ -1910,10 +1918,10 @@
     },
     "dip": {
       "title": "Nocturnal HR dipping",
-      "gloss": "day-to-night heart rate",
+      "gloss": "How much your heart rate drops at night",
       "collecting": {
         "chip": "Collecting",
-        "glance": "Collecting · {done} of {total, plural, one {# day} other {# days}}",
+        "glance": "Collecting your daytime heart rate: {done} of {total, plural, one {# day} other {# days}}",
         "text": "Collecting daytime heart rate",
         "progress": "{done} of {total, plural, one {# day} other {# days}}",
         "noteTracking": "The night side is already tracking. Each daily sync adds a day by itself; no action needed.",
@@ -1922,11 +1930,12 @@
       "pattern": {
         "higher": "Higher at night",
         "smaller": "Smaller drop",
-        "glance": "Smaller drop · {median}%",
+        "glance": "Your heart rate drops only {median}% at night",
+        "glanceHigher": "Your heart rate is higher at night than by day",
         "callout": "<b>{under} of the last {measured, plural, one {# measured night} other {# measured nights}} dropped less than 10%.</b> {excluded, plural, =0 {} one {# night with several signals off at once was left out. } other {# nights with several signals off at once were left out. }}Single nights never count on their own. Late meals, alcohol, heat, evening exercise and a busy schedule all reduce the drop. If it persists for weeks alongside symptoms, you could mention it to a clinician."
       },
       "quiet": {
-        "glance": "{label} · {median}%",
+        "glance": "Your heart rate drops {median}% at night, {band, select, large {a large drop} other {a typical drop}}",
         "sub": "{band, select, large {In the large band, over 20%.} other {In the typical 10–20% band.}} {under} of {measured, plural, one {# measured night} other {# measured nights}} dropped less than 10%."
       },
       "drop": {
@@ -1974,21 +1983,22 @@
     },
     "entropy": {
       "title": "HRV entropy",
-      "gloss": "a nightly HRV metric from your device",
+      "gloss": "How varied your heartbeat is each night",
       "collecting": {
         "chip": "Collecting",
-        "glance": "Collecting · needs about 3 weeks",
+        "glance": "Learning your usual range, which takes about 3 weeks",
         "text": "Learning your usual range",
         "sub": "Needs about 3 weeks of nights before it can judge a change."
       },
       "shift": {
         "chip": "Shift · {count, plural, one {# night} other {# nights}}",
+        "glance": "Outside your usual range for {count, plural, one {# night} other {# nights in a row}}",
         "text": "{side, select, below {Below your usual range {count, plural, one {# night} other {# nights}} in a row} other {Above your usual range {count, plural, one {# night} other {# nights}} in a row}}",
         "callout": "<b>Outside your usual range on {count, plural, one {# recent night} other {# recent nights}}.</b> This metric moves with everyday things: a cold, alcohol, poor sleep, hard training, stress. It doesn't indicate any condition on its own."
       },
       "steady": {
         "chip": "Steady",
-        "glance": "Steady · {count, plural, one {# night} other {# nights}}",
+        "glance": "Steady for {count, plural, one {# night} other {# nights}}",
         "text": "Steady for {count, plural, one {# night} other {# nights}}",
         "sub": "{count, plural, one {# night fell outside on its own; it takes 3 in a row to count.} other {# nights fell outside on their own; it takes 3 in a row to count.}}"
       },
@@ -2022,10 +2032,10 @@
     },
     "tachy": {
       "title": "Nocturnal tachycardia",
-      "gloss": "high heart rate during sleep",
+      "gloss": "When your heart rate stays high during sleep",
       "collecting": {
         "chip": "Collecting",
-        "glance": "Collecting · {done} of 7 days",
+        "glance": "Collecting your heart rate through the night: {done} of 7 days",
         "text": "Collecting whole-night heart rate",
         "progress": "{done} of {total, plural, one {# day} other {# days}}",
         "waiting": "No night has had enough heart-rate readings yet; each sync adds more by itself.",
@@ -2046,16 +2056,15 @@
       },
       "none": {
         "chip": "None found",
-        "glance": "None found · {count, plural, one {# night} other {# nights}}",
+        "glance": "None above 100 bpm in {count, plural, one {# night} other {# nights}}",
         "text": "No stretches above 100 bpm",
         "sub": "In {count, plural, one {# night} other {# nights}} with enough heart-rate data."
       },
-      "trace": {
-        "aria": "{kind, select, nap {Heart rate through the nap filed under {date}} other {Heart rate through the night filed under {date}}}{count, plural, =0 {, with no stretch above 100 bpm while asleep} one {, above 100 bpm for # stretch} other {, above 100 bpm for # stretches}}",
-        "mid": "{kind, select, nap {Nap · {date}} other {Night · {date}}}",
+      "nights": {
+        "aria": "{count, plural, one {One night} other {# nights}} of sleep, each at its highest heart rate held for 10 minutes, against the 100 bpm line. {above, plural, =0 {None went above it.} one {One went above it.} other {# went above it.}}",
         "keys": {
           "line": "100 bpm",
-          "hr": "heart rate",
+          "held": "highest held for 10 minutes, each night",
           "above": "10+ minutes above"
         }
       },

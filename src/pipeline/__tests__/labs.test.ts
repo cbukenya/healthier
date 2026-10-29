@@ -233,29 +233,36 @@ describe('high heart rate during sleep', () => {
     const r = nocturnalTachycardia(days, intraday);
     assert.equal(r.nightsScanned, 0);
     assert.equal(r.status, 'collecting');
-    assert.equal(r.trace, null);
+    assert.deepEqual(r.nights, []);
   });
 
-  it('draws the night with the stretch, minute by minute', () => {
-    const samples = minutes(prev, 23 * 60, 480, (i) => (i >= 120 && i < 132 ? 112 : 60));
-    const { days, intraday } = night(date, samples);
-    const trace = nocturnalTachycardia(days, intraday).trace!;
-    assert.equal(trace.date, date);
-    assert.equal(trace.points.length, 480);
-    assert.deepEqual(trace.stretches, [{ from: 120, to: 131 }]);
+  it('draws each night at the highest heart rate held for ten minutes, above 100 bpm only with a stretch', () => {
+    // Twelve minutes at 112: held for ten minutes at 112, so it's a stretch.
+    const stretch = night(date, minutes(prev, 23 * 60, 480, (i) => (i >= 120 && i < 132 ? 112 : 60)));
+    assert.deepEqual(nocturnalTachycardia(stretch.days, stretch.intraday).nights, [{ date, bpm: 112, above: true }]);
+    // Nine minutes at 130 isn't held for ten: the night's best ten minutes include a 60.
+    const short = night(date, minutes(prev, 23 * 60, 480, (i) => (i >= 120 && i < 129 ? 130 : 60)));
+    assert.deepEqual(nocturnalTachycardia(short.days, short.intraday).nights, [{ date, bpm: 60, above: false }]);
   });
 
-  it('draws the latest night when none has a stretch', () => {
-    const later = addDays(date, 1);
-    const a = emptyRecord(date);
-    a.sleep = session(date, 23 * 60, 7 * 60, 450, 30);
-    const b = emptyRecord(later);
-    b.sleep = session(later, 23 * 60, 7 * 60, 450, 30);
-    const samples = [...minutes(prev, 23 * 60, 480, () => 60), ...minutes(date, 23 * 60, 480, () => 62)];
-    const r = nocturnalTachycardia([a, b], byDate(samples));
-    assert.equal(r.status, 'monitor');
-    assert.equal(r.trace!.date, later);
-    assert.deepEqual(r.trace!.stretches, []);
+  it('draws every day of the window, with a gap where a night has too few readings', () => {
+    const third = addDays(date, 2);
+    const records = [date, addDays(date, 1), third].map((d) => {
+      const r = emptyRecord(d);
+      r.sleep = session(d, 23 * 60, 7 * 60, 450, 30);
+      return r;
+    });
+    const samples = [
+      ...minutes(prev, 23 * 60, 480, () => 60),
+      ...minutes(addDays(date, 1), 23 * 60, 480, (i) => (i >= 60 && i < 75 ? 105 : 62)),
+    ];
+    const r = nocturnalTachycardia(records, byDate(samples));
+    assert.equal(r.nightsScanned, 2);
+    assert.deepEqual(r.nights, [
+      { date, bpm: 60, above: false },
+      { date: addDays(date, 1), bpm: null, above: false },
+      { date: third, bpm: 105, above: true },
+    ]);
   });
 });
 
