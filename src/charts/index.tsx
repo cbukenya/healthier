@@ -788,7 +788,7 @@ export function Spark({
   color: string;
   height?: number;
   width?: number;
-  /** Your usual range, shaded behind the line: centre ± spread, as the full charts shade it. */
+  /** Your usual range (usualRange), shaded behind the line: centre ± spread, as the full charts shade it. */
   baseline?: { centre: number; spread: number } | null;
 }) {
   const v = series.map((p) => p.value);

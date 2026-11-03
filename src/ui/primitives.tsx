@@ -1,6 +1,6 @@
 import React, { useId, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
-import { BASELINE_DAYS, BASELINE_MIN_READINGS, type Band, type Comparison, stats, type Point } from '../pipeline/derive';
+import { BASELINE_DAYS, BASELINE_MIN_READINGS, OFF_Z, type Band, type Comparison, stats, type Point } from '../pipeline/derive';
 import { t, type MessageKey, type Values } from '../i18n';
 import { rich } from '../i18n/react';
 import { durationPieces, formatDuration, formatFixed, formatNumber, formatRounded } from '../i18n/format';
@@ -228,7 +228,7 @@ export function BandPill({
         value: fmtNum(c.value),
         days: BASELINE_DAYS,
         baseline: fmtNum(c.baseline),
-        spread: fmtNum(c.spread),
+        spread: fmtNum(c.spread === null ? null : OFF_Z * c.spread),
         z: c.z === null ? undefined : formatFixed(c.z, 2),
         count: c.n,
       })}

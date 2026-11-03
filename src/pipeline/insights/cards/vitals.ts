@@ -3,7 +3,7 @@ import { names, t, type MessageKey } from '../../../i18n';
 import { formatDayMonthLong, formatFixed, formatList, formatMonth } from '../../../i18n/format';
 import type { DailyRecord } from '../../../types/health';
 import {
-  BASELINE_DAYS, BASELINE_MIN_READINGS, NOISE_FLOOR, compareToBaseline, completedDays, isRecent, periodShift, quantile, series, stats, values, type Point,
+  BASELINE_DAYS, VITALS, WARM_C, compareVital, compareVitalOn, completedDays, isOff, isRecent, periodShift, quantile, series, stats, values, type Point,
 } from '../../derive';
 import type { HistoryQueries } from '../../history';
 import type { InsightContext } from '../context';
@@ -90,7 +90,7 @@ function hrvTrends(ctx: InsightContext, add: Add): 'up' | 'down' | null {
 /** Last night's HRV against your own 28 days, when no trend already tells the story. */
 function hrvNight(ctx: InsightContext, add: Add, trend: 'up' | 'down' | null): void {
   const { days, today } = ctx;
-  const hrv = compareToBaseline(series(days, (d) => d.hrv), BASELINE_DAYS, BASELINE_MIN_READINGS, NOISE_FLOOR.hrv);
+  const hrv = compareVital(days, 'hrv');
   if (ctx.illness || !isRecent(hrv.date, today)) return;
   const value = Math.round(hrv.value!);
   const usual = Math.round(hrv.baseline!);
@@ -104,9 +104,8 @@ function hrvNight(ctx: InsightContext, add: Add, trend: 'up' | 'down' | null): v
       text: t('insights.vitals.hrvAcuteHigh.text', { value, usual }),
     });
   } else if ((hrv.band === 'below' || hrv.band === 'far-below') && trend !== 'down') {
-    const lowNights = trailingDays(days, (d) =>
-      d.hrv === null ? null : hrv.baseline !== null && hrv.spread !== null ? d.hrv < hrv.baseline - hrv.spread : null,
-    );
+    // Each night against its own four weeks, as every page judges it.
+    const lowNights = trailingRun(nightsAgainstUsual(days, VITALS.hrv.get, VITALS.hrv.floor, BASELINE_DAYS), (r) => isOff('hrv', r)).length;
     add({
       ...base, id: 'hrv-acute-low', kind: 'alert', tone: 'watch', direction: 'down',
       importance: 85, topic: 'hrv', family: 'recovery', today: 'while-true', news: true, advice: 'rest',
@@ -129,7 +128,7 @@ function hrvNight(ctx: InsightContext, add: Add, trend: 'up' | 'down' | null): v
 function restingHeartRate(ctx: InsightContext, add: Add): void {
   const { days, today } = ctx;
   const rhrSeries = series(days, (d) => d.restingHr);
-  const rhr = compareToBaseline(rhrSeries, BASELINE_DAYS, BASELINE_MIN_READINGS, NOISE_FLOOR.restingHr);
+  const rhr = compareVital(days, 'restingHr');
   const recent = isRecent(rhr.date, today);
   const highStreak = trailingDays(days, (d) =>
     d.restingHr === null ? null : rhr.baseline !== null && rhr.spread !== null ? d.restingHr > rhr.baseline + 2 * rhr.spread : null,
@@ -180,7 +179,7 @@ function restingHeartRate(ctx: InsightContext, add: Add): void {
     add({
       ...base, id: 'rhr-acute-low', kind: 'pattern', tone: 'good',
       importance: 65, topic: 'rhr', family: 'recovery', today: 'never',
-      news: entered(days, (w) => compareToBaseline(series(w, (d) => d.restingHr)).band === 'far-below'),
+      news: entered(days, (w) => compareVital(w, 'restingHr').band === 'far-below'),
       claims: { metric: 'rhr', direction: 'down' }, evidence: 1,
       title: t('insights.vitals.rhrAcuteLow.title'),
       text: t('insights.vitals.rhrAcuteLow.text', { value, usual }),
@@ -269,18 +268,11 @@ function records(ctx: InsightContext, add: Add): void {
   }
 }
 
-/** Where breathing, temperature and oxygen count as off: the lines their own cards use. */
-const OFF = {
-  breathing: (z: number) => z >= 1.5,
-  warm: (deviationC: number) => deviationC >= 0.5,
-  oxygen: (value: number, usual: number) => value <= usual - 1.5,
-};
-
 /** Two nights or more of faster breathing. The several-signals card speaks for it when it shows. */
 function breathing(ctx: InsightContext, add: Add): void {
   if (ctx.illness) return;
-  const nights = nightsAgainstUsual(ctx.days, (d) => d.respiratoryRate, NOISE_FLOOR.respiratoryRate, 7);
-  const run = trailingRun(nights, (r) => r.z !== null && OFF.breathing(r.z));
+  const nights = nightsAgainstUsual(ctx.days, VITALS.breathing.get, VITALS.breathing.floor, 7);
+  const run = trailingRun(nights, (r) => isOff('breathing', r));
   const last = run[run.length - 1];
   if (run.length < 2 || !isRecent(last.date, ctx.today)) return;
   add({
@@ -296,12 +288,12 @@ function breathing(ctx: InsightContext, add: Add): void {
   });
 }
 
-/** Two nights or more at least 0.5 °C over the device's own baseline. */
+/** Two nights or more warm by the line every page uses (WARM_C) over the device's own baseline. */
 function temperature(ctx: InsightContext, add: Add): void {
   if (ctx.illness) return;
   // The device reports the deviation from its own baseline, so the reading is the comparison.
   const nights = nightsAgainstUsual(ctx.days, (d) => d.skinTempDeviationC, 0, 7);
-  const run = trailingRun(nights, (r) => OFF.warm(r.value));
+  const run = trailingRun(nights, (r) => r.value >= WARM_C);
   const last = run[run.length - 1];
   if (run.length < 2 || !isRecent(last.date, ctx.today)) return;
   add({
@@ -313,11 +305,11 @@ function temperature(ctx: InsightContext, add: Add): void {
   });
 }
 
-/** Overnight oxygen 1.5 points or more under your usual: on the page, and news on the third night. */
+/** Overnight oxygen under your usual range: on the page, and news on the third night. */
 function oxygen(ctx: InsightContext, add: Add): void {
   if (ctx.illness) return;
-  const nights = nightsAgainstUsual(ctx.days, (d) => d.spo2?.avg ?? null, NOISE_FLOOR.spo2, 7);
-  const run = trailingRun(nights, (r) => r.baseline !== null && OFF.oxygen(r.value, r.baseline));
+  const nights = nightsAgainstUsual(ctx.days, VITALS.oxygen.get, VITALS.oxygen.floor, 7);
+  const run = trailingRun(nights, (r) => isOff('oxygen', r));
   const last = run[run.length - 1];
   if (!run.length || !isRecent(last.date, ctx.today)) return;
   const usual = formatFixed(last.baseline!, 1);
@@ -345,22 +337,22 @@ type Signal = keyof typeof SIGNAL_NAMES;
 
 /**
  * A week or more of nights with no overnight signal far from its usual range:
- * beyond two spreads, the "far" bands, or past the oxygen and temperature cards'
- * own lines. A night just outside the shaded band is ordinary; the cards that
- * speak about last night are cautious ones, and the conflict rules let them win.
+ * beyond two spreads, the "far" bands, or off by oxygen's and temperature's own
+ * lines. A night just outside the shaded band is ordinary; the cards that speak
+ * about last night are cautious ones, and the conflict rules let them win.
  */
 function allQuiet(ctx: InsightContext, add: Add): void {
   const { days } = ctx;
   const N = 28;
-  const signal = (name: Signal, get: (d: DailyRecord) => number | null, floor: number, ok: (r: NightReading) => boolean) =>
-    ({ name, nights: nightsAgainstUsual(days, get, floor, N), ok });
+  const vital = (name: Signal & keyof typeof VITALS, ok: (r: NightReading) => boolean) =>
+    ({ name, nights: nightsAgainstUsual(days, VITALS[name].get, VITALS[name].floor, N), ok });
   const near = (r: NightReading) => r.z === null || Math.abs(r.z) < 2;
   const signals = [
-    signal('restingHr', (d) => d.restingHr, NOISE_FLOOR.restingHr, near),
-    signal('hrv', (d) => d.hrv, NOISE_FLOOR.hrv, near),
-    signal('breathing', (d) => d.respiratoryRate, NOISE_FLOOR.respiratoryRate, near),
-    signal('oxygen', (d) => d.spo2?.avg ?? null, NOISE_FLOOR.spo2, (r) => r.baseline === null || !OFF.oxygen(r.value, r.baseline)),
-    signal('temperature', (d) => d.skinTempDeviationC, 0, (r) => Math.abs(r.value) < 0.5),
+    vital('restingHr', near),
+    vital('hrv', near),
+    vital('breathing', near),
+    vital('oxygen', (r) => !isOff('oxygen', r)),
+    { name: 'temperature' as const, nights: nightsAgainstUsual(days, (d) => d.skinTempDeviationC, 0, N), ok: (r: NightReading) => Math.abs(r.value) < WARM_C },
   ];
   // A night counts once its resting heart rate or HRV has a usual range to sit in; every signal it has must be inside its own.
   const nights = signals[0].nights.map((_, k) => {
@@ -420,11 +412,10 @@ function bounceBack(ctx: InsightContext, add: Add): void {
   if (loads.length < 28) return;
   const hardFrom = quantile([...loads].sort((a, b) => a - b), 0.75);
   if (hardFrom < 20) return;
-  const hrv = series(days, (d) => d.hrv);
+  // Back in range: no longer off, as every page judges it.
   const inRange = (j: number) => {
-    if (hrv[j].value === null) return null;
-    const c = compareToBaseline(hrv.slice(0, j + 1), BASELINE_DAYS, BASELINE_MIN_READINGS, NOISE_FLOOR.hrv);
-    return c.z === null ? null : c.z > -1;
+    const c = compareVitalOn(days, 'hrv', j);
+    return c === null || c.z === null ? null : !isOff('hrv', c);
   };
   const nights: number[] = [];
   const offset = days.length - done.length - 1;

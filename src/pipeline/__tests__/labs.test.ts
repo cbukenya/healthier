@@ -2,9 +2,11 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { addDays } from '../../lib/date';
-import { readiness, sleepDebt, estimatedSleepTarget } from '../derive';
+import { compareVital, readiness, sleepDebt, estimatedSleepTarget } from '../derive';
 import { insightFeeds, observations } from '../insights';
-import { calculateOffSignals, dipping, entropyShift, illnessDates, nocturnalTachycardia, sdbScreen, strainToday, type IntradayDays } from '../labs';
+import {
+  calculateOffSignals, dipping, entropyShift, illnessDates, nocturnalTachycardia, sdbScreen, strainToday, type IntradayDays, type StrainKey,
+} from '../labs';
 import { emptyRecord } from '../normalize';
 import type { DailyRecord, IntradaySample, SleepSession } from '../../types/health';
 import { formatCivil } from '../../i18n/format';
@@ -314,6 +316,67 @@ describe('system strain', () => {
     // Judged days that look worse than the readings change nothing.
     const worse = days.map((d, i) => (i === days.length - 1 ? { ...d, hrv: 5 } : d));
     assert.deepEqual(strainToday(days, worse), strainToday(days));
+  });
+});
+
+describe('one verdict per reading', () => {
+  // Last night read by every page: the Vitals pill, the System Strain Radar, the breathing patterns
+  // lab and Today's several-signals card. A reading off in one of them is off in all of them.
+  const radar = (days: DailyRecord[], key: StrainKey) => strainToday(days).signals.find((s) => s.key === key)!.status === 'off';
+
+  it('calls breathing off in the radar exactly when the breathing lab and the Vitals pill do', () => {
+    // Someone whose breathing moves about a breath a minute from night to night: 15.05 is
+    // ordinary for them, and must read as ordinary on every page, not off on one.
+    const days = nights(42);
+    days.forEach((d, i) => { d.respiratoryRate = 14 + CYC[i % 5]; });
+    const seen = new Set<boolean>();
+    for (const rate of [14.5, 15.05, 15.3, 16, 18]) {
+      days[41].respiratoryRate = rate;
+      const off = radar(days, 'breathing');
+      const pill = compareVital(days, 'breathing').band;
+      assert.equal(sdbScreen(days).nights.at(-1)!.breathing, off, `${rate}/min: the lab and the radar`);
+      assert.equal(pill === 'above' || pill === 'far-above', off, `${rate}/min: the Vitals pill and the radar`);
+      seen.add(off);
+      if (rate === 15.05) assert.equal(off, false, 'inside their usual range');
+    }
+    assert.equal(seen.size, 2, 'the rates cover both verdicts');
+  });
+
+  it('calls oxygen off in the breathing lab exactly when the Vitals pill does', () => {
+    const days = nights(42);
+    const seen = new Set<boolean>();
+    for (const avg of [95.6, 95, 94.6, 94.4, 93]) {
+      days[41].spo2 = { avg, ciLower: null, ciUpper: null, rollingAvgSd: null };
+      const pill = compareVital(days, 'oxygen').band;
+      const off = sdbScreen(days).nights.at(-1)!.oxygen;
+      assert.equal(pill === 'below' || pill === 'far-below', off, `${avg}%`);
+      seen.add(off);
+    }
+    assert.equal(seen.size, 2, 'the readings cover both verdicts');
+  });
+
+  it('calls HRV and resting HR off in the radar exactly when the Vitals pills do', () => {
+    const days = nights(42);
+    for (const [hrv, rhr] of [[38, 61], [36, 62], [33, 64], [25, 70]]) {
+      days[41].hrv = hrv;
+      days[41].restingHr = rhr;
+      const hrvPill = compareVital(days, 'hrv').band;
+      const rhrPill = compareVital(days, 'restingHr').band;
+      assert.equal(hrvPill === 'below' || hrvPill === 'far-below', radar(days, 'hrv'), `HRV ${hrv}`);
+      assert.equal(rhrPill === 'above' || rhrPill === 'far-above', radar(days, 'restingHr'), `resting HR ${rhr}`);
+    }
+  });
+
+  it("shows Today's several-signals card exactly when the radar reads Elevated or High", () => {
+    const morning = (days: DailyRecord[]) => new Date(`${days[days.length - 1].date}T08:00:00`);
+    const card = (days: DailyRecord[]) => observations({ days } as any, morning(days)).some((o) => o.id === 'illness-pattern');
+    for (const [rhr, rate] of [[61, 14.1], [70, 14.1], [70, 17]]) {
+      const days = nights(42);
+      days[41].restingHr = rhr;
+      days[41].respiratoryRate = rate;
+      const level = strainToday(days).level;
+      assert.equal(card(days), level === 'elevated' || level === 'high', `resting HR ${rhr}, breathing ${rate}: ${level}`);
+    }
   });
 });
 

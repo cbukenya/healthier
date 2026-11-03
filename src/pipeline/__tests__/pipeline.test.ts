@@ -676,6 +676,7 @@ function syntheticDays(
     tempDev: number; steps: number;
   }> = {},
   base: Partial<{ hrv: number; restingHr: number; sleepMin: number; resp: number; steps: number }> = {},
+  start = '2026-07-01',
 ) {
   const b = { hrv: 34, restingHr: 62, sleepMin: 450, resp: 14, steps: 8000, ...base };
   const days: ReturnType<typeof emptyRecord>[] = [];
@@ -694,7 +695,7 @@ function syntheticDays(
   const SCYC = [-0.5, 1, 0, -1, 0.5];
   const sjit = (i: number) => SCYC[i % 5];
   for (let i = 0; i < n; i++) {
-    const d = emptyRecord(addDays('2026-07-01', i));
+    const d = emptyRecord(addDays(start, i));
     const isLast = i === n - 1;
     const o = isLast ? overridesForLast : {};
     d.hrv = o.hrv ?? b.hrv + jit(i) * 5;
@@ -722,7 +723,6 @@ describe('readiness v2', () => {
     const r = readiness(syntheticDays(28));
     assert.ok(Math.abs(r.score! - 70) <= 6, `typical day scored ${r.score}`);
     assert.equal(r.confidence, 'high');
-    assert.equal(r.flags.length, 0);
   });
 
   it('judges HRV in the log domain: equal ratios move the score equally', () => {
@@ -813,11 +813,8 @@ describe('readiness v2', () => {
     assert.ok(p.contribution < 0 && p.contribution >= -7.01);
   });
 
-  it('raises the illness flag only when several signals deviate together', () => {
-    const oneOff = readiness(syntheticDays(28, { restingHr: 70 }));
-    assert.equal(oneOff.flags.length, 0, 'one deviating signal is noise, not a pattern');
+  it('drains on a morning when several signals deviate together', () => {
     const pattern = readiness(syntheticDays(28, { restingHr: 70, resp: 17.5, tempDev: 0.8, hrv: 24 }));
-    assert.deepEqual(pattern.flags, ['illness']);
     assert.ok(pattern.score! < 50, `illness-like morning scored ${pattern.score}`);
   });
 
@@ -1127,6 +1124,11 @@ const dsOf = (days: ReturnType<typeof emptyRecord>[]): any => ({ days });
 // Synthetic grids start 2026-07-01; 28 days end on 2026-07-28. Container TZ is
 // UTC, so these Dates land in the intended daypart on the grid's last day.
 const MORNING = new Date('2026-07-28T08:00:00');
+/**
+ * Several signals off on the morning of 2026-07-28, with the four weeks before it that the
+ * System Strain Radar wants before it counts them: 33 days, ending on the zero of the jitter too.
+ */
+const roughDays = () => syntheticDays(33, { restingHr: 70, resp: 17.5, tempDev: 0.8, hrv: 24 }, {}, '2026-06-26');
 const MIDDAY = new Date('2026-07-28T14:00:00');
 const EVENING = new Date('2026-07-28T18:00:00');
 type Days = ReturnType<typeof emptyRecord>[];
@@ -1182,8 +1184,8 @@ describe('insight engine — cycle tracking', () => {
   });
 
   it('calls several signals off only while they stay off once the cycle is allowed for', () => {
-    const rough = syntheticDays(28, { restingHr: 70, resp: 17.5, tempDev: 0.8, hrv: 24 });
-    const calm = syntheticDays(28);
+    const rough = roughDays();
+    const calm = syntheticDays(33, {}, {}, '2026-06-26');
     assert.ok(withCycle(rough, rough).includes('illness-pattern'));
     const explained = withCycle(rough, calm);
     for (const id of ['illness-pattern', 'rhr-acute-high', 'hrv-acute-low', 'vitals-warm']) {
@@ -1194,7 +1196,7 @@ describe('insight engine — cycle tracking', () => {
 
   it("reads the nights as without cycle tracking when the other pages aren't to allow for the cycle", () => {
     // "Allow for your cycle on other pages" off: tracking on, but no judged days.
-    for (const days of [syntheticDays(28, { restingHr: 75 }), syntheticDays(28, { restingHr: 70, resp: 17.5, tempDev: 0.8, hrv: 24 })]) {
+    for (const days of [syntheticDays(28, { restingHr: 75 }), roughDays()]) {
       const off = insightFeeds(dsOf(days), MORNING, { cycle: { ...tracking(days), judged: null } });
       assert.deepEqual(ids(off), ids(feedsAt(days)));
     }
@@ -1255,7 +1257,7 @@ describe('insight engine — stateless guards', () => {
   });
 
   it('the illness pattern speaks for every recovery card', () => {
-    const rough = syntheticDays(28, { restingHr: 70, resp: 17.5, tempDev: 0.8, hrv: 24 });
+    const rough = roughDays();
     const f = feedsAt(rough);
     assert.ok(f.today.some((o) => o.id === 'illness-pattern'), listing(rough));
     for (const id of ['rhr-acute-high', 'hrv-acute-low', 'battery-low', 'battery-drain']) {
@@ -1445,7 +1447,7 @@ describe('insight engine — one place at a time', () => {
   const scenarios: [string, Days, Date][] = [
     ['typical', syntheticDays(28), MORNING],
     ['short night, midday', syntheticDays(28, { sleepMin: 300 }), MIDDAY],
-    ['illness', syntheticDays(28, { restingHr: 70, resp: 17.5, tempDev: 0.8, hrv: 24 }), MORNING],
+    ['illness', roughDays(), MORNING],
     ['indebted evening', syntheticDays(28, {}, { sleepMin: 330 }), EVENING],
     ['quiet day', syntheticDays(28, { steps: 1500 }), MIDDAY],
   ];
@@ -1809,9 +1811,9 @@ describe('insight engine — Vitals in depth', () => {
     warm[27].skinTempDeviationC = 0.6;
     assert.match(cardOf(warm, 'vitals-warm')!.text, /^Your skin temperature has been about 0\.6 °C above your normal for the last 2 nights\./);
 
-    const rough = syntheticDays(28, { restingHr: 70, resp: 17.5, tempDev: 0.8, hrv: 24 });
-    rough[26].respiratoryRate = 17.5;
-    rough[26].skinTempDeviationC = 0.8;
+    const rough = roughDays();
+    rough[31].respiratoryRate = 17.5;
+    rough[31].skinTempDeviationC = 0.8;
     assert.equal(cardOf(rough, 'vitals-breathing-up'), undefined);
     assert.equal(cardOf(rough, 'vitals-warm'), undefined);
   });
@@ -1856,7 +1858,7 @@ describe('insight engine — Vitals in depth', () => {
     slower.forEach((d, i) => {
       const hard = i % 4 === 0;
       d.zoneMinutes = { fatBurn: hard ? 50 : 10, cardio: hard ? 10 : 0, peak: 0 };
-      if (i % 4 === 1) d.hrv = 24;
+      if (i % 4 === 1) d.hrv = 20;
     });
     assert.match(cardOf(slower, 'vitals-bounce-back', AUG31)!.text,
       /^After your hardest days, your HRV usually takes about 2 nights to get back to its normal range\. That's based on \d+ days with 25 active zone minutes or more in the last 8 weeks\.$/);
@@ -2493,7 +2495,7 @@ describe('one today: freshness, partial days, the demo clock', () => {
 
   it('compares day over day against the previous night, never the same one twice', () => {
     // An illness-like morning, then today with nothing synced yet: still the pattern's first morning.
-    const rough = syntheticDays(28, { restingHr: 70, resp: 17.5, tempDev: 0.8, hrv: 24 });
+    const rough = roughDays();
     rough.push(emptyRecord('2026-07-29'));
     const card = observations(dsOf(rough), new Date('2026-07-29T08:00:00')).find((o) => o.id === 'illness-pattern');
     assert.ok(card);

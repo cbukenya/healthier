@@ -2,7 +2,7 @@ import type { CivilDate } from '../../lib/date';
 import { formatDuration } from '../../i18n/format';
 import type { DailyRecord, HealthDataset, SleepSession } from '../../types/health';
 import type { HistoryAnswers } from '../history';
-import type { IntradayDays } from '../labs';
+import { offTogether, type IntradayDays } from '../labs';
 import type { ProfileFacts } from '../registry';
 import {
   BASELINE_DAYS, isRecent, loadRatio, readiness, series, sleepDebt, sleepNeedFor, stats, values,
@@ -119,10 +119,14 @@ export function buildContext(ds: InsightDataset, now: Date, extras?: InsightOpti
   const cycle = extras?.cycle ?? null;
   const judged = cycle?.judged ?? null;
   const rPrev = readiness(prevDays, goals.sleepNeed);
-  // The battery's score stays the person's own. Whether several signals are off is judged with the
-  // cycle in mind too, while tracking is on: the cycle can explain them away, never add them.
-  const illness = rNow.flags.length > 0 && (!judged || readiness(judged, goals.sleepNeed).flags.length > 0);
-  const illnessBefore = rPrev.flags.length > 0 && (!judged || readiness(beforeLatestMorning(judged), goals.sleepNeed).flags.length > 0);
+  // Several signals off on the latest morning, by the radar's own test (offTogether). The battery's
+  // score stays the person's own; this is judged with the cycle in mind too, while tracking is on.
+  const offOnLatestMorning = (rows: DailyRecord[]) => {
+    const i = beforeLatestMorning(rows).length;
+    return i < rows.length && isRecent(rows[i].date, rows[rows.length - 1].date) && offTogether(rows, i, judged);
+  };
+  const illness = offOnLatestMorning(days);
+  const illnessBefore = offOnLatestMorning(prevDays);
   const byContribution = [...rNow.parts].sort((a, b) => b.contribution - a.contribution);
   const debt = sleepDebt(days, need);
 

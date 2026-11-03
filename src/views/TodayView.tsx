@@ -5,8 +5,7 @@ import { t } from '../i18n';
 import { rich } from '../i18n/react';
 import { formatCivilLong, formatClock } from '../i18n/format';
 import {
-  BASELINE_DAYS, BASELINE_MIN_READINGS, compareToBaseline, goal, isRecent, latestPoint, series, NOISE_FLOOR,
-  type Comparison, type Point,
+  compareToBaseline, compareVital, goal, isRecent, latestPoint, series, usualRange as usual, type Point,
 } from '../pipeline/derive';
 import { todaySummary } from '../pipeline/insights';
 import type { IntradayDays } from '../pipeline/labs';
@@ -26,10 +25,6 @@ import { Tile } from '../ui/Tile';
 
 /** Breathing's colour on the Vitals page. */
 const BREATHING_HEX = 'var(--purple-500)';
-
-/** A comparison's usual range for a sparkline's band, once it has a baseline. */
-const usual = (c: Comparison | null) =>
-  c && c.baseline !== null && c.spread !== null ? { centre: c.baseline, spread: c.spread } : null;
 
 export function TodayView({
   data,
@@ -70,9 +65,9 @@ export function TodayView({
   // Each overnight vital from last night or the one before, never further back.
   const rhrNow = isRecent(s.rhr.date, today) ? s.rhr : null;
   // With cycle tracking on, the same reading judged against this part of the cycle.
-  const rhrCycle = judged && compareToBaseline(series(judged, (d) => d.restingHr), BASELINE_DAYS, BASELINE_MIN_READINGS, NOISE_FLOOR.restingHr);
+  const rhrCycle = judged && compareVital(judged, 'restingHr');
   const hrvNow = isRecent(s.hrv.date, today) ? s.hrv : null;
-  const resp = compareToBaseline(respSeries, BASELINE_DAYS, BASELINE_MIN_READINGS, NOISE_FLOOR.respiratoryRate);
+  const resp = compareVital(days, 'breathing');
   const respNow = isRecent(resp.date, today) ? resp : null;
   const spo2Now = recentPoint(series(days, (d) => d.spo2?.avg ?? null), today);
   const vitalsDate = [rhrNow?.date, hrvNow?.date, respNow?.date, spo2Now?.date]

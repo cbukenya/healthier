@@ -27,6 +27,12 @@ How Healthier works and why, for contributors. What's planned lives in the
    person's clock and zone). Every card and insight judges against that day; the device clock only picks
    morning, midday or evening. Only readings from today or yesterday count as "last night", and
    today's movement is still in progress, so whole-day comparisons read finished days.
+7. **One verdict per reading.** A reading is outside its usual range when it's 1.5 spreads or more
+   from the middle of the four weeks before it (`OFF_Z` in `derive.ts`). That one edge is the band
+   shaded behind a chart, the pill beside a reading, and the line every card and lab calls off by.
+   Resting heart rate, HRV, breathing and oxygen are each read one way, in `VITALS`, and judged
+   with `compareVital` and `isOff`; skin temperature is off from `WARM_C` over the device's own
+   baseline. So a reading off on one page is off on every page.
 
 ## Components
 
@@ -310,8 +316,8 @@ Google Health lets apps add periods but not read them back, so cycles are found 
   into a copy of the days used only for judging. The cycle can explain a reading away, never add an
   alarm:
   - a Vitals card about an unusual night or week shows only if it also shows on the judged days;
-  - several signals off (the illness card, the sick nights dipping leaves out) count only when
-    they're off on both;
+  - several signals off (the illness card, the sick nights dipping leaves out) count a signal only
+    while it's off on both, as the strain radar does;
   - the strain radar counts a signal the cycle explains as in, and says so;
   - a pill that would call a reading unusual says "usual for this part of your cycle" instead, when
     the judged reading is usual.
@@ -464,6 +470,10 @@ screen. The note is shown as text, with its email addresses and links made into 
 - the cycle finder leaves out a night here and there from another device, keeps a stretch on an
   old one, and reads each against its own;
 - the kind of source for daily totals goes to Google with every rollup.
+
+`src/pipeline/__tests__/labs.test.ts`: a reading the Vitals pill calls unusual is off in the strain
+radar and the breathing lab, and the other way round; Today's several-signals card shows exactly
+when the radar reads Elevated or High.
 
 `src/pipeline/__tests__/normalize.test.ts`: a day comes out the same whatever order its readings
 arrive in; a partial reading never wipes a complete one; two devices' copies of a night count once;
