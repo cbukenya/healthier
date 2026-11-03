@@ -130,6 +130,13 @@ export const BASELINE_DAYS = 28;
 export const BASELINE_MIN_READINGS = 8;
 
 /**
+ * The edge of the usual range, in spreads from the centre. One edge for the whole app: the
+ * band shaded behind a chart, the pill beside a reading, and every card and lab that calls a
+ * reading off, so a reading outside it in one place is outside it everywhere.
+ */
+export const OFF_Z = 1.5;
+
+/**
  * Compare the latest observation against its own recent history.
  * Uses median + MAD rather than mean + SD: health series are spiky, and one
  * 12,000-step Saturday shouldn't move the definition of "normal".
@@ -181,11 +188,15 @@ function spreadOf(priors: number[], st: Stats, floor: number): number {
 
 function bandFor(z: number): Band {
   if (z <= -2) return 'far-below';
-  if (z <= -1) return 'below';
+  if (z <= -OFF_Z) return 'below';
   if (z >= 2) return 'far-above';
-  if (z >= 1) return 'above';
+  if (z >= OFF_Z) return 'above';
   return 'typical';
 }
+
+/** A comparison's usual range, for the band behind a chart: its centre, and how far either side of it the range reaches. */
+export const usualRange = (c: Comparison | null) =>
+  c && c.baseline !== null && c.spread !== null ? { centre: c.baseline, spread: OFF_Z * c.spread } : null;
 
 export function lastIndexWithValue(s: Point[]): number {
   for (let i = s.length - 1; i >= 0; i--) if (s[i].value !== null) return i;
@@ -410,9 +421,6 @@ export type ReadinessPartId = 'hrv' | 'restingHr' | 'sleep' | 'sleepDebt' | 'bre
 /** The core signals: HRV, resting heart rate and sleep. */
 export type ReadinessSignal = 'hrv' | 'restingHr' | 'sleep';
 
-/** Cross-signal patterns: several overnight signals off at once. */
-export type ReadinessFlag = 'illness';
-
 export interface ReadinessPart {
   id: ReadinessPartId;
   label: string;
@@ -433,8 +441,6 @@ export interface Readiness {
   missing: ReadinessSignal[];
   /** Core signals waiting for enough nights from a new device: HRV and resting heart rate, the two judged per device. */
   calibrating: Exclude<ReadinessSignal, 'sleep'>[];
-  /** Cross-signal patterns worth surfacing, e.g. an illness-like deviation. */
-  flags: ReadinessFlag[];
 }
 
 /**
@@ -498,7 +504,6 @@ export const batteryTier = (score: number) => BATTERY_TIERS.find((tier) => score
  */
 export function readiness(days: DailyRecord[], needSet?: number | null): Readiness {
   const parts: ReadinessPart[] = [];
-  const flags: ReadinessFlag[] = [];
   let score = 70;
   // Only last night counts. The window ends on the user's today, and a reading from before yesterday is
   // history: with the watch on its charger for three days the honest answer is no score, not a confident
@@ -686,15 +691,6 @@ export function readiness(days: DailyRecord[], needSet?: number | null): Readine
     }
   }
 
-  // ── 8. Cross-signal illness pattern ───────────────────────────────────────
-  const offSignals = [
-    rhrOk && rhr.z! >= 1.5,
-    respOk && resp.z! >= 1.5,
-    tempDev !== null && tempDev >= 0.5,
-    hrv !== null && hrv.zAcute <= -1.5,
-  ].filter(Boolean).length;
-  if (offSignals >= 2) flags.push('illness');
-
   // A signal that has readings from another device in the window, but not yet
   // enough nights from the current one, is calibrating rather than missing.
   const newDevice = (all: Point[], current: Point[]) =>
@@ -723,7 +719,6 @@ export function readiness(days: DailyRecord[], needSet?: number | null): Readine
       confidence: 'low',
       missing,
       calibrating,
-      flags: [],
     };
   }
 
@@ -736,7 +731,6 @@ export function readiness(days: DailyRecord[], needSet?: number | null): Readine
     confidence: coreSignals >= 3 ? 'high' : coreSignals === 2 ? 'medium' : 'low',
     missing,
     calibrating,
-    flags,
   };
 }
 
@@ -799,9 +793,44 @@ export const NOISE_FLOOR = {
   respiratoryRate: 0.3, // breaths/min
   skinTempC: 0.1,    // °C
   sleepMin: 10,      // minutes
-  spo2: 0.2,         // percentage points
+  // A wrist reads overnight oxygen to about a point, so a night is off from 1.5 points under usual.
+  spo2: 1,           // percentage points
   generic: 0,
 } as const;
+
+export type VitalKey = 'restingHr' | 'hrv' | 'breathing' | 'oxygen';
+
+/**
+ * The overnight vitals the app calls off, each read one way: one value, against one usual range,
+ * off on one side. Every page, card and lab that judges one goes through compareVital and isOff,
+ * so a reading that's off in one place is off in all of them.
+ */
+export const VITALS: Record<VitalKey, { get: Accessor; floor: number; off: 'above' | 'below' }> = {
+  restingHr: { get: (d) => d.restingHr, floor: NOISE_FLOOR.restingHr, off: 'above' },
+  hrv: { get: (d) => d.hrv, floor: NOISE_FLOOR.hrv, off: 'below' },
+  breathing: { get: (d) => d.respiratoryRate, floor: NOISE_FLOOR.respiratoryRate, off: 'above' },
+  oxygen: { get: (d) => d.spo2?.avg ?? null, floor: NOISE_FLOOR.spo2, off: 'below' },
+};
+
+/** Skin temperature is off from this far over the device's own baseline, which the reading already is. */
+export const WARM_C = 0.5;
+
+/** A vital's latest reading against the four weeks before it. */
+export function compareVital(days: DailyRecord[], key: VitalKey): Comparison {
+  const { get, floor } = VITALS[key];
+  return compareToBaseline(series(days, get), BASELINE_DAYS, BASELINE_MIN_READINGS, floor);
+}
+
+/** A vital on the night at `i` against the four weeks before it; null when that night has no reading. */
+export function compareVitalOn(days: DailyRecord[], key: VitalKey, i: number): Comparison | null {
+  if (VITALS[key].get(days[i]) === null) return null;
+  return compareVital(days.slice(Math.max(0, i - BASELINE_DAYS), i + 1), key);
+}
+
+/** Whether a vital is off: past the usual range on its side. Never without a usual range (z null). */
+export const isOff = (key: VitalKey, c: { z: number | null } | null) =>
+  !!c && c.z !== null && (VITALS[key].off === 'above' ? c.z >= OFF_Z : c.z <= -OFF_Z);
+
 const fmt = (v: number | null) => (v === null ? '—' : formatRounded(v, 1));
 
 // ─────────────────────────────────────── typical sleep window (circular)

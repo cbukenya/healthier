@@ -2,7 +2,7 @@ import { addDays, dateRange, type CivilDate } from '../../lib/date';
 import type { DailyRecord } from '../../types/health';
 import { scoreSleep } from '../sleep';
 import {
-  BASELINE_DAYS, BASELINE_MIN_READINGS, NOISE_FLOOR, compareToBaseline, isRecent, readiness, series, sleepDebt, sleepNeedFor,
+  compareVital, isRecent, readiness, sleepDebt, sleepNeedFor,
 } from '../derive';
 import { DEFAULT_GOALS, type Goals } from '../goals';
 import type { InsightDataset, InsightOptions } from './context';
@@ -20,8 +20,8 @@ export function todaySummary(ds: InsightDataset, now: Date = new Date(), extras?
   const movementDay = recent([...days].reverse().find((d) => d.steps !== null));
   const sleepDay = recent([...days].reverse().find((d) => d.sleep !== null));
 
-  const hrv = compareToBaseline(series(days, (d) => d.hrv), BASELINE_DAYS, BASELINE_MIN_READINGS, NOISE_FLOOR.hrv);
-  const rhr = compareToBaseline(series(days, (d) => d.restingHr), BASELINE_DAYS, BASELINE_MIN_READINGS, NOISE_FLOOR.restingHr);
+  const hrv = compareVital(days, 'hrv');
+  const rhr = compareVital(days, 'restingHr');
 
   return {
     today: last,

@@ -1,30 +1,37 @@
 import type { DailyRecord, IntradaySample, SleepSession } from '../types/health';
-import { BASELINE_DAYS, BASELINE_MIN_READINGS, series, compareToBaseline, stats, values } from './derive';
+import {
+  BASELINE_DAYS, BASELINE_MIN_READINGS, NOISE_FLOOR, VITALS, WARM_C, compareToBaseline, compareVitalOn, isOff, series, stats, values,
+} from './derive';
 import { addDays } from '../lib/date';
 import { t } from '../i18n';
 import { formatCivil, formatClock } from '../i18n/format';
 import type { SyncResult } from './sync';
 
-export function calculateOffSignals(days: DailyRecord[], index: number): number {
-  const slice = days.slice(0, index + 1);
-  const rhr = compareToBaseline(series(slice, d => d.restingHr), BASELINE_DAYS, BASELINE_MIN_READINGS);
-  const resp = compareToBaseline(series(slice, d => d.respiratoryRate));
-  const tempDev = slice[slice.length - 1].skinTempDeviationC;
-  const hrvSeries = series(slice, (d) => {
-    const v = d.hrvDeepSleep ?? d.hrv;
-    return v && v > 0 ? Math.log(v) : null;
-  });
-
-  let offSignals = 0;
-  if (rhr.z !== null && rhr.n >= 8 && rhr.z >= 1.5) offSignals++;
-  if (resp.z !== null && resp.n >= 8 && resp.z >= 1.5) offSignals++;
-  if (tempDev !== null && tempDev >= 0.5) offSignals++;
-  
-  const hrvZ = compareToBaseline(hrvSeries, BASELINE_DAYS, BASELINE_MIN_READINGS);
-  if (hrvZ.z !== null && hrvZ.n >= 8 && hrvZ.z <= -1.5) offSignals++;
-  
-  return offSignals;
+/** Which of resting HR, breathing rate, HRV and skin temperature are off on the day at `i`, each judged only on that day's own reading. */
+function offOn(days: DailyRecord[], i: number): StrainKey[] {
+  const warm = days[i].skinTempDeviationC;
+  return [
+    ...(['restingHr', 'breathing', 'hrv'] as const).filter((key) => isOff(key, compareVitalOn(days, key, i))),
+    ...(warm !== null && warm >= WARM_C ? ['skinTemp' as const] : []),
+  ];
 }
+
+/**
+ * How many of the four are off on the day at `index`. With `judged` (cycle tracking on, see
+ * cycleAdjusted), a signal counts only while it's still off once the cycle is allowed for, as
+ * the System Strain Radar counts it: the cycle can explain a signal away, never make one off.
+ */
+export function calculateOffSignals(days: DailyRecord[], index: number, judged: DailyRecord[] | null = null): number {
+  const raw = offOn(days, index);
+  const j = judged ? judged.findIndex((d) => d.date === days[index].date) : -1;
+  if (!judged || j < 0) return raw.length;
+  const aware = offOn(judged, j);
+  return raw.filter((key) => aware.includes(key)).length;
+}
+
+/** Two or more of the four off on the day at `i`, once there are four weeks to judge it by: the radar's Elevated or High. */
+export const offTogether = (days: DailyRecord[], i: number, judged: DailyRecord[] | null = null) =>
+  i >= BASELINE_DAYS && calculateOffSignals(days, i, judged) >= 2;
 
 export type StrainKey = 'restingHr' | 'breathing' | 'hrv' | 'skinTemp';
 
@@ -46,18 +53,18 @@ export interface StrainToday {
 }
 
 const STRAIN_INPUTS: { key: StrainKey; get: (d: DailyRecord) => number | null }[] = [
-  { key: 'restingHr', get: (d) => d.restingHr },
-  { key: 'breathing', get: (d) => d.respiratoryRate },
-  { key: 'hrv', get: (d) => d.hrvDeepSleep ?? d.hrv },
+  { key: 'restingHr', get: VITALS.restingHr.get },
+  { key: 'breathing', get: VITALS.breathing.get },
+  { key: 'hrv', get: VITALS.hrv.get },
   { key: 'skinTemp', get: (d) => d.skinTempDeviationC },
 ];
 
 /**
  * The System Strain Radar's four signals on the latest day, by the same tests
- * as calculateOffSignals, except that each is judged only on a reading from
- * that day: one that hasn't arrived yet shows as no data, never as yesterday's.
- * It compares once two of them have a usual range (8 readings in the four
- * weeks before) and a reading today.
+ * as calculateOffSignals and every other page (see VITALS). Each is judged only
+ * on a reading from that day: one that hasn't arrived yet shows as no data,
+ * never as yesterday's. It compares once two of them have a usual range
+ * (8 readings in the four weeks before) and a reading today.
  *
  * With `judged` (cycle tracking on, see cycleAdjusted), a signal that's off only by as much as
  * this part of the person's cycle moves it counts as in. The cycle can explain a signal away,
@@ -83,29 +90,11 @@ function strainOf(days: DailyRecord[]): StrainToday {
   const prior = days.slice(-29, -1);
   const ranged = (get: (d: DailyRecord) => number | null) => prior.filter((d) => get(d) !== null).length >= 8;
   const today = (get: (d: DailyRecord) => number | null) => !!latest && get(latest) !== null;
-  const logHrv = (d: DailyRecord) => {
-    const v = d.hrvDeepSleep ?? d.hrv;
-    return v && v > 0 ? Math.log(v) : null;
-  };
 
   const judge = (key: StrainKey): StrainSignal['status'] => {
-    switch (key) {
-      case 'restingHr': {
-        const c = compareToBaseline(series(days, (d) => d.restingHr), BASELINE_DAYS, BASELINE_MIN_READINGS);
-        return c.z === null || c.n < 8 ? 'none' : c.z >= 1.5 ? 'off' : 'in';
-      }
-      case 'breathing': {
-        const c = compareToBaseline(series(days, (d) => d.respiratoryRate));
-        return c.z === null || c.n < 8 ? 'none' : c.z >= 1.5 ? 'off' : 'in';
-      }
-      case 'hrv': {
-        if (logHrv(latest) === null) return 'none';
-        const c = compareToBaseline(series(days, logHrv), BASELINE_DAYS, BASELINE_MIN_READINGS);
-        return c.z === null || c.n < 8 ? 'none' : c.z <= -1.5 ? 'off' : 'in';
-      }
-      case 'skinTemp':
-        return latest.skinTempDeviationC! >= 0.5 ? 'off' : 'in';
-    }
+    if (key === 'skinTemp') return latest.skinTempDeviationC! >= WARM_C ? 'off' : 'in';
+    const c = compareVitalOn(days, key, days.length - 1);
+    return c === null || c.z === null ? 'none' : isOff(key, c) ? 'off' : 'in';
   };
 
   const signals = STRAIN_INPUTS.map(({ key, get }): StrainSignal => ({ key, status: today(get) ? judge(key) : 'none' }));
@@ -129,19 +118,7 @@ function strainOf(days: DailyRecord[]): StrainToday {
  * explain a day away, never add one.
  */
 export function illnessDates(days: DailyRecord[], judged: DailyRecord[] | null = null): Set<string> {
-  const at = new Map((judged ?? []).map((d, i) => [d.date, i]));
-  const stillOff = (date: string) => {
-    const j = at.get(date);
-    return !judged || j === undefined || calculateOffSignals(judged, j) >= 2;
-  };
-  const dates = new Set<string>();
-  for (let i = 28; i < days.length; i++) {
-    const offSignals = calculateOffSignals(days, i);
-    if (offSignals >= 2 && stillOff(days[i].date)) {
-      dates.add(days[i].date);
-    }
-  }
-  return dates;
+  return new Set(days.filter((_, i) => offTogether(days, i, judged)).map((d) => d.date));
 }
 
 export type IntradayDays = Record<string, IntradaySample[]>;
@@ -437,11 +414,12 @@ export interface SdbNight {
 /**
  * Nights when oxygen, breathing rate and time awake were off together.
  *
- * Each of the last 14 nights is judged against the four weeks before them, never
- * against a range that includes the nights being judged. Oxygen counts 1.5 points
- * below its usual median, breathing one breath a minute above, and time awake
- * when it runs past your own usual by twice its spread (at least 20 minutes):
- * a fixed hour would flag a restless sleeper every night and a sound one never.
+ * Each of the last 14 nights is judged against the four weeks before it, oxygen and
+ * breathing rate by the same test as every other page (see VITALS), so a night this
+ * card marks off is off on the Vitals page and in the System Strain Radar too. Time
+ * awake, judged only here, counts when it runs past your own usual by twice its
+ * spread (at least 20 minutes): a fixed hour would flag a restless sleeper every
+ * night and a sound one never.
  */
 export function sdbScreen(days: DailyRecord[]) {
   const measurable = (d: DailyRecord) => d.spo2 !== null || (d.sleep !== null && d.respiratoryRate !== null);
@@ -451,19 +429,25 @@ export function sdbScreen(days: DailyRecord[]) {
   const TESTED_WANTED = 7;
   const enough = before.length >= BEFORE_WANTED && tested.length >= TESTED_WANTED;
 
-  const spo2 = stats(values(series(before, (d) => d.spo2?.avg ?? null)));
-  const rr = stats(values(series(before, (d) => d.respiratoryRate)));
-  const awake = stats(values(series(before, (d) => d.sleep?.minutesAwake ?? null)));
+  const awakeOff = (i: number) => {
+    if (days[i].sleep === null) return false;
+    const c = compareToBaseline(
+      series(days.slice(Math.max(0, i - BASELINE_DAYS), i + 1), (d) => d.sleep?.minutesAwake ?? null),
+      BASELINE_DAYS, BASELINE_MIN_READINGS, NOISE_FLOOR.sleepMin,
+    );
+    return c.z !== null && c.z >= 2;
+  };
 
   // Each of the last 14 nights, signal by signal. Nothing counts as off until there is a usual range.
-  const nights: SdbNight[] = days.slice(-14).map((d) => {
+  const nights: SdbNight[] = days.slice(-14).map((d, k) => {
+    const i = days.length - Math.min(14, days.length) + k;
     const judged = enough && measurable(d);
     return {
       date: d.date,
       measured: measurable(d),
-      oxygen: judged && spo2 !== null && d.spo2 !== null && d.spo2.avg < spo2.median - 1.5,
-      breathing: judged && rr !== null && d.respiratoryRate !== null && d.respiratoryRate > rr.median + 1,
-      awake: judged && awake !== null && d.sleep !== null && d.sleep.minutesAwake > awake.median + Math.max(2 * 1.4826 * awake.mad, 20),
+      oxygen: judged && isOff('oxygen', compareVitalOn(days, 'oxygen', i)),
+      breathing: judged && isOff('breathing', compareVitalOn(days, 'breathing', i)),
+      awake: judged && awakeOff(i),
     };
   });
   const flags = nights

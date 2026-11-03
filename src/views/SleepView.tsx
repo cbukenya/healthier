@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { t } from '../i18n';
 import { formatCivilLong, formatClock, formatRounded } from '../i18n/format';
 import {
-  compareToBaseline, isRecent, periodShift, series, sleepArchitecture, sleepDebt, sleepNeedFor, stats, values, windowShift,
+  compareToBaseline, isRecent, periodShift, series, sleepArchitecture, sleepDebt, sleepNeedFor, stats, usualRange, values, windowShift,
 } from '../pipeline/derive';
 import { scoreSleep } from '../pipeline/sleep';
 import { BarSeries, Hypnogram, StageBar, StageLegend, TrendChart, SleepWindowChart } from '../charts';
@@ -68,7 +68,7 @@ export function SleepView({ data, clock, intraday }: { data: SyncResult; clock?:
         <TrendChart
           series={groupSeries(sleepWin, bucket)} bucket={bucket} color={DOMAIN.sleep.hex} height={190}
           format={(v) => fmtDuration(v)} area={false}
-          baseline={sleepCmp.baseline ? { centre: sleepCmp.baseline, spread: sleepCmp.spread! } : null}
+          baseline={usualRange(sleepCmp)}
         />
       </div>
     </Card>

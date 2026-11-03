@@ -430,7 +430,7 @@
       },
       "hrvAcuteHigh": {
         "title": "Great recovery last night",
-        "text": "Your HRV was {value} ms last night, near the top of your usual range. It's usually around {usual} ms."
+        "text": "Your HRV was {value} ms last night, above your usual range. It's usually around {usual} ms."
       },
       "hrvAcuteLow": {
         "title": "Your HRV is lower than usual",

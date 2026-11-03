@@ -4,8 +4,7 @@ import { formatCivilLong } from '../i18n/format';
 import { t } from '../i18n';
 import { rich } from '../i18n/react';
 import {
-  BASELINE_DAYS, BASELINE_MIN_READINGS, compareToBaseline, series, stats, values, windowShift, NOISE_FLOOR,
-  type Comparison, type Point,
+  compareVital, series, stats, usualRange as usual, values, windowShift, type Point,
 } from '../pipeline/derive';
 import { DivergingBars, RangeBandChart, Spark, TrendChart } from '../charts';
 import { BandPill, Card, CardHead, DOMAIN, Delta, EmptyState, Value, fmtNum } from '../ui/primitives';
@@ -29,8 +28,6 @@ const BREATHING_HEX = 'var(--purple-500)';
 const SPO2_HEX = 'var(--sky-500)';
 const VO2_HEX = 'var(--teal-500)';
 
-/** A comparison's usual range, for the band behind a trend line. */
-const usual = (c: Comparison) => (c.baseline !== null && c.spread !== null ? { centre: c.baseline, spread: c.spread } : null);
 const latestOf = (s: Point[]) => [...s].reverse().find((p) => p.value !== null)?.value ?? null;
 const meanOf = (s: Point[]) => stats(values(s))?.mean ?? null;
 /** The selected span's last week against its first, once it holds two weeks of readings. */
@@ -70,18 +67,18 @@ export function VitalsView({ data, clock, intraday }: { data: SyncResult; clock?
         spo2: g.value && { avg: g.value.avg, ciLower: g.value.low, ciUpper: g.value.high, rollingAvgSd: null },
       }));
 
-  // The latest readings, each against its last four weeks: the same comparisons Today makes.
+  // The latest readings, each against its last four weeks: the same comparisons Today and Labs make.
   const hrvAll = series(days, (d) => d.hrv);
   const rhrAll = series(days, (d) => d.restingHr);
   const respAll = series(days, (d) => d.respiratoryRate);
   const spo2All = series(days, (d) => d.spo2?.avg ?? null);
-  const hrvCmp = compareToBaseline(hrvAll, BASELINE_DAYS, BASELINE_MIN_READINGS, NOISE_FLOOR.hrv);
-  const rhrCmp = compareToBaseline(rhrAll, BASELINE_DAYS, BASELINE_MIN_READINGS, NOISE_FLOOR.restingHr);
-  const respCmp = compareToBaseline(respAll, BASELINE_DAYS, BASELINE_MIN_READINGS, NOISE_FLOOR.respiratoryRate);
-  const spo2Cmp = compareToBaseline(spo2All, BASELINE_DAYS, BASELINE_MIN_READINGS, NOISE_FLOOR.spo2);
+  const hrvCmp = compareVital(days, 'hrv');
+  const rhrCmp = compareVital(days, 'restingHr');
+  const respCmp = compareVital(days, 'breathing');
+  const spo2Cmp = compareVital(days, 'oxygen');
   // With cycle tracking on, the same readings judged against this part of the cycle.
-  const hrvCycle = judged && compareToBaseline(series(judged, (d) => d.hrv), BASELINE_DAYS, BASELINE_MIN_READINGS, NOISE_FLOOR.hrv);
-  const rhrCycle = judged && compareToBaseline(series(judged, (d) => d.restingHr), BASELINE_DAYS, BASELINE_MIN_READINGS, NOISE_FLOOR.restingHr);
+  const hrvCycle = judged && compareVital(judged, 'hrv');
+  const rhrCycle = judged && compareVital(judged, 'restingHr');
 
   if (!values(rhrAll).length) {
     return (
