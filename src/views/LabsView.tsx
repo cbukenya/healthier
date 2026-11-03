@@ -1170,6 +1170,7 @@ function Overview({ labs }: { labs: Lab[] }) {
 
 export function LabsView({ data, intraday = {} }: { data: SyncResult; intraday?: IntradayDays }) {
   const wide = useMediaQuery('(min-width: 768px)');
+  const twoColumns = useMediaQuery('(min-width: 1024px)'); // Tailwind's lg
   const { judged } = useCycle();
   const labs = useMemo(
     () => [
@@ -1201,8 +1202,13 @@ export function LabsView({ data, intraday = {} }: { data: SyncResult; intraday?:
         <Overview labs={labs} />
         <div className="flex justify-end"><Legend /></div>
       </div>
-      <div className="mt-1 grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {labs.map((lab) => <LabCard key={lab.key} lab={lab} />)}
+      {/* Two columns that stack on their own, so a short card never stretches to the height of the one beside it. */}
+      <div className="mt-1 grid grid-cols-1 lg:grid-cols-2 items-start gap-4">
+        {(twoColumns ? [labs.filter((_, i) => i % 2 === 0), labs.filter((_, i) => i % 2 === 1)] : [labs]).map((column, i) => (
+          <div key={i} className="min-w-0 flex flex-col gap-4">
+            {column.map((lab) => <LabCard key={lab.key} lab={lab} />)}
+          </div>
+        ))}
       </div>
     </div>
   );
