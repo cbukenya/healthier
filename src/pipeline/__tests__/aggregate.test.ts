@@ -8,7 +8,6 @@ import {
   bucketStart,
   groupDays,
   groupNights,
-  groupRange,
   groupSeries,
   wholeWeeks,
 } from '../aggregate';
@@ -65,13 +64,6 @@ describe('grouping', () => {
     assert.equal(groupDays(pts, 'week').filter((g) => !g.days.length).length, 8);
   });
 
-  it('keeps the worst night visible in a range', () => {
-    const rec = (date: string, avg: number, low: number, high: number) =>
-      ({ ...emptyRecord(date), spo2: { avg, ciLower: low, ciUpper: high, rollingAvgSd: null } }) as DailyRecord;
-    const week = [rec('2026-10-05', 96, 94, 98), rec('2026-10-06', 95, 88, 97), rec('2026-10-07', 97, 95, 99)];
-    const [g] = groupRange(week, 'week', (d) => d.spo2 && { avg: d.spo2.avg, low: d.spo2.ciLower, high: d.spo2.ciUpper });
-    assert.deepEqual(g.value, { avg: 96, low: 88, high: 99 });
-  });
 });
 
 describe('whole weeks', () => {

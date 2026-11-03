@@ -98,28 +98,6 @@ export function groupMean(days: DailyRecord[], bucket: Bucket, get: (d: DailyRec
 }
 
 /**
- * Per-bucket range: the average of the averages, but the lowest low and highest
- * high, so one bad night stays visible instead of being averaged away.
- */
-export function groupRange(
-  days: DailyRecord[],
-  bucket: Bucket,
-  get: (d: DailyRecord) => { avg: number; low: number | null; high: number | null } | null,
-) {
-  return groupDays(days, bucket).map((g) => {
-    const xs = g.days.map(get).filter((x): x is NonNullable<typeof x> => x !== null);
-    const lows = recorded(xs.map((x) => x.low));
-    const highs = recorded(xs.map((x) => x.high));
-    return {
-      date: g.date,
-      value: xs.length
-        ? { avg: mean(xs.map((x) => x.avg))!, low: lows.length ? Math.min(...lows) : null, high: highs.length ? Math.max(...highs) : null }
-        : null,
-    };
-  });
-}
-
-/**
  * Median of clock times on a 24-hour circle. Each time is first moved to within
  * 12 hours of the circular mean, so 23:30 and 00:30 give midnight, not noon,
  * and a day sleeper's 11:30 and 12:30 give 12:00 rather than straddling a

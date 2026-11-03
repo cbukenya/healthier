@@ -6,26 +6,24 @@ import { rich } from '../i18n/react';
 import {
   compareVital, series, stats, usualRange as usual, values, windowShift, type Point,
 } from '../pipeline/derive';
-import { DivergingBars, RangeBandChart, Spark, TrendChart } from '../charts';
+import { DivergingBars, Spark, TrendChart } from '../charts';
 import { BandPill, Card, CardHead, DOMAIN, Delta, EmptyState, Value, fmtNum } from '../ui/primitives';
 import { Tile } from '../ui/Tile';
 import { ChartChips } from '../ui/ChartChips';
 import type { SyncResult } from '../pipeline/sync';
-import { groupRange, groupSeries } from '../pipeline/aggregate';
-import { emptyRecord } from '../pipeline/normalize';
+import { groupSeries } from '../pipeline/aggregate';
 import { SpanSelector, useSpan } from '../ui/span';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 import { InsightsCarousel } from '../components/InsightsCarousel';
 import { usePageInsights, type Clock } from '../hooks/usePageInsights';
 import { useCycle } from '../hooks/useCycle';
 import type { IntradayDays } from '../pipeline/labs';
-import type { DailyRecord } from '../types/health';
 import { HeartRateCard } from './HeartRateCard';
-
-const spo2Of = (d: DailyRecord) => (d.spo2 ? { avg: d.spo2.avg, low: d.spo2.ciLower, high: d.spo2.ciUpper } : null);
 
 const BREATHING_HEX = 'var(--purple-500)';
 const SPO2_HEX = 'var(--sky-500)';
+/** Blood oxygen that's normal for healthy adults, shaded behind the nightly averages. */
+const OXYGEN_NORMAL = { low: 95, high: 100 };
 const VO2_HEX = 'var(--teal-500)';
 
 const latestOf = (s: Point[]) => [...s].reverse().find((p) => p.value !== null)?.value ?? null;
@@ -58,14 +56,6 @@ export function VitalsView({ data, clock, intraday }: { data: SyncResult; clock?
   // A phone shows one trend at a time behind chips; wider screens show them all.
   const wide = useMediaQuery('(min-width: 768px)');
   const [picked, setPicked] = useState<MetricKey>('hrv');
-
-  // Grouped spans: the week's average SpO₂, with its lowest low and highest high.
-  const spo2Days = bucket === 'day'
-    ? window
-    : groupRange(window, bucket, spo2Of).map((g) => ({
-        ...emptyRecord(g.date),
-        spo2: g.value && { avg: g.value.avg, ciLower: g.value.low, ciUpper: g.value.high, rollingAvgSd: null },
-      }));
 
   // The latest readings, each against its last four weeks: the same comparisons Today and Labs make.
   const hrvAll = series(days, (d) => d.hrv);
@@ -102,6 +92,7 @@ export function VitalsView({ data, clock, intraday }: { data: SyncResult; clock?
   const signedC = (v: number | null) => (v === null ? null : `${v > 0 ? '+' : ''}${fmtNum(v, 2)} ${t('units.celsius')}`);
   const rhrChange = spanChange(rhrWin);
   const vo2Change = spanChange(vo2Win);
+  const oxygenNormal = { low: fmtNum(OXYGEN_NORMAL.low, 0), high: fmtNum(OXYGEN_NORMAL.high, 0) };
 
   const metrics: Metric[] = [
     {
@@ -143,8 +134,15 @@ export function VitalsView({ data, clock, intraday }: { data: SyncResult; clock?
     {
       key: 'spo2', chip: t('vitals.trends.bloodOxygen.chip'), title: t('vitals.trends.bloodOxygen.title'), color: SPO2_HEX,
       latest: unit(latestOf(spo2Win), t('units.percent')), average: unit(meanOf(spo2Win), t('units.percent')),
-      hint: t('vitals.trends.bloodOxygen.hint'),
-      chart: <RangeBandChart days={spo2Days} bucket={bucket} get={spo2Of} color={SPO2_HEX} height={180} domain={[85, 100]} />,
+      hint: t('vitals.trends.bloodOxygen.hint', oxygenNormal),
+      chart: (
+        <TrendChart
+          series={groupSeries(spo2Win, bucket)} bucket={bucket} color={SPO2_HEX} height={180} area={false} meanWindow={null}
+          format={(v) => t('charts.tooltip.valueSymbol', { value: fmtNum(v), unit: t('units.percent') })}
+          zone={{ ...OXYGEN_NORMAL, label: t('vitals.trends.bloodOxygen.normal', oxygenNormal) }}
+          baseline={usual(spo2Cmp)} baselineAs="edges"
+        />
+      ),
     },
     {
       key: 'temp', chip: t('vitals.trends.skinTemp.chip'), title: t('vitals.trends.skinTemp.title'), color: DOMAIN.cardio.hex,
