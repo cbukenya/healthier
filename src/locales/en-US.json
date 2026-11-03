@@ -1405,7 +1405,8 @@
       "bloodOxygen": {
         "chip": "Blood oxygen",
         "title": "Blood oxygen",
-        "hint": "Each night’s average, inside its low-to-high range. Most wearables treat 95% and up as normal."
+        "hint": "Each night’s average. For healthy adults, {low} to {high}% is normal.",
+        "normal": "Normal, {low}–{high}%"
       },
       "skinTemp": {
         "chip": "Skin temp",
@@ -2424,8 +2425,7 @@
     "tooltip": {
       "notRecorded": "not recorded",
       "value": "{value} {unit}",
-      "valueSymbol": "{value}{unit}",
-      "range": "{low}–{high}{unit}"
+      "valueSymbol": "{value}{unit}"
     },
     "trend": {
       "series": "{bucket, select, day {reading} week {weekly average} other {monthly average}}",
@@ -2437,12 +2437,6 @@
     },
     "bars": {
       "averagePerDay": "average per day"
-    },
-    "range": {
-      "band": "{bucket, select, day {nightly range} week {week's range} other {month's range}}",
-      "average": "average",
-      "low": "{bucket, select, day {nightly low} week {week's low} other {month's low}}",
-      "high": "{bucket, select, day {nightly high} week {week's high} other {month's high}}"
     },
     "diverging": {
       "series": "{bucket, select, day {vs baseline} week {weekly average vs baseline} other {monthly average vs baseline}}"

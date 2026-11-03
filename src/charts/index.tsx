@@ -132,6 +132,8 @@ export function TrendChart({
   meanWindow: meanWindowProp,
   domain,
   baseline: baselineProp,
+  baselineAs = 'band',
+  zone,
   format = (v: number) => fmtNum(v),
   area = true,
   bucket = 'day',
@@ -145,6 +147,10 @@ export function TrendChart({
   domain?: [number | 'auto', number | 'auto'];
   /** Draws the typical band, so a point can be read against its own history. */
   baseline?: { centre: number; spread: number } | null;
+  /** The usual range as a shaded band with its centre, or as just its two edges, dotted. */
+  baselineAs?: 'band' | 'edges';
+  /** A fixed range shaded in the series colour, such as what's normal for most people, named in the key. */
+  zone?: { low: number; high: number; label: string };
   format?: (v: number) => string;
   area?: boolean;
   /** Set when the series has been grouped into weeks or months. */
@@ -158,14 +164,17 @@ export function TrendChart({
   const n = rows.length;
   const id = useMemo(() => `g${Math.random().toString(36).slice(2, 8)}`, []);
   const known = values(series).length;
-  // The axis covers the readings and the usual band. Left to itself, Recharts sized the axis to the
-  // readings alone and then dropped the band entirely whenever it reached past them.
+  // The axis covers the readings, the usual band and the zone. Left to itself, Recharts sized the axis
+  // to the readings alone and then dropped the band entirely whenever it reached past them.
   const ticks = useMemo(() => {
     const v = values(series);
     if (domain || !v.length) return null;
-    const edges = baseline ? [baseline.centre - baseline.spread, baseline.centre + baseline.spread] : [];
+    const edges = [
+      ...(baseline ? [baseline.centre - baseline.spread, baseline.centre + baseline.spread] : []),
+      ...(zone ? [zone.low, zone.high] : []),
+    ];
     return niceScale(Math.min(...v, ...edges), Math.max(...v, ...edges));
-  }, [series, domain, baseline?.centre, baseline?.spread]);
+  }, [series, domain, baseline?.centre, baseline?.spread, zone?.low, zone?.high]);
   if (!known) return <NoSeries height={height} />;
 
   /**
@@ -193,7 +202,16 @@ export function TrendChart({
           </linearGradient>
         </defs>
         <CartesianGrid stroke={GRID} strokeDasharray="2 4" vertical={false} />
-        {baseline && (
+        {zone && (
+          <ReferenceArea
+            y1={zone.low}
+            y2={zone.high}
+            ifOverflow="extendDomain"
+            {...({ fill: color, fillOpacity: 0.12, stroke: 'none' } as any)}
+          />
+        )}
+        {zone && <ReferenceLine y={zone.low} ifOverflow="extendDomain" stroke={color} strokeOpacity={0.45} strokeWidth={1} />}
+        {baseline && baselineAs === 'band' && (
           <ReferenceArea
             y1={baseline.centre - baseline.spread}
             y2={baseline.centre + baseline.spread}
@@ -201,7 +219,14 @@ export function TrendChart({
             {...({ fill: 'var(--color-zinc-400)', fillOpacity: 0.06, stroke: 'none' } as any)}
           />
         )}
-        {baseline && <ReferenceLine y={baseline.centre} ifOverflow="extendDomain" stroke="var(--color-zinc-500)" strokeDasharray="3 3" strokeWidth={1} />}
+        {baseline && baselineAs === 'band' && <ReferenceLine y={baseline.centre} ifOverflow="extendDomain" stroke="var(--color-zinc-500)" strokeDasharray="3 3" strokeWidth={1} />}
+        {/* Round caps on near-zero dashes draw dots, set apart from the grid's dashes. */}
+        {baseline && baselineAs === 'edges' && [baseline.centre - baseline.spread, baseline.centre + baseline.spread].map((y) => (
+          <ReferenceLine
+            key={y} y={y} ifOverflow="extendDomain"
+            stroke="var(--color-zinc-400)" strokeOpacity={0.8} strokeWidth={1.5} strokeDasharray="0.1 4" strokeLinecap="round"
+          />
+        ))}
         <XAxis
           dataKey="label"
           axisLine={false}
@@ -257,8 +282,8 @@ export function TrendChart({
         )}
       </ComposedChart>
     </ResponsiveContainer>
-    {/* A key, so the thin line, the thick one and the band each say what they are. */}
-    {(showMean || baseline) && (
+    {/* A key, so the thin line, the thick one, the zone and the band each say what they are. */}
+    {(showMean || baseline || zone) && (
       <div className="flex flex-wrap gap-x-4 gap-y-1 px-3 pt-1 text-note text-zinc-500">
         {showMean && (
           <>
@@ -272,9 +297,17 @@ export function TrendChart({
             </span>
           </>
         )}
+        {zone && (
+          <span className="flex items-center gap-1.5">
+            <i className="block w-3.5 h-2 rounded-sm" style={{ background: color, opacity: 0.3 }} />
+            {zone.label}
+          </span>
+        )}
         {baseline && (
           <span className="flex items-center gap-1.5">
-            <i className="block w-3.5 h-2 rounded-sm bg-zinc-400/20" />
+            {baselineAs === 'band'
+              ? <i className="block w-3.5 h-2 rounded-sm bg-zinc-400/20" />
+              : <i className="block w-3.5 border-t-[1.5px] border-dotted border-zinc-400/80" />}
             {t('charts.trend.legend.usualRange')}
           </span>
         )}
@@ -395,76 +428,6 @@ export function StackedBars({
           />
         ))}
       </BarChart>
-    </ResponsiveContainer>
-  );
-}
-
-// ────────────────────────────────────────────────── range band (SpO2 etc.)
-
-export function RangeBandChart({
-  days,
-  color,
-  height = 180,
-  get,
-  unit = t('units.percent'),
-  domain,
-  bucket = 'day',
-}: {
-  days: DailyRecord[];
-  color: string;
-  height?: number;
-  get: (d: DailyRecord) => { avg: number; low: number | null; high: number | null } | null;
-  unit?: string;
-  domain?: [number, number];
-  /** When grouped, each row is a week/month: average of averages, lowest low, highest high. */
-  bucket?: Bucket;
-}) {
-  const rows = useMemo(
-    () =>
-      days.map((d) => {
-        const v = get(d);
-        const hasBand = v?.low !== null && v?.low !== undefined && v?.high !== null && v?.high !== undefined;
-        return {
-          ...labels(d.date, bucket),
-          // A two-element dataKey draws a true range area. The earlier version
-          // stacked two areas, which forced the y-axis to include zero and made a
-          // 93–99% band look like a flat line pinned to the top of the chart.
-          band: hasBand ? [v!.low as number, v!.high as number] : null,
-          avg: v?.avg ?? null,
-          low: v?.low ?? null,
-          high: v?.high ?? null,
-        };
-      }),
-    [days, get, bucket],
-  );
-  if (!rows.some((r) => r.avg !== null)) return <NoSeries height={height} />;
-  return (
-    <ResponsiveContainer width="100%" height={height}>
-      <ComposedChart data={rows} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
-        <CartesianGrid stroke={GRID} strokeDasharray="2 4" vertical={false} />
-        <XAxis dataKey="label" axisLine={false} tickLine={false} interval={tickInterval(rows.length)} tick={TICK} dy={6} />
-        <YAxis axisLine={false} tickLine={false} tick={TICK} tickFormatter={axisTick} domain={domain ?? ['auto', 'auto']} width={52} />
-        <Tooltip
-          contentStyle={tooltipStyle} itemStyle={{ color: 'var(--color-zinc-400)' }}
-          labelStyle={{ color: 'var(--color-zinc-200)', fontWeight: 600, marginBottom: 2 }}
-          labelFormatter={tooltipHeading}
-          formatter={(v: any, name?: string | number) => {
-            if (name === 'band') {
-              return Array.isArray(v)
-                ? [t('charts.tooltip.range', { low: fmtNum(v[0]), high: fmtNum(v[1]), unit }), t('charts.range.band', { bucket })]
-                : ([null, null] as any);
-            }
-            const map: Record<string, MessageKey> = { avg: 'charts.range.average', low: 'charts.range.low', high: 'charts.range.high' };
-            const key = map[String(name)];
-            return [v === null ? '—' : t('charts.tooltip.valueSymbol', { value: fmtNum(Number(v)), unit }), key ? t(key, { bucket }) : name ?? ''];
-          }}
-        />
-        <Area
-          dataKey="band" stroke="none" fill={color} fillOpacity={0.18}
-          isAnimationActive={false} connectNulls={false}
-        />
-        <Line dataKey="avg" stroke={color} strokeWidth={1.9} dot={false} connectNulls={false} isAnimationActive={false} />
-      </ComposedChart>
     </ResponsiveContainer>
   );
 }
