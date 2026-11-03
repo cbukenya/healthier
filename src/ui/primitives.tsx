@@ -190,6 +190,19 @@ const BAND_COPY: Record<Band, { label: MessageKey; cls: string }> = {
 };
 
 /**
+ * A score's tier in a pill: its name after a glowing dot of its colour, as the sleep score and the
+ * body battery show it. Set in the body face even inside a title.
+ */
+export function StatusPill({ name, dot, glow = `0 0 10px ${tint(dot, 60)}`, className = '' }: { name: string; dot: string; glow?: string; className?: string }) {
+  return (
+    <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-zinc-900 border border-zinc-800 shadow-sm font-sans ${className}`}>
+      <span className="w-2.5 h-2.5 rounded-full inline-block shrink-0" style={{ backgroundColor: dot, boxShadow: glow }} />
+      <span className="text-detail font-semibold text-zinc-200 tracking-tight">{name}</span>
+    </span>
+  );
+}
+
+/**
  * Where the latest reading sits against its own 28-day history. Deliberately
  * says "above usual" rather than "good" — for HRV that's good, for resting heart
  * rate it isn't, and the app shouldn't pretend to know which you want.
