@@ -1046,8 +1046,9 @@ function tachyLab(days: Days, intraday: IntradayDays): Lab {
 
 function Intro({ wide = false }: { wide?: boolean }) {
   return (
-    <header className={wide ? 'max-w-3xl' : ''}>
-      <p className="px-1 text-body leading-normal text-zinc-400">
+    <header>
+      {/* The lead keeps a reading width on wide screens; the notice spans the page like the cards below it. */}
+      <p className={`px-1 text-body leading-normal text-zinc-400 ${wide ? 'max-w-3xl' : ''}`}>
         {rich('labs.intro.lead', { b: (w) => <b className="font-semibold text-zinc-50">{w}</b> })}
       </p>
       {/* A quiet card of its own: read once, then easy to pass over on the way to the labs. */}
