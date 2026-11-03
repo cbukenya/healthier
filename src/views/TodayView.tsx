@@ -158,8 +158,9 @@ export function TodayView({
           />
         </div>
 
-        <div className="hidden md:grid lg:col-span-4 grid-cols-1 gap-3">
-          <Card className="flex flex-col">
+        {/* Side by side, the column runs as tall as the battery card, its three cards sharing what's left over. */}
+        <div className="hidden md:flex flex-col lg:col-span-4 gap-3 lg:self-stretch">
+          <Card className="flex flex-col grow">
             <div className="px-4 pt-4 pb-3 flex-1 flex flex-col">
               <div className="flex items-start justify-between">
                 <span className="card-title-glance text-zinc-500">{t('today.sleep.title')}</span>
@@ -199,7 +200,7 @@ export function TodayView({
             </div>
           </Card>
 
-          <Card className="flex flex-col">
+          <Card className="flex flex-col grow">
             <div className="px-4 pt-4 pb-3 flex-1 flex flex-col">
               <div className="flex items-start justify-between">
                 <span className="card-title-glance text-zinc-500">{movementIsToday ? t('today.activity.today') : t('today.activity.latest')}</span>
@@ -242,7 +243,7 @@ export function TodayView({
             </div>
           </Card>
 
-          <Card className="flex flex-col">
+          <Card className="flex flex-col grow">
             <div className="px-4 pt-4 pb-3 flex-1 flex flex-col">
               <div className="flex items-start justify-between">
                 <span className="card-title-glance text-zinc-500">{t('today.vitals.title')}</span>
