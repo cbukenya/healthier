@@ -2,7 +2,7 @@ import React, { useId } from 'react';
 import { BASELINE_DAYS, BATTERY_TIERS, batteryTier, type Readiness, type ReadinessPart, type ReadinessSignal } from '../pipeline/derive';
 import { t, type MessageKey } from '../i18n';
 import { formatFixed, formatList } from '../i18n/format';
-import { Contributors } from '../ui/primitives';
+import { Contributors, StatusPill } from '../ui/primitives';
 import type { Gender } from '../pipeline/registry';
 import { silhouette } from './silhouettes';
 
@@ -21,10 +21,10 @@ interface BodyBatteryProps {
 
 /**
  * One colour per tier: for This week's bars (fill), for the charge that fills the figure and its
- * rail (body, the same in both themes) and for the tier's name beside it and by the title (ink, the
- * same colour in dark, a shade darker in light so it reads on white). Also its name and the
- * figure's label for a screen reader (a whole sentence per tier, so a language can inflect the name
- * in it); the thresholds themselves live in BATTERY_TIERS.
+ * rail (body, the same in both themes) and for the tier's name beside it and the dot in the pill by
+ * the title (ink, the same colour in dark, a shade darker in light so it reads on white). Also its
+ * name and the figure's label for a screen reader (a whole sentence per tier, so a language can
+ * inflect the name in it); the thresholds themselves live in BATTERY_TIERS.
  */
 export const TIER_STYLE: Record<(typeof BATTERY_TIERS)[number]['tag'], { fill: string; body: string; ink: string; name: MessageKey; figure: MessageKey }> = {
   CHARGED: { fill: 'var(--charge-charged)', body: 'var(--figure-charged)', ink: 'var(--figure-ink-charged)', name: 'today.battery.tiers.charged.name', figure: 'today.battery.tiers.charged.figure' },
@@ -71,27 +71,12 @@ function batteryText({ score, confidence, missing, calibrating }: Pick<BodyBatte
   ].filter(Boolean).join(' · ');
   return {
     tier,
-    // The tier by the title, in its own colour; before there's a score, a grey note instead.
+    // The tier by the title, in the sleep score's pill with a dot of its colour; before there's a score, a grey one.
     status: tier
       ? { text: t(TIER_STYLE[tier.tag].name), color: TIER_STYLE[tier.tag].ink }
       : { text: t('today.battery.noData'), color: 'var(--color-zinc-500)' },
     basis,
   };
-}
-
-/**
- * The tier by the title, in capitals and its colour, after a dot of the same colour: • BALANCED.
- * The dot sits halfway up the capitals (DM Sans's are 0.7em tall), not halfway up a lower-case x.
- */
-function TierWord({ status, className = '' }: { status: { text: string; color: string }; className?: string }) {
-  return (
-    <span
-      className={`font-sans text-tag uppercase before:content-[''] before:inline-block before:size-1.5 before:mr-1.5 before:rounded-full before:bg-current before:align-[calc(0.35em_-_3px)] ${className}`}
-      style={{ color: status.color }}
-    >
-      {status.text}
-    </span>
-  );
 }
 
 const TOP = 9;
@@ -245,9 +230,9 @@ export function BodyBattery({ score, parts, confidence, label, missing, calibrat
       <div className="grid grid-cols-1 md:grid-cols-[minmax(280px,1fr)_minmax(300px,440px)] gap-3 items-start">
         <div>
           {/* A card title, as This week's is, with the tier to its right. */}
-          <h1 className="card-title-detail flex items-baseline gap-3 flex-wrap text-zinc-50">
+          <h1 className="card-title-detail flex items-center gap-3 flex-wrap text-zinc-50">
             {t('today.battery.title')}
-            <TierWord status={z.status} />
+            <StatusPill name={z.status.text} dot={z.status.color} />
           </h1>
           <p className="mt-[18px] text-lead text-zinc-400 max-w-[30ch]">
             {t('today.battery.composition', { days: BASELINE_DAYS })}
@@ -299,7 +284,7 @@ export function BodyBatteryCompact({ score, parts, confidence, label, missing, c
       {/* A card title, as This week's is, with the tier under it. */}
       <div>
         <h1 className="card-title-detail text-zinc-50">{t('today.battery.title')}</h1>
-        <TierWord status={z.status} className="block mt-0.5" />
+        <StatusPill name={z.status.text} dot={z.status.color} className="mt-1.5" />
       </div>
 
       {/* Always side by side, never the figure under the score: the score keeps the room it needs and the figure shrinks into what's left. */}

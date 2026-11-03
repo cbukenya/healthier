@@ -7,7 +7,7 @@ import {
 } from '../pipeline/derive';
 import { scoreSleep } from '../pipeline/sleep';
 import { BarSeries, Hypnogram, StageBar, StageLegend, TrendChart, SleepWindowChart } from '../charts';
-import { BandPill, Card, CardHead, Contributors, DOMAIN, Delta, EmptyState, Row, Segmented, Value, fmtDuration, CardSummary } from '../ui/primitives';
+import { BandPill, Card, CardHead, Contributors, DOMAIN, Delta, EmptyState, Row, Segmented, StatusPill, Value, fmtDuration, CardSummary } from '../ui/primitives';
 import { SpanSelector, spanSummaryTitle, useSpan } from '../ui/span';
 import { ChartChips } from '../ui/ChartChips';
 import { useMediaQuery } from '../hooks/useMediaQuery';
@@ -189,18 +189,7 @@ export function SleepView({ data, clock, intraday }: { data: SyncResult; clock?:
                         </span>
                         <span className="text-detail text-zinc-500 font-medium">/ 100</span>
                       </div>
-                      <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-zinc-900 border border-zinc-800 shadow-sm">
-                        <span
-                          className="w-2.5 h-2.5 rounded-full inline-block shrink-0"
-                          style={{
-                            backgroundColor: currentTier.dotColor,
-                            boxShadow: currentTier.glow,
-                          }}
-                        />
-                        <span className="text-detail font-semibold text-zinc-200 tracking-tight">
-                          {currentTier.name}
-                        </span>
-                      </div>
+                      <StatusPill name={currentTier.name} dot={currentTier.dotColor} glow={currentTier.glow} />
                     </div>
                   </div>
 
