@@ -1,17 +1,18 @@
-import React, { useLayoutEffect, useMemo, useRef, useState } from 'react';
+import React, { useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Bell, BellOff, ChevronDown, ChevronRight, CircleCheck, CircleDashed, Clock, Eye, Info } from 'lucide-react';
 import type { SyncResult } from '../pipeline/sync';
 import {
   completedIntradayDays, dipping, entropyShift, illnessDates, nocturnalTachycardia, sdbScreen, strainToday,
   type DipCategory, type EntropyShift, type IntradayDays, type SdbNight, type StrainKey, type StrainSignal, type StrainToday,
-  type TachycardiaEvent, type TachyNight,
+  type TachycardiaEvent, type TachyNight, type TachySleep,
 } from '../pipeline/labs';
+import { stats } from '../pipeline/derive';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 import { useCycle } from '../hooks/useCycle';
 import { t, type MessageKey } from '../i18n';
 import { rich, type Wrap } from '../i18n/react';
 import { capitalize, formatCivil, formatCivilLong, formatClock, formatFixed, formatList, formatRounded } from '../i18n/format';
-import { tint } from '../ui/primitives';
+import { EFFORT, tint } from '../ui/primitives';
 
 /**
  * 🧪 Labs: experimental views of multi-week patterns in wearable data.
@@ -886,48 +887,108 @@ function entropyLab(days: Days): Lab {
 
 // ── card 6 · high heart rate during sleep ─────────────────────────────────
 
-/** 40 bpm at the bottom of an h-unit box and 120 at the top, so 100 bpm sits a quarter of the way down. */
-const bpmY = (bpm: number, h = 40) => h - ((Math.min(Math.max(bpm, 40), 120) - 40) / 80) * h;
+/** Blank between one sleep and the next on the chart's time line, in minutes, so each line ends on its own. */
+const SLEEP_GAP_MIN = 12;
+/** Above 100 bpm the line turns from green to red, all the way red from here. */
+const RED_AT = 120;
 
 /**
- * Every day of the scanned window at its highest heart rate held for ten minutes while asleep,
- * against the 100 bpm line. The days with a stretch sit above it, in rose; a day that wasn't
- * scanned leaves a gap.
+ * Every scanned night and nap side by side, as the highest heart rate asleep in each ten minutes,
+ * against the 100 bpm line. Above it the line turns from green to red, and each stretch the card
+ * counts has a dot at its peak, so a short climb with no dot reads as too short to count. A day
+ * that wasn't scanned leaves a gap as long as a usual night.
  */
 function NightsChart({ nights, compact = false }: { nights: TachyNight[]; compact?: boolean }) {
   const [ref, W] = useWidth<HTMLDivElement>();
-  const H = compact ? 28 : 66;
+  const uid = useId();
+  const H = compact ? 32 : 150;
+  const left = compact ? 0 : 26;
+  const right = compact ? 0 : 24;
   const pad = compact ? 3 : 6;
-  const y = (bpm: number) => pad + bpmY(bpm, H - 2 * pad);
-  const inset = compact ? 4 : 8;
-  const x = (i: number) => (nights.length === 1 ? W / 2 : inset + i * ((W - 2 * inset) / (nights.length - 1)));
-  const scanned = nights.filter((n) => n.bpm !== null).length;
-  const above = nights.filter((n) => n.above).length;
+  const sleeps = nights.flatMap((n) => n.sleeps);
+  const highs = sleeps.flatMap((sl) => sl.highs.map((h) => h.bpm));
+  const peaks = sleeps.reduce((n, sl) => n + sl.peaks.length, 0);
+  const usual = stats(sleeps.map((sl) => sl.minutes))?.median ?? 0;
+
+  // Where each sleep starts on the time line: one after another, a missed day as long as a usual night.
+  let at = 0;
+  const placed: { sleep: TachySleep; start: number }[] = [];
+  for (const n of nights) {
+    if (!n.sleeps.length) at += usual + SLEEP_GAP_MIN;
+    for (const sl of n.sleeps) {
+      placed.push({ sleep: sl, start: at });
+      at += sl.minutes + SLEEP_GAP_MIN;
+    }
+  }
+  const span = Math.max(1, at - SLEEP_GAP_MIN);
+  const lo = Math.min(40, Math.floor(Math.min(...highs) / 20) * 20);
+  const hi = Math.max(RED_AT, Math.ceil(Math.max(...highs) / 20) * 20);
+  const x = (m: number) => left + (m / span) * (W - left - right);
+  const y = (bpm: number) => pad + ((hi - bpm) / (hi - lo)) * (H - 2 * pad);
+  const ticks = compact ? [] : Array.from({ length: (hi - lo) / 20 + 1 }, (_, i) => lo + i * 20);
+
+  // A line per run of readings: ten minutes awake, or with no readings, breaks it.
+  const runs = placed.flatMap(({ sleep, start }) => {
+    const out: { min: number; bpm: number }[][] = [];
+    for (const h of sleep.highs) {
+      const run = out[out.length - 1];
+      if (run && h.min - run[run.length - 1].min <= 10) run.push(h);
+      else out.push([h]);
+    }
+    return out.map((run) => run.map((h) => [x(start + h.min), y(h.bpm)] as const));
+  });
+  const line = runs.map((pts) => (pts.length === 1
+    ? `M${pts[0][0] - 1},${pts[0][1]}h2`
+    : `M${pts.map(([px, py]) => `${px},${py}`).join('L')}`)).join('');
+  const area = runs.filter((pts) => pts.length > 1)
+    .map((pts) => `M${pts[0][0]},${H - pad}L${pts.map(([px, py]) => `${px},${py}`).join('L')}L${pts[pts.length - 1][0]},${H - pad}Z`).join('');
+  const dots = placed.flatMap(({ sleep, start }) => sleep.peaks.map((p) => ({ cx: x(start + p.min), cy: y(p.bpm) })));
+
   return (
     <div aria-hidden={compact || undefined}>
       <div ref={ref} style={{ height: H }}>
         {W > 0 && (
           <svg
-            width={W} height={H} className={`block ${compact ? 'rounded' : 'rounded-md'} bg-panel-raised`}
-            role={compact ? undefined : 'img'} aria-label={compact ? undefined : t('labs.tachy.nights.aria', { count: scanned, above })}
+            width={W} height={H} className={`block ${compact ? 'rounded bg-panel-raised' : ''}`}
+            role={compact ? undefined : 'img'} aria-label={compact ? undefined : t('labs.tachy.nights.aria', { count: nights.filter((n) => n.sleeps.length).length, peaks })}
           >
-            <line x1={0} x2={W} y1={y(100)} y2={y(100)} stroke={HEX.rose} strokeOpacity={0.45} strokeDasharray={compact ? '3 3' : '4 4'} />
-            {nights.map((n, i) => n.bpm !== null && (
-              <circle
-                key={n.date} cx={x(i)} cy={y(n.bpm)}
-                r={n.above ? (compact ? 2.6 : 3.4) : (compact ? 1.4 : 2.2)} fill={n.above ? HEX.rose : HEX.zinc500}
-              />
+            <defs>
+              <linearGradient id={`${uid}-line`} gradientUnits="userSpaceOnUse" x1={0} x2={0} y1={y(RED_AT)} y2={y(100)}>
+                <stop offset={0} stopColor={EFFORT.peak} />
+                <stop offset={0.35} stopColor={EFFORT.vigorous} />
+                <stop offset={0.7} stopColor={EFFORT.moderate} />
+                <stop offset={1} stopColor={EFFORT.light} />
+              </linearGradient>
+              <linearGradient id={`${uid}-area`} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stopColor={HEX.zinc400} stopOpacity={0.3} />
+                <stop offset="1" stopColor={HEX.zinc400} stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            {ticks.filter((v) => v !== 100).map((v) => (
+              <line key={v} x1={left} x2={W - right} y1={y(v)} y2={y(v)} stroke={HEX.zinc800} strokeDasharray="2 4" />
+            ))}
+            {ticks.map((v) => (
+              <text key={v} x={left - 6} y={y(v) + 3.5} textAnchor="end" fontSize={10} fill="var(--color-zinc-600)">{v}</text>
+            ))}
+            {!compact && <path d={area} fill={`url(#${uid}-area)`} />}
+            <path d={line} fill="none" stroke={`url(#${uid}-line)`} strokeWidth={compact ? 1 : 1.2} strokeLinejoin="round" strokeLinecap="round" />
+            <line x1={left} x2={W - right} y1={y(100)} y2={y(100)} stroke={HEX.rose} strokeOpacity={compact ? 0.45 : 0.55} strokeDasharray="3 3" />
+            {!compact && <text x={W - right + 6} y={y(100) + 3.5} fontSize={10} fill={HEX.rose}>100</text>}
+            {dots.map((d, i) => (
+              <circle key={i} cx={d.cx} cy={d.cy} r={compact ? 2.4 : 4} fill={HEX.rose} stroke={compact ? 'none' : 'var(--color-zinc-900)'} strokeWidth={2} />
             ))}
           </svg>
         )}
       </div>
-      <Ends compact={compact} left={formatCivil(nights[0].date)} right={formatCivil(nights[nights.length - 1].date)} />
+      <div style={{ paddingLeft: left, paddingRight: right }}>
+        <Ends compact={compact} left={formatCivil(nights[0].date)} right={formatCivil(nights[nights.length - 1].date)} />
+      </div>
       {!compact && (
         <div className="mt-1.5">
           <Keys items={[
             [<span className="w-3.5 border-t border-dashed border-rose-400/60" />, t('labs.tachy.nights.keys.line')],
-            [<Dot className="bg-zinc-500" />, t('labs.tachy.nights.keys.held')],
-            ...(above ? [[<Dot className="bg-rose-400" />, t('labs.tachy.nights.keys.above')] as [React.ReactNode, string]] : []),
+            [<span className="w-3.5 h-0.5 rounded-full" style={{ background: `linear-gradient(to right, ${EFFORT.light} 40%, ${EFFORT.moderate} 60%, ${EFFORT.vigorous} 80%, ${EFFORT.peak})` }} />, t('labs.tachy.nights.keys.highs')],
+            ...(peaks ? [[<Dot className="bg-rose-400" />, t('labs.tachy.nights.keys.peak')] as [React.ReactNode, string]] : []),
           ]} />
         </div>
       )}

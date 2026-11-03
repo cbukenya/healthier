@@ -238,13 +238,34 @@ describe('high heart rate during sleep', () => {
     assert.deepEqual(r.nights, []);
   });
 
-  it('draws each night at the highest heart rate held for ten minutes, above 100 bpm only with a stretch', () => {
-    // Twelve minutes at 112: held for ten minutes at 112, so it's a stretch.
+  it('draws each night as its highest reading in every ten minutes, with a dot at each stretch', () => {
+    // Twelve minutes at 112 from 01:00: two ten-minute highs at 112, and a stretch peaking at its first minute.
     const stretch = night(date, minutes(prev, 23 * 60, 480, (i) => (i >= 120 && i < 132 ? 112 : 60)));
-    assert.deepEqual(nocturnalTachycardia(stretch.days, stretch.intraday).nights, [{ date, bpm: 112, above: true }]);
-    // Nine minutes at 130 isn't held for ten: the night's best ten minutes include a 60.
+    const [withStretch] = nocturnalTachycardia(stretch.days, stretch.intraday).nights;
+    assert.equal(withStretch.sleeps.length, 1);
+    const { highs, peaks, minutes: length } = withStretch.sleeps[0];
+    assert.equal(length, 480);
+    assert.equal(highs.length, 48);
+    assert.deepEqual(highs.filter((h) => h.bpm > 60), [{ min: 125, bpm: 112 }, { min: 135, bpm: 112 }]);
+    assert.deepEqual(peaks, [{ min: 120, bpm: 112 }]);
+    // Nine minutes at 130 climbs as high on the line but isn't a stretch, so it has no dot.
     const short = night(date, minutes(prev, 23 * 60, 480, (i) => (i >= 120 && i < 129 ? 130 : 60)));
-    assert.deepEqual(nocturnalTachycardia(short.days, short.intraday).nights, [{ date, bpm: 60, above: false }]);
+    const [withClimb] = nocturnalTachycardia(short.days, short.intraday).nights;
+    assert.equal(Math.max(...withClimb.sleeps[0].highs.map((h) => h.bpm)), 130);
+    assert.deepEqual(withClimb.sleeps[0].peaks, []);
+  });
+
+  it('leaves minutes awake out of the line', () => {
+    const samples = minutes(prev, 23 * 60, 480, (i) => (i >= 240 && i < 260 ? 115 : 60));
+    const segments = [
+      { stage: 'light' as const, offsetMin: 0, durationMin: 240, clockMin: 23 * 60 },
+      { stage: 'awake' as const, offsetMin: 240, durationMin: 20, clockMin: 3 * 60 },
+      { stage: 'light' as const, offsetMin: 260, durationMin: 220, clockMin: 3 * 60 + 20 },
+    ];
+    const { days, intraday } = night(date, samples, segments);
+    const { highs } = nocturnalTachycardia(days, intraday).nights[0].sleeps[0];
+    assert.ok(highs.every((h) => h.bpm === 60));
+    assert.ok(!highs.some((h) => h.min === 245 || h.min === 255), 'the two blocks awake are left out, so the line breaks');
   });
 
   it('draws every day of the window, with a gap where a night has too few readings', () => {
@@ -260,10 +281,10 @@ describe('high heart rate during sleep', () => {
     ];
     const r = nocturnalTachycardia(records, byDate(samples));
     assert.equal(r.nightsScanned, 2);
-    assert.deepEqual(r.nights, [
-      { date, bpm: 60, above: false },
-      { date: addDays(date, 1), bpm: null, above: false },
-      { date: third, bpm: 105, above: true },
+    assert.deepEqual(r.nights.map((n) => [n.date, n.sleeps.length, n.sleeps.flatMap((sl) => sl.peaks).length]), [
+      [date, 1, 0],
+      [addDays(date, 1), 0, 0],
+      [third, 1, 1],
     ]);
   });
 });

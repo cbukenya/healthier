@@ -2058,11 +2058,11 @@
         "sub": "In {count, plural, one {# night} other {# nights}} with enough heart-rate data."
       },
       "nights": {
-        "aria": "{count, plural, one {One night} other {# nights}} of sleep, each at its highest heart rate held for 10 minutes, against the 100 bpm line. {above, plural, =0 {None went above it.} one {One went above it.} other {# went above it.}}",
+        "aria": "{count, plural, one {One night} other {# nights}} of sleep, as the highest heart rate in each 10 minutes, against the 100 bpm line. {peaks, plural, =0 {No stretch went above it.} one {One stretch went above it.} other {# stretches went above it.}}",
         "keys": {
           "line": "100 bpm",
-          "held": "highest held for 10 minutes, each night",
-          "above": "10+ minutes above"
+          "highs": "Highest in each 10 minutes asleep",
+          "peak": "10+ minutes above 100, at its peak"
         }
       },
       "empty": {

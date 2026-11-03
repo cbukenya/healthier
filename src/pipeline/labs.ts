@@ -259,10 +259,17 @@ export function entropyShift(days: DailyRecord[]): EntropyShift {
 export interface TachyNight {
   /** The day the sleep is filed under. */
   date: string;
-  /** The highest heart rate held for ten minutes in a row while asleep; null when it wasn't scanned. */
-  bpm: number | null;
-  /** Whether it had a stretch above 100 bpm. */
-  above: boolean;
+  /** Its scanned night and naps, in the order they came; none when it wasn't scanned. */
+  sleeps: TachySleep[];
+}
+
+/** One scanned night or nap, as a time line from falling asleep, in minutes. */
+export interface TachySleep {
+  minutes: number;
+  /** The highest reading asleep in each ten minutes, at the middle of those ten. */
+  highs: { min: number; bpm: number }[];
+  /** Each stretch above 100 bpm, at its peak. */
+  peaks: { min: number; bpm: number }[];
 }
 
 export interface TachycardiaEvent {
@@ -298,7 +305,7 @@ export function nocturnalTachycardia(days: DailyRecord[], intraday: IntradayDays
 } {
   const MAX_GAP_MS = 2 * 60_000;
   const events: TachycardiaEvent[] = [];
-  const scanned = new Map<string, { bpm: number | null; above: boolean }>();
+  const scanned = new Map<string, TachySleep[]>();
 
   const validSamples = (date: string): IntradaySample[] =>
     (intraday[date] ?? []).filter((s) => s && typeof s.value === 'number' && !isNaN(s.value));
@@ -332,7 +339,7 @@ export function nocturnalTachycardia(days: DailyRecord[], intraday: IntradayDays
     const from = formatClock(session.bedtimeMin);
     const to = formatClock(session.wakeMin);
     const sleepWindow = t('labs.tachy.events.window', { kind: isNap ? 'nap' : 'night', from, to });
-    let stretches = 0;
+    const peaks: TachySleep['peaks'] = [];
 
     let run: { s: IntradaySample; t: number }[] = [];
     const close = () => {
@@ -341,7 +348,7 @@ export function nocturnalTachycardia(days: DailyRecord[], intraday: IntradayDays
         const last = run[run.length - 1];
         const peak = run.reduce((a, b) => (b.s.value > a.s.value ? b : a));
         const stage = stageAt(peak.t);
-        stretches++;
+        peaks.push({ min: Math.round((peak.t - startMs) / 60_000), bpm: Math.round(peak.s.value) });
         events.push({
           date: first.s.date || dayDate,
           startMin: first.s.minutesOfDay,
@@ -356,34 +363,25 @@ export function nocturnalTachycardia(days: DailyRecord[], intraday: IntradayDays
       run = [];
     };
 
-    // Also the highest heart rate held for ten minutes in a row: the lowest of each ten readings in
-    // a row, at its best. Gaps and awake minutes break it as they end a stretch, so it's above
-    // 100 bpm exactly when the session has a stretch.
-    let held: number | null = null;
-    let lastTen: { s: IntradaySample; t: number }[] = [];
+    // Also the highest reading asleep in each ten minutes, for the chart: one point every ten
+    // minutes keeps a short peak at its true height, where an average would flatten it.
+    const highs = new Map<number, number>();
     for (const item of samples) {
       const awake = stageAt(item.t) === 'awake';
       const gap = run.length > 0 && item.t - run[run.length - 1].t > MAX_GAP_MS;
       if (gap || awake || item.s.value <= 100) close();
       if (!awake && item.s.value > 100) run.push(item);
-
-      if (awake || (lastTen.length > 0 && item.t - lastTen[lastTen.length - 1].t > MAX_GAP_MS)) lastTen = [];
       if (awake) continue;
-      lastTen.push(item);
-      if (lastTen.length > 10) lastTen.shift();
-      if (lastTen.length === 10) {
-        const low = Math.min(...lastTen.map((x) => x.s.value));
-        held = held === null ? low : Math.max(held, low);
-      }
+      const block = Math.floor((item.t - startMs) / 600_000);
+      highs.set(block, Math.max(highs.get(block) ?? -Infinity, item.s.value));
     }
     close();
 
-    // A day's night and naps are drawn together, at the higher of them.
-    const day = scanned.get(dayDate) ?? { bpm: null, above: false };
-    scanned.set(dayDate, {
-      bpm: held === null ? day.bpm : Math.max(day.bpm ?? 0, Math.round(held)),
-      above: day.above || stretches > 0,
-    });
+    scanned.set(dayDate, [...(scanned.get(dayDate) ?? []), {
+      minutes: Math.round(windowMin),
+      highs: [...highs].map(([block, bpm]) => ({ min: block * 10 + 5, bpm: Math.round(bpm) })),
+      peaks,
+    }]);
   }
 
   const highest = events.length ? events.reduce((a, b) => (a.peakBpm > b.peakBpm ? a : b)) : null;
@@ -391,7 +389,7 @@ export function nocturnalTachycardia(days: DailyRecord[], intraday: IntradayDays
   const dates = [...scanned.keys()].sort();
   const nights: TachyNight[] = [];
   for (let date = dates[0]; date && date <= dates[dates.length - 1]; date = addDays(date, 1)) {
-    nights.push({ date, ...(scanned.get(date) ?? { bpm: null, above: false }) });
+    nights.push({ date, sleeps: scanned.get(date) ?? [] });
   }
   return {
     nights,
