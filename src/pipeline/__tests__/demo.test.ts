@@ -54,7 +54,7 @@ describe('demo mode', () => {
     const status = Object.fromEntries(data.meta.streams.map((s) => [s.dataType, s.status]));
     assert.deepEqual(
       Object.keys(status).filter((k) => status[k] !== 'ok').sort(),
-      ['blood-glucose', 'electrocardiogram', 'hydration-log', 'nutrition-log'],
+      ['blood-glucose', 'electrocardiogram', 'hydration-log'],
     );
     assert.ok(Object.values(status).every((s) => s === 'ok' || s === 'empty'));
     assert.ok(data.heartRateSamples.length > 60 * 24 * 50, 'minute heart rate for most of the window');

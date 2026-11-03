@@ -43,7 +43,7 @@ export const DASHBOARD_WINDOW_DAYS = 62;
  * stored shapes change. Stored days were produced by the old code, so every user
  * is rebuilt with a full sync before their dashboard is shown again.
  */
-export const PIPELINE_VERSION = 3;
+export const PIPELINE_VERSION = 4;
 
 /** Trailing days re-fetched on every sync, today included. */
 export const REFETCH_DAYS = 3;

@@ -441,6 +441,9 @@ export function DivergingBars({
   posColor = 'var(--rose-400)',
   negColor = 'var(--indigo-400)',
   bucket = 'day',
+  digits = 2,
+  seriesLabel,
+  symbol = true,
 }: {
   series: Point[];
   height?: number;
@@ -448,6 +451,12 @@ export function DivergingBars({
   posColor?: string;
   negColor?: string;
   bucket?: Bucket;
+  /** Decimals in the tooltip. */
+  digits?: number;
+  /** What the tooltip calls the series; by default, a deviation from baseline. */
+  seriesLabel?: string;
+  /** Whether the unit is a symbol written against the number (°C), not a word after a space (kcal). */
+  symbol?: boolean;
 }) {
   const rows = useMemo(() => toRows(series, undefined, bucket), [series, bucket]);
   if (!values(series).length) return <NoSeries height={height} />;
@@ -465,8 +474,10 @@ export function DivergingBars({
           formatter={(v: any) => [
             v === null
               ? t('charts.tooltip.notRecorded')
-              : t('charts.tooltip.valueSymbol', { value: `${v > 0 ? '+' : ''}${fmtNum(Number(v), 2)}`, unit }),
-            t('charts.diverging.series', { bucket }),
+              : symbol
+                ? t('charts.tooltip.valueSymbol', { value: `${v > 0 ? '+' : ''}${fmtNum(Number(v), digits)}`, unit })
+                : reading(`${v > 0 ? '+' : ''}${fmtNum(Number(v), digits)}`, unit),
+            seriesLabel ?? t('charts.diverging.series', { bucket }),
           ]}
         />
         <Bar dataKey="value" radius={[2, 2, 0, 0]} isAnimationActive={false}>

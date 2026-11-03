@@ -57,7 +57,8 @@
     "steps": "steps",
     "celsius": "°C",
     "cm": "cm",
-    "perHour": "/h"
+    "perHour": "/h",
+    "grams": "g"
   },
   "app": {
     "name": "Healthier",
@@ -98,6 +99,7 @@
       "sleep": "Sleep",
       "vitals": "Vitals",
       "body": "Body",
+      "nutrition": "Nutrition",
       "cycle": "Cycle",
       "labs": "Labs",
       "settings": "Settings"
@@ -1507,6 +1509,69 @@
       "lean": "Lean <b>{change}</b> kg a week",
       "fat": "Fat <b>{change}</b> kg a week",
       "note": "Scale body fat is approximate, so its trend on the same scale says more than any one reading."
+    }
+  },
+  "nutrition": {
+    "empty": {
+      "title": "No food logged yet",
+      "detail": "Energy, protein, carbohydrate and fat come from a food diary app, such as MyFitnessPal, that shares with Google Health, directly or through Apple Health. Data streams, in Settings, shows what arrived."
+    },
+    "day": {
+      "today": "Today so far",
+      "latest": "Latest logged day, {date}",
+      "inProgress": "Today is still being logged, so it's left out of the averages below.",
+      "energy": "Energy",
+      "splitBar": "Energy from protein {protein} percent, carbohydrate {carbs} percent, fat {fat} percent",
+      "proteinPerKg": "{perKg} g protein per kg",
+      "split": "Energy from protein {protein}%, carbs {carbs}%, fat {fat}%"
+    },
+    "week": {
+      "title": "Last 7 days",
+      "hint": "Averages over the days you logged; a day without a log is left out, not counted as zero.",
+      "energy": "Energy a day"
+    },
+    "overTime": {
+      "title": "What you eat over time"
+    },
+    "summary": {
+      "daysLogged": "Days logged",
+      "daysLoggedValue": "{logged}<muted> of {total}</muted>",
+      "typicalDay": "Typical day",
+      "protein": "Protein a day",
+      "proteinGrams": "{grams} g",
+      "proteinPerKg": "{grams} g<muted> · {perKg} g per kg</muted>",
+      "split": "Energy from protein, carbs, fat",
+      "splitValue": "{protein}% · {carbs}% · {fat}%",
+      "balance": "Estimated balance",
+      "balanceValue": "{kcal} kcal a day<muted> · {days, plural, one {# day} other {# days}}</muted>"
+    },
+    "chips": {
+      "label": "Chart",
+      "energy": "Energy",
+      "protein": "Protein",
+      "macros": "Macros",
+      "balance": "Balance"
+    },
+    "energy": {
+      "title": "Energy eaten",
+      "hint": "Kilocalories logged each day. Days without a log show no bar."
+    },
+    "protein": {
+      "title": "Protein",
+      "hint": "Grams of protein logged each day.",
+      "hintWeight": "Grams of protein logged each day. Per kilo figures use your latest weigh-in, {weight} kg."
+    },
+    "macros": {
+      "title": "Protein, carbohydrate and fat",
+      "hint": "Grams logged each day of <protein>protein</protein>, <carbs>carbohydrate</carbs> and <fat>fat</fat>.",
+      "protein": "Protein",
+      "carbs": "Carbohydrate",
+      "fat": "Fat"
+    },
+    "balance": {
+      "title": "Estimated energy balance",
+      "hint": "Energy logged less energy burned, as your watch or phone estimates it. Both are estimates, so read the direction over weeks rather than any one day; a day logged only in part shows as a deficit it wasn't.",
+      "series": "{bucket, select, day {logged less burned} week {weekly average, logged less burned} other {monthly average, logged less burned}}"
     }
   },
   "cycle": {

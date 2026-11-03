@@ -243,6 +243,36 @@ function demoDays(): DemoDay[] {
   return out;
 }
 
+/**
+ * What the demo person logged in a food diary, a day at a time. Its own generator, so the rest of
+ * the demo is unchanged. They log most days and forget some, mostly at weekends, when they eat
+ * more. They eat about 300 kcal under what the watch says they burn, which fits the slow loss on
+ * the scale, with about 1.7 g of protein per kilo. This morning only breakfast is in.
+ */
+function demoMeals(days: DemoDay[]): { date: CivilDate; kcal: number; protein: number; carbs: number; fat: number }[] {
+  const r = seeded(20261013);
+  const out: { date: CivilDate; kcal: number; protein: number; carbs: number; fat: number }[] = [];
+  let weight = 81;
+  for (const d of days) {
+    if (d.weight !== null) weight = d.weight;
+    const wd = isoWeekdayIndex(d.date);
+    const weekend = wd >= 5;
+    const logged = r.chance(weekend ? 0.62 : 0.9);
+    const burned = d.totalKcal ?? 2400;
+    const kcal = round(burned - 300 + (weekend ? 380 : 0) + r.normal(180));
+    const protein = round(weight * (1.7 + r.normal(0.15)));
+    const fat = round((kcal * (0.31 + r.normal(0.03))) / 9);
+    const carbs = Math.max(60, round((kcal - protein * 4 - fat * 9) / 4));
+    if (logged) out.push({ date: d.date, kcal, protein, carbs, fat });
+  }
+  const today = days.at(-1)!.date;
+  const last = out.at(-1);
+  const breakfast = { date: today, kcal: 430, protein: 31, carbs: 48, fat: 12 };
+  if (last?.date === today) out[out.length - 1] = breakfast;
+  else out.push(breakfast);
+  return out;
+}
+
 /** A night's stages, lights-out to waking, in sleep cycles of about 90 minutes: deep early, REM late. */
 function stagesFor(day: DemoDay, start: number, seed: number) {
   const r = seeded(seed);
@@ -437,6 +467,13 @@ export function buildDemoPayloads(): FixturePayloads {
     dataPoints: [listPoint(WATCH_PASSIVE, 'irregularRhythmNotification', { sampleTime: sampleTime(iso(instant(irn, 3 * 60 + 12)), irn, offsetOn(irn)) })],
   };
   out['electrocardiogram'] = { dataPoints: [] };
-  out['nutrition-log'] = { rollupDataPoints: [] };
+  out['nutrition-log'] = {
+    rollupDataPoints: newestFirst(demoMeals(days).map((m) => rollupPoint(m.date, 'nutritionLog', {
+      energy: { kcalSum: m.kcal },
+      totalCarbohydrate: { gramsSum: m.carbs },
+      totalFat: { gramsSum: m.fat },
+      nutrients: [{ nutrient: 'PROTEIN', quantity: { gramsSum: m.protein } }],
+    }))),
+  };
   return out;
 }

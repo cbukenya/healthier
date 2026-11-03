@@ -109,6 +109,12 @@ function fill<K extends keyof DailyRecord>(row: DailyRecord, key: K, value: Dail
   return true;
 }
 
+/** Grams of one nutrient in a nutrition rollup's `nutrients[]`, or undefined when it isn't there. */
+function nutrientGrams(list: unknown, nutrient: string): unknown {
+  if (!Array.isArray(list)) return undefined;
+  return list.find((n: any) => n?.nutrient === nutrient)?.quantity?.gramsSum;
+}
+
 /** A day's four zones by where each starts, or null unless all four are there and climb in order. */
 function heartRateZones(list: any): HeartRateZones | null {
   if (!Array.isArray(list)) return null;
@@ -566,19 +572,22 @@ export const STREAMS: StreamDescriptor[] = [
     container: 'nutritionLog',
     scope: 'nutrition',
     dateOf: rollupDate,
+    note:
+      'NutritionLogRollupValue: energy.kcalSum, totalCarbohydrate.gramsSum and totalFat.gramsSum; ' +
+      'protein only in nutrients[], as { nutrient: "PROTEIN", quantity: { gramsSum } }.',
     apply(ctx, c) {
-      const kcal = num(c?.caloriesKcalSum ?? c?.dietaryEnergyKcalSum);
-      const protein = num(c?.proteinGramsSum);
-      const carbs = num(c?.carbohydratesGramsSum);
-      const fat = num(c?.fatGramsSum);
-      
+      const kcal = num(c?.energy?.kcalSum);
+      const protein = num(nutrientGrams(c?.nutrients, 'PROTEIN'));
+      const carbs = num(c?.totalCarbohydrate?.gramsSum);
+      const fat = num(c?.totalFat?.gramsSum);
+
       if (kcal === null && protein === null && carbs === null && fat === null) return false;
-      
+
       if (kcal !== null) ctx.row.caloriesKcal = Math.round(kcal);
       if (protein !== null) ctx.row.proteinG = Math.round(protein);
       if (carbs !== null) ctx.row.carbsG = Math.round(carbs);
       if (fat !== null) ctx.row.fatG = Math.round(fat);
-      
+
       mark(ctx, 'nutrition-log');
       return true;
     },

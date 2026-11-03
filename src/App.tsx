@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { IntradaySample } from './types/health';
-import { ChevronLeft, ChevronRight, CircleDotDashed, FlaskConical, Footprints, Heart, Moon, RefreshCw, Settings, User, ShieldAlert, PersonStanding } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CircleDotDashed, FlaskConical, Footprints, Heart, Moon, RefreshCw, Settings, User, ShieldAlert, PersonStanding, Utensils } from 'lucide-react';
 import { useAuth } from './hooks/useAuth';
 import { useInstance } from './hooks/useInstance';
 import { useHealth } from './hooks/useHealth';
@@ -26,6 +26,7 @@ import { ActivityView } from './views/ActivityView';
 import { SleepView } from './views/SleepView';
 import { VitalsView } from './views/VitalsView';
 import { BodyView } from './views/BodyView';
+import { NutritionView } from './views/NutritionView';
 import { SettingsView, type SectionId } from './views/SettingsView';
 import { LabsView } from './views/LabsView';
 import { AboutYourData, GoogleG, SignInConsent, SignInNote } from './views/SignInParts';
@@ -241,6 +242,7 @@ export default function App() {
             {view === 'sleep' && <SleepView data={health.data} intraday={intradayDays} clock={demo ? DEMO_CLOCK : undefined} />}
             {view === 'vitals' && <VitalsView data={health.data} intraday={intradayDays} clock={demo ? DEMO_CLOCK : undefined} />}
             {view === 'body' && <BodyView data={health.data} gender={gender} onGender={chooseGender} intraday={intradayDays} clock={demo ? DEMO_CLOCK : undefined} />}
+            {view === 'nutrition' && <NutritionView data={health.data} />}
             {view === 'cycle' && <CycleView data={health.data} intraday={intradayDays} clock={demo ? DEMO_CLOCK : undefined} />}
             {view === 'labs' && <LabsView data={health.data} intraday={intradayDays} />}
             {view === 'settings' && (
@@ -311,7 +313,7 @@ export default function App() {
   );
 }
 
-type View = 'today' | 'activity' | 'sleep' | 'vitals' | 'body' | 'cycle' | 'labs' | 'settings';
+type View = 'today' | 'activity' | 'sleep' | 'vitals' | 'body' | 'nutrition' | 'cycle' | 'labs' | 'settings';
 
 /**
  * Who's here, in the bar: their picture and first name, or Demo in demo mode. It opens the
@@ -476,6 +478,10 @@ function PageNav({ view, setView }: { view: View; setView: (view: View) => void 
         <NavButton
           active={view === 'body'} onClick={() => setView('body')}
           icon={<PersonStanding size={14} />} label={t('app.nav.body')} color={DOMAIN.body.text}
+        />
+        <NavButton
+          active={view === 'nutrition'} onClick={() => setView('nutrition')}
+          icon={<Utensils size={14} />} label={t('app.nav.nutrition')} color={DOMAIN.wellbeing.text}
         />
         {tracking && (
           <NavButton

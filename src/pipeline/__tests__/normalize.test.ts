@@ -238,3 +238,45 @@ describe('several readings of one daily metric', () => {
     assert.equal(days('daily-vo2-max', points).get('2026-08-18')!.vo2MaxCovariance, 2.46);
   });
 });
+
+describe('nutrition log rollups', () => {
+  // The shape of NutritionLogRollupValue in the Google Health API reference: energy and the two
+  // totals are objects with a sum, and protein is only in nutrients[].
+  const point = (date: string, value: unknown) => ({
+    civilStartTime: { date: ghDateFromCivil(date), time: {} },
+    nutritionLog: value,
+  });
+
+  it('reads energy, protein, carbohydrate and fat from the documented fields', () => {
+    const [day] = [...days('nutrition-log', [
+      point('2026-10-05', {
+        energy: { kcalSum: 2412.6 },
+        totalCarbohydrate: { gramsSum: 251.4 },
+        totalFat: { gramsSum: 88.2 },
+        energyFromFat: { kcalSum: 793.8 },
+        nutrients: [
+          { nutrient: 'SODIUM', quantity: { gramsSum: 2.3 } },
+          { nutrient: 'PROTEIN', quantity: { gramsSum: 161.5 } },
+        ],
+      }),
+    ]).values()];
+    assert.equal(day.caloriesKcal, 2413);
+    assert.equal(day.proteinG, 162);
+    assert.equal(day.carbsG, 251);
+    assert.equal(day.fatG, 88);
+    assert.ok(day.present.includes('nutrition-log'));
+  });
+
+  it('keeps a day with only some of them, and leaves the rest unset', () => {
+    const [day] = [...days('nutrition-log', [point('2026-10-05', { energy: { kcalSum: 640 } })]).values()];
+    assert.equal(day.caloriesKcal, 640);
+    assert.equal(day.proteinG, undefined);
+    assert.equal(day.carbsG, undefined);
+  });
+
+  it('skips a rollup with none of them', () => {
+    const day = days('nutrition-log', [point('2026-10-05', { nutrients: [] })]).get('2026-10-05');
+    assert.equal(day?.caloriesKcal, undefined);
+    assert.ok(!day?.present.includes('nutrition-log'));
+  });
+});
