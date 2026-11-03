@@ -81,6 +81,11 @@
    */
   --card: rgb(9 9 11 / 0.5);
   --card-edge: rgb(255 255 255 / 0.08);
+  /* The insights card's aurora: the pages' colours, faint in three of its corners. */
+  --insights-glow:
+    radial-gradient(55% 75% at 0% 0%, color-mix(in srgb, var(--indigo-400) 20%, transparent), transparent 70%),
+    radial-gradient(45% 65% at 100% 0%, color-mix(in srgb, var(--emerald-400) 12%, transparent), transparent 70%),
+    radial-gradient(70% 55% at 60% 105%, color-mix(in srgb, var(--rose-400) 12%, transparent), transparent 70%);
   /* A panel set into a card, and one that stands out a step more: the battery's score, a lab's plot. */
   --panel: rgb(255 255 255 / 0.04);
   --panel-raised: rgb(255 255 255 / 0.07);
@@ -261,6 +266,10 @@
   /* Plain white cards with a hairline edge; panels and rules are a shade of grey on them. */
   --card: #ffffff;
   --card-edge: rgb(0 0 0 / 0.06);
+  --insights-glow:
+    radial-gradient(55% 75% at 0% 0%, color-mix(in srgb, var(--indigo-400) 22%, transparent), transparent 70%),
+    radial-gradient(45% 65% at 100% 0%, color-mix(in srgb, var(--emerald-400) 17%, transparent), transparent 70%),
+    radial-gradient(70% 55% at 60% 105%, color-mix(in srgb, var(--rose-400) 15%, transparent), transparent 70%);
   --panel: rgb(0 0 0 / 0.03);
   --panel-raised: rgb(0 0 0 / 0.05);
   --faint: rgb(0 0 0 / 0.07);
