@@ -1797,8 +1797,7 @@
       "watch": "<b>Watches</b> each night's oxygen, breathing rate and time awake against your usual range.",
       "light": "<b>Lights up</b> when 3 or more of the last 14 nights have two of them off together.",
       "how": {
-        "explainer": "Compares each night's average oxygen, breathing rate and time awake with your own usual range. A night counts when <b>two of them are off together</b>, and a pattern needs several such nights in the last two weeks — never one bad night.",
-        "footer": "Uses nightly average oxygen saturation, breathing rate and time awake as your device reports them. Wrist sensors miss a lot during sleep, so a quiet card doesn't rule anything out."
+        "footer": "Uses the nightly averages your device reports. Wrist sensors miss a lot during sleep, so a quiet card doesn't rule anything out."
       }
     },
     "strain": {
@@ -1875,9 +1874,8 @@
       "watch": "<b>Watches</b> resting HR, breathing rate, HRV and skin temperature on the latest day.",
       "light": "<b>Lights up</b> when 2 are off together (Elevated) or 3–4 (High), marking which ones.",
       "how": {
-        "explainer": "One metric can move because of a late meal or a warm room. When <b>several move at once</b>, it's a clearer sign that something changed: often recovery, sometimes a cold coming on.",
-        "extra": "Each signal counts as off when it leaves your usual range in the direction that matters: resting HR and breathing rate above it, HRV below it, and skin temperature 0.5 °C or more above.",
-        "footer": "Counts how many of resting heart rate, breathing rate, skin temperature and HRV are outside your usual range on the latest day. Several at once often follows hard training, short sleep, alcohol, heat or travel, or feeling under the weather."
+        "explainer": "One metric can move because of a late meal or a warm room. When <b>several move at once</b>, it's a clearer sign that something changed, such as hard training, short sleep, alcohol, heat, travel or a cold coming on.",
+        "footer": "Each signal counts as off when it leaves your usual range in the direction that matters: resting HR and breathing rate above it, HRV below it, and skin temperature 0.5 °C or more above."
       },
       "cycle": "{signals} {count, plural, one {has moved only as much as it usually does} other {have moved only as much as they usually do}} in this part of your cycle, so {count, plural, one {it isn't} other {they aren't}} counted as off."
     },
@@ -1912,8 +1910,7 @@
       "watch": "<b>Shows</b> irregular rhythm notifications your device synced to Google Health, by day.",
       "light": "<b>No notifications</b> doesn't mean your rhythm was checked: many devices look only occasionally, or not at all.",
       "how": {
-        "explainer": "Some devices can notify you about an irregular heart rhythm. Any notifications they synced appear here with their dates.",
-        "footer": "Shows notifications your device reported to Google Health. This app does not analyse heart rhythm. For anything your device flags, follow its maker's guidance and talk to a clinician."
+        "footer": "This app does not analyse heart rhythm. For anything your device flags, follow its maker's guidance and talk to a clinician."
       }
     },
     "dip": {
@@ -1977,7 +1974,7 @@
       "watch": "<b>Watches</b> how far your heart rate falls from daytime to non-REM sleep over 30 days.",
       "light": "<b>Lights up</b> when half or more of the measured nights drop less than 10%.",
       "how": {
-        "explainer": "Heart rate usually drops during sleep compared with the daytime, often by <b>10–20%</b>. This tracks your own drop over the last 30 days. Late meals, alcohol, heat, evening exercise and illness all shift it from night to night, so only a multi-week change is shown.",
+        "explainer": "Heart rate usually drops during sleep compared with the daytime, often by <b>10–20%</b>. Late meals, alcohol, heat, evening exercise and illness all shift it from night to night, so only a multi-week change is shown.",
         "footer": "Daytime is the 08:00–20:00 average of your minute-level heart rate; night is your non-REM sleeping heart rate. A 10% drop is a night/day ratio of 0.90. The 10% and 20% lines come from overnight blood-pressure research and are only a rough guide for heart rate."
       }
     },
@@ -2026,8 +2023,8 @@
       "watch": "<b>Watches</b> your device's nightly HRV entropy against your usual range.",
       "light": "<b>Lights up</b> when 3 or more nights in a row, up to the latest, fall outside it on the same side.",
       "how": {
-        "explainer": "Each night your device summarises how variable the spacing between heartbeats was as a single number. Its absolute value has no standard meaning, so this tracks one thing only: a <b>sustained change against your own baseline</b>.",
-        "footer": "A number your device computes each night from the intervals between heartbeats. It has no standard scale and is not a measure of heart rhythm, so only changes against your own baseline are shown."
+        "explainer": "Each night your device summarises how variable the spacing between heartbeats was as a single number. It has no standard scale, so this tracks one thing only: a <b>sustained change against your own baseline</b>.",
+        "footer": "The number is not a measure of heart rhythm."
       }
     },
     "tachy": {
@@ -2085,8 +2082,8 @@
       "watch": "<b>Watches</b> minute-level heart rate through recorded sleep and naps, skipping minutes awake.",
       "light": "<b>Lights up</b> for any stretch above 100 bpm lasting 10 minutes or more, listed with its peak.",
       "how": {
-        "explainer": "Lists stretches of recorded sleep where your heart rate stayed <b>above 100 bpm for ten minutes or more</b>. Fever, alcohol, vivid dreams, waking and movement can all do this.",
-        "footer": "Uses the one-minute heart-rate averages synced from your watch. Wrist readings during sleep can be noisy, and movement or waking raises them."
+        "explainer": "Fever, alcohol and vivid dreams can all keep your heart rate <b>high during sleep</b>.",
+        "footer": "Wrist readings during sleep can be noisy, and movement or waking raises them."
       }
     },
     "howItWorks": "How it works"

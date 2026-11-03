@@ -25,11 +25,11 @@ import { tint } from '../ui/primitives';
  *
  * Every card answers first, with a status and one line, then draws the data it
  * watches even when quiet, so a card with nothing to report still shows what it
- * looks at. Until it finds something, a Watches / Lights up box says what it
- * looks for; once it does, the callout says what was seen and the box steps
- * aside. The rose treatment is confined to findings. Phones get one tile per
- * lab that opens in place; wider screens get glance tiles above the cards. Each
- * tile carries a cut-down copy of its card's picture.
+ * looks at. What it watches and when it lights up sit folded in its "How it
+ * works", so an open card stays short; once it finds something, the callout
+ * says what was seen. The rose treatment is confined to findings. Phones get
+ * one tile per lab that opens in place; wider screens get glance tiles above
+ * the cards. Each tile carries a cut-down copy of its card's picture.
  */
 
 type Days = SyncResult['days'];
@@ -46,8 +46,6 @@ interface Lab {
   chip: string;
   /** Where the lab stands, in a sentence under a tile's graph, on phones and on desktop. */
   glance: string;
-  /** Something was found: its callout says what, so the Watches / Lights up box steps aside. */
-  found: boolean;
   /** The card's picture, cut down to sit in a tile. */
   graph: React.ReactNode;
   parts: React.ReactNode;
@@ -58,24 +56,14 @@ const HEX = { zinc800: 'var(--color-zinc-800)', zinc500: 'var(--color-zinc-500)'
 
 // ── what each card watches, and how it works ──────────────────────────────
 
-/** In the pipeline's own terms (src/pipeline/labs.ts). */
-const SPEC: Record<LabKey, { watch: MessageKey; light: MessageKey }> = {
-  sdb: { watch: 'labs.sdb.watch', light: 'labs.sdb.light' },
-  strain: { watch: 'labs.strain.watch', light: 'labs.strain.light' },
-  irn: { watch: 'labs.irn.watch', light: 'labs.irn.light' },
-  dip: { watch: 'labs.dip.watch', light: 'labs.dip.light' },
-  entropy: { watch: 'labs.entropy.watch', light: 'labs.entropy.light' },
-  tachy: { watch: 'labs.tachy.watch', light: 'labs.tachy.light' },
-};
-
-const em: Wrap = (w) => <b className="text-zinc-300 font-semibold">{w}</b>;
-const HOW: Record<LabKey, { explainer: MessageKey; extra?: MessageKey; footer: MessageKey }> = {
-  sdb: { explainer: 'labs.sdb.how.explainer', footer: 'labs.sdb.how.footer' },
-  strain: { explainer: 'labs.strain.how.explainer', extra: 'labs.strain.how.extra', footer: 'labs.strain.how.footer' },
-  irn: { explainer: 'labs.irn.how.explainer', footer: 'labs.irn.how.footer' },
-  dip: { explainer: 'labs.dip.how.explainer', footer: 'labs.dip.how.footer' },
-  entropy: { explainer: 'labs.entropy.how.explainer', footer: 'labs.entropy.how.footer' },
-  tachy: { explainer: 'labs.tachy.how.explainer', footer: 'labs.tachy.how.footer' },
+/** Watches and Lights up in the pipeline's own terms (src/pipeline/labs.ts); the explainer only adds what they don't say. */
+const HOW: Record<LabKey, { watch: MessageKey; light: MessageKey; explainer?: MessageKey; footer: MessageKey }> = {
+  sdb: { watch: 'labs.sdb.watch', light: 'labs.sdb.light', footer: 'labs.sdb.how.footer' },
+  strain: { watch: 'labs.strain.watch', light: 'labs.strain.light', explainer: 'labs.strain.how.explainer', footer: 'labs.strain.how.footer' },
+  irn: { watch: 'labs.irn.watch', light: 'labs.irn.light', footer: 'labs.irn.how.footer' },
+  dip: { watch: 'labs.dip.watch', light: 'labs.dip.light', explainer: 'labs.dip.how.explainer', footer: 'labs.dip.how.footer' },
+  entropy: { watch: 'labs.entropy.watch', light: 'labs.entropy.light', explainer: 'labs.entropy.how.explainer', footer: 'labs.entropy.how.footer' },
+  tachy: { watch: 'labs.tachy.watch', light: 'labs.tachy.light', explainer: 'labs.tachy.how.explainer', footer: 'labs.tachy.how.footer' },
 };
 
 // ── shared chrome ─────────────────────────────────────────────────────────
@@ -229,36 +217,32 @@ function DeviceNote() {
   );
 }
 
-function Spec({ k }: { k: LabKey }) {
-  const { watch, light } = SPEC[k];
-  const b: Wrap = (w) => <b className="font-semibold text-zinc-100">{w}</b>;
-  return (
-    <div className="flex flex-col gap-2 px-3 py-[11px] rounded-xl border border-rule bg-panel">
-      <p className="flex gap-2 text-caption leading-normal text-zinc-400">
-        <Eye size={13} aria-hidden className="shrink-0 mt-[3px]" />
-        <span>{rich(watch, { b })}</span>
-      </p>
-      <p className="flex gap-2 text-caption leading-normal text-zinc-400">
-        <span className="shrink-0 w-[13px] h-[13px] mt-[3px] grid place-items-center">
-          <span className={`w-[7px] h-[7px] rounded-full ${k === 'irn' ? 'bg-zinc-600' : 'bg-rose-400'}`} />
-        </span>
-        <span>{rich(light, { b })}</span>
-      </p>
-    </div>
-  );
-}
+const lede: Wrap = (w) => <b className="font-semibold text-zinc-100">{w}</b>;
+const em: Wrap = (w) => <b className="text-zinc-300 font-semibold">{w}</b>;
 
+/** What the lab watches and when it lights up, then only what those two lines don't say. Closed until tapped. */
 function HowItWorks({ k }: { k: LabKey }) {
-  const { explainer, extra, footer } = HOW[k];
+  const { watch, light, explainer, footer } = HOW[k];
   return (
     <details className="group/how mt-auto border-t border-zinc-800/80">
       <summary className="list-none [&::-webkit-details-marker]:hidden cursor-pointer flex items-center justify-between min-h-11 text-detail font-medium text-zinc-400 hover:text-zinc-200 transition-colors">
         {t('labs.howItWorks')}
         <ChevronDown size={14} aria-hidden className="transition-transform group-open/how:rotate-180" />
       </summary>
-      <p className="text-caption leading-relaxed text-zinc-400">{rich(explainer, { b: em })}</p>
-      {extra && <p className="mt-2 text-caption leading-relaxed text-zinc-400">{t(extra)}</p>}
-      <p className="mt-2 pb-1 text-note leading-relaxed text-zinc-500">{t(footer)}</p>
+      <div className="flex flex-col gap-2 pb-1">
+        <p className="flex gap-2 text-caption leading-normal text-zinc-400">
+          <Eye size={13} aria-hidden className="shrink-0 mt-[3px]" />
+          <span>{rich(watch, { b: lede })}</span>
+        </p>
+        <p className="flex gap-2 text-caption leading-normal text-zinc-400">
+          <span className="shrink-0 w-[13px] h-[13px] mt-[3px] grid place-items-center">
+            <span className={`w-[7px] h-[7px] rounded-full ${k === 'irn' ? 'bg-zinc-600' : 'bg-rose-400'}`} />
+          </span>
+          <span>{rich(light, { b: lede })}</span>
+        </p>
+        {explainer && <p className="mt-1 text-caption leading-relaxed text-zinc-400">{rich(explainer, { b: em })}</p>}
+        <p className={`${explainer ? '' : 'mt-1 '}text-note leading-relaxed text-zinc-500`}>{t(footer)}</p>
+      </div>
     </details>
   );
 }
@@ -361,7 +345,7 @@ function sdbLab(days: Days): Lab {
     const collected = Math.min(r.beforeNights, r.beforeWanted) + Math.min(r.testedNights, r.testedWanted);
     return {
       ...base, tone: 'wait', mark: 'collecting', chip: t('labs.sdb.collecting.chip'),
-      glance: t('labs.sdb.collecting.glance', { done: collected, total: r.nightsWanted }), found: false,
+      glance: t('labs.sdb.collecting.glance', { done: collected, total: r.nightsWanted }),
       parts: (
         <>
           <Collecting
@@ -380,7 +364,7 @@ function sdbLab(days: Days): Lab {
     const chip = t('labs.sdb.pattern.chip', { count: r.firedCount });
     const glance = t('labs.sdb.pattern.glance', { count: r.firedCount });
     return {
-      ...base, tone: 'found', mark: 'found', chip, glance, found: true,
+      ...base, tone: 'found', mark: 'found', chip, glance,
       parts: (
         <>
           <Answer text={t('labs.sdb.pattern.text', { count: r.firedCount })} />
@@ -401,7 +385,7 @@ function sdbLab(days: Days): Lab {
         ? t('labs.sdb.quiet.singles', { count: singles.length })
         : t('labs.sdb.quiet.none');
   return {
-    ...base, tone: 'quiet', mark: 'quiet', chip: t('labs.sdb.quiet.chip'), glance: t('labs.sdb.quiet.glance'), found: false,
+    ...base, tone: 'quiet', mark: 'quiet', chip: t('labs.sdb.quiet.chip'), glance: t('labs.sdb.quiet.glance'),
     parts: (
       <>
         <Answer text={t('labs.sdb.quiet.text')} sub={sub} />
@@ -504,13 +488,13 @@ function strainLab(days: Days, cycleDays: Days | null): Lab {
 
   if (r.status === 'collecting') {
     return {
-      ...base, tone: 'wait', mark: 'collecting', chip: t('labs.strain.collecting.chip'), glance: t('labs.strain.collecting.glance'), found: false,
+      ...base, tone: 'wait', mark: 'collecting', chip: t('labs.strain.collecting.chip'), glance: t('labs.strain.collecting.glance'),
       parts: <><Answer text={t('labs.strain.collecting.text')} sub={t('labs.strain.collecting.sub')} />{picture}</>,
     };
   }
   if (r.status === 'waiting') {
     return {
-      ...base, tone: 'wait', mark: 'waiting', chip: t('labs.strain.waiting.chip'), glance: t('labs.strain.waiting.text'), found: false,
+      ...base, tone: 'wait', mark: 'waiting', chip: t('labs.strain.waiting.chip'), glance: t('labs.strain.waiting.text'),
       parts: (
         <>
           <Answer
@@ -526,7 +510,7 @@ function strainLab(days: Days, cycleDays: Days | null): Lab {
     const chip = t('labs.strain.high.chip', { count: r.off });
     const glance = t('labs.strain.high.glance', { count: r.off });
     return {
-      ...base, tone: 'found', mark: 'found', chip, glance, found: true,
+      ...base, tone: 'found', mark: 'found', chip, glance,
       parts: (
         <>
           <Answer text={t('labs.strain.high.text', { count: r.off })} />
@@ -538,7 +522,7 @@ function strainLab(days: Days, cycleDays: Days | null): Lab {
   }
   if (r.level === 'elevated') {
     return {
-      ...base, tone: 'wait', mark: 'notice', chip: t('labs.strain.elevated.chip'), glance: t('labs.strain.elevated.glance'), found: true,
+      ...base, tone: 'wait', mark: 'notice', chip: t('labs.strain.elevated.chip'), glance: t('labs.strain.elevated.glance'),
       parts: (
         <>
           <Answer
@@ -555,7 +539,7 @@ function strainLab(days: Days, cycleDays: Days | null): Lab {
     ? t('labs.strain.baseline.one', { signal: off[0].key })
     : judged === 4 ? t('labs.strain.baseline.allIn') : t('labs.strain.baseline.someIn', { count: judged });
   return {
-    ...base, tone: 'quiet', mark: 'quiet', chip: t('labs.strain.baseline.chip'), glance: t('labs.strain.baseline.glance', { count: r.off }), found: false,
+    ...base, tone: 'quiet', mark: 'quiet', chip: t('labs.strain.baseline.chip'), glance: t('labs.strain.baseline.glance', { count: r.off }),
     parts: <><Answer text={t('labs.strain.baseline.text')} sub={sub} />{picture}</>,
   };
 }
@@ -597,7 +581,7 @@ function irnLab(data: SyncResult): Lab {
     const text = t('labs.irn.reported.text', { count: events.length });
     const glance = t('labs.irn.reported.glance', { count: events.length });
     return {
-      ...base, tone: 'wait', mark: 'reported', chip: t('labs.irn.reported.chip'), glance, found: true, graph: <IrnStrip days={days} compact />,
+      ...base, tone: 'wait', mark: 'reported', chip: t('labs.irn.reported.chip'), glance, graph: <IrnStrip days={days} compact />,
       parts: (
         <>
           <Answer text={text} />
@@ -610,13 +594,13 @@ function irnLab(data: SyncResult): Lab {
   }
   if (!synced) {
     return {
-      ...base, tone: 'wait', mark: 'unsynced', chip: t('labs.irn.unsynced.chip'), glance: t('labs.irn.unsynced.text'), found: false,
+      ...base, tone: 'wait', mark: 'unsynced', chip: t('labs.irn.unsynced.chip'), glance: t('labs.irn.unsynced.text'),
       graph: <IrnStrip days={days} ghost compact />,
       parts: <><Answer text={t('labs.irn.unsynced.text')} sub={t('labs.irn.unsynced.sub')} /><IrnStrip days={days} ghost /></>,
     };
   }
   return {
-    ...base, tone: 'neutral', mark: 'none', chip: t('labs.irn.none.chip'), glance: t('labs.irn.none.glance'), found: false, graph: <IrnStrip days={days} compact />,
+    ...base, tone: 'neutral', mark: 'none', chip: t('labs.irn.none.chip'), glance: t('labs.irn.none.glance'), graph: <IrnStrip days={days} compact />,
     parts: <><Answer text={t('labs.irn.none.text')} sub={t('labs.irn.none.sub', { count: days.length })} /><IrnStrip days={days} /></>,
   };
 }
@@ -703,7 +687,7 @@ function dipLab(days: Days, intraday: IntradayDays, judged: Days | null): Lab {
     const done = Math.min(r.daysCollected, r.daysWanted);
     return {
       ...base, tone: 'wait', mark: 'collecting', chip: t('labs.dip.collecting.chip'),
-      glance: t('labs.dip.collecting.glance', { done: r.daysCollected, total: r.daysWanted }), found: false,
+      glance: t('labs.dip.collecting.glance', { done: r.daysCollected, total: r.daysWanted }),
       graph: <Corridor median={null} compact />,
       parts: (
         <>
@@ -736,7 +720,7 @@ function dipLab(days: Days, intraday: IntradayDays, judged: Days | null): Lab {
       ? t('labs.dip.answer.higher', { value: -median })
       : median === 0 ? t('labs.dip.answer.flat') : t('labs.dip.answer.drops', { value: median });
     return {
-      ...base, tone: 'found', mark: 'found', chip, glance: r.riser ? t('labs.dip.pattern.glanceHigher') : t('labs.dip.pattern.glance', { median }), found: true,
+      ...base, tone: 'found', mark: 'found', chip, glance: r.riser ? t('labs.dip.pattern.glanceHigher') : t('labs.dip.pattern.glance', { median }),
       graph: <Corridor median={median} rose compact />,
       parts: (
         <>
@@ -754,7 +738,7 @@ function dipLab(days: Days, intraday: IntradayDays, judged: Days | null): Lab {
   const label = t(DROP_LABEL[r.category]);
   const band = r.category === 'extreme-dipper' ? 'large' : 'typical';
   return {
-    ...base, tone: 'quiet', mark: 'quiet', chip: label, glance: t('labs.dip.quiet.glance', { band, median }), found: false,
+    ...base, tone: 'quiet', mark: 'quiet', chip: label, glance: t('labs.dip.quiet.glance', { band, median }),
     graph: <Corridor median={median} compact />,
     parts: (
       <>
@@ -858,7 +842,7 @@ function entropyLab(days: Days): Lab {
 
   if (r.status === 'collecting') {
     return {
-      ...base, tone: 'wait', mark: 'collecting', chip: t('labs.entropy.collecting.chip'), glance: t('labs.entropy.collecting.glance'), found: false,
+      ...base, tone: 'wait', mark: 'collecting', chip: t('labs.entropy.collecting.chip'), glance: t('labs.entropy.collecting.glance'),
       parts: (
         <>
           <Answer text={t('labs.entropy.collecting.text')} sub={t('labs.entropy.collecting.sub')} />
@@ -873,7 +857,7 @@ function entropyLab(days: Days): Lab {
     const glance = t('labs.entropy.shift.glance', { count: r.shiftNights });
     const below = r.recent[r.recent.length - 1].side < 0;
     return {
-      ...base, tone: 'found', mark: 'found', chip, glance, found: true,
+      ...base, tone: 'found', mark: 'found', chip, glance,
       parts: (
         <>
           <Answer text={t('labs.entropy.shift.text', { side: below ? 'below' : 'above', count: r.shiftNights })} />
@@ -886,7 +870,7 @@ function entropyLab(days: Days): Lab {
   }
   const alone = r.recent.filter((p) => p.shifted).length;
   return {
-    ...base, tone: 'quiet', mark: 'quiet', chip: t('labs.entropy.steady.chip'), glance: t('labs.entropy.steady.glance', { count: r.steadyNights }), found: false,
+    ...base, tone: 'quiet', mark: 'quiet', chip: t('labs.entropy.steady.chip'), glance: t('labs.entropy.steady.glance', { count: r.steadyNights }),
     parts: (
       <>
         <Answer
@@ -1007,7 +991,7 @@ function tachyLab(days: Days, intraday: IntradayDays): Lab {
   if (r.status === 'collecting' || !r.nights.length) {
     const collected = Math.min(completedIntradayDays(intraday).length, 7);
     return {
-      ...base, tone: 'wait', mark: 'collecting', chip: t('labs.tachy.collecting.chip'), glance: t('labs.tachy.collecting.glance', { done: collected }), found: false,
+      ...base, tone: 'wait', mark: 'collecting', chip: t('labs.tachy.collecting.chip'), glance: t('labs.tachy.collecting.glance', { done: collected }),
       graph: <EmptyNight compact />,
       parts: (
         <>
@@ -1031,7 +1015,7 @@ function tachyLab(days: Days, intraday: IntradayDays): Lab {
     const chip = t('labs.tachy.events.chip', { count: n, nights: r.nightsScanned });
     const glance = t('labs.tachy.events.text', { count: n, nights: r.nightsScanned });
     return {
-      ...base, tone: 'found', mark: 'found', chip, glance, found: true, graph,
+      ...base, tone: 'found', mark: 'found', chip, glance, graph,
       parts: (
         <>
           <Answer text={t('labs.tachy.events.text', { count: n, nights: r.nightsScanned })} />
@@ -1047,7 +1031,7 @@ function tachyLab(days: Days, intraday: IntradayDays): Lab {
     };
   }
   return {
-    ...base, tone: 'quiet', mark: 'quiet', chip: t('labs.tachy.none.chip'), glance: t('labs.tachy.none.glance', { count: r.nightsScanned }), found: false, graph,
+    ...base, tone: 'quiet', mark: 'quiet', chip: t('labs.tachy.none.chip'), glance: t('labs.tachy.none.glance', { count: r.nightsScanned }), graph,
     parts: (
       <>
         <Answer text={t('labs.tachy.none.text')} sub={t('labs.tachy.none.sub', { count: r.nightsScanned })} />
@@ -1119,7 +1103,6 @@ function LabCard({ lab }: { lab: Lab }) {
         <Chip lab={lab} />
       </div>
       {lab.parts}
-      {!lab.found && <Spec k={lab.key} />}
       <HowItWorks k={lab.key} />
     </section>
   );
@@ -1140,7 +1123,6 @@ function LabRow({ lab }: { lab: Lab }) {
       </summary>
       <div className="border-t border-zinc-800/80 pt-3 flex flex-col gap-3">
         {lab.parts}
-        {!lab.found && <Spec k={lab.key} />}
         <HowItWorks k={lab.key} />
       </div>
     </details>
