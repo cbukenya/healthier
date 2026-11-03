@@ -281,11 +281,11 @@ export function BodyBatteryCompact({ score, parts, confidence, label, missing, c
 
   return (
     <section aria-label={t('today.battery.title')} className={`bg-card border border-card-edge rounded-[24px] p-5 flex flex-col gap-4 ${className}`}>
-      {/* A card title, as This week's is, with the tier under it. */}
-      <div>
-        <h1 className="card-title-detail text-zinc-50">{t('today.battery.title')}</h1>
-        <StatusPill name={z.status.text} dot={z.status.color} className="mt-1.5" />
-      </div>
+      {/* A card title, as This week's is, with the tier to its right, as on wider screens. */}
+      <h1 className="card-title-detail flex items-center gap-3 flex-wrap text-zinc-50">
+        {t('today.battery.title')}
+        <StatusPill name={z.status.text} dot={z.status.color} />
+      </h1>
 
       {/* Always side by side, never the figure under the score: the score keeps the room it needs and the figure shrinks into what's left. */}
       <div className="flex items-center gap-2.5">
