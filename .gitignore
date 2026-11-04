@@ -6,3 +6,6 @@ coverage/
 *.log
 .env*
 !.env.example
+# mcPHASES is restricted data (scripts/cycle-eval): never commit it, or the nights read from it.
+mcphases*/
+*.healthier-nights.json
