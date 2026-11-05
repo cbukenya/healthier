@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { t } from '../i18n';
 import { formatCivilLong, formatClock, formatRounded } from '../i18n/format';
 import {
@@ -31,6 +31,8 @@ export function SleepView({ data, clock, intraday }: { data: SyncResult; clock?:
   // A phone shows one chart at a time behind chips; wider screens show them all.
   const wide = useMediaQuery('(min-width: 768px)');
   const [chart, setChart] = useState<SleepChart>('window');
+  // The dot in the score's pill, where Last night's glow starts.
+  const scoreDot = useRef<HTMLSpanElement>(null);
 
   const sleepAll = series(days, (d) => d.sleep?.minutesAsleep ?? null);
   const sleepWin = series(window, (d) => d.sleep?.minutesAsleep ?? null);
@@ -54,6 +56,7 @@ export function SleepView({ data, clock, intraday }: { data: SyncResult; clock?:
   const latestRow = [...days].reverse().find((d) => d.sleep !== null);
   const latest = latestRow?.sleep ?? null;
   const score = latest ? scoreSleep(latest) : null;
+  const scoreTier = score ? getScoreTier(score.total) : null;
 
   // The over-time charts: side by side on wider screens, one at a time behind chips on a phone.
   const windowCard = <SleepWindowChart days={window} bucket={bucket} />;
@@ -75,7 +78,7 @@ export function SleepView({ data, clock, intraday }: { data: SyncResult; clock?:
   );
   const remCard = (
     <Card>
-      <CardHead title={t('sleep.rem.title')} hint={t('sleep.rem.hint')} right={<CardSummary isSleep data={remWin} color="var(--stage-rem)" format={(v) => fmtDuration(v)} />} />
+      <CardHead title={t('sleep.rem.title')} hint={t('sleep.rem.hint')} hintBySummary right={<CardSummary isSleep data={remWin} color="var(--stage-rem)" format={(v) => fmtDuration(v)} />} />
       <div className="px-2 pb-3">
         <BarSeries series={groupSeries(remWin, bucket)} bucket={bucket} color="var(--stage-rem)" unit={t('units.minutes')} height={150} />
       </div>
@@ -83,7 +86,7 @@ export function SleepView({ data, clock, intraday }: { data: SyncResult; clock?:
   );
   const deepCard = (
     <Card>
-      <CardHead title={t('sleep.deep.title')} hint={t('sleep.deep.hint')} right={<CardSummary isSleep data={deepWin} color="var(--stage-deep)" format={(v) => fmtDuration(v)} />} />
+      <CardHead title={t('sleep.deep.title')} hint={t('sleep.deep.hint')} hintBySummary right={<CardSummary isSleep data={deepWin} color="var(--stage-deep)" format={(v) => fmtDuration(v)} />} />
       <div className="px-2 pb-3">
         <BarSeries series={groupSeries(deepWin, bucket)} bucket={bucket} color="var(--stage-deep)" unit={t('units.minutes')} height={150} />
       </div>
@@ -132,7 +135,8 @@ export function SleepView({ data, clock, intraday }: { data: SyncResult; clock?:
     <div className="space-y-3">
       {/* ── 1. The headline night ─────────────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
-        <Card className="lg:col-span-4 flex flex-col">
+        {/* The score's colour glows from the dot in its pill, as on the body battery; no score, no glow. */}
+        <Card className="lg:col-span-4 flex flex-col" glow={scoreTier?.dotColor} glowFrom={scoreDot}>
           {/* Older than yesterday, it's the latest night on record, not last night. */}
           <CardHead
             title={t(latestRow && isRecent(latestRow.date, days.at(-1)?.date) ? 'sleep.night.last' : 'sleep.night.latest')}
@@ -144,8 +148,7 @@ export function SleepView({ data, clock, intraday }: { data: SyncResult; clock?:
             </div>
             <div className="mt-2 mb-4"><BandPill c={sleepCmp} /></div>
 
-            {score && (() => {
-              const currentTier = getScoreTier(score.total);
+            {score && scoreTier && (() => {
               const contributors = [
                 {
                   label: t('sleep.night.score.duration.label'),
@@ -189,7 +192,7 @@ export function SleepView({ data, clock, intraday }: { data: SyncResult; clock?:
                         </span>
                         <span className="text-detail text-zinc-500 font-medium">/ 100</span>
                       </div>
-                      <StatusPill name={currentTier.name} dot={currentTier.dotColor} glow={currentTier.glow} />
+                      <StatusPill name={scoreTier.name} dot={scoreTier.dotColor} glow={scoreTier.glow} dotRef={scoreDot} />
                     </div>
                   </div>
 
@@ -227,7 +230,7 @@ export function SleepView({ data, clock, intraday }: { data: SyncResult; clock?:
         </Card>
 
         {latest ? (
-          <Card className="lg:col-span-8 flex flex-col">
+          <Card className="lg:col-span-8 flex flex-col" glow={DOMAIN.sleep.hex}>
             <CardHead
               title={t('sleep.architecture.title')}
             />
@@ -236,23 +239,19 @@ export function SleepView({ data, clock, intraday }: { data: SyncResult; clock?:
               <div className="flex-1">
                 <Hypnogram session={latest} height={200} />
               </div>
-              <StageLegend />
+              <StageLegend session={latest} />
               <ArchitectureMeasures session={latest} />
-
-              <p className="px-5 pb-5 text-caption leading-relaxed text-zinc-500">
-                {t('sleep.architecture.caveat')}
-              </p>
             </div>
           </Card>
         ) : (
-          <Card className="lg:col-span-8 flex flex-col justify-center items-center h-full">
+          <Card className="lg:col-span-8 flex flex-col justify-center items-center h-full" glow={DOMAIN.sleep.hex}>
             <span className="text-caption text-zinc-500">{t('sleep.architecture.empty')}</span>
           </Card>
         )}
       </div>
 
       {/* ── 2. The week ─────────────────────────────────────────────── */}
-      <LastSevenNights days={days.slice(-7)} shift={shift} needMin={targetMin} debt={debt} wide={wide} />
+      <LastSevenNights days={days.slice(-7)} shift={shift} needMin={targetMin} debt={debt} wide={wide} glow={DOMAIN.sleep.hex} />
 
       {/* ── 3. Over time, following the span ─────────────────────────── */}
       <div className="flex items-center justify-between px-1">
@@ -278,7 +277,7 @@ export function SleepView({ data, clock, intraday }: { data: SyncResult; clock?:
       ) : (
         <>
           {summaryCard}
-          <ChartChips label={t('sleep.overTime.chips.label')} options={charts} value={shownChart.key} onChange={setChart} />
+          <ChartChips label={t('sleep.overTime.chips.label')} options={charts} value={shownChart.key} onChange={setChart} colour={DOMAIN.sleep.hex} />
           {shownChart.card}
         </>
       )}
@@ -299,25 +298,22 @@ function ScoreBar({ val, max, color, label }: { val: number; max: number; color:
   );
 }
 
-/** One architecture measure: its value, a line on what it means, and the fuller account a phone shows on tap. */
+/** One architecture measure: its value on a tile, and the account of it shown when it's picked. */
 interface Measure {
   /** Which measure, named as its messages are: React's key, where a translated label could repeat. */
   id: 'window' | 'efficiency' | 'cycles' | 'remLatency' | 'deepEarly' | 'transitions' | 'awakenings' | 'onset' | 'awakeAfterOnset';
   label: string;
-  /** The label on a phone's narrower tile. */
+  /** The label on its tile. */
   short: string;
   value: string;
-  /** The value on a phone's tile, where it differs. */
+  /** The value on its tile, where it differs. */
   shortValue?: string;
-  sub?: string;
-  hint: string;
   more: string;
 }
 
 /**
- * The night's architecture measures, each explaining itself. Desktop shows every measure with a
- * line on what it means under its value; a phone shows a grid of values, and tapping one explains
- * it underneath.
+ * The night's architecture measures: a grid of values, and picking one explains it underneath, on
+ * every screen. The account says more than a one-line hint under each value could.
  */
 function ArchitectureMeasures({ session }: { session: SleepSession }) {
   const [picked, setPicked] = useState<number | null>(null);
@@ -329,12 +325,10 @@ function ArchitectureMeasures({ session }: { session: SleepSession }) {
     {
       id: 'window', label: t('sleep.architecture.window.label'), short: t('sleep.architecture.window.short'),
       value: t('sleep.architecture.window.value', { bed, wake }), shortValue: t('sleep.architecture.window.shortValue', { bed, wake }),
-      hint: t('sleep.architecture.window.hint'),
       more: t('sleep.architecture.window.more', { bed, wake }),
     },
     {
       id: 'efficiency', label: t('sleep.architecture.efficiency.label'), short: t('sleep.architecture.efficiency.short'), value: `${session.efficiency}${t('units.percent')}`,
-      hint: t('sleep.architecture.efficiency.hint'),
       more: t('sleep.architecture.efficiency.more', { percent: session.efficiency }),
     },
   ];
@@ -347,8 +341,6 @@ function ArchitectureMeasures({ session }: { session: SleepSession }) {
     measures.push(
       {
         id: 'cycles', label: t('sleep.architecture.cycles.label'), short: t('sleep.architecture.cycles.short'), value: `${arch.cycles}`,
-        sub: perCycle ? t('sleep.architecture.cycles.each', { minutes: perCycle }) : undefined,
-        hint: t('sleep.architecture.cycles.hint'),
         more: perCycle
           ? t('sleep.architecture.cycles.moreWithLength', { count: arch.cycles, minutes: perCycle })
           : t('sleep.architecture.cycles.more', { count: arch.cycles }),
@@ -356,24 +348,20 @@ function ArchitectureMeasures({ session }: { session: SleepSession }) {
       {
         id: 'remLatency', label: t('sleep.architecture.remLatency.label'), short: t('sleep.architecture.remLatency.short'),
         value: rem !== null ? `${rem} ${t('units.minutes')}` : '—',
-        hint: t('sleep.architecture.remLatency.hint'),
         more: rem !== null ? t('sleep.architecture.remLatency.more', { minutes: rem }) : t('sleep.architecture.remLatency.moreUnknown'),
       },
       {
         id: 'deepEarly', label: t('sleep.architecture.deepEarly.label'), short: t('sleep.architecture.deepEarly.short'),
         value: early !== null ? `${early}${t('units.percent')}` : '—',
-        hint: t('sleep.architecture.deepEarly.hint'),
         more: early !== null ? t('sleep.architecture.deepEarly.more', { percent: early }) : t('sleep.architecture.deepEarly.moreUnknown'),
       },
       {
         id: 'transitions', label: t('sleep.architecture.transitions.label'), short: t('sleep.architecture.transitions.short'),
         value: tph !== null ? `${formatRounded(tph, 1)}${t('units.perHour')}` : '—',
-        hint: t('sleep.architecture.transitions.hint'),
         more: tph !== null ? t('sleep.architecture.transitions.more', { count: tph }) : t('sleep.architecture.transitions.moreUnknown'),
       },
       {
         id: 'awakenings', label: t('sleep.architecture.awakenings.label'), short: t('sleep.architecture.awakenings.short'), value: `${arch.awakenings}`,
-        hint: t('sleep.architecture.awakenings.hint'),
         more: t('sleep.architecture.awakenings.more', { count: arch.awakenings }),
       },
     );
@@ -381,61 +369,43 @@ function ArchitectureMeasures({ session }: { session: SleepSession }) {
   if (session.onsetLatencyMin != null) {
     measures.push({
       id: 'onset', label: t('sleep.architecture.onset.label'), short: t('sleep.architecture.onset.short'), value: `${session.onsetLatencyMin} ${t('units.minutes')}`,
-      hint: t('sleep.architecture.onset.hint'),
       more: t('sleep.architecture.onset.more', { minutes: session.onsetLatencyMin }),
     });
   }
   measures.push({
     id: 'awakeAfterOnset', label: t('sleep.architecture.awakeAfterOnset.label'), short: t('sleep.architecture.awakeAfterOnset.short'), value: `${session.minutesAwake} ${t('units.minutes')}`,
-    hint: t('sleep.architecture.awakeAfterOnset.hint'),
     more: t('sleep.architecture.awakeAfterOnset.more', { minutes: session.minutesAwake }),
   });
   const shown = picked !== null && picked < measures.length ? measures[picked] : null;
 
   return (
-    <div className="px-5 mb-4">
-      {/* Desktop: every measure says what it means. */}
-      <div className="hidden md:grid grid-cols-3 gap-x-5 gap-y-3.5 px-4 py-3.5 rounded-xl bg-panel border border-zinc-800/60">
-        {measures.map((m) => (
-          <div key={m.id} className="flex flex-col gap-0.5 min-w-0">
-            <span className="text-eyebrow-sm uppercase text-zinc-500">{m.label}</span>
-            <span className="text-body-sm font-semibold text-zinc-200 tabular-nums">
-              {m.value}
-              {m.sub && <span className="ml-1 font-medium text-zinc-400">· {m.sub}</span>}
-            </span>
-            <span className="text-note leading-snug text-zinc-500">{m.hint}</span>
-          </div>
+    <div className="px-5 mb-5">
+      {/* The values at a glance; pick one to read what it means. */}
+      <div className="grid grid-cols-3 gap-2">
+        {measures.map((m, i) => (
+          <button
+            key={m.id}
+            type="button"
+            onClick={() => setPicked(picked === i ? null : i)}
+            aria-pressed={picked === i}
+            className={`min-h-14 px-2.5 py-2 rounded-xl border text-left flex flex-col justify-center gap-0.5 transition-colors ${
+              picked === i ? 'border-indigo-400 bg-picked' : 'border-zinc-800/80 bg-black/25'
+            }`}
+          >
+            <span className="text-eyebrow-sm uppercase text-zinc-500">{m.short}</span>
+            <span className="text-body-sm font-semibold text-zinc-200 tabular-nums">{m.shortValue ?? m.value}</span>
+          </button>
         ))}
       </div>
-
-      {/* Phone: the values at a glance; tap one to read what it means. */}
-      <div className="md:hidden">
-        <div className="grid grid-cols-3 gap-2">
-          {measures.map((m, i) => (
-            <button
-              key={m.id}
-              type="button"
-              onClick={() => setPicked(picked === i ? null : i)}
-              aria-pressed={picked === i}
-              className={`min-h-14 px-2.5 py-2 rounded-xl border text-left flex flex-col justify-center gap-0.5 transition-colors ${
-                picked === i ? 'border-indigo-400 bg-picked' : 'border-zinc-800/80 bg-card'
-              }`}
-            >
-              <span className="text-eyebrow-sm uppercase text-zinc-500">{m.short}</span>
-              <span className="text-body-sm font-semibold text-zinc-200 tabular-nums">{m.shortValue ?? m.value}</span>
-            </button>
-          ))}
-        </div>
-        <div aria-live="polite" className="mt-2.5 px-3.5 py-3 rounded-xl bg-panel-raised border border-zinc-800">
-          {shown ? (
-            <>
-              <div className="text-detail font-semibold text-zinc-100">{shown.label}</div>
-              <p className="mt-1 text-detail leading-relaxed text-zinc-400">{shown.more}</p>
-            </>
-          ) : (
-            <p className="text-detail text-zinc-500">{t('sleep.architecture.pick')}</p>
-          )}
-        </div>
+      <div aria-live="polite" className="mt-2.5 px-3.5 py-3 rounded-xl bg-panel-raised border border-zinc-800">
+        {shown ? (
+          <>
+            <div className="text-detail font-semibold text-zinc-100">{shown.label}</div>
+            <p className="mt-1 text-detail leading-relaxed text-zinc-400">{shown.more}</p>
+          </>
+        ) : (
+          <p className="text-detail text-zinc-500">{t('sleep.architecture.pick')}</p>
+        )}
       </div>
     </div>
   );

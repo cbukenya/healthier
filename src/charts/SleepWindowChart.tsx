@@ -4,7 +4,7 @@ import { bucketLabel, formatCivil, formatClock, formatDuration, formatMinutes } 
 import { sleepRegularity, typicalSleepWindow } from '../pipeline/derive';
 import { groupNights, type Bucket } from '../pipeline/aggregate';
 import { emptyRecord } from '../pipeline/normalize';
-import { Card, CardHead, fmtDuration, tint } from '../ui/primitives';
+import { Card, CardHead, fmtDuration } from '../ui/primitives';
 import type { DailyRecord, SleepSession } from '../types/health';
 
 /**
@@ -54,11 +54,11 @@ const STAGE_LABELS = {
   awake: 'sleep.stages.awake',
 } as const satisfies Record<(typeof STAGE_FILL)[number][0], MessageKey>;
 
-const REG_COPY: Record<string, { label: MessageKey; color: string; text: MessageKey }> = {
-  excellent: { label: 'sleep.window.regularity.bands.excellent.label', color: 'var(--green-500)', text: 'sleep.window.regularity.bands.excellent.text' },
-  good: { label: 'sleep.window.regularity.bands.good.label', color: 'var(--emerald-300)', text: 'sleep.window.regularity.bands.good.text' },
-  bad: { label: 'sleep.window.regularity.bands.bad.label', color: 'var(--yellow-500)', text: 'sleep.window.regularity.bands.bad.text' },
-  critical: { label: 'sleep.window.regularity.bands.critical.label', color: 'var(--rose-500)', text: 'sleep.window.regularity.bands.critical.text' },
+const REG_COPY: Record<string, { label: MessageKey; color: string }> = {
+  excellent: { label: 'sleep.window.regularity.bands.excellent.label', color: 'var(--green-500)' },
+  good: { label: 'sleep.window.regularity.bands.good.label', color: 'var(--emerald-300)' },
+  bad: { label: 'sleep.window.regularity.bands.bad.label', color: 'var(--yellow-500)' },
+  critical: { label: 'sleep.window.regularity.bands.critical.label', color: 'var(--rose-500)' },
 };
 
 /** Fold a minutes-of-day onto an 18:00-anchored evening→next-noon line. */
@@ -157,35 +157,26 @@ export function SleepWindowChart({
 
   return (
     <Card>
-      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 sm:gap-6 px-5 pt-4 pb-1">
+      {/* The title, and to its right on every screen the regularity: its name over its rating and score. Short of room, the title wraps. */}
+      <div className="flex items-start justify-between gap-4 sm:gap-6 px-5 pt-4 pb-1">
         <div className="min-w-0">
           <h3 className="card-title-detail text-zinc-50">{t('sleep.window.title')}</h3>
-          <p className="text-caption text-zinc-500 mt-1 leading-relaxed max-w-none sm:max-w-md">
-            {t('sleep.window.bars', { bucket })}{' '}
-            {typical ? t('sleep.window.lines', { count: typical.nights }) : t('sleep.window.noLines')}{' '}
-            {t('sleep.window.emptyRows', { bucket })}
-          </p>
         </div>
 
         {/* ── Sleep Regularity Index, computed over exactly these days ── */}
-        <div className="text-left sm:text-right shrink-0 w-full sm:w-auto sm:max-w-[280px] pt-3 sm:pt-0 border-t border-zinc-800/60 sm:border-t-0">
+        <div className="text-right shrink-0 max-w-[60%] sm:max-w-[280px]">
           <div className="text-eyebrow uppercase text-zinc-500">
             {t('sleep.window.regularity.title')}
           </div>
           {reg ? (
             <>
-              <div className="flex sm:block items-baseline gap-2.5 sm:gap-0 mt-0.5 sm:mt-0">
-                <div className="text-tag sm:text-tag-lg" style={{ color: REG_COPY[reg.band].color }}>
-                  {t(REG_COPY[reg.band].label)}
-                </div>
-                <div className="font-display text-number-sm sm:text-number-md text-zinc-50 tabular-nums leading-tight">
-                  {reg.score}
-                  <span className="font-sans text-body-sm font-medium text-zinc-500">/100</span>
-                </div>
+              <div className="text-tag sm:text-tag-lg" style={{ color: REG_COPY[reg.band].color }}>
+                {t(REG_COPY[reg.band].label)}
               </div>
-              <p className="text-note text-zinc-500 mt-1.5 leading-relaxed">
-                {t(REG_COPY[reg.band].text)} {t('sleep.window.regularity.basis', { count: reg.pairs })}
-              </p>
+              <div className="font-display text-number-sm sm:text-number-md text-zinc-50 tabular-nums leading-tight">
+                {reg.score}
+                <span className="font-sans text-body-sm font-medium text-zinc-500">/100</span>
+              </div>
             </>
           ) : (
             <p className="text-note text-zinc-500 mt-1.5 leading-relaxed">
@@ -211,8 +202,8 @@ export function SleepWindowChart({
                 height={H - PT - PB + 16} fill={lineColor} opacity={0.06} />
 
               {([
-                [winA, t(narrow ? 'sleep.window.averageBedNarrow' : 'sleep.window.averageBed', { time: formatClock(typical.bedMean) }), 'before'],
-                [winB, t(narrow ? 'sleep.window.averageWakeNarrow' : 'sleep.window.averageWake', { time: formatClock(typical.wakeMean) }), 'after'],
+                [winA, t('sleep.window.averageBed', { time: formatClock(typical.bedMean) }), 'before'],
+                [winB, t('sleep.window.averageWake', { time: formatClock(typical.wakeMean) }), 'after'],
               ] as const).map(([m, lbl, side]) => {
                 const at = lineLabel(m, lbl, side);
                 return (
@@ -344,12 +335,6 @@ export function SleepWindowChart({
             {t(STAGE_LABELS[k])}
           </span>
         ))}
-        {typical && (
-          <span className="flex items-center gap-1.5 text-note uppercase tracking-wider text-zinc-500">
-            <i className="w-3 h-2.5 rounded-[2px] border border-dashed" style={{ borderColor: tint('var(--indigo-400)', 67) }} />
-            {t('sleep.window.averageWindow', { bed: formatClock(typical.bedMean), wake: formatClock(typical.wakeMean) })}
-          </span>
-        )}
       </div>
     </Card>
   );

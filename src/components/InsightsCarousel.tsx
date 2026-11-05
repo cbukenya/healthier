@@ -25,21 +25,23 @@ const DOMAIN_ICONS: Record<string, React.ReactNode> = {
   movement: <Footprints size={14} />,
 };
 
-/** A card's glow: its tone strongest in the far corner, fading out before it reaches the words. */
-const glow = (colour: string, strong: number, soft: number) =>
-  `radial-gradient(130% 130% at 100% 100%, ${tint(colour, strong)} 0%, ${tint(colour, soft)} 42%, transparent 68%)`;
+/** A card's glow: its tone strongest at the bottom of its right half, easing out by halfway up the card. */
+const glow = (colour: string, strong: number) => {
+  const at = (share: number) => tint(colour, Math.round(strong * share * 10) / 10);
+  return `radial-gradient(80% 50% at 75% 100%, ${at(1)} 0%, ${at(0.62)} 22%, ${at(0.3)} 45%, ${at(0.1)} 70%, transparent 100%)`;
+};
 
 const TONE_STYLES: Record<string, { bg: string, border: string }> = {
   good: {
-    bg: glow('var(--glow-good)', 34, 10),
+    bg: glow('var(--glow-good)', 34),
     border: tint('var(--glow-good)', 16),
   },
   watch: {
-    bg: glow('var(--glow-watch)', 32, 9),
+    bg: glow('var(--glow-watch)', 32),
     border: tint('var(--glow-watch)', 15),
   },
   neutral: {
-    bg: glow('var(--glow-neutral)', 20, 6),
+    bg: glow('var(--glow-neutral)', 20),
     border: tint('var(--glow-neutral)', 15),
   },
 };

@@ -1,4 +1,4 @@
-import React, { useId, useState } from 'react';
+import React, { useId, useLayoutEffect, useRef, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { BASELINE_DAYS, BASELINE_MIN_READINGS, OFF_Z, type Band, type Comparison, stats, type Point } from '../pipeline/derive';
 import { t, type MessageKey, type Values } from '../i18n';
@@ -50,20 +50,68 @@ export const GRID = 'var(--color-zinc-800)';
 
 // ────────────────────────────────────────────────────────────────── layout
 
+/** The colour a card glows in (see .glow in theme.css), as its style. */
+export const glowStyle = (colour: string) => ({ '--glow': colour }) as React.CSSProperties;
+
+/**
+ * Puts a card's score glow where the dot in its pill sits (--glow-x and --glow-y), and keeps it there
+ * as the card resizes and once the web fonts have set the text before the dot.
+ */
+export function useGlowFrom(card: React.RefObject<HTMLElement | null>, dot?: React.RefObject<HTMLElement | null>) {
+  useLayoutEffect(() => {
+    const box = card.current;
+    if (!box || !dot) return;
+    const place = () => {
+      const from = dot.current;
+      if (!from) return;
+      const b = box.getBoundingClientRect();
+      const d = from.getBoundingClientRect();
+      box.style.setProperty('--glow-x', `${d.left + d.width / 2 - b.left}px`);
+      box.style.setProperty('--glow-y', `${d.top + d.height / 2 - b.top}px`);
+    };
+    place();
+    const observer = new ResizeObserver(place);
+    observer.observe(box);
+    let live = true;
+    document.fonts?.ready.then(() => {
+      if (live) place();
+    });
+    return () => {
+      live = false;
+      observer.disconnect();
+    };
+  }, [card, dot]);
+}
+
 export function Card({
   children,
   className = '',
   as: Tag = 'section',
   label,
+  glow,
+  glowFrom,
 }: {
   children: React.ReactNode;
   className?: string;
   as?: any;
   /** A name for the card when nothing in it names it. */
   label?: string;
+  /** A colour for a faint glow, in the dark theme: from the card's top right, or from `glowFrom`. */
+  glow?: string;
+  /** The dot in a score's pill, for a score glow that starts there, as the body battery's does. */
+  glowFrom?: React.RefObject<HTMLElement | null>;
 }) {
+  const card = useRef<HTMLElement>(null);
+  useGlowFrom(card, glow ? glowFrom : undefined);
   return (
-    <Tag aria-label={label} className={`bg-card border border-card-edge rounded-2xl ${className}`}>{children}</Tag>
+    <Tag
+      ref={card}
+      aria-label={label}
+      className={`bg-card border border-card-edge rounded-2xl ${glow ? (glowFrom ? 'glow-score' : 'glow') : ''} ${className}`}
+      style={glow ? glowStyle(glow) : undefined}
+    >
+      {children}
+    </Tag>
   );
 }
 
@@ -71,19 +119,28 @@ export function CardHead({
   title,
   hint,
   right,
+  hintBySummary = false,
 }: {
   title: string;
   hint?: React.ReactNode;
   right?: React.ReactNode;
+  /** The hint explains the summary's numbers, so on wider screens it sits under them. */
+  hintBySummary?: boolean;
 }) {
+  const bySummary = hintBySummary && !!right && !!hint;
   return (
     <div className="px-5 pt-4 pb-3">
       {/* A summary that doesn't fit beside the title moves under it, rather than cutting the title short. */}
       <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-1">
         <h3 className="card-title-detail text-zinc-50 min-w-0 truncate">{title}</h3>
-        {right && <div className="shrink-0 text-caption text-zinc-500">{right}</div>}
+        {right && (
+          <div className={`shrink-0 text-caption text-zinc-500 ${bySummary ? 'md:text-right' : ''}`}>
+            {right}
+            {bySummary && <div className="hidden md:block mt-1 leading-relaxed">{hint}</div>}
+          </div>
+        )}
       </div>
-      {hint && <div className="text-caption text-zinc-500 mt-1.5 leading-relaxed">{hint}</div>}
+      {hint && <div className={`text-caption text-zinc-500 mt-1.5 leading-relaxed ${bySummary ? 'md:hidden' : ''}`}>{hint}</div>}
     </div>
   );
 }
@@ -190,14 +247,21 @@ const BAND_COPY: Record<Band, { label: MessageKey; cls: string }> = {
 };
 
 /**
- * A score's tier in a pill: its name after a glowing dot of its colour, as the sleep score and the
- * body battery show it. Set in the body face even inside a title.
+ * A score's tier in a pill: its name in capitals after a glowing dot of its colour, as the sleep
+ * score and the body battery show it. Set in the body face even inside a title.
  */
-export function StatusPill({ name, dot, glow = `0 0 10px ${tint(dot, 60)}`, className = '' }: { name: string; dot: string; glow?: string; className?: string }) {
+export function StatusPill({ name, dot, glow = `0 0 10px ${tint(dot, 60)}`, className = '', dotRef }: {
+  name: string;
+  dot: string;
+  glow?: string;
+  className?: string;
+  /** The dot, for a card whose score glow starts there. */
+  dotRef?: React.Ref<HTMLSpanElement>;
+}) {
   return (
     <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-zinc-900 border border-zinc-800 shadow-sm font-sans ${className}`}>
-      <span className="w-2.5 h-2.5 rounded-full inline-block shrink-0" style={{ backgroundColor: dot, boxShadow: glow }} />
-      <span className="text-detail font-semibold text-zinc-200 tracking-tight">{name}</span>
+      <span ref={dotRef} className="w-2.5 h-2.5 rounded-full inline-block shrink-0" style={{ backgroundColor: dot, boxShadow: glow }} />
+      <span className="text-caption font-semibold text-zinc-200 uppercase tracking-widest">{name}</span>
     </span>
   );
 }

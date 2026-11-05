@@ -11,8 +11,8 @@ const keyed = (nodes: ReactNode[]) => nodes.map((n, i) => (isValidElement(n) ? <
  * A message with styled words or elements in it. Tags in the message wrap words, and values may
  * be elements as well as text:
  *
- *   "zones": "<light>Light</light> minutes accumulate from daily life"
- *   rich('activity.mix.note', { light: (w) => <span className="text-emerald-400">{w}</span> })
+ *   "perDay": "{steps}<muted> steps a day</muted>"
+ *   rich('activity.lastSevenDays.perDay', { steps, muted: (w) => <span className="text-zinc-500">{w}</span> })
  *
  * Tags left without a wrapper keep their words, unstyled.
  */

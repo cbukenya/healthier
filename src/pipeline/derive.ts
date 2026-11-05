@@ -457,6 +457,9 @@ export const BATTERY_TIERS = [
 
 export const batteryTier = (score: number) => BATTERY_TIERS.find((tier) => score >= tier.min) ?? BATTERY_TIERS[3];
 
+/** Where every morning's battery starts, before each contributor adds or takes away its points. */
+export const BATTERY_START = 70;
+
 /**
  * Readiness v2 — grounded in the published literature rather than intuition.
  *
@@ -504,7 +507,7 @@ export const batteryTier = (score: number) => BATTERY_TIERS.find((tier) => score
  */
 export function readiness(days: DailyRecord[], needSet?: number | null): Readiness {
   const parts: ReadinessPart[] = [];
-  let score = 70;
+  let score = BATTERY_START;
   // Only last night counts. The window ends on the user's today, and a reading from before yesterday is
   // history: with the watch on its charger for three days the honest answer is no score, not a confident
   // one built from the last night it happened to see.

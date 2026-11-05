@@ -1,8 +1,8 @@
 import React from 'react';
-import { Row } from './primitives';
+import { Row, glowStyle } from './primitives';
 
 /** An at-a-glance tile: the number, its verdict, a trend, then the details as label–value rows. */
-export function Tile({ label, icon, value, pill, chart, rows, empty, note }: {
+export function Tile({ label, icon, value, pill, chart, rows, empty, note, glow }: {
   label: string;
   icon: React.ReactNode;
   value: React.ReactNode;
@@ -13,10 +13,15 @@ export function Tile({ label, icon, value, pill, chart, rows, empty, note }: {
   /** Shown instead when the tile has nothing to report. */
   empty?: string | null;
   note?: string | null;
+  /** A colour for a faint glow from the tile's top right, in the dark theme: its icon's. */
+  glow?: string;
 }) {
   const shown = rows.filter((r): r is [string, string] => !!r[1]);
   return (
-    <article className="min-w-0 bg-card border border-card-edge rounded-[18px] p-3.5 flex flex-col gap-1.5">
+    <article
+      className={`min-w-0 bg-card border border-card-edge rounded-[18px] p-3.5 flex flex-col gap-1.5 ${glow ? 'glow' : ''}`}
+      style={glow ? glowStyle(glow) : undefined}
+    >
       <div className="flex items-center justify-between gap-2">
         <span className="card-title-glance text-zinc-500 truncate">{label}</span>
         {icon}

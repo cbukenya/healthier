@@ -230,19 +230,24 @@ function HowItWorks({ k }: { k: LabKey }) {
         {t('labs.howItWorks')}
         <ChevronDown size={14} aria-hidden className="transition-transform group-open/how:rotate-180" />
       </summary>
-      <div className="flex flex-col gap-2 pb-1">
-        <p className="flex gap-2 text-caption leading-normal text-zinc-400">
-          <Eye size={13} aria-hidden className="shrink-0 mt-[3px]" />
-          <span>{rich(watch, { b: lede })}</span>
-        </p>
-        <p className="flex gap-2 text-caption leading-normal text-zinc-400">
-          <span className="shrink-0 w-[13px] h-[13px] mt-[3px] grid place-items-center">
-            <span className={`w-[7px] h-[7px] rounded-full ${k === 'irn' ? 'bg-zinc-600' : 'bg-rose-400'}`} />
-          </span>
-          <span>{rich(light, { b: lede })}</span>
-        </p>
-        {explainer && <p className="mt-1 text-caption leading-relaxed text-zinc-400">{rich(explainer, { b: em })}</p>}
-        <p className={`${explainer ? '' : 'mt-1 '}text-note leading-relaxed text-zinc-500`}>{t(footer)}</p>
+      {/* On wider screens, two outlined cards side by side: what it watches and when it lights up, then what it means. */}
+      <div className="flex flex-col gap-2 pb-1 md:grid md:grid-cols-2 md:gap-3 md:pb-3">
+        <div className="flex flex-col gap-2 md:rounded-xl md:border md:border-zinc-800 md:p-3.5">
+          <p className="flex gap-2 text-caption leading-normal text-zinc-400">
+            <Eye size={13} aria-hidden className="shrink-0 mt-[3px]" />
+            <span>{rich(watch, { b: lede })}</span>
+          </p>
+          <p className="flex gap-2 text-caption leading-normal text-zinc-400">
+            <span className="shrink-0 w-[13px] h-[13px] mt-[3px] grid place-items-center">
+              <span className={`w-[7px] h-[7px] rounded-full ${k === 'irn' ? 'bg-zinc-600' : 'bg-rose-400'}`} />
+            </span>
+            <span>{rich(light, { b: lede })}</span>
+          </p>
+        </div>
+        <div className="flex flex-col gap-2 mt-1 md:mt-0 md:rounded-xl md:border md:border-zinc-800 md:p-3.5">
+          {explainer && <p className="text-caption leading-relaxed text-zinc-400">{rich(explainer, { b: em })}</p>}
+          <p className="text-note leading-relaxed text-zinc-500">{t(footer)}</p>
+        </div>
       </div>
     </details>
   );
@@ -294,7 +299,15 @@ function SdbGrid({ nights, judged }: { nights: SdbNight[]; judged: boolean }) {
           </React.Fragment>
         ))}
       </div>
-      <div className="pl-[74px]"><Ends left={formatCivil(nights[0].date)} right={formatCivil(nights[nights.length - 1].date)} /></div>
+      <div className="pl-[74px] md:hidden"><Ends left={formatCivil(nights[0].date)} right={formatCivil(nights[nights.length - 1].date)} /></div>
+      {/* On wider screens, every night's date under its column. */}
+      <div
+        className="hidden md:grid mt-1.5 text-note leading-tight text-zinc-600"
+        style={{ gridTemplateColumns: `74px repeat(${nights.length}, minmax(0, 1fr))` }}
+      >
+        <span />
+        {nights.map((n) => <span key={n.date} className="justify-self-center whitespace-nowrap">{formatCivil(n.date)}</span>)}
+      </div>
       <div className="mt-2">
         <Keys items={judged
           ? [
@@ -806,7 +819,27 @@ function EntropyPlot({ r, compact = false }: { r: EntropyShift; compact?: boolea
           </svg>
         )}
       </div>
-      <Ends compact={compact} left={formatCivil(pts[0].date)} right={formatCivil(pts[pts.length - 1].date)} />
+      {compact ? (
+        <Ends compact left={formatCivil(pts[0].date)} right={formatCivil(pts[pts.length - 1].date)} />
+      ) : (
+        <>
+          <div className="md:hidden"><Ends left={formatCivil(pts[0].date)} right={formatCivil(pts[pts.length - 1].date)} /></div>
+          {/* On wider screens, every night's date under its point; the ends keep inside the plot. */}
+          {W > 0 && (
+            <div className="hidden md:block relative h-[15px] mt-1.5 text-note leading-tight text-zinc-600">
+              {pts.map((p, i) => (
+                <span
+                  key={p.date}
+                  className="absolute top-0 whitespace-nowrap"
+                  style={pts.length > 1 && i === 0 ? { left: 0 } : pts.length > 1 && i === pts.length - 1 ? { right: 0 } : { left: x(i), transform: 'translateX(-50%)' }}
+                >
+                  {formatCivil(p.date)}
+                </span>
+              ))}
+            </div>
+          )}
+        </>
+      )}
       {!compact && (
         <div className="mt-1.5">
           <Keys items={band
@@ -1108,30 +1141,19 @@ function tachyLab(days: Days, intraday: IntradayDays): Lab {
 function Intro({ wide = false }: { wide?: boolean }) {
   return (
     <header>
-      {/* The lead keeps a reading width on wide screens; the notice spans the page like the cards below it. */}
-      <p className={`px-1 text-body leading-normal text-zinc-400 ${wide ? 'max-w-3xl' : ''}`}>
-        {rich('labs.intro.lead', { b: (w) => <b className="font-semibold text-zinc-50">{w}</b> })}
-      </p>
       {/* A quiet card of its own: read once, then easy to pass over on the way to the labs. */}
-      <aside className="mt-3 flex gap-3 rounded-2xl border border-card-edge bg-panel px-4 py-3 text-caption leading-relaxed">
+      <aside className="flex gap-3 rounded-2xl border border-card-edge bg-panel px-4 py-3 text-caption leading-relaxed">
         <Info size={16} aria-hidden className="shrink-0 mt-0.5 text-zinc-400" />
         <div>
           <p className="font-semibold text-zinc-200">{t('labs.intro.notice.title')}</p>
           <p className="mt-0.5 text-zinc-400">{t('labs.intro.notice.text')}</p>
         </div>
       </aside>
+      {/* Under the notice, the lead keeps a reading width on wide screens; the notice spans the page like the cards below it. */}
+      <p className={`mt-3 px-1 text-body leading-normal text-zinc-400 ${wide ? 'max-w-3xl' : ''}`}>
+        {t('labs.intro.lead')}
+      </p>
     </header>
-  );
-}
-
-function Legend() {
-  const items: [Mark, MessageKey][] = [
-    ['quiet', 'labs.legend.quiet'], ['collecting', 'labs.legend.collecting'], ['reported', 'labs.legend.reported'], ['found', 'labs.legend.found'],
-  ];
-  return (
-    <div className="flex flex-wrap gap-x-3.5 gap-y-1.5 py-2.5 text-note text-page-ink">
-      {items.map(([mark, label]) => <span key={mark} className="flex items-center gap-1.5"><StatusIcon mark={mark} size={12} />{t(label)}</span>)}
-    </div>
   );
 }
 
@@ -1173,7 +1195,21 @@ function LabCard({ lab }: { lab: Lab }) {
 /** A phone tile: the glance and its graph closed; the whole card, in the same tile, open. */
 function LabRow({ lab }: { lab: Lab }) {
   return (
-    <details className="group bg-card border border-zinc-800/80 rounded-2xl px-3.5">
+    // One lab open at a time: the rows share a name, so opening one folds the one open before it.
+    // When that one was above, this one slips up under the bar, so it's brought back into view.
+    <details
+      name="labs"
+      onToggle={(e) => {
+        const row = e.currentTarget;
+        if (!row.open) return;
+        requestAnimationFrame(() => {
+          if (row.getBoundingClientRect().top < parseFloat(getComputedStyle(row).scrollMarginTop)) {
+            row.scrollIntoView({ block: 'start', behavior: 'smooth' });
+          }
+        });
+      }}
+      className="group scroll-mt-32 bg-card border border-zinc-800/80 rounded-2xl px-3.5"
+    >
       <summary className="list-none [&::-webkit-details-marker]:hidden cursor-pointer block py-3.5">
         <TileHead
           lab={lab} center
@@ -1191,24 +1227,32 @@ function LabRow({ lab }: { lab: Lab }) {
   );
 }
 
-function Overview({ labs }: { labs: Lab[] }) {
-  const jump = (e: React.MouseEvent, key: LabKey) => {
-    e.preventDefault();
-    document.getElementById(`lab-${key}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  };
+/**
+ * On wider screens, the labs at a glance pick the one shown in full below them, one at a time:
+ * the picked tile is outlined in the page's yellow, its menu icon's.
+ */
+function Overview({ labs, picked, onPick }: { labs: Lab[]; picked: LabKey; onPick: (key: LabKey) => void }) {
   return (
-    <nav aria-label={t('labs.overview.label')} className="grid grid-cols-3 gap-2.5">
-      {labs.map((lab) => (
-        <a
-          key={lab.key} href={`#lab-${lab.key}`} onClick={(e) => jump(e, lab.key)}
-          className="flex flex-col gap-3 px-3.5 pt-3 pb-3.5 rounded-[14px] bg-card border border-zinc-800/80 hover:border-zinc-700 transition-colors"
-        >
-          <TileHead lab={lab} chevron={<ChevronRight size={14} aria-hidden className="self-start mt-0.5 shrink-0 text-zinc-600" />} />
-          <span className="block mt-auto">{lab.graph}</span>
-          <TileGlance lab={lab} className="-mt-1" />
-        </a>
-      ))}
-    </nav>
+    <div role="group" aria-label={t('labs.overview.label')} className="grid grid-cols-3 gap-2.5">
+      {labs.map((lab) => {
+        const on = lab.key === picked;
+        return (
+          <button
+            key={lab.key}
+            type="button"
+            aria-pressed={on}
+            onClick={() => onPick(lab.key)}
+            className={`flex flex-col gap-3 px-3.5 pt-3 pb-3.5 rounded-[14px] bg-card border text-left cursor-pointer transition-colors ${
+              on ? 'border-yellow-400/60' : 'border-zinc-800/80 hover:border-zinc-700'
+            }`}
+          >
+            <TileHead lab={lab} chevron={<ChevronRight size={14} aria-hidden className="self-start mt-0.5 shrink-0 text-zinc-600" />} />
+            <span className="block mt-auto">{lab.graph}</span>
+            <TileGlance lab={lab} className="-mt-1" />
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
@@ -1221,6 +1265,9 @@ export function LabsView({ data, intraday = {} }: { data: SyncResult; intraday?:
     ],
     [data, intraday, judged],
   );
+  // On wider screens one lab shows in full at a time, the first until another is picked.
+  const [picked, setPicked] = useState<LabKey | null>(null);
+  const shown = labs.find((lab) => lab.key === picked) ?? labs[0];
 
   if (!wide) {
     return (
@@ -1232,7 +1279,6 @@ export function LabsView({ data, intraday = {} }: { data: SyncResult; intraday?:
             <span className="text-note text-page-ink">{t('labs.list.hint')}</span>
           </div>
           {labs.map((lab) => <LabRow key={lab.key} lab={lab} />)}
-          <div className="px-1"><Legend /></div>
         </section>
       </div>
     );
@@ -1242,11 +1288,10 @@ export function LabsView({ data, intraday = {} }: { data: SyncResult; intraday?:
     <div>
       <Intro wide />
       <div className="mt-5">
-        <Overview labs={labs} />
-        <div className="flex justify-end"><Legend /></div>
+        <Overview labs={labs} picked={shown.key} onPick={setPicked} />
       </div>
-      <div className="mt-1 grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {labs.map((lab) => <LabCard key={lab.key} lab={lab} />)}
+      <div className="mt-4">
+        <LabCard lab={shown} />
       </div>
     </div>
   );

@@ -194,7 +194,7 @@ function intensity(ctx: InsightContext, add: Add): void {
       claims: { metric: 'brisk', direction: dir === 1 ? 'up' : 'down' }, evidence: sh.nCurrent + sh.nPrevious,
       title: t(dir === 1 ? 'insights.activity.mvpaUp.title' : 'insights.activity.mvpaDown.title'),
       text: t(dir === 1 ? 'insights.activity.mvpaUp.text' : 'insights.activity.mvpaDown.text', {
-        count: minutes, minutes, previous: Math.round(sh.previous!),
+        count: minutes, minutes, previous: Math.round(sh.previous!), target: WHO_WEEK,
       }),
     });
     break;

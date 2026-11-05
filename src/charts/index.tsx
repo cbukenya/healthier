@@ -519,7 +519,8 @@ export function Hypnogram({ session, height = 200 }: { session: SleepSession; he
     );
   }
   const total = segs.reduce((a, s) => a + s.durationMin, 0);
-  const PL = 46, PR = 6, PT = 16, PB = 26;
+  // The left margin holds the stage names, set in capitals like the key below.
+  const PL = 52, PR = 6, PT = 16, PB = 26;
   const w = Math.max(0, W - PL - PR);
   const rowH = (height - PT - PB) / 4;
   const barH = Math.round(rowH * 0.62);
@@ -602,7 +603,7 @@ export function Hypnogram({ session, height = 200 }: { session: SleepSession; he
               return (
                 <g key={k}>
                   <line x1={PL} x2={W - PR} y1={y} y2={y} stroke={GRID} strokeWidth={1} />
-                  <text x={PL - 10} y={y + 3.5} textAnchor="end" fontSize={10.5} fill={AXIS}>{t(st.label)}</text>
+                  <text x={PL - 10} y={y + 3.5} textAnchor="end" fontSize={10.5} fill={AXIS} className="uppercase tracking-wider">{t(st.label)}</text>
                 </g>
               );
             })}
@@ -648,18 +649,15 @@ export function Hypnogram({ session, height = 200 }: { session: SleepSession; he
   );
 }
 
-export function StageLegend() {
+/**
+ * The hypnogram's key. The chart names its stages along its side, so only the ticks above it
+ * need explaining, and only on a night that has them.
+ */
+export function StageLegend({ session }: { session: SleepSession }) {
+  if (!session.segments.length || !session.shortAwakeningsMin.length) return null;
   return (
-    <div className="flex flex-wrap gap-x-4 gap-y-1.5 px-5 pb-4">
-      {Object.values(STAGE_STYLE).map((s) => (
-        <span key={s.label} className="flex items-center gap-1.5 text-note uppercase tracking-wider text-zinc-500">
-          <i className="w-2.5 h-2.5 rounded-sm" style={{ background: s.color }} />
-          {t(s.label)}
-        </span>
-      ))}
-      <span className="flex items-center gap-1.5 text-note uppercase tracking-wider text-zinc-500">
-        <i className="w-[2px] h-3 bg-zinc-200" /> {t('charts.stageLegend.briefAwakening')}
-      </span>
+    <div className="flex items-center gap-1.5 px-5 pb-4 text-note uppercase tracking-wider text-zinc-500">
+      <i className="w-[2px] h-3 bg-zinc-200" /> {t('charts.stageLegend.briefAwakening')}
     </div>
   );
 }
