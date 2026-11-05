@@ -19,7 +19,7 @@ export const briskOf = (d: DailyRecord) => (d.activeMinutes ? d.activeMinutes.mo
  * The day's two goals as rings, steps outside and brisk minutes inside, then its distance and
  * energy. It shows today while today has steps, else the latest day that does.
  */
-export function TodaySoFar({ day, isToday, wide }: { day: DailyRecord; isToday: boolean; wide: boolean }) {
+export function TodaySoFar({ day, isToday, wide, glow }: { day: DailyRecord; isToday: boolean; wide: boolean; glow?: string }) {
   const goals = useGoals();
   const steps = day.steps ?? 0;
   const brisk = briskOf(day);
@@ -28,7 +28,7 @@ export function TodaySoFar({ day, isToday, wide }: { day: DailyRecord; isToday: 
   const goalNote = reached.length === 2 ? t('activity.day.goalsMet', { met }) : met ? t('activity.day.stepGoalMet') : null;
 
   return (
-    <Card className="px-[18px] pt-4 pb-[18px] md:px-5 flex flex-col gap-3.5">
+    <Card className="px-[18px] pt-4 pb-[18px] md:px-5 flex flex-col gap-3.5" glow={glow}>
       <div className="flex items-baseline justify-between gap-2">
         <h2 className="card-title-detail text-zinc-50">{isToday ? t('activity.day.title') : t('activity.day.latest', { date: formatCivilLong(day.date) })}</h2>
         {goalNote && <span className="text-detail text-zinc-400 whitespace-nowrap">{goalNote}</span>}
@@ -62,7 +62,7 @@ export function TodaySoFar({ day, isToday, wide }: { day: DailyRecord; isToday: 
  * The last seven finished days: their average against the week before, each day against the
  * step goal's line, and the week against the three before it.
  */
-export function LastSevenDays({ days, shift, ratio, wide }: {
+export function LastSevenDays({ days, shift, ratio, wide, glow }: {
   /** The seven finished days, oldest first. */
   days: DailyRecord[];
   /** Their steps against the seven days before. */
@@ -70,6 +70,7 @@ export function LastSevenDays({ days, shift, ratio, wide }: {
   /** Their average against the three weeks before. */
   ratio: number | null;
   wide: boolean;
+  glow?: string;
 }) {
   const goal = useGoals().steps;
   const steps = days.map((d) => d.steps).filter((s): s is number => s !== null);
@@ -96,7 +97,7 @@ export function LastSevenDays({ days, shift, ratio, wide }: {
   const bars = <WeekBars days={days} goal={goal} long={wide} />;
 
   return (
-    <Card className="px-[18px] pt-4 pb-3.5 md:px-5 md:pb-[18px] flex flex-col gap-3 md:gap-3.5">
+    <Card className="px-[18px] pt-4 pb-3.5 md:px-5 md:pb-[18px] flex flex-col gap-3 md:gap-3.5" glow={glow}>
       <div className="flex items-baseline justify-between gap-2">
         <h2 className="card-title-detail text-zinc-50">{t('activity.lastSevenDays.title')}</h2>
         <span className="text-detail text-zinc-500">{formatCivilRange(days[0].date, days[days.length - 1].date)}</span>

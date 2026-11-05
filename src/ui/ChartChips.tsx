@@ -13,23 +13,26 @@ function spanOf(i: number, n: number): keyof typeof SPAN {
 /**
  * How a phone shows an "over time" section: one chart at a time, picked from a row of chips,
  * so the page doesn't scroll through every chart. Wider screens show the charts side by side.
+ * The picked chip takes the page's colour, its menu icon's (see .chip in theme.css).
  */
-export function ChartChips<K extends string>({ label, options, value, onChange }: {
+export function ChartChips<K extends string>({ label, options, value, onChange, colour }: {
   /** What the chips choose, for screen readers. */
   label: string;
   options: { key: K; label: string }[];
   value: K;
   onChange: (key: K) => void;
+  /** The page's colour, for the picked chip. */
+  colour: string;
 }) {
   return (
-    <div role="group" aria-label={label} className="grid grid-cols-12 gap-2">
+    <div role="group" aria-label={label} className="grid grid-cols-12 gap-2" style={{ '--chip': colour } as React.CSSProperties}>
       {options.map((o, i) => (
         <button
           key={o.key}
           type="button"
           onClick={() => onChange(o.key)}
           aria-pressed={value === o.key}
-          className={`${SPAN[spanOf(i, options.length)]} min-h-11 px-1.5 rounded-xl border text-body-sm font-medium transition-colors ${
+          className={`chip ${SPAN[spanOf(i, options.length)]} min-h-11 px-1.5 rounded-xl border text-body-sm font-medium transition-colors ${
             value === o.key ? 'bg-zinc-800 border-zinc-700 text-zinc-50' : 'border-zinc-800 text-zinc-400 hover:text-zinc-200'
           }`}
         >

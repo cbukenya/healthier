@@ -1,8 +1,8 @@
-import React, { useId } from 'react';
-import { BASELINE_DAYS, BATTERY_TIERS, batteryTier, type Readiness, type ReadinessPart, type ReadinessSignal } from '../pipeline/derive';
+import React, { useId, useRef } from 'react';
+import { BATTERY_START, BATTERY_TIERS, batteryTier, type Readiness, type ReadinessPart, type ReadinessSignal } from '../pipeline/derive';
 import { t, type MessageKey } from '../i18n';
 import { formatFixed, formatList } from '../i18n/format';
-import { Contributors, StatusPill } from '../ui/primitives';
+import { Contributors, StatusPill, glowStyle, useGlowFrom } from '../ui/primitives';
 import type { Gender } from '../pipeline/registry';
 import { silhouette } from './silhouettes';
 
@@ -10,7 +10,6 @@ interface BodyBatteryProps {
   /** Null when readiness can't be computed yet (too little history). */
   score: number | null;
   parts: Readiness['parts'];
-  confidence: Readiness['confidence'];
   label: string;
   missing: Readiness['missing'];
   calibrating: Readiness['calibrating'];
@@ -21,8 +20,9 @@ interface BodyBatteryProps {
 
 /**
  * One colour per tier: for This week's bars (fill), for the charge that fills the figure and its
- * rail (body, the same in both themes) and for the tier's name beside it and the dot in the pill by
- * the title (ink, the same colour in dark, a shade darker in light so it reads on white). Also its
+ * rail (body, the same in both themes) and for the dot in the pill by the title (ink, the same
+ * colour in dark, a shade darker in light so it shows on white). The tier's name beside the rail
+ * is set in the text's own colours, so the colour stays with the rail and the figure. Also its
  * name and the figure's label for a screen reader (a whole sentence per tier, so a language can
  * inflect the name in it); the thresholds themselves live in BATTERY_TIERS.
  */
@@ -32,13 +32,6 @@ export const TIER_STYLE: Record<(typeof BATTERY_TIERS)[number]['tag'], { fill: s
   LOW: { fill: 'var(--charge-low)', body: 'var(--figure-low)', ink: 'var(--figure-ink-low)', name: 'today.battery.tiers.low.name', figure: 'today.battery.tiers.low.figure' },
   DRAINED: { fill: 'var(--charge-drained)', body: 'var(--figure-drained)', ink: 'var(--figure-ink-drained)', name: 'today.battery.tiers.drained.name', figure: 'today.battery.tiers.drained.figure' },
 };
-
-/** What the line under the score says about its confidence. */
-const CONFIDENCE = {
-  low: 'today.battery.confidence.low',
-  medium: 'today.battery.confidence.medium',
-  high: 'today.battery.confidence.high',
-} as const satisfies Record<Readiness['confidence'], MessageKey>;
 
 /** What it calls each core signal with no reading: "no HRV or sleep last night". */
 const MISSING_SIGNALS = {
@@ -56,12 +49,11 @@ const CALIBRATING_SIGNALS = {
 /** A tier's top score: the next tier's floor less one. */
 const tierMax = (i: number) => (i === 0 ? 100 : BATTERY_TIERS[i - 1].min - 1);
 
-/** The tier, a note when there's no score, and the line saying what the score stands on; shared by both layouts. */
-function batteryText({ score, confidence, missing, calibrating }: Pick<BodyBatteryProps, 'score' | 'confidence' | 'missing' | 'calibrating'>) {
+/** The tier, a note when there's no score, and what the score is missing; shared by both layouts. */
+function batteryText({ score, missing, calibrating }: Pick<BodyBatteryProps, 'score' | 'missing' | 'calibrating'>) {
   // Too little data is not the same as being drained.
   const tier = score === null ? null : batteryTier(score);
-  const basis = [
-    score !== null ? t(CONFIDENCE[confidence]) : null,
+  const reasons = [
     missing.length && score !== null
       ? t('today.battery.missing', { count: missing.length, signals: formatList(missing.map((s) => t(MISSING_SIGNALS[s])), 'or') })
       : null,
@@ -75,7 +67,7 @@ function batteryText({ score, confidence, missing, calibrating }: Pick<BodyBatte
     status: tier
       ? { text: t(TIER_STYLE[tier.tag].name), color: TIER_STYLE[tier.tag].ink }
       : { text: t('today.battery.noData'), color: 'var(--color-zinc-500)' },
-    basis,
+    reasons,
   };
 }
 
@@ -168,8 +160,8 @@ function BatteryFigure({ score, gender, labelled, className }: {
             />
             {labelled && (
               <>
-                <text fontSize={18} fontWeight={700} x="264" y={centre - 2} fill={on ? style.ink : 'var(--color-zinc-500)'}>{t(style.name)}</text>
-                <text className="tabular-nums" fontSize={13.5} x="264" y={centre + 17} fill={on ? 'var(--color-zinc-400)' : 'var(--color-zinc-600)'}>
+                <text fontSize={18} fontWeight={700} x="264" y={centre - 2} fill={on ? 'var(--color-zinc-50)' : 'var(--color-zinc-500)'}>{t(style.name)}</text>
+                <text className="tabular-nums" fontSize={13.5} x="264" y={centre + 17} fill={on ? 'var(--color-zinc-300)' : 'var(--color-zinc-600)'}>
                   {t('today.battery.range', { min: stage.min, max: tierMax(i) })}
                 </text>
               </>
@@ -187,6 +179,15 @@ function BatteryFigure({ score, gender, labelled, className }: {
         </g>
       )}
     </svg>
+  );
+}
+
+/** Under the contributors: what their points mean. `large` sizes it for the desktop card. */
+function Explainer({ large = false }: { large?: boolean }) {
+  return (
+    <p className={`border-t border-faint leading-relaxed text-zinc-500 ${large ? 'pt-4 text-body' : 'pt-3 text-detail'}`}>
+      {t('today.battery.explainer', { start: BATTERY_START })}
+    </p>
   );
 }
 
@@ -219,38 +220,41 @@ function ContributorRow({ part, maxAbs, large = false }: { part: ReadinessPart; 
   );
 }
 
-export function BodyBattery({ score, parts, confidence, label, missing, calibrating, gender, className = '' }: BodyBatteryProps) {
-  const z = batteryText({ score, confidence, missing, calibrating });
+export function BodyBattery({ score, parts, label, missing, calibrating, gender, className = '' }: BodyBatteryProps) {
+  const z = batteryText({ score, missing, calibrating });
   const cautions = parts.filter((p) => p.note);
 
   const maxAbs = Math.max(...parts.map(p => Math.abs(p.contribution)), 1);
+  const card = useRef<HTMLDivElement>(null);
+  const dot = useRef<HTMLSpanElement>(null);
+  useGlowFrom(card, dot);
 
   return (
-    <div className={`bg-card border border-card-edge rounded-[28px] p-[30px_24px] md:p-[44px_48px_40px] w-full max-w-[920px] mx-auto ${className}`}>
+    <div
+      ref={card}
+      // The tier's colour glows from the dot in its pill, once there's a score.
+      className={`bg-card border border-card-edge rounded-[28px] p-[30px_24px] md:p-[44px_48px_40px] w-full max-w-[920px] mx-auto ${z.tier ? 'glow-score' : ''} ${className}`}
+      style={z.tier ? glowStyle(z.status.color) : undefined}
+    >
       <div className="grid grid-cols-1 md:grid-cols-[minmax(280px,1fr)_minmax(300px,440px)] gap-3 items-start">
         <div>
           {/* A card title, as This week's is, with the tier to its right. */}
           <h1 className="card-title-detail flex items-center gap-3 flex-wrap text-zinc-50">
             {t('today.battery.title')}
-            <StatusPill name={z.status.text} dot={z.status.color} />
+            <StatusPill name={z.status.text} dot={z.status.color} dotRef={dot} />
           </h1>
-          <p className="mt-[18px] text-lead text-zinc-400 max-w-[30ch]">
-            {t('today.battery.composition', { days: BASELINE_DAYS })}
-          </p>
-          <div className="mt-[30px] inline-block bg-panel-raised rounded-[20px] px-[30px] pt-[10px] pb-[14px]">
-            <div className="flex items-baseline gap-1">
-              <span className="font-display text-number-3xl tabular-nums text-zinc-100">
-                {score ?? '—'}
-              </span>
-              <span className="text-body-lg text-zinc-400">
-                {t('today.battery.outOf')}
-              </span>
-            </div>
+          <div className="mt-[34px] flex items-baseline gap-1">
+            <span className="font-display text-number-3xl tabular-nums text-zinc-100">
+              {score ?? '—'}
+            </span>
+            <span className="text-body-lg text-zinc-400">
+              {t('today.battery.outOf')}
+            </span>
           </div>
-          <div className="mt-[18px] font-display text-headline-lg text-zinc-100">
+          <div className="mt-[38px] font-display text-headline-lg text-zinc-100">
             {label}
           </div>
-          {z.basis && <p className="mt-2 text-body text-zinc-500">{z.basis}</p>}
+          {z.reasons && <p className="mt-2 text-body text-zinc-500">{z.reasons}</p>}
         </div>
 
         <div className="w-full max-w-[340px] md:max-w-none mx-auto md:mx-0 mt-2 md:mt-0">
@@ -262,6 +266,7 @@ export function BodyBattery({ score, parts, confidence, label, missing, calibrat
         <div className="mt-[26px]">
           <Contributors heading="text-eyebrow-lg uppercase text-zinc-500 mb-2">
             {byImpact(parts).map((p) => <ContributorRow key={p.id} part={p} maxAbs={maxAbs} large />)}
+            <Explainer large />
           </Contributors>
         </div>
       )}
@@ -274,24 +279,32 @@ export function BodyBattery({ score, parts, confidence, label, missing, calibrat
 }
 
 /** The battery on a phone: the score beside a small figure, then its contributors, folded until tapped. */
-export function BodyBatteryCompact({ score, parts, confidence, label, missing, calibrating, gender, className = '' }: BodyBatteryProps) {
-  const z = batteryText({ score, confidence, missing, calibrating });
+export function BodyBatteryCompact({ score, parts, label, missing, calibrating, gender, className = '' }: BodyBatteryProps) {
+  const z = batteryText({ score, missing, calibrating });
   const cautions = parts.filter((p) => p.note);
   const maxAbs = Math.max(...parts.map((p) => Math.abs(p.contribution)), 1);
+  const card = useRef<HTMLElement>(null);
+  const dot = useRef<HTMLSpanElement>(null);
+  useGlowFrom(card, dot);
 
   return (
-    <section aria-label={t('today.battery.title')} className={`bg-card border border-card-edge rounded-[24px] p-5 flex flex-col gap-4 ${className}`}>
+    <section
+      ref={card}
+      aria-label={t('today.battery.title')}
+      className={`bg-card border border-card-edge rounded-[24px] p-5 flex flex-col gap-4 ${z.tier ? 'glow-score' : ''} ${className}`}
+      style={z.tier ? glowStyle(z.status.color) : undefined}
+    >
       {/* A card title, as This week's is, with the tier to its right, as on wider screens. */}
       <h1 className="card-title-detail flex items-center gap-3 flex-wrap text-zinc-50">
         {t('today.battery.title')}
-        <StatusPill name={z.status.text} dot={z.status.color} />
+        <StatusPill name={z.status.text} dot={z.status.color} dotRef={dot} />
       </h1>
 
       {/* Always side by side, never the figure under the score: the score keeps the room it needs and the figure shrinks into what's left. */}
       <div className="flex items-center gap-2.5">
         <div className="flex-1">
           {/* The number steps down a size on narrower phones, again under 360px, and once more for a full 100. */}
-          <div className="inline-flex items-baseline gap-1 bg-panel-raised rounded-2xl px-3 min-[380px]:px-3.5 pt-1 pb-2">
+          <div className="inline-flex items-baseline gap-1">
             <span
               className={`font-display ${score === 100 ? 'text-number-md min-[360px]:text-number-lg min-[380px]:text-number-xl' : 'text-number-lg min-[360px]:text-number-xl min-[380px]:text-number-2xl'} tabular-nums text-zinc-100`}
             >
@@ -299,8 +312,8 @@ export function BodyBatteryCompact({ score, parts, confidence, label, missing, c
             </span>
             <span className="text-body-sm text-zinc-400 whitespace-nowrap">{t('today.battery.outOf')}</span>
           </div>
-          <div className="mt-2.5 font-display text-headline-sm min-[380px]:text-headline text-zinc-100">{label}</div>
-          {z.basis && <p className="mt-1.5 text-detail text-zinc-500">{z.basis}</p>}
+          <div className="mt-6 font-display text-headline-sm min-[380px]:text-headline text-zinc-100">{label}</div>
+          {z.reasons && <p className="mt-1.5 text-detail text-zinc-500">{z.reasons}</p>}
         </div>
         {/* The figure and its rail on the right, as on desktop, with each stage's range beside its band; under 320px, where the figure is too short for two lines a stage, just the names. */}
         <div className="flex items-stretch gap-1 min-w-0">
@@ -312,8 +325,8 @@ export function BodyBatteryCompact({ score, parts, confidence, label, missing, c
               const on = z.tier?.tag === stage.tag;
               return (
                 <div key={stage.tag} className="absolute left-0 -translate-y-1/2 leading-tight" style={{ top: `${(centre / 480) * 100}%` }}>
-                  <div className="text-detail leading-tight font-bold" style={{ color: on ? style.ink : 'var(--color-zinc-500)' }}>{t(style.name)}</div>
-                  <div className="hidden min-[320px]:block text-note leading-tight tabular-nums" style={{ color: on ? 'var(--color-zinc-400)' : 'var(--color-zinc-600)' }}>
+                  <div className="text-detail leading-tight font-bold" style={{ color: on ? 'var(--color-zinc-50)' : 'var(--color-zinc-500)' }}>{t(style.name)}</div>
+                  <div className="hidden min-[320px]:block text-note leading-tight tabular-nums" style={{ color: on ? 'var(--color-zinc-300)' : 'var(--color-zinc-600)' }}>
                     {t('today.battery.rangeNarrow', { min: stage.min, max: tierMax(i) })}
                   </div>
                 </div>
@@ -326,6 +339,7 @@ export function BodyBatteryCompact({ score, parts, confidence, label, missing, c
       {parts.length > 0 && (
         <Contributors>
           {byImpact(parts).map((p) => <ContributorRow key={p.id} part={p} maxAbs={maxAbs} />)}
+          <Explainer />
         </Contributors>
       )}
 

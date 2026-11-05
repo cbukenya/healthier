@@ -170,6 +170,7 @@ export function VitalsView({ data, clock, intraday }: { data: SyncResult; clock?
             <Tile
               label={t('vitals.latest.hrv.label')}
               icon={<Activity size={14} className={DOMAIN.cardio.text} />}
+              glow={DOMAIN.cardio.hex}
               value={<Value value={hrvCmp.value} size="md" unit={t('units.ms')} />}
               pill={hrvCmp.value !== null && <BandPill c={hrvCmp} cycle={hrvCycle} />}
               chart={hrvCmp.value !== null && <Spark series={hrvAll.slice(-28)} color={DOMAIN.cardio.hex} height={28} baseline={usual(hrvCmp)} />}
@@ -180,6 +181,7 @@ export function VitalsView({ data, clock, intraday }: { data: SyncResult; clock?
             <Tile
               label={t('vitals.latest.restingHr.label')}
               icon={<Heart size={14} className={DOMAIN.cardio.text} />}
+              glow={DOMAIN.cardio.hex}
               value={<Value value={rhrCmp.value} size="md" unit={t('units.bpm')} />}
               pill={rhrCmp.value !== null && <BandPill c={rhrCmp} cycle={rhrCycle} />}
               chart={rhrCmp.value !== null && <Spark series={rhrAll.slice(-28)} color={DOMAIN.cardio.hex} height={28} baseline={usual(rhrCmp)} />}
@@ -189,6 +191,7 @@ export function VitalsView({ data, clock, intraday }: { data: SyncResult; clock?
             <Tile
               label={t('vitals.latest.breathing.label')}
               icon={<Wind size={14} style={{ color: BREATHING_HEX }} />}
+              glow={BREATHING_HEX}
               value={<Value value={respCmp.value} size="md" digits={1} unit={t('units.perMinute')} />}
               pill={respCmp.value !== null && <BandPill c={respCmp} />}
               chart={respCmp.value !== null && <Spark series={respAll.slice(-28)} color={BREATHING_HEX} height={28} baseline={usual(respCmp)} />}
@@ -199,6 +202,7 @@ export function VitalsView({ data, clock, intraday }: { data: SyncResult; clock?
             <Tile
               label={t('vitals.latest.bloodOxygen.label')}
               icon={<Droplet size={14} style={{ color: SPO2_HEX }} />}
+              glow={SPO2_HEX}
               value={<Value value={spo2Cmp.value} size="md" digits={1} unit={t('units.percent')} />}
               pill={spo2Cmp.value !== null && <BandPill c={spo2Cmp} />}
               chart={spo2Cmp.value !== null && <Spark series={spo2All.slice(-28)} color={SPO2_HEX} height={28} baseline={usual(spo2Cmp)} />}
@@ -210,7 +214,7 @@ export function VitalsView({ data, clock, intraday }: { data: SyncResult; clock?
         </div>
 
         {data.heartRateSamples.length > 0 && (
-          <HeartRateCard samples={data.heartRateSamples} days={days} wide={wide} />
+          <HeartRateCard samples={data.heartRateSamples} days={days} wide={wide} glow={DOMAIN.cardio.hex} />
         )}
       </div>
 
@@ -222,7 +226,7 @@ export function VitalsView({ data, clock, intraday }: { data: SyncResult; clock?
       </div>
 
       {!wide && (
-        <ChartChips label={t('vitals.trends.chips.label')} options={metrics.map((m) => ({ key: m.key, label: m.chip }))} value={picked} onChange={setPicked} />
+        <ChartChips label={t('vitals.trends.chips.label')} options={metrics.map((m) => ({ key: m.key, label: m.chip }))} value={picked} onChange={setPicked} colour={DOMAIN.cardio.hex} />
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">

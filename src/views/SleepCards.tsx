@@ -84,7 +84,7 @@ const spreadWord = (sd: number) => (sd <= 30 ? 'steady' : sd <= 60 ? 'variable' 
  * stages against your need with its score beneath, then nights at need, sleep debt and how far
  * bedtime strayed.
  */
-export function LastSevenNights({ days, shift, needMin, debt, wide }: {
+export function LastSevenNights({ days, shift, needMin, debt, wide, glow }: {
   /** The last seven days, oldest first; each holds the night that ended that morning. */
   days: DailyRecord[];
   /** Their time asleep against the seven days before. */
@@ -93,6 +93,7 @@ export function LastSevenNights({ days, shift, needMin, debt, wide }: {
   /** Over the seven nights before last night, as the body battery counts it. */
   debt: SleepDebt | null;
   wide: boolean;
+  glow?: string;
 }) {
   const nights = days.map((d) => d.sleep).filter((s): s is SleepSession => s !== null);
   const atNeed = nights.filter((s) => s.minutesAsleep >= needMin).length;
@@ -120,7 +121,7 @@ export function LastSevenNights({ days, shift, needMin, debt, wide }: {
   }
 
   return (
-    <Card className="px-[18px] pt-4 pb-3.5 md:px-5 md:py-[18px] flex flex-col gap-3 md:gap-3.5">
+    <Card className="px-[18px] pt-4 pb-3.5 md:px-5 md:py-[18px] flex flex-col gap-3 md:gap-3.5" glow={glow}>
       <div className="flex items-baseline justify-between gap-2">
         <h2 className="card-title-detail text-zinc-50">{t('sleep.lastSeven.title')}</h2>
         <span className="text-detail text-zinc-500">{formatCivilRange(days[0].date, days[days.length - 1].date)}</span>

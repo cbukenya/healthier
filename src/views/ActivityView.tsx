@@ -86,7 +86,6 @@ export function ActivityView({ data, clock, intraday }: { data: SyncResult; cloc
     <Card>
       <CardHead
         title={t('activity.steps.title')}
-        hint={t('activity.steps.hint', { goal: fmtNum(goal, 0) })}
         right={<CardSummary data={stepsWin} color={DOMAIN.movement.hex} format={(v) => fmtNum(v, 0)} />}
       />
       <div className="px-2 pb-3">
@@ -96,26 +95,22 @@ export function ActivityView({ data, clock, intraday }: { data: SyncResult; cloc
   );
   const energyCard = (
     <Card>
-      <CardHead title={t('activity.energy.title')} hint={t('activity.energy.hint')} right={<CardSummary data={kcalWin} color="var(--amber-400)" unit={t('units.kcal')} format={(v) => fmtNum(v, 0)} />} />
+      <CardHead title={t('activity.energy.title')} hint={t('activity.energy.hint')} hintBySummary right={<CardSummary data={kcalWin} color="var(--amber-400)" unit={t('units.kcal')} format={(v) => fmtNum(v, 0)} />} />
       <div className="px-2 pb-3">
         <BarSeries series={groupSeries(kcalWin, bucket)} bucket={bucket} color="var(--amber-400)" unit={t('units.kcal')} height={200} />
       </div>
     </Card>
   );
+  // Each effort's minutes: a layer of the bars and an entry in the key under them.
+  const mixKeys: { key: string; label: string; color: string; get: (d: DailyRecord) => number | null }[] = [
+    { key: 'light', label: t('activity.mix.light'), color: EFFORT.light, get: (d) => d.activeMinutes?.light ?? null },
+    { key: 'moderate', label: t('activity.mix.moderate'), color: EFFORT.moderate, get: (d) => d.activeMinutes?.moderate ?? null },
+    { key: 'vigorous', label: t('activity.mix.vigorous'), color: EFFORT.vigorous, get: (d) => d.activeMinutes?.vigorous ?? null },
+  ];
   const intensityCard = (
     <Card>
       <CardHead
         title={t('activity.mix.title')}
-        hint={
-          <span>
-            {rich('activity.mix.note', {
-              target: WHO_WEEK,
-              light: (w) => <span className="font-medium" style={{ color: EFFORT.light }}>{w}</span>,
-              moderate: (w) => <span className="font-medium" style={{ color: EFFORT.moderate }}>{w}</span>,
-              vigorous: (w) => <span className="font-medium" style={{ color: EFFORT.vigorous }}>{w}</span>,
-            })}
-          </span>
-        }
         right={
           latestMixRow?.activeMinutes ? (() => {
             const lightMean = stats(values(series(window, d => d.activeMinutes?.light ?? null)))?.mean ?? 0;
@@ -136,13 +131,18 @@ export function ActivityView({ data, clock, intraday }: { data: SyncResult; cloc
         days={mixDays}
         bucket={bucket}
         unit={t('units.minutes')}
-        keys={[
-          { key: 'light', label: t('activity.mix.light'), color: EFFORT.light, get: (d) => d.activeMinutes?.light ?? null },
-          { key: 'moderate', label: t('activity.mix.moderate'), color: EFFORT.moderate, get: (d) => d.activeMinutes?.moderate ?? null },
-          { key: 'vigorous', label: t('activity.mix.vigorous'), color: EFFORT.vigorous, get: (d) => d.activeMinutes?.vigorous ?? null },
-        ]}
+        keys={mixKeys}
         height={200}
       />
+      {/* The key, as the heart rate card's zones have it: a dot of each colour and its name. */}
+      <ul className="flex flex-wrap gap-x-[18px] gap-y-1.5 px-5 pt-1 pb-4">
+        {mixKeys.map((k) => (
+          <li key={k.key} className="flex items-center gap-1.5 text-caption text-zinc-300">
+            <span className="size-2 rounded-full" style={{ background: k.color }} />
+            {k.label}
+          </li>
+        ))}
+      </ul>
     </Card>
   );
   const distanceCard = (
@@ -229,9 +229,9 @@ export function ActivityView({ data, clock, intraday }: { data: SyncResult; cloc
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-        <TodaySoFar day={latestDay} isToday={latestDay.date === today} wide={wide} />
+        <TodaySoFar day={latestDay} isToday={latestDay.date === today} wide={wide} glow={DOMAIN.movement.hex} />
         {lastWeek.some((d) => d.steps !== null) && (
-          <LastSevenDays days={lastWeek} shift={periodShift(stepsDone, 7)} ratio={loadRatio(stepsDone).ratio} wide={wide} />
+          <LastSevenDays days={lastWeek} shift={periodShift(stepsDone, 7)} ratio={loadRatio(stepsDone).ratio} wide={wide} glow={DOMAIN.movement.hex} />
         )}
       </div>
 
@@ -261,7 +261,7 @@ export function ActivityView({ data, clock, intraday }: { data: SyncResult; cloc
       ) : (
         <>
           {summaryCard}
-          <ChartChips label={t('activity.chips.label')} options={charts} value={shownChart.key} onChange={setChart} />
+          <ChartChips label={t('activity.chips.label')} options={charts} value={shownChart.key} onChange={setChart} colour={DOMAIN.movement.hex} />
           {shownChart.card}
         </>
       )}

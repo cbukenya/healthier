@@ -8,7 +8,7 @@ import {
   bodyComposition, latestBody, series, values, weightTrend, type BodyComposition, type CompositionPair,
 } from '../pipeline/derive';
 import { Spark, TrendChart } from '../charts';
-import { Card, CardHead, DOMAIN, EmptyState, Label, Row, Value, fmtNum } from '../ui/primitives';
+import { Card, CardHead, DOMAIN, EmptyState, Label, Row, Value, fmtNum, glowStyle } from '../ui/primitives';
 import { Tile } from '../ui/Tile';
 import { ChartChips } from '../ui/ChartChips';
 import type { SyncResult } from '../pipeline/sync';
@@ -82,6 +82,7 @@ export function BodyView({ data, gender, onGender, clock, intraday }: {
       gender={gender}
       onGender={onGender}
       className={`col-span-2 ${latest ? 'lg:col-span-1 lg:order-2' : 'lg:col-span-3'}`}
+      glow={DOMAIN.body.hex}
     />
   );
 
@@ -194,6 +195,7 @@ export function BodyView({ data, gender, onGender, clock, intraday }: {
           <Tile
             label={t('body.latest.weight.label')}
             icon={<Weight size={14} className={DOMAIN.body.text} />}
+            glow={DOMAIN.body.hex}
             value={<Value value={latest.value} size="md" digits={1} unit={t('units.kg')} />}
             chart={body.weighIns.length > 1 && <Spark series={body.weighIns} color={DOMAIN.body.hex} height={28} />}
             rows={[[t('body.latest.weight.fromPrevious'), previous && changeText(latest.value - previous.value, t('units.kg'))]]}
@@ -205,6 +207,7 @@ export function BodyView({ data, gender, onGender, clock, intraday }: {
           <Tile
             label={t('body.latest.bmi.label')}
             icon={<Ruler size={14} className={DOMAIN.body.text} />}
+            glow={DOMAIN.body.hex}
             value={<Value value={latestBmi} size="md" digits={1} />}
             chart={latestBmi !== null && body.weighIns.length > 1 && <Spark series={bmiTrail} color={DOMAIN.body.hex} height={28} />}
             rows={[[t('body.latest.bmi.fromPrevious'), previous && latestBmi !== null && changeText(latestBmi - bmi(previous.value)!, '')]]}
@@ -213,7 +216,7 @@ export function BodyView({ data, gender, onGender, clock, intraday }: {
         </div>
       </div>
 
-      {body.composition && <CompositionNow now={body.composition} before={body.previousComposition} />}
+      {body.composition && <CompositionNow now={body.composition} before={body.previousComposition} glow={DOMAIN.body.hex} />}
 
       <div className="flex items-center justify-between px-1">
         <h2 className="text-section uppercase text-page-ink">{t('body.overTime.title')}</h2>
@@ -236,7 +239,7 @@ export function BodyView({ data, gender, onGender, clock, intraday }: {
       ) : (
         <>
           {summaryCard}
-          {charts.length > 1 && <ChartChips label={t('body.chips.label')} options={charts} value={shownChart.key} onChange={setChart} />}
+          {charts.length > 1 && <ChartChips label={t('body.chips.label')} options={charts} value={shownChart.key} onChange={setChart} colour={DOMAIN.body.hex} />}
           {shownChart.card}
         </>
       )}
@@ -247,19 +250,25 @@ export function BodyView({ data, gender, onGender, clock, intraday }: {
 }
 
 /** Age, gender and height. Gender is the person's to set: Google Health doesn't provide it. */
-function ProfileTile({ age, heightCm, gender, onGender, className = '' }: {
+function ProfileTile({ age, heightCm, gender, onGender, className = '', glow }: {
   age: number | null;
   heightCm: number | null;
   gender: Gender | null;
   onGender: (gender: Gender | null) => void;
   className?: string;
+  /** Its icon is grey, so it glows in the page's colour. */
+  glow?: string;
 }) {
   // A phone lines the three up side by side; a wide screen stacks them, label by value.
   const fact = 'flex flex-col gap-0.5 lg:flex-row lg:items-baseline lg:justify-between lg:gap-2';
   const label = 'text-eyebrow-sm uppercase text-zinc-500 lg:text-detail lg:font-normal lg:normal-case lg:tracking-normal';
   const value = 'font-display text-number-xs text-zinc-50 tabular-nums';
   return (
-    <section aria-label={t('body.profile.title')} className={`min-w-0 bg-card border border-card-edge rounded-[18px] p-3.5 lg:p-4 flex flex-col gap-2.5 ${className}`}>
+    <section
+      aria-label={t('body.profile.title')}
+      className={`min-w-0 bg-card border border-card-edge rounded-[18px] p-3.5 lg:p-4 flex flex-col gap-2.5 ${glow ? 'glow' : ''} ${className}`}
+      style={glow ? glowStyle(glow) : undefined}
+    >
       <div className="flex items-center justify-between gap-2">
         <span className="card-title-glance text-zinc-500">{t('body.profile.title')}</span>
         <User size={14} className="text-zinc-400" />
@@ -298,10 +307,10 @@ function ProfileTile({ age, heightCm, gender, onGender, className = '' }: {
 }
 
 /** The newest weigh-in that came with a body-fat reading: lean and fat, in kg and share, and their change from the one before. */
-function CompositionNow({ now, before }: { now: CompositionPair; before: CompositionPair | null }) {
+function CompositionNow({ now, before, glow }: { now: CompositionPair; before: CompositionPair | null; glow?: string }) {
   const leanPct = 100 - now.fatPct;
   return (
-    <Card className="px-[18px] pt-4 pb-[18px] md:px-6 flex flex-col gap-3.5">
+    <Card className="px-[18px] pt-4 pb-[18px] md:px-6 flex flex-col gap-3.5" glow={glow}>
       <div className="flex items-baseline justify-between gap-2">
         <h2 className="card-title-detail text-zinc-50">{t('body.composition.title')}</h2>
         <span className="text-detail text-zinc-500">{formatCivilLong(now.date)}</span>

@@ -710,7 +710,7 @@
       },
       "mvpaUp": {
         "title": "More brisk activity this week",
-        "text": "You're averaging {count, plural, one {{minutes} minute} other {{minutes} minutes}} of brisk activity a day this week, up from {previous} last week. That's the kind of activity the guidelines count."
+        "text": "You're averaging {count, plural, one {{minutes} minute} other {{minutes} minutes}} of brisk activity a day this week, up from {previous} last week. The WHO recommends {target} minutes of it a week."
       },
       "mvpaDown": {
         "title": "Less brisk activity this week",
@@ -852,26 +852,21 @@
         }
       },
       "noData": "No data",
-      "composition": "Composed from HRV, resting heart rate, holistic sleep score & architecture against your personal {days}-day baselines, and multi-day ACWR training load.",
       "outOf": "/ 100",
       "noReadingsSince": "No readings since {date}",
       "notEnoughData": "Not enough data",
-      "confidence": {
-        "low": "Low confidence",
-        "medium": "Medium confidence",
-        "high": "High confidence"
-      },
-      "missing": "{count, plural, one {no {signals} last night} other {no {signals} last night}}",
+      "missing": "{count, plural, one {No {signals} last night} other {No {signals} last night}}",
       "missingSignals": {
         "hrv": "HRV",
         "restingHr": "resting heart rate",
         "sleep": "sleep"
       },
-      "calibrating": "{count, plural, one {{signals} calibrating to a new device} other {{signals} calibrating to a new device}}",
+      "calibrating": "{count, plural, one {Still calibrating {signals} to a new device} other {Still calibrating {signals} to a new device}}",
       "calibratingSignals": {
         "hrv": "HRV",
         "restingHr": "resting heart rate"
       },
+      "explainer": "Your body battery starts at {start} each morning. Each contributor then adds points (green) or removes them (red), depending on how it compares with what’s usual for you. So a −10 means that contributor took 10 points off today’s score.",
       "figure": {
         "empty": "Body battery, no score yet"
       },
@@ -1088,22 +1083,20 @@
       "hint": "Average steps on each day of the week."
     },
     "steps": {
-      "title": "Daily steps",
-      "hint": "Solid bars cleared your goal of {goal}. Missing bars are days the tracker recorded nothing — they're excluded from every average on this page."
+      "title": "Daily steps"
     },
     "energy": {
       "title": "Active energy",
-      "hint": "Above your basal rate — the part you moved for."
+      "hint": "Above your basal rate."
     },
     "mix": {
       "title": "Intensity mix",
-      "vsToday": "avg vs today so far (min):",
+      "vsToday": "avg vs today (min):",
       "vsLatest": "avg vs latest (min):",
       "lightMinutes": "Light minutes",
       "moderateMinutes": "Moderate minutes",
       "vigorousMinutes": "Vigorous minutes",
       "pair": "{average}/{latest}",
-      "note": "<light>Light</light> minutes accumulate from daily life; <moderate>Moderate</moderate> and <vigorous>Vigorous</vigorous> are the ones guidelines count. {target, plural, one {# brisk minute a week is the usual target.} other {# brisk minutes a week is the usual target.}}",
       "light": "Light",
       "moderate": "Moderate",
       "vigorous": "Vigorous"
@@ -1164,64 +1157,53 @@
         "short": "Window",
         "value": "{bed} → {wake}",
         "shortValue": "{bed}–{wake}",
-        "hint": "asleep to awake",
         "more": "From falling asleep at {bed} to waking at {wake}."
       },
       "efficiency": {
         "label": "Efficiency",
         "short": "Efficiency",
-        "hint": "of time in bed spent asleep; 90%+ is good",
         "more": "{percent}% of your time in bed was spent asleep. 90% or more is good."
       },
       "cycles": {
         "label": "Cycles",
         "short": "Cycles",
-        "each": "~{minutes} min each",
-        "hint": "light → deep → REM loops, usually 90–110 min",
         "more": "{count, plural, one {# light → deep → REM loop; 90–110 min is usual. Wrist staging can merge bouts, so cycles can look fewer and longer.} other {# light → deep → REM loops; 90–110 min is usual. Wrist staging can merge bouts, so cycles can look fewer and longer.}}",
         "moreWithLength": "{count, plural, one {# light → deep → REM loop of about {minutes} min each; 90–110 min is usual. Wrist staging can merge bouts, so cycles can look fewer and longer.} other {# light → deep → REM loops of about {minutes} min each; 90–110 min is usual. Wrist staging can merge bouts, so cycles can look fewer and longer.}}"
       },
       "remLatency": {
         "label": "REM latency",
         "short": "REM latency",
-        "hint": "to your first REM; usually 60–120 min",
         "more": "{minutes} min from falling asleep to your first REM; 60–120 min is usual. Unusually early REM is the shift to watch.",
         "moreUnknown": "Time from falling asleep to your first REM; 60–120 min is usual. Unusually early REM is the shift to watch."
       },
       "deepEarly": {
         "label": "Deep, first third",
         "short": "Deep early",
-        "hint": "of deep sleep came early; a high share is normal",
         "more": "{percent}% of the night’s deep sleep came in its first third. A high share is normal; a falling share over weeks matters more.",
         "moreUnknown": "How much of the night’s deep sleep came in its first third. A high share is normal; a falling share over weeks matters more."
       },
       "transitions": {
         "label": "Transitions",
         "short": "Transitions",
-        "hint": "stage changes per hour asleep",
         "more": "{count, plural, one {# stage change per hour asleep.} other {# stage changes per hour asleep.}}",
         "moreUnknown": "How often you switched stages, per hour asleep."
       },
       "awakenings": {
         "label": "Awakenings, 5 min+",
         "short": "Awakenings",
-        "hint": "wake-ups long enough to be staged",
         "more": "{count, plural, =0 {No wake-ups of 5 min or more that the watch staged.} one {# wake-up of 5 min or more that the watch staged.} other {# wake-ups of 5 min or more that the watch staged.}}"
       },
       "onset": {
         "label": "Fell asleep in",
         "short": "Asleep in",
-        "hint": "near zero night after night can mean sleep debt",
         "more": "{minutes} min to fall asleep. Near zero night after night can be a sign of sleep debt."
       },
       "awakeAfterOnset": {
         "label": "Awake after onset",
         "short": "Awake after",
-        "hint": "all wake time, including the ticks above the chart",
         "more": "{minutes} min awake after first falling asleep, including the brief restless wake-ups marked as ticks above the chart."
       },
-      "pick": "Tap a measure to see what it means.",
-      "caveat": "Wrist staging is an estimate and can merge bouts, so the trend against your own history says more than any one night.",
+      "pick": "Pick a measure to see what it means.",
       "empty": "No sleep session available to draw."
     },
     "lastSeven": {
@@ -1281,42 +1263,30 @@
     "window": {
       "title": "Sleep window",
       "empty": "No recorded nights in this span.",
-      "bars": "{bucket, select, day {One bar per night, bed to wake, coloured by stage.} week {One bar per week: its typical bedtime and time in bed, coloured by average stage.} other {One bar per month: its typical bedtime and time in bed, coloured by average stage.}}",
-      "lines": "{count, plural, one {The dashed lines are your average bedtime and wake time over this # night, shaded by how much they vary.} other {The dashed lines are your average bedtime and wake time over these # nights, shaded by how much they vary.}}",
-      "noLines": "Your average bedtime and wake time appear once there are three nights.",
-      "emptyRows": "{bucket, select, day {Empty rows are nights with no record.} week {Empty rows are weeks with no record.} other {Empty rows are months with no record.}}",
       "regularity": {
         "title": "Sleep regularity",
         "bands": {
           "excellent": {
-            "label": "VERY REGULAR",
-            "text": "You fall asleep and wake at nearly the same times every day."
+            "label": "VERY REGULAR"
           },
           "good": {
-            "label": "REGULAR",
-            "text": "Your timing holds fairly steady from night to night."
+            "label": "REGULAR"
           },
           "bad": {
-            "label": "IRREGULAR",
-            "text": "Your timing shifts by hours from night to night. Regular timing predicts how you feel better than total hours do."
+            "label": "IRREGULAR"
           },
           "critical": {
-            "label": "VERY IRREGULAR",
-            "text": "No steady schedule in these nights: your body clock rarely gets the same day twice."
+            "label": "VERY IRREGULAR"
           }
         },
-        "basis": "{count, plural, one {Scored from how often you're asleep or awake at the same clock times on back-to-back days (# pair of nights).} other {Scored from how often you're asleep or awake at the same clock times on back-to-back days (# pairs of nights).}}",
         "needsNights": "Needs five back-to-back recorded nights in this span."
       },
       "chart": "Sleep sessions against your average sleep window",
       "chartNoAverage": "Sleep sessions",
       "averageBed": "avg bed {time}",
-      "averageBedNarrow": "bed {time}",
       "averageWake": "avg wake {time}",
-      "averageWakeNarrow": "wake {time}",
       "stage": "{bucket, select, day {{date} · {stage} {minutes} min} other {{date} · {stage} {minutes} min a night}}",
-      "bedOffset": "{offset} bed",
-      "averageWindow": "avg window {bed}–{wake}"
+      "bedOffset": "{offset} bed"
     },
     "duration": {
       "title": "Sleep duration",
@@ -1728,7 +1698,7 @@
   },
   "labs": {
     "intro": {
-      "lead": "Experimental views of <b>multi-week patterns in your wearable data</b>, each against your own usual range.",
+      "lead": "Labs are experimental views of multi-week patterns in your wearable data, each against your own usual range.",
       "notice": {
         "title": "Not a medical device",
         "text": "These cards don't detect, screen for or rule out any condition, and a quiet card isn't an all-clear. If you have symptoms or concerns, talk to a clinician."
@@ -1741,12 +1711,6 @@
       "label": "Labs",
       "count": "{count, plural, one {# lab} other {# labs}}",
       "hint": "tap one to open it"
-    },
-    "legend": {
-      "quiet": "nothing found",
-      "collecting": "collecting or waiting",
-      "reported": "from your device",
-      "found": "pattern found"
     },
     "sdb": {
       "title": "Sleep-disordered breathing patterns",

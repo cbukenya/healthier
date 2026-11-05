@@ -56,13 +56,14 @@ interface View {
  * the window; zoom with the buttons, a pinch, ctrl and the wheel, or the strip's edges. On the
  * keyboard, the arrows move and plus and minus zoom.
  */
-export function HeartRateCard({ samples, days, wide, className = '' }: {
+export function HeartRateCard({ samples, days, wide, className = '', glow }: {
   /** Every minute of heart rate in the window, oldest first. */
   samples: IntradaySample[];
   /** The window's days, for each day's zones. */
   days: DailyRecord[];
   wide: boolean;
   className?: string;
+  glow?: string;
 }) {
   const uid = useId().replace(/[^a-zA-Z0-9]/g, '');
   const ts = useMemo(() => wallTimes(samples), [samples]);
@@ -352,7 +353,7 @@ export function HeartRateCard({ samples, days, wide, className = '' }: {
   );
 
   return (
-    <Card className={className}>
+    <Card className={className} glow={glow}>
       <div className="px-5 pt-4 flex flex-wrap items-end justify-between gap-x-8 gap-y-3">
         <div className="min-w-0">
           <h3 className="card-title-detail text-zinc-50">{t('vitals.heartRate.title')}</h3>
