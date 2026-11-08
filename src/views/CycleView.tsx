@@ -17,7 +17,13 @@ import { usePageInsights, type Clock } from '../hooks/usePageInsights';
 import { InsightsCarousel } from '../components/InsightsCarousel';
 import type { IntradayDays } from '../pipeline/labs';
 import type { SyncResult } from '../pipeline/sync';
-import { Card, CardHead, Contributors, DOMAIN, tint } from '../ui/primitives';
+import { Card, CardHead, Contributors, DOMAIN, glowStyle, tint } from '../ui/primitives';
+
+/**
+ * The first four cards' faint glows (dark theme), each in its title's colour: the pink of
+ * "Today in your cycle" and "Last period", the phase's own colour, and Logged today's grey.
+ */
+const TITLE_PINK = 'var(--color-pink-300)';
 import { Chips, Sheet } from '../ui/Sheet';
 
 /**
@@ -162,7 +168,7 @@ function CycleHero({
   if (!c) {
     const none = summary.status === 'no-rhythm';
     return (
-      <section aria-labelledby="cycle-hero" className={`bg-card border border-card-edge rounded-[28px] p-6 md:p-10 ${className}`}>
+      <section aria-labelledby="cycle-hero" className={`bg-card border border-card-edge rounded-[28px] p-6 md:p-10 glow ${className}`} style={glowStyle(TITLE_PINK)}>
         <p className="text-eyebrow uppercase text-pink-300">{t('cycle.eyebrow')}</p>
         <h1 id="cycle-hero" className="mt-2 font-display text-display-lg text-zinc-50">
           {none ? t('cycle.noRhythm.title') : t('cycle.collecting.title')}
@@ -237,7 +243,7 @@ function CycleHero({
   }
 
   return (
-    <section aria-labelledby="cycle-hero" className={`bg-card border border-card-edge rounded-[28px] p-6 md:p-10 flex flex-col gap-6 ${className}`}>
+    <section aria-labelledby="cycle-hero" className={`bg-card border border-card-edge rounded-[28px] p-6 md:p-10 flex flex-col gap-6 glow ${className}`} style={glowStyle(TITLE_PINK)}>
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
           <p className="text-eyebrow uppercase text-pink-300">{t('cycle.eyebrow')}</p>
@@ -425,7 +431,7 @@ function NowCard({ summary, nights, className = '' }: { summary: CycleSummary; n
     })
     : [];
   return (
-    <Card className={`p-5 ${className}`}>
+    <Card className={`p-5 ${className}`} glow={colours.text[phase]}>
       <p className="card-title-glance" style={{ color: colours.text[phase] }}>{t(PHASE_KEY[phase])}</p>
       <p className="mt-2 font-display text-number-md text-zinc-50">
         {dayWords(after ? c.day - c.riseDay! + 1 : c.day, pm)}
@@ -482,7 +488,7 @@ function LastPeriodCard({ summary, log, today, onStarted, className = '' }: {
   );
   if (c && c.source === 'found' && (!last || c.start > last.start)) {
     return (
-      <Card className={`p-5 ${className}`}>
+      <Card className={`p-5 ${className}`} glow={TITLE_PINK}>
         <div className="flex items-center justify-between gap-3">
           <p className="card-title-glance text-pink-300">{t('cycle.lastPeriod.eyebrow')}</p>
           <button type="button" onClick={() => onStarted(c.start)} className="-my-2 -mr-2 min-h-11 px-2 text-caption text-zinc-300 underline underline-offset-2 hover:text-zinc-100">
@@ -509,7 +515,7 @@ function LastPeriodCard({ summary, log, today, onStarted, className = '' }: {
   const heaviest = [...HEAVINESS].reverse().find((f) => flows.includes(f)) ?? null;
   const ongoing = last.end >= addDays(today, -1);
   return (
-    <Card className={`p-5 ${className}`}>
+    <Card className={`p-5 ${className}`} glow={TITLE_PINK}>
       <p className="card-title-glance text-pink-300">{t('cycle.lastPeriod.eyebrow')}</p>
       <p className="mt-2 font-display text-headline text-zinc-50">
         {last.start === last.end ? formatDayMonthLong(last.start) : formatCivilRange(last.start, last.end)}
@@ -541,7 +547,7 @@ function LoggedDayCard({ log, today, onLog, className = '' }: { log: CycleLog; t
     ...(day?.symptoms ?? []).map((s) => t(SYMPTOM_LABEL[s])),
   ];
   return (
-    <Card className={`p-5 ${className}`}>
+    <Card className={`p-5 ${className}`} glow="var(--color-zinc-400)">
       <div className="flex items-center justify-between gap-3">
         <h2 className="card-title-glance text-zinc-400">{t('cycle.logged.eyebrow')}</h2>
         <button type="button" onClick={onLog} className="-my-2 -mr-2 min-h-11 px-2 text-caption text-zinc-300 underline underline-offset-2 hover:text-zinc-100">
@@ -586,7 +592,16 @@ function BodyThroughCycle({ summary, nights }: { summary: CycleSummary; nights: 
   if (!c && !hasBand) return null;
   const shape = currentShape(summary);
   const pm = c ? dayPlusMinus(c) : 0;
-  const ticks = [1, 7, 14, 21, 28, 35].filter((d) => !c || Math.abs(d - c.day) >= 3);
+  // The charts run only as far as something's drawn: the usual range, this cycle so far, or its
+  // typical length; never on to an empty right edge.
+  const lastDrawn = Math.max(...rows.flatMap((r) => r.points.filter((p) => p.mine !== null || p.low !== null).map((p) => p.day)), 0);
+  const days = Math.max(2, Math.min(CHART_DAYS, Math.max(lastDrawn, shape?.length ?? 0, c?.day ?? 0)));
+  const ticks = [1, 7, 14, 21, 28, 35].filter((d) => d <= days && (!c || Math.abs(d - c.day) >= 3));
+  // A label sits centred on its day, except at either end, where it's kept inside the chart.
+  const tickAt = (d: number) => ({
+    className: d === 1 ? '' : d === days ? '-translate-x-full' : '-translate-x-1/2',
+    style: { left: `${((d - 1) / (days - 1)) * 100}%` },
+  });
 
   return (
     <Card>
@@ -628,7 +643,8 @@ function BodyThroughCycle({ summary, nights }: { summary: CycleSummary; nights: 
               </div>
               <div className="flex-[999_1_280px] min-w-0">
                 <CycleChart
-                  points={r.points}
+                  points={r.points.filter((p) => p.day <= days)}
+                  days={days}
                   today={c?.day ?? null}
                   shape={shape}
                   label={t('cycle.body.chart', { name: t(r.name) })}
@@ -641,12 +657,12 @@ function BodyThroughCycle({ summary, nights }: { summary: CycleSummary; nights: 
           <div className="flex-[1_1_170px]" />
           <div className="flex-[999_1_280px] relative h-4 text-note text-zinc-500">
             {ticks.map((d) => (
-              <span key={d} className="absolute -translate-x-1/2 first:translate-x-0" style={{ left: `${((d - 1) / (CHART_DAYS - 1)) * 100}%` }}>
+              <span key={d} className={`absolute ${tickAt(d).className}`} style={tickAt(d).style}>
                 {d === 1 ? t('cycle.body.axisDay', { day: d }) : d}
               </span>
             ))}
-            {c && c.day <= CHART_DAYS && (
-              <span className="absolute -translate-x-1/2 font-semibold text-zinc-50" style={{ left: `${((c.day - 1) / (CHART_DAYS - 1)) * 100}%` }}>
+            {c && c.day <= days && (
+              <span className={`absolute font-semibold text-zinc-50 ${tickAt(c.day).className}`} style={tickAt(c.day).style}>
                 {t('cycle.strip.today')}
               </span>
             )}
@@ -658,14 +674,16 @@ function BodyThroughCycle({ summary, nights }: { summary: CycleSummary; nights: 
 }
 
 /**
- * One measure by cycle day, drawn to fill its width: lines keep their weight as it stretches. The
- * period and the luteal phase shade the ground, each fading in over the days it could begin on,
- * and ovulation is a dash along the foot.
+ * One measure by cycle day, from day 1 to `days`, drawn to fill its width: lines keep their weight
+ * as it stretches. The period and the luteal phase shade the ground, each fading in over the days it
+ * could begin on, and ovulation is a dash along the foot. Today's dot may sit on the right edge, so
+ * the drawing isn't cut at its edges; the shading is.
  */
 function CycleChart({
-  points, today, shape, label,
+  points, days, today, shape, label,
 }: {
   points: ReturnType<typeof byCycleDay>;
+  days: number;
   today: number | null;
   shape: CycleShape | null;
   label: string;
@@ -679,7 +697,7 @@ function CycleChart({
   const lo = Math.min(...all);
   const hi = Math.max(...all);
   const pad = (hi - lo || 1) * 0.12;
-  const x = (d: number) => ((d - 1) / (CHART_DAYS - 1)) * W;
+  const x = (d: number) => ((d - 1) / (days - 1)) * W;
   const y = (v: number) => H - ((v - (lo - pad)) / (hi - lo + 2 * pad)) * H;
   const banded = points.filter((p) => p.low !== null && p.high !== null);
   const band = banded.length > 1
@@ -699,13 +717,15 @@ function CycleChart({
   const period = shape && { from: x(0.5), to: x(shape.periodDays + 0.5 + shape.periodBlend) };
   const luteal = shape?.luteal ? (() => {
     const from = x(shape.luteal - shape.lutealBlend - 0.5);
-    const to = x((shape.length ?? CHART_DAYS) + 0.5);
+    // It lasts until the next period, so on to the chart's end, past a typical length the range outruns.
+    const to = x(days + 0.5);
     return { from, to, ramp: Math.min(1, (x(shape.luteal + shape.lutealBlend - 0.5) - from) / Math.max(1, to - from)) };
   })() : null;
   const ovulation = shape ? ovulationWindow(shape) : null;
   return (
-    <svg role="img" aria-label={label} viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="block w-full h-[90px]">
+    <svg role="img" aria-label={label} viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="block w-full h-[90px] overflow-visible">
       <defs>
+        <clipPath id={`${gid}c`}><rect width={W} height={H} /></clipPath>
         <linearGradient id={`${gid}p`} x1="0" x2="1" y1="0" y2="0">
           {shape?.foundStart
             ? <><stop offset="0" stopColor={PINK} stopOpacity={0.04} /><stop offset="0.6" stopColor={PINK} stopOpacity={0.2} /><stop offset="0.72" stopColor={PINK} stopOpacity={0.2} /><stop offset="1" stopColor={PINK} stopOpacity={0} /></>
@@ -723,10 +743,12 @@ function CycleChart({
           <stop offset="1" stopColor={colours.phase.ovulation} stopOpacity={0} />
         </linearGradient>
       </defs>
-      {period && <rect x={period.from} y={0} width={period.to - period.from} height={H} fill={`url(#${gid}p)`} />}
-      {luteal && <rect x={luteal.from} y={0} width={luteal.to - luteal.from} height={H} fill={`url(#${gid}l)`} />}
+      <g clipPath={`url(#${gid}c)`}>
+        {period && <rect x={period.from} y={0} width={period.to - period.from} height={H} fill={`url(#${gid}p)`} />}
+        {luteal && <rect x={luteal.from} y={0} width={luteal.to - luteal.from} height={H} fill={`url(#${gid}l)`} />}
+      </g>
       {band && <path d={band} fill="var(--color-zinc-700)" fillOpacity={0.75} stroke="none" />}
-      {today !== null && today <= CHART_DAYS && (
+      {today !== null && today <= days && (
         <path d={`M${x(today)} 0 L${x(today)} ${H}`} stroke="var(--color-zinc-400)" strokeWidth={1} strokeDasharray="3 3" vectorEffect="non-scaling-stroke" />
       )}
       {ovulation && <rect x={x(ovulation.day - ovulation.spread)} y={H - 4} width={x(ovulation.day + ovulation.spread) - x(ovulation.day - ovulation.spread)} height={3} fill={`url(#${gid}o)`} />}

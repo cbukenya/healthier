@@ -8,50 +8,32 @@ import { Card, CardHead, DURATION_UNIT, Delta, Row, fmtDuration, tint, withUnits
 import type { DailyRecord, SleepSession } from '../types/health';
 import { Stat, statUnit } from './ActivityCards';
 
+type Stage = 'deep' | 'rem' | 'light' | 'awake';
+
+/**
+ * A night's score tier, in the Sleep page's own stage colours rather than green to red: deep for
+ * the best nights and awake for the worst. `dotColor` is for the pill and the card's glow, and
+ * `pillInk` for the pill's word; there a good night is light's colour and a fair one REM's. `ink` is
+ * for words elsewhere, such as the week's scores, where good is REM and fair is light, as in the
+ * regularity bands. Deep's words are a step lighter so they read on dark.
+ */
 export function getScoreTier(total: number) {
-  if (total >= 85) {
-    return {
-      name: t('sleep.night.score.tiers.excellent'),
-      color: "var(--emerald-500)",
-      dotColor: "var(--green-500)",
-      bg: "bg-emerald-500/10",
-      text: "text-emerald-400",
-      border: "border-emerald-500/30",
-      glow: `0 0 10px ${tint('var(--green-500)', 60)}`,
-    };
-  }
-  if (total >= 70) {
-    return {
-      name: t('sleep.night.score.tiers.good'),
-      color: "var(--indigo-400)",
-      dotColor: "var(--indigo-400)",
-      bg: "bg-indigo-500/10",
-      text: "text-indigo-400",
-      border: "border-indigo-500/30",
-      glow: `0 0 10px ${tint('var(--indigo-400)', 60)}`,
-    };
-  }
-  if (total >= 50) {
-    return {
-      name: t('sleep.night.score.tiers.fair'),
-      color: "var(--amber-500)",
-      dotColor: "var(--amber-400)",
-      bg: "bg-amber-500/10",
-      text: "text-amber-400",
-      border: "border-amber-500/30",
-      glow: `0 0 10px ${tint('var(--amber-500)', 60)}`,
-    };
-  }
-  return {
-    name: t('sleep.night.score.tiers.poor'),
-    color: "var(--rose-500)",
-    dotColor: "var(--red-500)",
-    bg: "bg-rose-500/10",
-    text: "text-rose-400",
-    border: "border-rose-500/30",
-    glow: `0 0 10px ${tint('var(--rose-500)', 60)}`,
-  };
+  const inkOf = (stage: Stage) => (stage === 'deep' ? 'var(--stage-deep-ink)' : `var(--stage-${stage})`);
+  const tier = (name: MessageKey, mark: Stage, word: Stage) => ({
+    name: t(name),
+    dotColor: `var(--stage-${mark})`,
+    pillInk: inkOf(mark),
+    ink: inkOf(word),
+    glow: `0 0 10px ${tint(`var(--stage-${mark})`, 60)}`,
+  });
+  if (total >= 85) return tier('sleep.night.score.tiers.excellent', 'deep', 'deep');
+  if (total >= 70) return tier('sleep.night.score.tiers.good', 'light', 'rem');
+  if (total >= 50) return tier('sleep.night.score.tiers.fair', 'rem', 'light');
+  return tier('sleep.night.score.tiers.poor', 'awake', 'awake');
 }
+
+/** The page's other verdicts in the same colours: the better way in deep, the worse in awake. */
+export const SLEEP_TONES = { good: 'text-(--stage-deep-ink)', bad: 'text-(--stage-awake)' } as const;
 
 /** The stages a night's bar stacks, bottom up, in the hypnogram's colours. */
 const STAGES = [
@@ -108,7 +90,7 @@ export function LastSevenNights({ days, shift, needMin, debt, wide, glow }: {
       label: t('sleep.lastSeven.debt.label'),
       value: debt.netMin > 0 ? 'sleep.lastSeven.debt.owed' : 'sleep.lastSeven.debt.banked',
       values: { hours: formatFixed(Math.abs(debt.netMin) / 60, 1) },
-      tone: debt.netMin > 0 ? 'text-amber-400' : 'text-emerald-400',
+      tone: debt.netMin > 0 ? SLEEP_TONES.bad : SLEEP_TONES.good,
     });
   }
   if (spread) {
@@ -135,7 +117,7 @@ export function LastSevenNights({ days, shift, needMin, debt, wide, glow }: {
             })}
           </div>
           <div className="mt-1 md:mt-1.5">
-            <Delta value={shift.delta} goodWhen="up" digits={0} phrase="sleep.lastSeven.change" />
+            <Delta value={shift.delta} goodWhen="up" digits={0} phrase="sleep.lastSeven.change" tones={SLEEP_TONES} />
           </div>
         </div>
         <NightBars days={days} needMin={needMin} need={need} wide={wide} />
@@ -210,7 +192,7 @@ function NightBars({ days, needMin, need, wide }: { days: DailyRecord[]; needMin
       </div>
       <div className={`relative ${columns} mt-1`}>
         {scored.map((n) => (
-          <span key={n.date} className="text-center text-caption font-semibold tabular-nums" style={{ color: n.score === null ? 'var(--color-zinc-600)' : getScoreTier(n.score).dotColor }}>
+          <span key={n.date} className="text-center text-caption font-semibold tabular-nums" style={{ color: n.score === null ? 'var(--color-zinc-600)' : getScoreTier(n.score).ink }}>
             {n.score ?? '–'}
           </span>
         ))}
