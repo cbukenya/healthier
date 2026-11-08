@@ -73,6 +73,8 @@
   --stage-light: #818cf8;
   --stage-rem: #a78bfa;
   --stage-awake: #d8b48a;
+  /* Deep for words, such as a best night's score: a step lighter, so it reads on the dark cards. */
+  --stage-deep-ink: #7471f6;
 
   /*
    * Glass. In dark a card is smoked glass, a dark tint with a light edge, and the panels and rules
@@ -265,6 +267,7 @@
   --stage-light: #4f46e5;
   --stage-rem: #7c3aed;
   --stage-awake: #8a6a3f;
+  --stage-deep-ink: var(--stage-deep);
 
   /* Plain white cards with a hairline edge; panels and rules are a shade of grey on them. */
   --card: #ffffff;
@@ -315,8 +318,8 @@ body::before {
 
 /*
  * A faint glow in a card's own colour (--glow), in the dark theme only: from the card's top right,
- * or, for a score, from the dot in its pill (--glow-x and --glow-y, set where the dot sits) out
- * across the card. The light theme leaves its cards plain.
+ * or, for a score, around the dot in its pill (--glow-x and --glow-y, set where the dot sits). The
+ * light theme leaves its cards plain.
  */
 .glow {
   background-image: radial-gradient(100% 60% at 100% 0%,
@@ -324,14 +327,40 @@ body::before {
     color-mix(in srgb, var(--glow) 3.2%, transparent) 40%,
     transparent);
 }
+/*
+ * A score's glow is a status, so it's as strong as an insight card's glow and eases out the same
+ * way: a circle centred on the dot, gone within a few hundred pixels of it, whatever the card's shape.
+ */
 .glow-score {
-  background-image: radial-gradient(farthest-corner at var(--glow-x, 0px) var(--glow-y, 0px),
-    color-mix(in srgb, var(--glow) 8%, transparent),
-    color-mix(in srgb, var(--glow) 3.6%, transparent) 28%,
-    transparent 72%);
+  background-image: radial-gradient(circle 300px at var(--glow-x, 0px) var(--glow-y, 0px),
+    color-mix(in srgb, var(--glow) 32%, transparent),
+    color-mix(in srgb, var(--glow) 19.8%, transparent) 22%,
+    color-mix(in srgb, var(--glow) 9.6%, transparent) 45%,
+    color-mix(in srgb, var(--glow) 3.2%, transparent) 70%,
+    transparent);
 }
 :root[data-theme='light'] :is(.glow, .glow-score) {
   background-image: none;
+}
+
+/*
+ * A status pill is tinted and edged in its status's colour (--pill), the colour its glow is, and
+ * names the status in a lighter shade of its ink (--pill-ink), the status's colour for words. The
+ * light theme has no glows, so there the tint is fainter and the word a shade darker than its ink.
+ */
+.status-pill {
+  background-color: color-mix(in srgb, var(--pill) 18%, rgb(9 9 11 / 0.6));
+  border-color: color-mix(in srgb, var(--pill) 45%, transparent);
+}
+.status-pill-word {
+  color: color-mix(in srgb, var(--pill-ink) 70%, white);
+}
+:root[data-theme='light'] .status-pill {
+  background-color: color-mix(in srgb, var(--pill) 8%, white);
+  border-color: color-mix(in srgb, var(--pill) 30%, transparent);
+}
+:root[data-theme='light'] .status-pill-word {
+  color: color-mix(in srgb, var(--pill-ink) 85%, black);
 }
 
 /*

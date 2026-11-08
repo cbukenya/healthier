@@ -54,11 +54,12 @@ const STAGE_LABELS = {
   awake: 'sleep.stages.awake',
 } as const satisfies Record<(typeof STAGE_FILL)[number][0], MessageKey>;
 
+/** Regularity's bands in the page's stage colours, as the sleep score's tiers: deep the best, awake the worst. */
 const REG_COPY: Record<string, { label: MessageKey; color: string }> = {
-  excellent: { label: 'sleep.window.regularity.bands.excellent.label', color: 'var(--green-500)' },
-  good: { label: 'sleep.window.regularity.bands.good.label', color: 'var(--emerald-300)' },
-  bad: { label: 'sleep.window.regularity.bands.bad.label', color: 'var(--yellow-500)' },
-  critical: { label: 'sleep.window.regularity.bands.critical.label', color: 'var(--rose-500)' },
+  excellent: { label: 'sleep.window.regularity.bands.excellent.label', color: 'var(--stage-deep-ink)' },
+  good: { label: 'sleep.window.regularity.bands.good.label', color: 'var(--stage-rem)' },
+  bad: { label: 'sleep.window.regularity.bands.bad.label', color: 'var(--stage-light)' },
+  critical: { label: 'sleep.window.regularity.bands.critical.label', color: 'var(--stage-awake)' },
 };
 
 /** Fold a minutes-of-day onto an 18:00-anchored evening→next-noon line. */

@@ -250,18 +250,24 @@ const BAND_COPY: Record<Band, { label: MessageKey; cls: string }> = {
  * A score's tier in a pill: its name in capitals after a glowing dot of its colour, as the sleep
  * score and the body battery show it. Set in the body face even inside a title.
  */
-export function StatusPill({ name, dot, glow = `0 0 10px ${tint(dot, 60)}`, className = '', dotRef }: {
+export function StatusPill({ name, dot, ink = dot, glow = `0 0 10px ${tint(dot, 60)}`, className = '', dotRef }: {
   name: string;
+  /** The status's colour: the dot, and the pill's tint and edge (.status-pill). */
   dot: string;
+  /** The status's colour for words, which the name is drawn in a shade of; the dot's own unless that's too dark to read. */
+  ink?: string;
   glow?: string;
   className?: string;
   /** The dot, for a card whose score glow starts there. */
   dotRef?: React.Ref<HTMLSpanElement>;
 }) {
   return (
-    <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-zinc-900 border border-zinc-800 shadow-sm font-sans ${className}`}>
+    <span
+      className={`status-pill inline-flex items-center gap-1.5 px-3 py-1 rounded-full border shadow-sm font-sans ${className}`}
+      style={{ '--pill': dot, '--pill-ink': ink } as React.CSSProperties}
+    >
       <span ref={dotRef} className="w-2.5 h-2.5 rounded-full inline-block shrink-0" style={{ backgroundColor: dot, boxShadow: glow }} />
-      <span className="text-caption font-semibold text-zinc-200 uppercase tracking-widest">{name}</span>
+      <span className="status-pill-word text-caption font-semibold uppercase tracking-widest">{name}</span>
     </span>
   );
 }
@@ -327,6 +333,7 @@ export function Delta({
   digits = 1,
   phrase,
   values,
+  tones = { good: 'text-emerald-400', bad: 'text-rose-400' },
 }: {
   value: number | null;
   unit?: string;
@@ -334,6 +341,8 @@ export function Delta({
   digits?: number;
   phrase?: MessageKey;
   values?: Values;
+  /** The welcome and unwelcome colours, as classes: green and rose unless a page has its own. */
+  tones?: { good: string; bad: string };
 }) {
   if (value === null || !Number.isFinite(value)) {
     return <span className="text-caption text-zinc-600">{t('ui.delta.none')}</span>;
@@ -346,8 +355,8 @@ export function Delta({
       : good === null
         ? 'text-zinc-400'
         : good
-          ? 'text-emerald-400'
-          : 'text-rose-400';
+          ? tones.good
+          : tones.bad;
   const change = (
     <>
       {up ? '↑' : value < 0 ? '↓' : ''} {formatNumber(Math.abs(value), digits)}
