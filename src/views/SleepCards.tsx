@@ -8,6 +8,39 @@ import { Card, CardHead, DURATION_UNIT, Delta, Row, fmtDuration, tint, withUnits
 import type { DailyRecord, SleepSession } from '../types/health';
 import { Stat, statUnit } from './ActivityCards';
 
+/** A four-pointed star, centred on (x, y), `r` from the centre to each point. */
+const sparkle = (x: number, y: number, r: number) =>
+  `M${x} ${y - r}Q${x} ${y} ${x + r} ${y}Q${x} ${y} ${x} ${y + r}Q${x} ${y} ${x - r} ${y}Q${x} ${y} ${x} ${y - r}Z`;
+
+/**
+ * A crescent moon with a cloud and stars, beside the night's length on the Last night card: decoration
+ * only, in its own colours (--night-*). The stars twinkle very slowly and faintly, one after another,
+ * unless motion is reduced.
+ */
+export function NightSky({ className = '' }: { className?: string }) {
+  // Spread over the sky beside and above the moon, never below it. Those above the drawing's box reach
+  // up toward the top of the card, right of its title, so the drawing lets them show outside its box.
+  const stars: [number, number, number][] = [
+    [-18, -26, 4], [62, -18, 6], [104, -36, 5], [8, 20, 5], [108, 14, 7],
+  ];
+  return (
+    <svg viewBox="0 0 120 110" aria-hidden="true" className={`pointer-events-none overflow-visible ${className}`}>
+      {/* The moon: a circle with a smaller one taken out of its right side. */}
+      <path d="M64.25 14.25A38 38 0 1 0 92.75 71.25A32 32 0 1 1 64.25 14.25Z" className="fill-(--night-moon)" />
+      {stars.map(([x, y, r], i) => (
+        <path key={i} d={sparkle(x, y, r)} className="twinkle fill-(--night-star)" style={{ animationDelay: `${i * 1.6}s` }} />
+      ))}
+      {/* One cloud across the foot of the moon, a little see-through, faded as a whole so its puffs don't show their overlaps. */}
+      <g className="fill-(--night-cloud)" opacity={0.8}>
+        <circle cx={42} cy={86} r={9} />
+        <circle cx={55} cy={78} r={13} />
+        <circle cx={69} cy={85} r={8} />
+        <rect x={28} y={84} width={52} height={10} rx={5} />
+      </g>
+    </svg>
+  );
+}
+
 type Stage = 'deep' | 'rem' | 'light' | 'awake';
 
 /**
