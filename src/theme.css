@@ -75,6 +75,10 @@
   --stage-awake: #d8b48a;
   /* Deep for words, such as a best night's score: a step lighter, so it reads on the dark cards. */
   --stage-deep-ink: #7471f6;
+  /* The moon, clouds and stars in the Last night card's corner. */
+  --night-moon: #f5e19a;
+  --night-cloud: #e8edf5;
+  --night-star: #ffffff;
 
   /*
    * Glass. In dark a card is smoked glass, a dark tint with a light edge, and the panels and rules
@@ -268,6 +272,10 @@
   --stage-rem: #7c3aed;
   --stage-awake: #8a6a3f;
   --stage-deep-ink: var(--stage-deep);
+  /* On white, the moon is a deeper yellow, the clouds a pale indigo and the stars a soft indigo. */
+  --night-moon: #fcd34d;
+  --night-cloud: #e0e7ff;
+  --night-star: #a5b4fc;
 
   /* Plain white cards with a hairline edge; panels and rules are a shade of grey on them. */
   --card: #ffffff;
@@ -341,6 +349,20 @@ body::before {
 }
 :root[data-theme='light'] :is(.glow, .glow-score) {
   background-image: none;
+}
+
+/* A star that very slowly, faintly dims and brightens (the Last night card's sky); still when motion is reduced. */
+.twinkle {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: twinkle 8s ease-in-out infinite;
+}
+@keyframes twinkle {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.65; transform: scale(0.9); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .twinkle { animation: none; }
 }
 
 /*

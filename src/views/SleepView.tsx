@@ -18,7 +18,7 @@ import type { IntradayDays } from '../pipeline/labs';
 import { groupSeries } from '../pipeline/aggregate';
 import type { SyncResult } from '../pipeline/sync';
 import type { DailyRecord, SleepSession } from '../types/health';
-import { LastSevenNights, Naps, getScoreTier } from './SleepCards';
+import { LastSevenNights, NightSky, Naps, getScoreTier } from './SleepCards';
 
 type SleepChart = 'window' | 'duration' | 'rem' | 'deep' | 'naps';
 
@@ -143,8 +143,15 @@ export function SleepView({ data, clock, intraday }: { data: SyncResult; clock?:
             hint={latestRow ? formatCivilLong(latestRow.date) : ''}
           />
           <div className="px-5 pb-4 flex-1 flex flex-col">
-            <div className="mt-1">
-              <Value value={latest ? fmtDuration(latest.minutesAsleep) : null} size="xl" />
+            {/*
+              The night's length with a moon among stars on the same line, centred on its numbers. The
+              drawing reaches above and below the line without moving anything, and shrinks beside a long night.
+            */}
+            <div className="mt-1 flex items-center justify-between gap-2">
+              <div className="shrink-0">
+                <Value value={latest ? fmtDuration(latest.minutesAsleep) : null} size="xl" />
+              </div>
+              <NightSky className="w-[128px] min-w-[88px] shrink aspect-[120/110] h-auto -my-6" />
             </div>
             <div className="mt-2 mb-4"><BandPill c={sleepCmp} /></div>
 
