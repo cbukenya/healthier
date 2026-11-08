@@ -18,7 +18,7 @@ import type { IntradayDays } from '../pipeline/labs';
 import { groupSeries } from '../pipeline/aggregate';
 import type { SyncResult } from '../pipeline/sync';
 import type { DailyRecord, SleepSession } from '../types/health';
-import { LastSevenNights, Naps, SLEEP_TONES, getScoreTier } from './SleepCards';
+import { LastSevenNights, Naps, getScoreTier } from './SleepCards';
 
 type SleepChart = 'window' | 'duration' | 'rem' | 'deep' | 'naps';
 
@@ -113,7 +113,7 @@ export function SleepView({ data, clock, intraday }: { data: SyncResult; clock?:
         )}
         {values(sleepSpan).length >= 14 && (
           <Row dense={!wide} label={t('sleep.summary.firstToLast')}>
-            <Delta value={windowShift(sleepSpan, 7).delta} goodWhen="up" digits={0} phrase="sleep.summary.change" tones={SLEEP_TONES} />
+            <Delta value={windowShift(sleepSpan, 7).delta} goodWhen="up" digits={0} phrase="sleep.summary.change" />
           </Row>
         )}
       </div>
@@ -149,14 +149,13 @@ export function SleepView({ data, clock, intraday }: { data: SyncResult; clock?:
             <div className="mt-2 mb-4"><BandPill c={sleepCmp} /></div>
 
             {score && scoreTier && (() => {
-              // Each contributor's bar in one of the night's stage colours, as the rest of the page.
               const contributors = [
                 {
                   label: t('sleep.night.score.duration.label'),
                   pct: Math.min(100, Math.max(0, Math.round((score.duration / 50) * 100))),
                   points: score.duration,
                   max: 50,
-                  color: "var(--stage-light)",
+                  color: "var(--indigo-400)",
                   detail: latest ? t('sleep.night.score.duration.detail', { duration: fmtDuration(latest.minutesAsleep) }) : "",
                 },
                 {
@@ -164,7 +163,7 @@ export function SleepView({ data, clock, intraday }: { data: SyncResult; clock?:
                   pct: Math.min(100, Math.max(0, Math.round((score.restoration / 25) * 100))),
                   points: score.restoration,
                   max: 25,
-                  color: "var(--stage-deep-ink)",
+                  color: "var(--indigo-500)",
                   detail: score.restorativePct !== null
                     ? t('sleep.night.score.restoration.detail', { percent: score.restorativePct })
                     : t('sleep.night.score.restoration.noStages'),
@@ -174,7 +173,7 @@ export function SleepView({ data, clock, intraday }: { data: SyncResult; clock?:
                   pct: Math.min(100, Math.max(0, Math.round((score.efficiency / 25) * 100))),
                   points: score.efficiency,
                   max: 25,
-                  color: "var(--stage-rem)",
+                  color: "var(--emerald-500)",
                   detail: latest ? t('sleep.night.score.efficiency.detail', { percent: Math.round(latest.efficiency) }) : "",
                 },
               ];

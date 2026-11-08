@@ -333,7 +333,6 @@ export function Delta({
   digits = 1,
   phrase,
   values,
-  tones = { good: 'text-emerald-400', bad: 'text-rose-400' },
 }: {
   value: number | null;
   unit?: string;
@@ -341,8 +340,6 @@ export function Delta({
   digits?: number;
   phrase?: MessageKey;
   values?: Values;
-  /** The welcome and unwelcome colours, as classes: green and rose unless a page has its own. */
-  tones?: { good: string; bad: string };
 }) {
   if (value === null || !Number.isFinite(value)) {
     return <span className="text-caption text-zinc-600">{t('ui.delta.none')}</span>;
@@ -355,8 +352,8 @@ export function Delta({
       : good === null
         ? 'text-zinc-400'
         : good
-          ? tones.good
-          : tones.bad;
+          ? 'text-emerald-400'
+          : 'text-rose-400';
   const change = (
     <>
       {up ? '↑' : value < 0 ? '↓' : ''} {formatNumber(Math.abs(value), digits)}

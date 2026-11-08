@@ -14,8 +14,8 @@ type Stage = 'deep' | 'rem' | 'light' | 'awake';
  * A night's score tier, in the Sleep page's own stage colours rather than green to red: deep for
  * the best nights and awake for the worst. `dotColor` is for the pill and the card's glow, and
  * `pillInk` for the pill's word; there a good night is light's colour and a fair one REM's. `ink` is
- * for words elsewhere, such as the week's scores, where good is REM and fair is light, as in the
- * regularity bands. Deep's words are a step lighter so they read on dark.
+ * for the week's scores, where good is REM and fair is light. Deep's words are a step lighter so
+ * they read on dark. The page's other verdicts keep their green-to-red colours.
  */
 export function getScoreTier(total: number) {
   const inkOf = (stage: Stage) => (stage === 'deep' ? 'var(--stage-deep-ink)' : `var(--stage-${stage})`);
@@ -31,9 +31,6 @@ export function getScoreTier(total: number) {
   if (total >= 50) return tier('sleep.night.score.tiers.fair', 'rem', 'light');
   return tier('sleep.night.score.tiers.poor', 'awake', 'awake');
 }
-
-/** The page's other verdicts in the same colours: the better way in deep, the worse in awake. */
-export const SLEEP_TONES = { good: 'text-(--stage-deep-ink)', bad: 'text-(--stage-awake)' } as const;
 
 /** The stages a night's bar stacks, bottom up, in the hypnogram's colours. */
 const STAGES = [
@@ -90,7 +87,7 @@ export function LastSevenNights({ days, shift, needMin, debt, wide, glow }: {
       label: t('sleep.lastSeven.debt.label'),
       value: debt.netMin > 0 ? 'sleep.lastSeven.debt.owed' : 'sleep.lastSeven.debt.banked',
       values: { hours: formatFixed(Math.abs(debt.netMin) / 60, 1) },
-      tone: debt.netMin > 0 ? SLEEP_TONES.bad : SLEEP_TONES.good,
+      tone: debt.netMin > 0 ? 'text-amber-400' : 'text-emerald-400',
     });
   }
   if (spread) {
@@ -117,7 +114,7 @@ export function LastSevenNights({ days, shift, needMin, debt, wide, glow }: {
             })}
           </div>
           <div className="mt-1 md:mt-1.5">
-            <Delta value={shift.delta} goodWhen="up" digits={0} phrase="sleep.lastSeven.change" tones={SLEEP_TONES} />
+            <Delta value={shift.delta} goodWhen="up" digits={0} phrase="sleep.lastSeven.change" />
           </div>
         </div>
         <NightBars days={days} needMin={needMin} need={need} wide={wide} />
