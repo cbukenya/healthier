@@ -60,7 +60,7 @@ export function BodyView({ data, gender, onGender, clock, intraday }: {
   intraday?: IntradayDays;
 }) {
   const insights = usePageInsights(data, 'body', clock, intraday);
-  const spanState = useSpan(data, '90');
+  const spanState = useSpan(data, '30');
   const window = spanState.days;
   const history = useHistory();
   // A phone shows one chart at a time behind chips; wider screens show them all.
