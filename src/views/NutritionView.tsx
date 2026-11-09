@@ -217,7 +217,7 @@ function PlateCard({ day, maintenance, devices, proteinTarget, fibreTarget, note
     : t('nutrition.plate.of', { kcal: kcal(ref), devices: maintenance === null ? 'yes' : 'no' });
 
   return (
-    <Card glow={PAGE} className="px-5 pt-4 pb-5">
+    <Card glow={PAGE} className="px-5 pt-4 pb-5 flex flex-col">
       <div className="flex items-baseline justify-between gap-2">
         <h2 className="card-title-detail text-zinc-50">{t('nutrition.plate.title')}</h2>
         <span className="text-caption text-zinc-500">{t('nutrition.plate.meals', { count: day?.meals.length ?? 0 })}</span>
@@ -254,19 +254,20 @@ function PlateCard({ day, maintenance, devices, proteinTarget, fibreTarget, note
           )}
         </div>
       </div>
-      <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1 text-caption text-zinc-400">
-        <Key colour={MACRO.protein}>{t('nutrition.plate.legend.protein', { pct: shares ? pct(shares.protein) : 0, known: shares ? 'yes' : 'no' })}</Key>
-        <Key colour={MACRO.carbs}>{t('nutrition.plate.legend.carbs', { pct: shares ? pct(shares.carbs) : 0, known: shares ? 'yes' : 'no' })}</Key>
-        <Key colour={MACRO.fat}>{t('nutrition.plate.legend.fat', { pct: shares ? pct(shares.fat) : 0, known: shares ? 'yes' : 'no' })}</Key>
-        {!over && <Key outline>{t('nutrition.plate.legend.toEat')}</Key>}
-      </div>
       {note && (
-        <p className="mt-3 text-detail leading-relaxed text-zinc-400">
+        <p className="mt-4 text-detail leading-relaxed text-zinc-400">
           {note.kind === 'protein'
             ? t('nutrition.plate.note.protein', { got: grams(note.got), target: grams(note.target) })
             : t('nutrition.plate.note.mix', { macro: note.macro, share: pct(note.share), usual: pct(note.usual) })}
         </p>
       )}
+      {/* The key sits at the foot of the card, however tall the meal clock beside it makes the row. */}
+      <div className="mt-auto pt-4 flex flex-wrap gap-x-4 gap-y-1 text-caption text-zinc-400">
+        <Key colour={MACRO.protein}>{t('nutrition.plate.legend.protein', { pct: shares ? pct(shares.protein) : 0, known: shares ? 'yes' : 'no' })}</Key>
+        <Key colour={MACRO.carbs}>{t('nutrition.plate.legend.carbs', { pct: shares ? pct(shares.carbs) : 0, known: shares ? 'yes' : 'no' })}</Key>
+        <Key colour={MACRO.fat}>{t('nutrition.plate.legend.fat', { pct: shares ? pct(shares.fat) : 0, known: shares ? 'yes' : 'no' })}</Key>
+        {!over && <Key outline>{t('nutrition.plate.legend.toEat')}</Key>}
+      </div>
     </Card>
   );
 }
