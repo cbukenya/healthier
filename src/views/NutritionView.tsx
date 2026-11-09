@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ChevronDown } from 'lucide-react';
 import type { CivilDate } from '../lib/date';
 import type { DailyRecord, DayNutrition } from '../types/health';
 import { t } from '../i18n';
@@ -17,7 +16,7 @@ import { groupSeries } from '../pipeline/aggregate';
 import { wallClock } from '../pipeline/insights/helpers';
 import type { SyncResult } from '../pipeline/sync';
 import { BarSeries, DivergingBars, TrendChart } from '../charts';
-import { Card, CardHead, DOMAIN, EmptyState, Label, MACRO, Row, tint } from '../ui/primitives';
+import { Card, CardHead, Contributors, DOMAIN, EmptyState, Label, MACRO, Row, tint } from '../ui/primitives';
 import { ChartChips } from '../ui/ChartChips';
 import { SpanSelector, useSpan } from '../ui/span';
 import { useGoals } from '../hooks/useGoals';
@@ -552,7 +551,6 @@ function MaintenanceCard({ maintenance, all, today, from, loading }: {
   from: CivilDate;
   loading: boolean;
 }) {
-  const [open, setOpen] = useState(false);
   const trend = useMemo(
     () => (maintenance ? maintenanceTrend(all, today, from, maintenance.blockDays) : []),
     [all, today, from, maintenance],
@@ -621,29 +619,22 @@ function MaintenanceCard({ maintenance, all, today, from, loading }: {
           </Row>
         )}
       </div>
-      <button
-        type="button"
-        aria-expanded={open}
-        onClick={() => setOpen(!open)}
-        className="mt-2 w-full flex items-center justify-between min-h-11 px-3.5 rounded-xl bg-[var(--panel)] text-eyebrow uppercase text-zinc-500 hover:text-zinc-300 transition-colors cursor-pointer"
-      >
-        {t('nutrition.maintenance.how')}
-        <ChevronDown size={14} aria-hidden className={`transition-transform ${open ? 'rotate-180' : ''}`} />
-      </button>
-      {open && (
-        <p className="mt-2 px-1 text-detail leading-relaxed text-zinc-400">
-          {t('nutrition.maintenance.howText', {
-            ate: kcal(maintenance.ateKcal),
-            days: maintenance.days,
-            weeks,
-            dir: weightDir,
-            kg: formatNumber(Math.abs(maintenance.kgPerWeek), 2),
-            kcal: kcal(weightKcal),
-            maintenance: kcal(maintenance.kcal),
-            weighIns: maintenance.weighIns,
-          })}
-        </p>
-      )}
+      <div className="mt-3">
+        <Contributors label={t('nutrition.maintenance.how')} heading="text-eyebrow uppercase text-zinc-500 mb-1.5 pt-3 border-t border-zinc-800/70">
+          <p className="text-detail leading-relaxed text-zinc-400">
+            {t('nutrition.maintenance.howText', {
+              ate: kcal(maintenance.ateKcal),
+              days: maintenance.days,
+              weeks,
+              dir: weightDir,
+              kg: formatNumber(Math.abs(maintenance.kgPerWeek), 2),
+              kcal: kcal(weightKcal),
+              maintenance: kcal(maintenance.kcal),
+              weighIns: maintenance.weighIns,
+            })}
+          </p>
+        </Contributors>
+      </div>
     </Card>
   );
 }

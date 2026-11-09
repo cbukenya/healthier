@@ -171,9 +171,12 @@ export const Label = ({ children, className = '' }: { children: React.ReactNode;
  */
 export function Contributors({
   heading = 'text-eyebrow uppercase text-zinc-500 mb-1',
+  label = t('ui.contributors'),
   children,
 }: {
   heading?: string;
+  /** What the fold is called; "Contributors" unless it holds something else, such as how a figure is worked out. */
+  label?: string;
   children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
@@ -187,10 +190,10 @@ export function Contributors({
         onClick={() => setOpen(!open)}
         className="md:hidden w-full cursor-pointer flex items-center justify-between min-h-11 border-t border-zinc-800/80 text-eyebrow uppercase text-zinc-500 hover:text-zinc-300 transition-colors"
       >
-        {t('ui.contributors')}
+        {label}
         <ChevronDown size={14} aria-hidden className={`transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
-      <div className={`hidden md:block ${heading}`}>{t('ui.contributors')}</div>
+      <div className={`hidden md:block ${heading}`}>{label}</div>
       <div id={id} className={open ? undefined : 'hidden md:block'}>{children}</div>
     </div>
   );
