@@ -192,6 +192,10 @@
           "title": "Body insights",
           "description": "What your weigh-ins add up to over time, measured against your own trend."
         },
+        "nutrition": {
+          "title": "Nutrition insights",
+          "description": "How what you eat and the rest of your days go together, worked out from your own logs."
+        },
         "cycle": {
           "title": "Cycle insights",
           "description": "What repeats across your cycles, found in your own nights and your log."
@@ -210,9 +214,34 @@
         "cardio": "Vitals",
         "sleep": "Sleep",
         "body": "Body",
+        "nutrition": "Nutrition",
         "data": "Data",
         "movement": "Activity",
         "cycle": "Cycle"
+      }
+    },
+    "nutrition": {
+      "shortNights": {
+        "title": "Short nights, bigger appetite",
+        "text": "After the {count} nights you slept under {line}, you ate about {kcal} kcal more the next day than after longer nights. Sleep studies find much the same."
+      },
+      "lateDinners": {
+        "title": "Late dinners show in your morning heart rate",
+        "text": "On the {count} nights your last meal came within {hours} hours of bed, your resting heart rate the next morning was {bpm} bpm higher than after earlier dinners.",
+        "action": "Finishing dinner earlier on a few nights would show whether it's the meal."
+      },
+      "fibreDeepSleep": {
+        "title": "More fibre, more deep sleep",
+        "text": "On days you ate {grams} g of fibre or more, your deep sleep that night ran about {minutes} minutes longer than after lower-fibre days."
+      },
+      "weekBalance": {
+        "title": "{side, select, over {A week above your maintenance} other {A week below your maintenance}}",
+        "text": "You ate {side, select, over {more} other {less}} than your maintenance on {count} of the last {days} days, about {kcal} kcal {side, select, over {over} other {under}} across the week, or roughly {kg} kg."
+      },
+      "proteinBehind": {
+        "title": "Protein is behind today",
+        "text": "You've had {got} g of your {target} g of protein so far{big, select, yes {, on a day of {steps} steps} other {}}.",
+        "action": "A dinner with about {grams} g of protein gets you there."
       }
     },
     "common": {
@@ -319,6 +348,12 @@
         "textLatest": "Your latest weigh-in was {weight} kg on {date}. A few more weigh-ins over the next weeks will show your trend.",
         "title": "No clear change in your weight",
         "text": "Your weight trend is moving by less than {threshold} kg a week either way. Your latest weigh-in was {weight} kg on {date}."
+      },
+      "nutritionFloor": {
+        "title": "Your eating this week",
+        "text": "{count, plural, one {On the one day you logged in full this week, you ate about {kcal} kcal and {protein} g of protein.} other {On the # days you logged in full this week, you ate about {kcal} kcal and {protein} g of protein a day.}}",
+        "titleEmpty": "Nothing logged in full this week",
+        "textEmpty": "Days with meals logged from the morning into the evening count here. Log in Google Health, or in an app that writes to it."
       },
       "cycleFloor": {
         "title": "{known, select, yes {Day {day} of your cycle} other {Your cycles}}",

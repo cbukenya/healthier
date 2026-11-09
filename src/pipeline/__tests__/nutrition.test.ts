@@ -10,6 +10,7 @@ import {
   plateSquares, sharesOf, towardTarget,
 } from '../eating';
 import type { DailyRecord, DayNutrition } from '../../types/health';
+import { compareDays, MIN_EACH } from '../insights/cards/nutrition';
 
 const NUTRITION = STREAMS.find((s) => s.dataType === 'nutrition-log')!;
 
@@ -177,3 +178,25 @@ describe('the Nutrition page', () => {
     assert.equal(clock.lastToBedMin, 23 * 60 + 30 - 1150);
   });
 });
+
+describe('the Nutrition page\'s patterns', () => {
+  /** Days alternating between the two sides, the condition's side `diff` higher, with a little scatter. */
+  const pairsOf = (n: number, diff: number, flipLaterHalf = false) =>
+    Array.from({ length: n }, (_, i) => {
+      const side = i % 3 === 0;
+      const later = i >= n / 2;
+      const shift = side ? (flipLaterHalf && later ? -diff : diff) : 0;
+      return { date: addDays('2026-08-01', i), side, value: 2000 + shift + ((i * 37) % 11) * 10 };
+    });
+
+  it('says a pattern only with enough days on both sides and a difference that matters', () => {
+    assert.ok(compareDays(pairsOf(45, 300), 150), 'fifteen days against thirty, 300 apart');
+    assert.equal(compareDays(pairsOf(45, 100), 150), null, 'real, but too small to matter');
+    assert.equal(compareDays(pairsOf(3 * (MIN_EACH - 1), 300), 150), null, 'too few days on the condition\'s side');
+  });
+
+  it('needs the earlier and the later of the condition\'s days to agree', () => {
+    assert.equal(compareDays(pairsOf(60, 400, true), 150), null, 'higher early on, lower later: no pattern');
+  });
+});
+

@@ -9,6 +9,7 @@ import { sleepCards, sleepQueries } from './cards/sleep';
 import { todayCards } from './cards/today';
 import { vitalsCards, vitalsQueries } from './cards/vitals';
 import { cycleCards } from './cards/cycle';
+import { nutritionCards } from './cards/nutrition';
 import type { Finding, InsightFeeds } from './types';
 
 /**
@@ -70,6 +71,7 @@ export function evaluate(ds: InsightDataset, now: Date = new Date(), extras?: In
   sleepCards(ctx, add);
   vitalsCards(ctx, cycleAware(ds, now, extras, ctx, add));
   bodyCards(ctx, add);
+  nutritionCards(ctx, add);
   cycleCards(ctx, add);
   const settled = settle(found.filter((f) => placeable(f, ctx.part)), (f) => carouselOf(f, ctx.part));
   return { ctx, found, settled, feeds: place(settled, ctx) };

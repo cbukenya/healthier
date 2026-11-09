@@ -22,7 +22,9 @@ import { SpanSelector, useSpan } from '../ui/span';
 import { useGoals } from '../hooks/useGoals';
 import { useHistory } from '../hooks/useHistory';
 import { useMediaQuery } from '../hooks/useMediaQuery';
-import type { Clock } from '../hooks/usePageInsights';
+import { usePageInsights, type Clock } from '../hooks/usePageInsights';
+import { InsightsCarousel } from '../components/InsightsCarousel';
+import type { IntradayDays } from '../pipeline/labs';
 
 const PAGE = DOMAIN.nutrition.hex;
 
@@ -46,7 +48,8 @@ const kcal = (v: number) => formatInteger(v);
  * The Nutrition page, from the food log in Google Health: today's plate and the week's meals at the
  * top, then the average day, maintenance and the charts for the span chosen.
  */
-export function NutritionView({ data, clock }: { data: SyncResult; clock?: Clock }) {
+export function NutritionView({ data, clock, intraday }: { data: SyncResult; clock?: Clock; intraday?: IntradayDays }) {
+  const insights = usePageInsights(data, 'nutrition', clock, intraday);
   const goals = useGoals();
   const history = useHistory();
   const spanState = useSpan(data, '30');
@@ -129,7 +132,7 @@ export function NutritionView({ data, clock }: { data: SyncResult; clock?: Clock
         </>
       )}
 
-      <p className="px-4 pt-2 text-center text-note leading-relaxed text-zinc-500">{t('insights.carousel.disclaimer')}</p>
+      <InsightsCarousel observations={insights} page="nutrition" />
     </div>
   );
 }

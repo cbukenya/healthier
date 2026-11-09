@@ -357,6 +357,14 @@ only reads it; there's no food search or logging of its own, and nothing is gues
   maintenance and remarks only on protein well behind late in the day, or a mix far from the
   person's own usual.
 
+- **Insights** (`src/pipeline/insights/cards/nutrition.ts`). Three patterns from the person's own
+  days: what was eaten after short nights, the morning resting heart rate after late dinners, and
+  deep sleep after higher-fibre days. Each is an exploratory association, never a cause: Welch's
+  test at p < 0.05, eight days or more on each side, a difference worth saying (150 kcal, 2 bpm,
+  5 minutes), and the earlier and later halves of the condition's days leaning the same way. Then
+  a week well above or below maintenance, and an evening nudge when one dinner can close the gap
+  to the protein target.
+
 The page shows in the menu only while food has been logged in the window. Its colour is plum
 (`DOMAIN.nutrition`); the macros are plum protein, sky carbs and honey fat, carbs in the middle so
 every neighbouring pair stays apart for colour-blind eyes, and lime fibre.

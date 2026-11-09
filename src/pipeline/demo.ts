@@ -452,8 +452,15 @@ const FOOD_LOG = { recordingMethod: 'MANUAL', platform: 'FITBIT' };
 function foodLog(days: DemoDay[]): any[] {
   const r = seeded(20261109);
   const meanActive = days.reduce((a, d) => a + (d.activeKcal ?? 0), 0) / days.length;
+  const meanOf = (get: (d: DemoDay) => number | null | undefined) => {
+    const v = days.map(get).filter((x): x is number => typeof x === 'number');
+    return v.reduce((a, b) => a + b, 0) / v.length;
+  };
+  const meanRhr = meanOf((d) => d.restingHr);
+  const meanDeep = meanOf((d) => d.sleep?.deep);
   const points: any[] = [];
-  for (const day of days) {
+  for (const [i, day] of days.entries()) {
+    const next = days[i + 1];
     const ago = daysBetween(day.date, TODAY);
     if (ago > 0 && r.chance(0.06)) continue; // a day nothing was logged
     const wd = isoWeekdayIndex(day.date); // 0 Monday … 6 Sunday
@@ -464,8 +471,12 @@ function foodLog(days: DemoDay[]): any[] {
     const kcal = clamp(2326 - deficit + (weekend ? 180 : -60) + (shortNight ? 300 : 0) + 0.35 * ((day.activeKcal ?? meanActive) - meanActive) + r.normal(130), 1400, 3400);
     const proteinShare = clamp(0.2 + r.normal(0.025), 0.12, 0.3);
     const fatShare = clamp(0.35 + r.normal(0.03), 0.25, 0.45);
-    const fibre = clamp(20 + r.normal(5) - (shortNight ? 3 : 0), 8, 34);
-    const lateDinner = r.chance(wd === 4 ? 0.5 : 0.2);
+    // Made to go with the night after, so the Nutrition page's patterns have something to find: more
+    // fibre before more deep sleep, and late dinners before the mornings the heart rate sits higher.
+    const fibre = clamp(20 + r.normal(4) - (shortNight ? 3 : 0) + 0.45 * ((next?.sleep?.deep ?? meanDeep) - meanDeep), 8, 34);
+    const around = days.slice(Math.max(0, i - 14), i + 15).map((d) => d.restingHr).filter((v): v is number => v !== null);
+    const usualRhr = around.length ? around.reduce((a, b) => a + b, 0) / around.length : meanRhr;
+    const lateDinner = r.chance((next?.restingHr ?? usualRhr) >= usualRhr + 1 ? 0.9 : 0.04);
     const snack = r.chance(0.55);
     const meals: [string, number, number, number][] = [
       ['BREAKFAST', 445 + r.normal(25), 0.22, 0.14],

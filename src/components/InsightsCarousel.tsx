@@ -11,6 +11,7 @@ const DOMAIN_LABELS: Record<string, MessageKey> = {
   cardio: 'insights.carousel.domains.cardio',
   sleep: 'insights.carousel.domains.sleep',
   body: 'insights.carousel.domains.body',
+  nutrition: 'insights.carousel.domains.nutrition',
   cycle: 'insights.carousel.domains.cycle',
   data: 'insights.carousel.domains.data',
   movement: 'insights.carousel.domains.movement',
@@ -51,6 +52,7 @@ const DOMAIN_COLORS: Record<string, string> = {
   cardio: 'var(--rose-400)',
   sleep: 'var(--indigo-400)',
   body: 'var(--teal-300)',
+  nutrition: 'var(--purple-400)',
   cycle: 'var(--pink-400)',
   data: 'var(--color-zinc-400)',
   movement: 'var(--emerald-400)',
@@ -106,6 +108,7 @@ const PAGE_COPY: Record<InsightPage, { title: MessageKey; description: MessageKe
   sleep: { title: 'insights.carousel.pages.sleep.title', description: 'insights.carousel.pages.sleep.description' },
   vitals: { title: 'insights.carousel.pages.vitals.title', description: 'insights.carousel.pages.vitals.description' },
   body: { title: 'insights.carousel.pages.body.title', description: 'insights.carousel.pages.body.description' },
+  nutrition: { title: 'insights.carousel.pages.nutrition.title', description: 'insights.carousel.pages.nutrition.description' },
   cycle: { title: 'insights.carousel.pages.cycle.title', description: 'insights.carousel.pages.cycle.description', disclaimer: 'cycle.disclaimer' },
 };
 
