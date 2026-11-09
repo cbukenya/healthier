@@ -5,6 +5,7 @@ import type { Goals } from './goals';
 import type { CycleLog } from './cycle';
 import type { SourcePrefs } from './sources';
 import { combineSleepPoints, parseSleepSession } from './sleep';
+import { combineNutritionPoints, entryTime } from './nutrition';
 
 /**
  * THE REGISTRY — the one place field names live.
@@ -562,23 +563,17 @@ export const STREAMS: StreamDescriptor[] = [
     occasional: true,
     label: 'Nutrition (Macros)',
     domain: 'wellbeing',
-    mode: 'rollup',
+    mode: 'list',
     container: 'nutritionLog',
     scope: 'nutrition',
-    dateOf: rollupDate,
+    note:
+      'One point per logged food, listed rather than rolled up so the meals keep their times. ' +
+      "Each source's day is folded into one point first (pipeline/nutrition.ts).",
+    prepare: combineNutritionPoints,
+    dateOf: (c) => c?.day ?? entryTime(c)?.date ?? null,
     apply(ctx, c) {
-      const kcal = num(c?.caloriesKcalSum ?? c?.dietaryEnergyKcalSum);
-      const protein = num(c?.proteinGramsSum);
-      const carbs = num(c?.carbohydratesGramsSum);
-      const fat = num(c?.fatGramsSum);
-      
-      if (kcal === null && protein === null && carbs === null && fat === null) return false;
-      
-      if (kcal !== null) ctx.row.caloriesKcal = Math.round(kcal);
-      if (protein !== null) ctx.row.proteinG = Math.round(protein);
-      if (carbs !== null) ctx.row.carbsG = Math.round(carbs);
-      if (fat !== null) ctx.row.fatG = Math.round(fat);
-      
+      if (!c?.nutrition) return false;
+      if (!fill(ctx.row, 'nutrition', c.nutrition)) return false;
       mark(ctx, 'nutrition-log');
       return true;
     },
