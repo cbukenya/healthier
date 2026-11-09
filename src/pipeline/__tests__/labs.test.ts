@@ -79,6 +79,18 @@ describe('day-to-night heart rate', () => {
     assert.equal(r.nightsScanned, 19);
   });
 
+  it('reads the day at rest: a workout does not widen the drop', () => {
+    const days = nights(20);
+    // An hour at 150 bpm each afternoon, well past 40% of heart-rate reserve at any adult age.
+    const workouts = byDate(days.flatMap((d) => minutes(d.date, 8 * 60, 12 * 60, (i) => (i >= 360 && i < 420 ? 150 : 70))));
+    const calm = dipping(days, daytime(days), new Set(), 35);
+    const active = dipping(days, workouts, new Set(), 35);
+    assert.equal(active.medianDipPct, calm.medianDipPct);
+    assert.deepEqual(active.nights.map((n) => n.dayMean), calm.nights.map((n) => n.dayMean));
+    // Without an age it still leaves the hour out, from a 40-year-old's maximum.
+    assert.equal(dipping(days, workouts, new Set()).medianDipPct, calm.medianDipPct);
+  });
+
   it('leaves sick nights out of every figure, card and insight alike', () => {
     const days = nights(20);
     const intraday = daytime(days);

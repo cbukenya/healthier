@@ -1,6 +1,6 @@
 import type { DailyRecord, IntradaySample, SleepSession } from '../types/health';
 import {
-  BASELINE_DAYS, BASELINE_MIN_READINGS, NOISE_FLOOR, VITALS, WARM_C, compareToBaseline, compareVitalOn, isOff, series, stats, values,
+  BASELINE_DAYS, BASELINE_MIN_READINGS, NOISE_FLOOR, VITALS, WARM_C, activeHeartRate, compareToBaseline, compareVitalOn, isOff, series, stats, values,
 } from './derive';
 import { addDays } from '../lib/date';
 import { t } from '../i18n';
@@ -131,21 +131,35 @@ export function completedIntradayDays(intraday: IntradayDays): string[] {
 export type DipCategory = 'none' | 'extreme-dipper' | 'dipper' | 'non-dipper' | 'riser';
 
 /**
- * Day-to-night heart-rate drop over the last 30 finished days.
+ * Without an age, the maximum heart rate of a 40-year-old. For anyone from 20 to 60 that moves the
+ * line between resting and active minutes by under 6 bpm.
+ */
+const AGE_UNKNOWN = 40;
+
+/**
+ * Day-to-night heart-rate drop over the last 30 finished days, rest to rest.
  *
- * A night counts only when its daytime side was measured: an hour or more of
- * minute-level heart rate between 08:00 and 20:00. A stand-in daytime figure
- * would be shown as if it had been measured. Today is left out (its daytime is
- * half done), and nights with several signals off at once are left out of every
+ * The daytime side is the 08:00–20:00 average of the minutes you weren't active: a minute at 40%
+ * of heart-rate reserve or above (activeHeartRate, from your age and the median resting heart
+ * rate of the last four weeks) is left out. Otherwise a workout raises the daytime figure and
+ * widens the drop, and the lab reads how active the day was rather than how the heart settles.
+ *
+ * A night counts only when its daytime side was measured: an hour or more of such minutes. A
+ * stand-in daytime figure would be shown as if it had been measured. Today is left out (its
+ * daytime is half done), and nights with several signals off at once are left out of every
  * figure, by default here, so the card and the insight agree.
  */
-export function dipping(days: DailyRecord[], intraday: IntradayDays, sick: Set<string> = illnessDates(days)) {
+export function dipping(days: DailyRecord[], intraday: IntradayDays, sick: Set<string> = illnessDates(days), age: number | null = null) {
   const window = days.slice(0, -1).slice(-30);
+  const resting = stats(values(series(days.slice(-28), (d) => d.restingHr)))?.median ?? null;
+  const active = resting === null ? null : activeHeartRate(age ?? AGE_UNKNOWN, resting);
   const nights: { date: string; dayMean: number; nightMean: number; dip: number }[] = [];
   let excludedIllnessNights = 0;
   for (const d of window) {
     if (d.nonRemHr === null) continue;
-    const daytime = (intraday[d.date] ?? []).filter((s) => s.minutesOfDay >= 8 * 60 && s.minutesOfDay <= 20 * 60);
+    const daytime = (intraday[d.date] ?? []).filter(
+      (s) => s.minutesOfDay >= 8 * 60 && s.minutesOfDay <= 20 * 60 && (active === null || s.value < active),
+    );
     if (daytime.length <= 60) continue;
     if (sick.has(d.date)) {
       excludedIllnessNights++;

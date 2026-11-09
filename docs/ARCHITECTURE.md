@@ -219,7 +219,8 @@ Labs are experiments that look for patterns over several weeks. Their arithmetic
 `src/pipeline/labs.ts`, and their cards are in `src/views/LabsView.tsx`. They look for:
 - breathing, oxygen and time awake off together at night;
 - strain across four signals: resting heart rate, breathing, HRV and skin temperature;
-- heart rate dipping at night;
+- heart rate dipping at night, rest to rest: the daytime side leaves out active minutes (40% of
+  heart-rate reserve or above), so a workout doesn't widen the drop;
 - shifts in HRV entropy;
 - fast heart rate during sleep;
 - irregular rhythm notifications, as the device reports them.

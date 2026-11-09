@@ -375,6 +375,16 @@ export function loadRatio(s: Point[]): { acute: number | null; chronic: number |
   };
 }
 
+/**
+ * The heart rate from which a minute counts as active: 40% of heart-rate reserve (Karvonen), the
+ * lower edge of moderate intensity, with a maximum of 208 − 0.7 × age (Tanaka). Null when the
+ * resting rate is at or past that maximum.
+ */
+export function activeHeartRate(age: number, restingHr: number): number | null {
+  const maxHr = 208 - 0.7 * age;
+  return maxHr <= restingHr ? null : Math.round(restingHr + 0.4 * (maxHr - restingHr));
+}
+
 /** Bedtime consistency: SD of clock time, handling the midnight wrap. */
 export function bedtimeConsistency(days: DailyRecord[]): { meanMin: number; sdMin: number; n: number } | null {
   const mins = days

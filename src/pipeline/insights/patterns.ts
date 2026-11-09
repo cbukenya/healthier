@@ -1,7 +1,7 @@
 import { addDays, daysBetween, isoWeekdayIndex, type CivilDate } from '../../lib/date';
 import type { DailyRecord, SleepSession } from '../../types/health';
 import {
-  BASELINE_DAYS, BASELINE_MIN_READINGS, circularMeanMinutes, compareToBaseline, series, stats, theilSen, type Point,
+  BASELINE_DAYS, BASELINE_MIN_READINGS, activeHeartRate, circularMeanMinutes, compareToBaseline, series, stats, theilSen, type Point,
 } from '../derive';
 import { MEASURES, type Answer, type Measure, type Reading } from '../history';
 import { illnessDates, type IntradayDays } from '../labs';
@@ -145,9 +145,8 @@ export interface ActiveHours {
  * of the day's active minutes. Silent below 14 well-worn days.
  */
 export function activeHours(days: DailyRecord[], intraday: IntradayDays, age: number, restingHr: number): ActiveHours | null {
-  const maxHr = 208 - 0.7 * age;
-  if (maxHr <= restingHr) return null;
-  const threshold = Math.round(restingHr + 0.4 * (maxHr - restingHr));
+  const threshold = activeHeartRate(age, restingHr);
+  if (threshold === null) return null;
 
   const groups = { weekdays: [] as number[][], weekends: [] as number[][] };
   for (const d of days.slice(-29, -1)) {
