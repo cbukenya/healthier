@@ -2,7 +2,7 @@ import { addDays, dateRange, type CivilDate } from '../../lib/date';
 import type { DailyRecord } from '../../types/health';
 import { scoreSleep } from '../sleep';
 import {
-  compareVital, isRecent, readiness, sleepDebt, sleepNeedFor,
+  compareVital, isRecent, readiness, sleepDebt, sleepNorms,
 } from '../derive';
 import { DEFAULT_GOALS, type Goals } from '../goals';
 import type { InsightDataset, InsightOptions } from './context';
@@ -13,9 +13,10 @@ import { insightFeeds } from './engine';
 export function todaySummary(ds: InsightDataset, now: Date = new Date(), extras?: InsightOptions) {
   const days = ds.days;
   const goals = extras?.goals ?? DEFAULT_GOALS;
+  const norms = sleepNorms(days, goals.sleepNeed);
+  const need = norms.need;
   // With cycle tracking on, the battery softens a penalty the cycle explains (see readiness).
   const judged = extras?.cycle?.judged ?? null;
-  const need = sleepNeedFor(days, goals.sleepNeed);
   const last = days[days.length - 1] ?? null;
   // Cards about now show readings from today or yesterday; anything older is history, not last night.
   const recent = (d: DailyRecord | undefined) => (d && isRecent(d.date, last?.date) ? d : null);
@@ -29,7 +30,7 @@ export function todaySummary(ds: InsightDataset, now: Date = new Date(), extras?
     today: last,
     movementDay,
     sleepDay,
-    sleepScore: sleepDay?.sleep ? scoreSleep(sleepDay.sleep) : null,
+    sleepScore: sleepDay?.sleep ? scoreSleep(sleepDay.sleep, norms) : null,
     hrv,
     rhr,
     readiness: readiness(days, goals.sleepNeed, judged),

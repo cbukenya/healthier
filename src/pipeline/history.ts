@@ -1,6 +1,6 @@
 import { addDays, isoWeekdayIndex, type CivilDate } from '../lib/date';
 import type { DailyRecord } from '../types/health';
-import { scoreSleep } from './sleep';
+import { scoreSleep, type SleepNorms } from './sleep';
 import { fillReading as fill, ownReading as own } from './sources';
 
 /**
@@ -24,7 +24,11 @@ import { fillReading as fill, ownReading as own } from './sources';
  * null, and the card that asked stays silent.
  */
 
-/** The daily values a query can read. One definition, shared by the server, the app and demo mode. */
+/**
+ * The daily values a query can read. One definition, shared by the server, the app and demo mode.
+ * The sleep score is held to the person's own norms (sleepNorms in derive.ts), which the server
+ * works out from the same window the app does; without them, the standard 7-hour need and 45% bar.
+ */
 export const MEASURES = {
   steps: (d: DailyRecord) => d.steps,
   distanceKm: (d: DailyRecord) => d.distanceKm,
@@ -35,7 +39,7 @@ export const MEASURES = {
   /** Moderate minutes plus vigorous counting double. */
   briskMinutes: (d: DailyRecord) => (d.activeMinutes ? d.activeMinutes.moderate + 2 * d.activeMinutes.vigorous : null),
   sleepMinutes: (d: DailyRecord) => d.sleep?.minutesAsleep ?? null,
-  sleepScore: (d: DailyRecord) => (d.sleep ? scoreSleep(d.sleep).total : null),
+  sleepScore: (d: DailyRecord, norms?: SleepNorms) => (d.sleep ? scoreSleep(d.sleep, norms).total : null),
   sleepEfficiency: (d: DailyRecord) => d.sleep?.efficiency ?? null,
   restingHr: (d: DailyRecord) => d.restingHr,
   hrv: (d: DailyRecord) => d.hrv,
@@ -66,9 +70,12 @@ export const MEASURES = {
   vo2Max: (d: DailyRecord) => d.vo2Max,
   weightKg: (d: DailyRecord) => d.weightKg,
   bodyFatPct: (d: DailyRecord) => d.bodyFatPct,
-} satisfies Record<string, (d: DailyRecord) => number | null>;
+} satisfies Record<string, (d: DailyRecord, norms?: SleepNorms) => number | null>;
 
 export type Measure = keyof typeof MEASURES;
+
+/** A measure as one function, for reading it with the person's sleep norms. */
+export const measureOf = (m: Measure): ((d: DailyRecord, norms?: SleepNorms) => number | null) => MEASURES[m];
 export type Aggregate = 'sum' | 'count' | 'mean' | 'min' | 'max' | 'first' | 'last';
 /** Single days, calendar months, ISO weeks (keyed by their Monday), weekdays (0 = Monday) or years. */
 export type Grouping = 'day' | 'month' | 'week' | 'weekday' | 'year';
@@ -186,8 +193,9 @@ const groupKey = (date: CivilDate, group: Grouping | undefined): string | null =
 };
 
 /** One query over days already read (oldest first), restricted to its own range. */
-export function answerQuery(q: HistoryQuery, days: DailyRecord[], range: { from: CivilDate; to: CivilDate }): Answer {
-  const get = MEASURES[q.measure];
+export function answerQuery(q: HistoryQuery, days: DailyRecord[], range: { from: CivilDate; to: CivilDate }, norms?: SleepNorms): Answer {
+  const measure = measureOf(q.measure);
+  const get = (d: DailyRecord) => measure(d, norms);
   const inRange = days.filter((d) => d.date >= range.from && d.date <= range.to);
   let readings: Reading[] = [];
   if (q.rolling) {
@@ -241,7 +249,8 @@ export function answerQuery(q: HistoryQuery, days: DailyRecord[], range: { from:
 
 /**
  * Every query, answered from one read of the stored days. `days` must hold the
- * span `queriesSpan` asked for; `oldest` is the first stored day of all.
+ * span `queriesSpan` asked for; `oldest` is the first stored day of all; `norms`
+ * are the person's sleep norms, for the sleep score.
  */
 export function answerQueries(
   queries: HistoryQueries,
@@ -249,11 +258,12 @@ export function answerQueries(
   today: CivilDate,
   windowFrom: CivilDate,
   oldest: CivilDate | null,
+  norms?: SleepNorms,
 ): HistoryAnswers {
   const out: HistoryAnswers = {};
   for (const [name, q] of Object.entries(queries)) {
     const range = queryRange(q, today, windowFrom, oldest);
-    out[name] = range ? answerQuery(q, days, range) : null;
+    out[name] = range ? answerQuery(q, days, range, norms) : null;
   }
   return out;
 }

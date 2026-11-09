@@ -13,7 +13,7 @@ import { AXIS, GRID, fmtDuration, fmtNum } from '../ui/primitives';
 import { rulerStep } from '../ui/DayRuler';
 import type { DailyRecord, SleepSession } from '../types/health';
 import { names, numberFormat, t, type MessageKey } from '../i18n';
-import { bucketLabel, formatCivil, formatClock, meanLabel, weekdayLetter } from '../i18n/format';
+import { bucketLabel, formatCivil, formatClock, formatHours, formatMinutes, meanLabel, weekdayLetter } from '../i18n/format';
 
 /**
  * Charts.
@@ -83,6 +83,31 @@ const tickNumber = (v: number) => numberFormat({ maximumFractionDigits: 20 }).fo
 export const axisTick = (v: number) =>
   Math.abs(v) >= 1000 ? t('format.thousands', { value: tickNumber(Number((v / 1000).toFixed(2))) }) : tickNumber(v);
 
+/**
+ * An axis of minutes in hours, as the cards' own figures are: "0", "30m", "6h", "1h 30m". Its spaces
+ * don't break, or the axis wraps "1h 30m" onto two lines.
+ */
+const minutesTick = (v: number) => (v === 0 ? tickNumber(0) : v < 60 ? formatMinutes(v) : formatHours(v)).replace(/ /g, ' ');
+
+/**
+ * Ticks for an axis of minutes, on quarter, half or whole hours, the finest that keeps to about five
+ * steps between lo and hi: a night's length reads 5h, 6h, 7h rather than 300, 400, 500.
+ */
+/** The y-axis column: wider when a tick reads hours and minutes ("1h 30m"), or its first figures are cut off. */
+const axisWidth = (ticks: number[] | null, minutes: boolean) => (minutes && ticks?.some((v) => v > 60 && v % 60) ? 64 : 52);
+
+function minuteTicks(lo: number, hi: number): number[] {
+  if (hi - lo < 30) {
+    lo -= 30;
+    hi += 30;
+  }
+  lo = Math.max(0, lo);
+  const step = [15, 30, 60, 120, 180].find((s) => Math.ceil(hi / s) - Math.floor(lo / s) <= 5) ?? 240;
+  const ticks: number[] = [];
+  for (let v = Math.floor(lo / step) * step; v <= Math.ceil(hi / step) * step; v += step) ticks.push(v);
+  return ticks;
+}
+
 /** Sparse x-axis labels: roughly one per week, always including the last day. */
 function tickInterval(n: number): number {
   if (n <= 10) return 0;
@@ -115,7 +140,7 @@ function RulerTick({ x, y, index, payload, n }: { x: number; y: number; index: n
   );
 }
 
-/** A bar chart's day axis: the ruler while it applies, else sparse labels. */
+/** A chart's day axis, bars or lines: the ruler while it applies, else sparse labels. */
 function dayAxis(n: number, bucket: Bucket) {
   return isRuler(n, bucket)
     ? { interval: 0, tick: (p: any) => <RulerTick {...p} n={n} />, height: 30 }
@@ -137,11 +162,14 @@ export function TrendChart({
   format = (v: number) => fmtNum(v),
   area = true,
   bucket = 'day',
+  minutes = false,
 }: {
   series: Point[];
   color: string;
   unit?: string;
   height?: number;
+  /** The values are minutes, so the axis says them in hours: "5h", "6h". */
+  minutes?: boolean;
   /** Rolling-mean length in points; defaults to suit the bucket. Null turns it off. */
   meanWindow?: number | null;
   domain?: [number | 'auto', number | 'auto'];
@@ -173,8 +201,8 @@ export function TrendChart({
       ...(baseline ? [baseline.centre - baseline.spread, baseline.centre + baseline.spread] : []),
       ...(zone ? [zone.low, zone.high] : []),
     ];
-    return niceScale(Math.min(...v, ...edges), Math.max(...v, ...edges));
-  }, [series, domain, baseline?.centre, baseline?.spread, zone?.low, zone?.high]);
+    return (minutes ? minuteTicks : niceScale)(Math.min(...v, ...edges), Math.max(...v, ...edges));
+  }, [series, domain, minutes, baseline?.centre, baseline?.spread, zone?.low, zone?.high]);
   if (!known) return <NoSeries height={height} />;
 
   /**
@@ -194,7 +222,7 @@ export function TrendChart({
   return (
     <div>
     <ResponsiveContainer width="100%" height={height}>
-      <ComposedChart data={rows} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
+      <ComposedChart data={rows} margin={{ top: 8, right: isRuler(n, bucket) ? 16 : 8, left: -16, bottom: 0 }}>
         <defs>
           <linearGradient id={id} x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor={color} stopOpacity={0.28} />
@@ -227,22 +255,16 @@ export function TrendChart({
             stroke="var(--color-zinc-400)" strokeOpacity={0.8} strokeWidth={1.5} strokeDasharray="0.1 4" strokeLinecap="round"
           />
         ))}
-        <XAxis
-          dataKey="label"
-          axisLine={false}
-          tickLine={false}
-          interval={tickInterval(n)}
-          tick={TICK}
-          dy={6}
-        />
+        {/* Up to a month of days, a ruler as under the bar charts: a mark for every day, dates every few. */}
+        <XAxis dataKey="label" axisLine={false} tickLine={false} {...dayAxis(n, bucket)} />
         <YAxis
           axisLine={false}
           tickLine={false}
           tick={TICK}
-          tickFormatter={axisTick}
+          tickFormatter={minutes ? minutesTick : axisTick}
           domain={domain ?? (ticks ? [ticks[0], ticks[ticks.length - 1]] : ['auto', 'auto'])}
           ticks={ticks ?? undefined}
-          width={52}
+          width={axisWidth(ticks, minutes)}
         />
         <Tooltip
           contentStyle={tooltipStyle} itemStyle={{ color: 'var(--color-zinc-400)' }}
@@ -327,6 +349,7 @@ export function BarSeries({
   height = 180,
   format = (v: number) => fmtNum(v, 0),
   bucket = 'day',
+  minutes = false,
 }: {
   series: Point[];
   color: string;
@@ -336,8 +359,11 @@ export function BarSeries({
   format?: (v: number) => string;
   /** Set when the series has been grouped; bars are then averages per day. */
   bucket?: Bucket;
+  /** The values are minutes, so the axis says them in hours: "30m", "1h", "1h 30m". */
+  minutes?: boolean;
 }) {
   const rows = useMemo(() => toRows(series, undefined, bucket), [series, bucket]);
+  const ticks = useMemo(() => (minutes && values(series).length ? minuteTicks(0, Math.max(...values(series))) : null), [series, minutes]);
   if (!values(series).length) return <NoSeries height={height} />;
   return (
     <ResponsiveContainer width="100%" height={height}>
@@ -350,7 +376,11 @@ export function BarSeries({
           />
         )}
         <XAxis dataKey="label" axisLine={false} tickLine={false} {...dayAxis(rows.length, bucket)} />
-        <YAxis axisLine={false} tickLine={false} tick={TICK} tickFormatter={axisTick} width={52} />
+        <YAxis
+          axisLine={false} tickLine={false} tick={TICK} width={axisWidth(ticks, minutes)}
+          tickFormatter={minutes ? minutesTick : axisTick}
+          {...(ticks ? { ticks, domain: [0, ticks[ticks.length - 1]] } : {})}
+        />
         <Tooltip
           contentStyle={tooltipStyle} itemStyle={{ color: 'var(--color-zinc-400)' }}
           labelStyle={{ color: 'var(--color-zinc-200)', fontWeight: 600 }}

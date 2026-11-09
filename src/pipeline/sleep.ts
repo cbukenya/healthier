@@ -1,6 +1,7 @@
 import { civilFromInstant, type CivilDate } from '../lib/date';
 import { int } from './coerce';
 import type {
+  DailyRecord,
   SleepSession,
   SleepStageMinutes,
   SleepStageSegment,
@@ -332,11 +333,81 @@ export interface SleepScore {
   restorativePct: number | null;
 }
 
-export function scoreSleep(s: SleepSession): SleepScore {
+/**
+ * What a night is scored against: the person's own sleep need and their usual share of deep and
+ * REM sleep (sleepNorms in derive.ts works both out from their nights).
+ */
+export interface SleepNorms {
+  /** Minutes: full duration marks from here. */
+  need: number;
+  /** Deep + REM as a share of time asleep that earns full restoration marks, 0–1. */
+  restorative: number;
+}
+
+/** Where full duration marks stop: 9 hours, or the need when it's set higher. */
+export const LONG_NIGHT_MIN = 540;
+
+/** Full restoration marks before a person's own usual is known, and never a higher bar than this. */
+export const RESTORATIVE_TARGET = 0.45;
+
+/** A 7-hour need and the 45% bar: what every night was scored against before norms were the person's own. */
+export const STANDARD_NORMS: SleepNorms = { need: 420, restorative: RESTORATIVE_TARGET };
+
+/** Nights with stages before their usual share of deep and REM counts: as many as a usual range needs (BASELINE_MIN_READINGS). */
+const STAGED_NIGHTS_WANTED = 8;
+
+/** The middle value, halfway between the two middle ones for an even count. */
+function median(xs: number[]): number {
+  const sorted = [...xs].sort((a, b) => a - b);
+  const mid = (sorted.length - 1) / 2;
+  return (sorted[Math.floor(mid)] + sorted[Math.ceil(mid)]) / 2;
+}
+
+/** Where the sleep-need estimate stops: never below 7 h, nor above 8.5 h, and 7.5 h before any nights. */
+export const NEED_ESTIMATE = { floor: 420, ceiling: 510, fallback: 450 } as const;
+
+/**
+ * Personal sleep-need estimate: the median of your own recorded nights, clamped
+ * to never fall below 7 h — chronic restriction must not be allowed to redefine
+ * "enough" (Van Dongen 2003) — nor above 8.5 h. One definition, shared by
+ * readiness, the debt insight, the duration insights and the sleep score, so no
+ * two cards can ever argue about what a full night means.
+ */
+export function estimatedSleepTarget(days: DailyRecord[]): number {
+  const nights = days.flatMap((d) => (d.sleep ? [d.sleep.minutesAsleep] : []));
+  return nights.length ? Math.min(NEED_ESTIMATE.ceiling, Math.max(NEED_ESTIMATE.floor, median(nights))) : NEED_ESTIMATE.fallback;
+}
+
+/**
+ * The sleep need every night is judged against: the person's own figure when
+ * they've set one (a goal, on the Settings page), else the estimate from these nights.
+ */
+export const sleepNeedFor = (days: DailyRecord[], set?: number | null): number => set ?? estimatedSleepTarget(days);
+
+/**
+ * What every night's sleep score is held to (scoreSleep), from these nights: the sleep need, as
+ * above, and the person's usual share of deep and REM sleep, the median over their staged nights
+ * once there are 8, never above 45%. One pair for the whole window and the history before it, so
+ * a night scores the same on every page and a record is measured against the same bar.
+ */
+export function sleepNorms(days: DailyRecord[], needSet?: number | null): SleepNorms {
+  const shares = days.flatMap((d) =>
+    d.sleep?.stages && d.sleep.minutesAsleep > 0 ? [(d.sleep.stages.deep + d.sleep.stages.rem) / d.sleep.minutesAsleep] : [],
+  );
+  const usual = shares.length >= STAGED_NIGHTS_WANTED ? median(shares) : null;
+  return {
+    need: sleepNeedFor(days, needSet),
+    restorative: usual !== null && usual > 0 ? Math.min(RESTORATIVE_TARGET, usual) : RESTORATIVE_TARGET,
+  };
+}
+
+export function scoreSleep(s: SleepSession, norms: SleepNorms = STANDARD_NORMS): SleepScore {
   const mins = s.minutesAsleep;
 
   /**
-   * Duration: full marks for 7–9 h, scaling to zero at 4 h rather than at 0 h.
+   * Duration: full marks from your sleep need to 9 h, scaling to zero at 4 h rather than at 0 h.
+   * The need is the one the battery, the debt and every card judge a night by, so a night the
+   * battery calls short can't take full marks here.
    *
    * Anchoring the taper at zero minutes made the curve far too forgiving — a
    * 5h32m night scored 40/50, and with efficiency and restoration near their
@@ -344,17 +415,20 @@ export function scoreSleep(s: SleepSession): SleepScore {
    * hours. Anchoring at 4 h means the points you lose reflect the sleep you
    * actually missed.
    */
+  const top = Math.max(norms.need, LONG_NIGHT_MIN);
   let duration: number;
-  if (mins >= 420 && mins <= 540) duration = 50;
-  else if (mins < 420) duration = Math.max(0, Math.round(((mins - 240) / 180) * 50));
-  else duration = Math.max(30, Math.round(50 - ((mins - 540) / 60) * 5));
+  if (mins >= norms.need && mins <= top) duration = 50;
+  else if (mins < norms.need) duration = Math.max(0, Math.round(((mins - 240) / (norms.need - 240)) * 50));
+  else duration = Math.max(30, Math.round(50 - ((mins - top) / 60) * 5));
 
   let restoration = 0;
   let restorativePct: number | null = null;
   if (s.stages) {
     restorativePct = (s.stages.deep + s.stages.rem) / mins;
-    // 45% deep+REM is treated as the ceiling.
-    restoration = Math.min(25, Math.round((restorativePct / 0.45) * 25));
+    // Full marks at your usual share of deep + REM, never a higher bar than 45%. Deep sleep falls
+    // with age (Ohayon et al. 2004), and staging is what a wrist reads least well, so a night is
+    // held to your own usual rather than a young adult's.
+    restoration = Math.min(25, Math.round((restorativePct / norms.restorative) * 25));
   } else {
     // No staging: award the midpoint rather than a zero the user can't act on.
     restoration = 13;

@@ -1,11 +1,11 @@
 
 import React, { useRef, useState } from 'react';
 import { t } from '../i18n';
-import { formatCivilLong, formatClock, formatRounded } from '../i18n/format';
+import { formatCivilLong, formatClock, formatHours, formatRounded } from '../i18n/format';
 import {
-  compareToBaseline, isRecent, periodShift, series, sleepArchitecture, sleepDebt, sleepNeedFor, stats, usualRange, values, windowShift,
+  compareToBaseline, isRecent, periodShift, series, sleepArchitecture, sleepDebt, sleepNorms, stats, usualRange, values, windowShift,
 } from '../pipeline/derive';
-import { scoreSleep } from '../pipeline/sleep';
+import { LONG_NIGHT_MIN, RESTORATIVE_TARGET, scoreSleep } from '../pipeline/sleep';
 import { BarSeries, Hypnogram, StageBar, StageLegend, TrendChart, SleepWindowChart } from '../charts';
 import { BandPill, Card, CardHead, Contributors, DOMAIN, Delta, EmptyState, Row, Segmented, StatusPill, Value, fmtDuration, CardSummary } from '../ui/primitives';
 import { SpanSelector, spanSummaryTitle, useSpan } from '../ui/span';
@@ -41,7 +41,8 @@ export function SleepView({ data, clock, intraday }: { data: SyncResult; clock?:
 
   const sleepCmp = compareToBaseline(sleepAll);
   const shift = periodShift(sleepAll, 7);
-  const targetMin = sleepNeedFor(days, needSet);
+  const norms = sleepNorms(days, needSet);
+  const targetMin = norms.need;
   const debt = sleepDebt(days, targetMin);
   const recorded = values(sleepAll).length;
 
@@ -55,7 +56,7 @@ export function SleepView({ data, clock, intraday }: { data: SyncResult; clock?:
 
   const latestRow = [...days].reverse().find((d) => d.sleep !== null);
   const latest = latestRow?.sleep ?? null;
-  const score = latest ? scoreSleep(latest) : null;
+  const score = latest ? scoreSleep(latest, norms) : null;
   const scoreTier = score ? getScoreTier(score.total) : null;
 
   // The over-time charts: side by side on wider screens, one at a time behind chips on a phone.
@@ -70,7 +71,7 @@ export function SleepView({ data, clock, intraday }: { data: SyncResult; clock?:
       <div className="px-2 pb-3">
         <TrendChart
           series={groupSeries(sleepWin, bucket)} bucket={bucket} color={DOMAIN.sleep.hex} height={190}
-          format={(v) => fmtDuration(v)} area={false}
+          format={(v) => fmtDuration(v)} area={false} minutes
           baseline={usualRange(sleepCmp)}
         />
       </div>
@@ -80,7 +81,7 @@ export function SleepView({ data, clock, intraday }: { data: SyncResult; clock?:
     <Card>
       <CardHead title={t('sleep.rem.title')} hint={t('sleep.rem.hint')} hintBySummary right={<CardSummary isSleep data={remWin} color="var(--stage-rem)" format={(v) => fmtDuration(v)} />} />
       <div className="px-2 pb-3">
-        <BarSeries series={groupSeries(remWin, bucket)} bucket={bucket} color="var(--stage-rem)" unit={t('units.minutes')} height={150} />
+        <BarSeries series={groupSeries(remWin, bucket)} bucket={bucket} color="var(--stage-rem)" format={(v) => fmtDuration(v)} minutes height={150} />
       </div>
     </Card>
   );
@@ -88,7 +89,7 @@ export function SleepView({ data, clock, intraday }: { data: SyncResult; clock?:
     <Card>
       <CardHead title={t('sleep.deep.title')} hint={t('sleep.deep.hint')} hintBySummary right={<CardSummary isSleep data={deepWin} color="var(--stage-deep)" format={(v) => fmtDuration(v)} />} />
       <div className="px-2 pb-3">
-        <BarSeries series={groupSeries(deepWin, bucket)} bucket={bucket} color="var(--stage-deep)" unit={t('units.minutes')} height={150} />
+        <BarSeries series={groupSeries(deepWin, bucket)} bucket={bucket} color="var(--stage-deep)" format={(v) => fmtDuration(v)} minutes height={150} />
       </div>
     </Card>
   );
@@ -163,7 +164,10 @@ export function SleepView({ data, clock, intraday }: { data: SyncResult; clock?:
                   points: score.duration,
                   max: 50,
                   color: "var(--indigo-400)",
-                  detail: latest ? t('sleep.night.score.duration.detail', { duration: fmtDuration(latest.minutesAsleep) }) : "",
+                  detail: latest ? t('sleep.night.score.duration.detail', {
+                    duration: fmtDuration(latest.minutesAsleep), from: formatHours(norms.need),
+                    to: formatHours(Math.max(norms.need, LONG_NIGHT_MIN)), same: norms.need >= LONG_NIGHT_MIN ? 'yes' : 'no',
+                  }) : "",
                 },
                 {
                   label: t('sleep.night.score.restoration.label'),
@@ -172,7 +176,10 @@ export function SleepView({ data, clock, intraday }: { data: SyncResult; clock?:
                   max: 25,
                   color: "var(--indigo-500)",
                   detail: score.restorativePct !== null
-                    ? t('sleep.night.score.restoration.detail', { percent: score.restorativePct })
+                    ? t('sleep.night.score.restoration.detail', {
+                      percent: score.restorativePct, target: Math.round(norms.restorative * 100),
+                      own: norms.restorative < RESTORATIVE_TARGET ? 'yes' : 'no',
+                    })
                     : t('sleep.night.score.restoration.noStages'),
                 },
                 {
@@ -258,7 +265,7 @@ export function SleepView({ data, clock, intraday }: { data: SyncResult; clock?:
       </div>
 
       {/* ── 2. The week ─────────────────────────────────────────────── */}
-      <LastSevenNights days={days.slice(-7)} shift={shift} needMin={targetMin} debt={debt} wide={wide} glow={DOMAIN.sleep.hex} />
+      <LastSevenNights days={days.slice(-7)} shift={shift} norms={norms} debt={debt} wide={wide} glow={DOMAIN.sleep.hex} />
 
       {/* ── 3. Over time, following the span ─────────────────────────── */}
       <div className="flex items-center justify-between px-1">

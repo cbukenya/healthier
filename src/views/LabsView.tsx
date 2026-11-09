@@ -680,10 +680,10 @@ function Corridor({ median, rose = false, compact = false }: { median: number | 
   );
 }
 
-function dipLab(days: Days, intraday: IntradayDays, judged: Days | null): Lab {
+function dipLab(days: Days, intraday: IntradayDays, judged: Days | null, age: number | null): Lab {
   // Leaves out nights with several signals off, exactly as the insight does, and with cycle
   // tracking on, judged against the person's own cycle as the insight judges them.
-  const r = dipping(days, intraday, illnessDates(days, judged));
+  const r = dipping(days, intraday, illnessDates(days, judged), age);
   const base = { key: 'dip' as const, title: t('labs.dip.title'), gloss: t('labs.dip.gloss') };
   const latestNonRem = [...days].reverse().find((d) => d.nonRemHr !== null)?.nonRemHr ?? null;
   const latestRhr = [...days].reverse().find((d) => d.restingHr !== null)?.restingHr ?? null;
@@ -1261,7 +1261,7 @@ export function LabsView({ data, intraday = {} }: { data: SyncResult; intraday?:
   const { judged } = useCycle();
   const labs = useMemo(
     () => [
-      sdbLab(data.days), strainLab(data.days, judged), irnLab(data), dipLab(data.days, intraday, judged), entropyLab(data.days), tachyLab(data.days, intraday),
+      sdbLab(data.days), strainLab(data.days, judged), irnLab(data), dipLab(data.days, intraday, judged, data.profile?.age ?? null), entropyLab(data.days), tachyLab(data.days, intraday),
     ],
     [data, intraday, judged],
   );

@@ -1,6 +1,7 @@
 import { addDays, dateRange, type CivilDate } from '../lib/date';
 import type { DailyRecord, HealthDataset, SleepSession, SourceRef, StreamErrorCode, StreamReport, StreamStatus } from '../types/health';
 import { answerQueries, queriesSpan, type HistoryAnswers, type HistoryQueries } from './history';
+import { sleepNorms, type SleepNorms } from './sleep';
 import { fetchIntradayHeartRate, sampleCount, unpackIntraday, type IntradayDay } from './intraday';
 import { emptyRecord, normalize } from './normalize';
 import { DEFAULT_SOURCE_PREFS, sourceOrders, type SourceChoice, type SourceSeen } from './sources';
@@ -488,11 +489,12 @@ export function answerFromRows(
   windowFrom: CivilDate,
   today: CivilDate,
   choice: SourceChoice = choiceFromRows(rows),
+  norms?: SleepNorms,
 ): HistoryAnswers {
   let oldest: CivilDate | null = null;
   for (const days of rows.values()) for (const date of days.keys()) if (!oldest || date < oldest) oldest = date;
   const span = queriesSpan(queries, today, windowFrom, oldest);
-  return answerQueries(queries, span ? assembleHistory(rows, span.from, span.to, choice) : [], today, windowFrom, oldest);
+  return answerQueries(queries, span ? assembleHistory(rows, span.from, span.to, choice) : [], today, windowFrom, oldest, norms);
 }
 
 /** Daily records for a long span, without the per-minute detail only "last night" views need. */
@@ -731,7 +733,10 @@ export class MemoryStore implements StoredData {
 
   assemble(from: CivilDate, to: CivilDate, queries?: HistoryQueries): PackedDataset {
     const dataset = assembleDataset(this, from, to);
-    return queries ? { ...dataset, answers: answerFromRows(this.rows, queries, from, to) } : dataset;
+    // The sleep score is held to the norms the app works out from this same window.
+    return queries
+      ? { ...dataset, answers: answerFromRows(this.rows, queries, from, to, undefined, sleepNorms(dataset.days, dataset.profile.goals?.sleepNeed)) }
+      : dataset;
   }
 }
 

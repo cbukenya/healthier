@@ -63,7 +63,7 @@ const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
 const nightOf = (ctx: InsightContext) => {
   const night = ctx.lastNightIsRecent ? ctx.lastNight : null;
   if (!night) return null;
-  const sc = scoreSleep(night);
+  const sc = scoreSleep(night, ctx.norms);
   const short = sc.total <= 55 || night.minutesAsleep <= ctx.need - 90;
   const good = !short && (sc.total >= 85 || (night.minutesAsleep >= ctx.need + 40 && sc.total >= 70));
   return { night, sc, short, good };
@@ -92,7 +92,7 @@ function lastNight(ctx: InsightContext, add: Add, tonight: boolean): void {
   } else if (n.good) {
     // Wins carry no homework.
     const nights = days.filter((d) => d.sleep && d.date !== ctx.lastNightDay!.date);
-    const lastBetter = [...nights].reverse().find((d) => scoreSleep(d.sleep!).total >= sc.total);
+    const lastBetter = [...nights].reverse().find((d) => scoreSleep(d.sleep!, ctx.norms).total >= sc.total);
     const weeksSince = lastBetter ? Math.floor(daysBetween(lastBetter.date, ctx.lastNightDay!.date) / 7) : null;
     add({
       ...base, id: 'night-good', kind: 'milestone', tone: 'good',
@@ -389,7 +389,7 @@ function sleepNeed(ctx: InsightContext, add: Add): void {
 
 /** Sleep score by bedtime, split at your usual bedtime. Returns the pattern for the wind-down nudge. */
 function bestBedtimeCard(ctx: InsightContext, add: Add): BestBedtime | null {
-  const best = bestBedtime(ctx.days);
+  const best = bestBedtime(ctx.days, ctx.norms);
   if (!best) return null;
   const [first, second] = best.earlierBetter ? [best.early, best.late] : [best.late, best.early];
   const scores = {
@@ -565,7 +565,7 @@ function hrvLink(ctx: InsightContext, add: Add): void {
 
 /** Last month, if its average sleep score was your best on record: news on the 1st and 2nd, then on the page. */
 function bestMonth(ctx: InsightContext, add: Add): void {
-  const best = lastMonthBest(monthsOf(ctx.days, 'sleepScore', ctx.answers.sleepScoreByMonth), ctx.today, 15, 'max');
+  const best = lastMonthBest(monthsOf(ctx.days, 'sleepScore', ctx.answers.sleepScoreByMonth, ctx.norms), ctx.today, 15, 'max');
   if (!best) return;
   const month = monthsOf(ctx.days, 'sleepMinutes', ctx.answers.sleepMinutesByMonth).find((m) => m.month === best.month)!;
   add({
@@ -585,7 +585,7 @@ function bestMonth(ctx: InsightContext, add: Add): void {
  * slept really well", and the debt card outranks it the way it does that one.
  */
 function bestNight(ctx: InsightContext, add: Add): void {
-  const r = dayRecord(ctx.days, ctx.today, 'sleepScore', 'max', ctx.answers.bestNight, { mustReach: 80, maxAge: 3 });
+  const r = dayRecord(ctx.days, ctx.today, 'sleepScore', 'max', ctx.answers.bestNight, { mustReach: 80, maxAge: 3, norms: ctx.norms });
   if (!r) return;
   const span = pastYear(r.since, ctx.today);
   add({
