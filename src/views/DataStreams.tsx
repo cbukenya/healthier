@@ -3,14 +3,14 @@ import { ChevronDown, Lock } from 'lucide-react';
 import { daysBetween, type CivilDate } from '../lib/date';
 import { STREAM_DOMAINS, streamKind, streamOrder, type StreamKind } from '../lib/dataStatus';
 import { bucketLabel, formatCivil, formatCivilNumeric, formatCivilYear, formatClock, formatHour } from '../i18n/format';
-import { hasMessage, t, type MessageKey } from '../i18n';
+import { t, type MessageKey } from '../i18n';
 import { rich } from '../i18n/react';
+import { sourceName } from '../i18n/sources';
 import { streamError, streamName } from '../i18n/streams';
 import { bucketStart, groupDays, mean, type Bucket } from '../pipeline/aggregate';
-import { parseSource } from '../pipeline/normalize';
 import { INTRADAY_HEART_RATE, STREAMS_BY_TYPE } from '../pipeline/registry';
 import { DASHBOARD_WINDOW_DAYS, type SyncResult } from '../pipeline/sync';
-import type { MetricDomain, SourceRef, StreamReport } from '../types/health';
+import type { MetricDomain, StreamReport } from '../types/health';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 import { Segmented } from '../ui/primitives';
 import { SpanSelector, useSpan } from '../ui/span';
@@ -76,24 +76,6 @@ export function when(date: CivilDate, today: CivilDate): { day: 'today' | 'yeste
     day: n <= 0 ? 'today' : n === 1 ? 'yesterday' : 'date',
     date: date.slice(0, 4) === today.slice(0, 4) ? formatCivil(date) : formatCivilYear(date),
   };
-}
-
-/**
- * What a reading's source is called: a device's or app's own name, or a platform's, as it came. A
- * device Google knows only by its kind ("WATCH") is stored under the kind's English name ("Watch"),
- * so the language file names that one, when it knows the kind.
- */
-function deviceName(src: SourceRef): string {
-  if (src.app) return src.label;
-  const kind = src.formFactor;
-  if (kind) {
-    // The label normalize.ts stores for a source it knows only by this kind.
-    if (src.label !== parseSource({ device: { formFactor: kind } })?.label) return src.label;
-    const key = `data.streams.formFactors.${kind.toUpperCase()}`;
-    return hasMessage(key) ? t(key) : src.label;
-  }
-  // A source Google says nothing about is stored as "Unknown".
-  return src.platform === 'UNKNOWN' && src.label === parseSource({})?.label ? t('data.streams.unknownSource') : src.label;
 }
 
 /** A block of the strip: a day, or a week or month of days, as indexes into the span's days. */
@@ -166,11 +148,11 @@ export function DataStreams({ data }: { data: SyncResult }) {
     // Minutes are kept for the window only; older days have none to show.
     const minutesFrom = data.days[0]?.date ?? today;
 
-    /** The device behind a day's reading ("from Google Pixel Watch 3"), or logged by hand, when it's known. */
+    /** The device behind a day's reading ("from Pixel Watch 3"), or logged by hand, when it's known. */
     const source = (dataType: string, date: CivilDate | undefined) => {
       const id = date ? data.days.find((d) => d.date === date)?.sourceByType[dataType] : undefined;
       const src = id ? data.meta.sources.find((s) => s.id === id) : undefined;
-      return { source: !src ? 'none' : src.method === 'MANUAL' ? 'hand' : 'device', device: src ? deviceName(src) : '' };
+      return { source: !src ? 'none' : src.method === 'MANUAL' ? 'hand' : 'device', device: src ? sourceName(src) : '' };
     };
 
     return data.meta.streams.map((r): StreamRow => {

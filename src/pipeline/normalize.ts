@@ -71,7 +71,7 @@ export function parseSource(dataSource: any): SourceRef | undefined {
   const app: string | undefined = dataSource.application?.packageName;
 
   const label =
-    device.displayName ||
+    deviceName(platform, device.displayName) ||
     (app ? prettifyPackage(app) : undefined) ||
     (device.formFactor ? titleCase(device.formFactor) : undefined) ||
     titleCase(platform);
@@ -84,6 +84,19 @@ export function parseSource(dataSource: any): SourceRef | undefined {
     app,
     formFactor: device.formFactor,
   };
+}
+
+/**
+ * A device's name, the same whichever way Google wrote it. Google names its own devices with and
+ * without its own name in front: the Fitbit Air came as "Google Fitbit Air" until 4 September
+ * 2026 and as "Fitbit Air" from the 5th, which made one band two sources. Its devices report on
+ * the FITBIT platform, so only there is "Google " dropped; the stored ids were renamed to match
+ * (migration 7 in server/db.ts).
+ */
+function deviceName(platform: string, displayName: unknown): string | undefined {
+  if (typeof displayName !== 'string' || !displayName) return undefined;
+  if (platform !== 'FITBIT') return displayName;
+  return displayName.replace(/^Google\s+(?=\S)/, '');
 }
 
 function prettifyPackage(pkg: string): string {

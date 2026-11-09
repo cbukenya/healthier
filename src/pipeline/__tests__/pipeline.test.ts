@@ -523,7 +523,7 @@ describe('sync reporting', () => {
     const labels = ds.meta.sources.map((s) => s.label).sort();
     // Four distinct dataSource signatures: the watch, hand-typed Fitbit entries,
     // Samsung Health via Health Connect, and the archived Oura readings.
-    assert.deepEqual(labels, ['Fitbit', 'Google Fitbit Air', 'Oura Ring', 'Samsung Health']);
+    assert.deepEqual(labels, ['Fitbit', 'Fitbit Air', 'Oura Ring', 'Samsung Health']);
     const manual = ds.meta.sources.find((s) => s.label === 'Fitbit')!;
     assert.equal(manual.method, 'MANUAL');
   });
@@ -661,7 +661,7 @@ describe('second-pass corrections', () => {
     const jul7 = day(ds, '2026-07-07');
     // Hand-typed into Fitbit, not measured by the watch that also synced that day.
     assert.equal(jul7.sourceByType['weight'], 'FITBIT:Fitbit');
-    assert.equal(jul7.sourceByType['daily-resting-heart-rate'], 'FITBIT:Google Fitbit Air');
+    assert.equal(jul7.sourceByType['daily-resting-heart-rate'], 'FITBIT:Fitbit Air');
     // Same metric, different app, three weeks earlier.
     assert.equal(day(ds, '2026-06-16').sourceByType['weight'], 'HEALTH_CONNECT:Samsung Health');
     // The archived Oura reading keeps its own attribution too.

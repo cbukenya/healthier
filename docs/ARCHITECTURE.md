@@ -135,6 +135,13 @@ list reading came from (`dataSource`: platform, recording method, device, app).
 Settings page (`src/views/SourcesCard.tsx`) shows each source and sets the person's choices, which
 are kept on `users.sources` (`GET` and `PUT /api/sources`).
 
+- **A source is its platform and name.** `parseSource` gives each one an id such as
+  `FITBIT:Fitbit Air`: the device's name, else the app's, else the platform's. Google writes its
+  own devices' names with and without "Google" in front (the Fitbit Air was "Google Fitbit Air"
+  until 4 September 2026), so on the FITBIT platform "Google " is dropped and one device stays one
+  source. Readings Google works out or is given by hand with no device named, such as cardio
+  fitness and heart rate zones, come as `FITBIT:Fitbit`, and the app calls that source the Google
+  Health app.
 - **Every source's reading is kept.** When more than one source reported a list stream on a day
   (sleep, HRV, resting heart rate, breathing rate, skin temperature, blood oxygen, cardio fitness,
   weight, body fat), normalisation also reads each source's points alone. The stored day keeps

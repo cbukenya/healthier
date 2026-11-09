@@ -12,7 +12,9 @@ import {
   formatDuration, formatFixed, formatHour, formatHours, formatHoursDecimal, formatList, formatMinutes, formatMonth,
   formatMonthYear, formatNumber, formatRounded, formatThousands, formatYear, meanLabel,
 } from '../format';
+import { parseSource } from '../../pipeline/normalize';
 import { INTRADAY_HEART_RATE, SLEEP_HR_FLOOR, STREAMS } from '../../pipeline/registry';
+import { sourceName } from '../sources';
 import { scanFiles, scanSource, sourceFiles } from './scan';
 
 const ROOT = join(import.meta.dirname, '../../..');
@@ -272,6 +274,21 @@ describe('formatting in English', () => {
   it('chooses plurals by count', () => {
     assert.equal(t('ui.band.needsDays', { count: 1 }), 'baseline needs 1 more day');
     assert.equal(t('ui.band.needsDays', { count: 3 }), 'baseline needs 3 more days');
+  });
+});
+
+describe('naming sources', () => {
+  const named = (dataSource: object) => sourceName(parseSource(dataSource)!);
+
+  it("says a device's or an app's own name, as it came", () => {
+    assert.equal(named({ platform: 'FITBIT', device: { displayName: 'Fitbit Air', formFactor: 'FITNESS_BAND' } }), 'Fitbit Air');
+    assert.equal(named({ platform: 'HEALTH_CONNECT', application: { packageName: 'com.fitbit.FitbitMobile' } }), 'Fitbit');
+  });
+
+  it('names in words what was stored in English for want of a name', () => {
+    assert.equal(named({ platform: 'FITBIT', recordingMethod: 'DERIVED' }), 'Google Health app', "Fitbit's own readings: not a device");
+    assert.equal(named({ platform: 'HEALTH_CONNECT', device: { formFactor: 'RING' } }), 'Ring');
+    assert.equal(named({}), t('data.streams.unknownSource'));
   });
 });
 

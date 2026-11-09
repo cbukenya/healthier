@@ -2,6 +2,7 @@ import React, { useEffect, useId, useMemo, useState } from 'react';
 import { Activity, AppWindow, ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Circle, HeartPulse, PencilLine, Smartphone, Watch, Weight } from 'lucide-react';
 import { hasMessage, t, type MessageKey } from '../i18n';
 import { formatDayMonthLong, formatList } from '../i18n/format';
+import { isPlatformOnly, sourceName } from '../i18n/sources';
 import { streamName } from '../i18n/streams';
 import { api } from '../lib/api';
 import { addDays } from '../lib/date';
@@ -137,12 +138,12 @@ export function useSources(data: SyncResult, live: boolean, onChanged: (refetchi
   return { view: live ? loaded : demo, save, refetching };
 }
 
-/** What the Settings page's list says of them: the ones in use in their order, "Google Fitbit Air · Smart scale". */
+/** What the Settings page's list says of them: the ones in use in their order, "Fitbit Air · Smart scale". */
 export function sourcesSummary(view: SourcesResponse): string {
   const off = new Set(view.prefs.off);
   const used = ordered(view).filter((s) => !off.has(s.id));
   if (!used.length) return t('data.overview.summaries.devicesNone');
-  return used.map((s) => s.label).join(' · ');
+  return used.map(sourceName).join(' · ');
 }
 
 export function SourcesCard({ data, live, sources }: {
@@ -301,10 +302,12 @@ function SourceRow({ source: s, rank, on, windowDays, today, live, first, last, 
   onToggle: () => void;
 }) {
   const id = useId();
+  const name = sourceName(s);
   const Icon = iconFor(s);
   const formFactor = s.formFactor && hasMessage(`data.streams.formFactors.${s.formFactor}`) ? t(`data.streams.formFactors.${s.formFactor}` as MessageKey) : null;
   const what = s.method === 'MANUAL' ? t('data.sources.kind.manual') : formFactor ?? (s.app ? t('data.sources.kind.app') : null);
-  const platform = t('data.sources.kind.platform', { platform: s.platform });
+  // A platform's own app is named after it already ("Google Health app"), so the platform isn't said again.
+  const platform = isPlatformOnly(s) ? null : t('data.sources.kind.platform', { platform: s.platform });
   const stale = today && s.lastSeen && s.lastSeen < addDays(today, -NAME_LAST_AFTER_DAYS) ? t('data.sources.kind.lastReading', { date: formatDayMonthLong(s.lastSeen) }) : null;
   const kind = [what, platform, stale].filter(Boolean).join(' · ');
   const inWindow = s.readings.filter((r) => r.offered > 0);
@@ -332,17 +335,17 @@ function SourceRow({ source: s, rank, on, windowDays, today, live, first, last, 
       </span>
       <div className="min-w-0 flex-[1_1_14rem]">
         <div className="flex flex-wrap items-baseline gap-x-2">
-          <span id={id} className={`text-body ${on ? 'text-zinc-200' : 'text-zinc-400'}`}>{s.label}</span>
+          <span id={id} className={`text-body ${on ? 'text-zinc-200' : 'text-zinc-400'}`}>{name}</span>
           {kind && <span className="text-caption text-zinc-500">{kind}</span>}
         </div>
         <p className="mt-0.5 text-caption leading-relaxed text-zinc-400">{supplies}</p>
         <p className={`mt-0.5 text-caption leading-relaxed ${on ? 'text-zinc-500' : 'text-rose-300/80'}`}>{status}</p>
       </div>
       <div className="ml-auto flex items-center gap-1">
-        <button type="button" aria-label={t('data.sources.move.up', { name: s.label })} disabled={!live || first} onClick={onUp} className={arrow}>
+        <button type="button" aria-label={t('data.sources.move.up', { name })} disabled={!live || first} onClick={onUp} className={arrow}>
           <ArrowUp size={16} aria-hidden />
         </button>
-        <button type="button" aria-label={t('data.sources.move.down', { name: s.label })} disabled={!live || last} onClick={onDown} className={arrow}>
+        <button type="button" aria-label={t('data.sources.move.down', { name })} disabled={!live || last} onClick={onDown} className={arrow}>
           <ArrowDown size={16} aria-hidden />
         </button>
         <Switch on={on} onToggle={onToggle} tone={TONE} labelledBy={id} disabled={!live} className="ml-2" />
@@ -387,7 +390,7 @@ function PerReading({ rows, prefs, live, onPick }: {
               <th scope="col" className="py-2 pr-2 text-left text-eyebrow uppercase text-zinc-500 font-normal">{t('data.sources.grid.reading')}</th>
               {rows.map((s) => (
                 <th key={s.id} scope="col" className={`py-2 px-2 text-center text-detail font-medium leading-snug ${off.has(s.id) ? 'text-zinc-600' : 'text-zinc-300'}`}>
-                  {s.label}
+                  {sourceName(s)}
                   {off.has(s.id) && <span className="block text-note font-normal text-zinc-600">{t('data.sources.grid.off')}</span>}
                 </th>
               ))}
@@ -411,7 +414,7 @@ function PerReading({ rows, prefs, live, onPick }: {
                             type="button"
                             role="radio"
                             aria-checked={on}
-                            aria-label={t('data.sources.grid.pick', { reading: name, name: s.label })}
+                            aria-label={t('data.sources.grid.pick', { reading: name, name: sourceName(s) })}
                             disabled={!live || isOff}
                             onClick={() => pick(dt, s.id)}
                             className="size-11 inline-flex items-center justify-center disabled:cursor-default"
