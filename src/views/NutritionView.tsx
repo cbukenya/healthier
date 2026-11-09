@@ -574,6 +574,17 @@ function MaintenanceCard({ maintenance, all, today, from, loading }: {
   }
   const weeks = Math.round(maintenance.blockDays / 7);
   const points = trend.filter((p) => p.value !== null);
+  // Up to a month, the weekly figures sit on a day axis through yesterday, the last day worked out, so
+  // every day has its tick and the ruler's dates fall on the points. Past a month, days are too
+  // narrow to tick, so the axis is the weeks themselves, a tick for each point.
+  const weekly = new Map(trend.map((p) => [p.date, p.value]));
+  const spanDays = all.filter((d) => d.date >= from && d.date < today);
+  const line = spanDays.length <= 31 ? spanDays.map((d) => ({ date: d.date, value: weekly.get(d.date) ?? null })) : trend;
+  // A scale of at least 200 kcal, in a whole number of 200s so its five ticks fall on round fifties
+  // or hundreds, and a quiet fortnight doesn't read as a cliff.
+  const values = points.map((p) => p.value!);
+  const lo = values.length ? Math.floor((Math.min(...values) - 25) / 50) * 50 : 0;
+  const domain: [number, number] = [lo, lo + Math.max(200, Math.ceil((Math.max(...values, lo) + 25 - lo) / 200) * 200)];
   const firstPoint = points[0];
   const change = firstPoint && points.length >= 2 ? maintenance.kcal - firstPoint.value! : null;
   const weightKcal = Math.round(Math.abs(maintenance.kgPerWeek / 7) * 7700);
@@ -597,7 +608,7 @@ function MaintenanceCard({ maintenance, all, today, from, loading }: {
         <div className="mt-4">
           <Label>{t('nutrition.maintenance.moved')}</Label>
           <div className="-ml-3 pr-6 mt-1 [&_.recharts-surface]:overflow-visible">
-            <TrendChart series={trend} color={PAGE} height={150} unit={t('units.kcal')} format={(v) => kcal(v)} meanWindow={null} area={false} />
+            <TrendChart series={line} color={PAGE} height={150} unit={t('units.kcal')} format={(v) => kcal(v)} meanWindow={null} area={false} joined domain={domain} seriesName={t('nutrition.maintenance.series')} />
           </div>
           <p className="mt-1 text-detail leading-relaxed text-zinc-400">
             {t('nutrition.maintenance.each', { weeks })}{' '}

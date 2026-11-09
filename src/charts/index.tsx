@@ -163,6 +163,8 @@ export function TrendChart({
   area = true,
   bucket = 'day',
   minutes = false,
+  joined = false,
+  seriesName,
 }: {
   series: Point[];
   color: string;
@@ -170,6 +172,13 @@ export function TrendChart({
   height?: number;
   /** The values are minutes, so the axis says them in hours: "5h", "6h". */
   minutes?: boolean;
+  /**
+   * Readings sparse by design, such as a weekly figure on a daily axis: each one a dot, joined by
+   * a solid line, rather than the dashed join that admits a gap in what was measured.
+   */
+  joined?: boolean;
+  /** What the tooltip calls a reading. */
+  seriesName?: string;
   /** Rolling-mean length in points; defaults to suit the bucket. Null turns it off. */
   meanWindow?: number | null;
   domain?: [number | 'auto', number | 'auto'];
@@ -215,7 +224,7 @@ export function TrendChart({
    * Monotone smoothing is also dropped here, since it overshoots wildly when
    * points are far apart.
    */
-  const sparse = known / Math.max(1, n) < 0.6;
+  const sparse = !joined && known / Math.max(1, n) < 0.6;
   const curve = sparse ? 'linear' : 'monotone';
   const showMean = !!meanWindow && !sparse;
 
@@ -272,7 +281,7 @@ export function TrendChart({
           labelFormatter={tooltipHeading}
           formatter={(v: any, name?: string | number) => [
             v === null ? t('charts.tooltip.notRecorded') : reading(format(Number(v)), unit),
-            name === 'mean' && meanWindow ? meanLabel(bucket, meanWindow) : t('charts.trend.series', { bucket }),
+            name === 'mean' && meanWindow ? meanLabel(bucket, meanWindow) : seriesName ?? t('charts.trend.series', { bucket }),
           ]}
         />
         {area && !sparse && (
@@ -293,8 +302,8 @@ export function TrendChart({
           type={curve} dataKey="value" stroke={color}
           strokeWidth={sparse ? 0 : meanWindow ? 1 : 1.8}
           strokeOpacity={sparse ? 0 : meanWindow ? 0.45 : 1}
-          dot={sparse ? { r: 3, fill: color, stroke: 'none' } : false}
-          connectNulls={false} isAnimationActive={false}
+          dot={sparse ? { r: 3, fill: color, stroke: 'none' } : joined ? { r: 3.5, fill: color, stroke: 'var(--card-edge)', strokeWidth: 1 } : false}
+          connectNulls={joined} isAnimationActive={false}
         />
         {showMean && (
           <Line

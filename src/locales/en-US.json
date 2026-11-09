@@ -2151,6 +2151,7 @@
       "perDay": "kcal a day",
       "margin": "give or take about {kcal}",
       "moved": "How it has moved",
+      "series": "maintenance",
       "each": "Each point is the {weeks} weeks up to that day.",
       "change": "{dir, select, down {Your maintenance has eased about {kcal} kcal since {date}.} up {Your maintenance has risen about {kcal} kcal since {date}.} other {Your maintenance has held steady since {date}.}}",
       "ate": "What you ate",
