@@ -457,6 +457,9 @@ export const BATTERY_TIERS = [
 
 export const batteryTier = (score: number) => BATTERY_TIERS.find((tier) => score >= tier.min) ?? BATTERY_TIERS[3];
 
+/** The battery's contributors the second half of a cycle moves (cycleAdjusted): the ones it can soften. */
+const CYCLE_MOVES: ReadonlySet<ReadinessPartId> = new Set(['hrv', 'restingHr', 'skinTemp']);
+
 /** Where every morning's battery starts, before each contributor adds or takes away its points. */
 export const BATTERY_START = 70;
 
@@ -500,12 +503,19 @@ export const BATTERY_START = 70;
  * changes, that component waits for its own baseline ("calibrating") rather
  * than reading the new device's numbers as a change in you.
  *
+ * With cycle tracking on (and allowed for on other pages), `judged` is the same
+ * days with each second-half night moved back by how far this person's own
+ * cycle moves it (cycleAdjusted in cycle.ts). A penalty from HRV, resting heart
+ * rate or skin temperature is softened to what the judged nights would cost,
+ * never past zero, as every other page allows for the cycle: it can explain a
+ * reading away, never add one. Each detail still shows the person's own readings.
+ *
  * For scale: Fitbit/Google's current readiness uses exactly HRV + RHR + sleep;
  * Whoop weights HRV at roughly 60%; Oura leans hard on temperature deviation.
  * This sits between them, with every weight visible below and every component
  * returned as a signed, explained contribution.
  */
-export function readiness(days: DailyRecord[], needSet?: number | null): Readiness {
+export function readiness(days: DailyRecord[], needSet?: number | null, judged: DailyRecord[] | null = null): Readiness {
   const parts: ReadinessPart[] = [];
   let score = BATTERY_START;
   // Only last night counts. The window ends on the user's today, and a reading from before yesterday is
@@ -691,6 +701,20 @@ export function readiness(days: DailyRecord[], needSet?: number | null): Readine
         contribution: c,
         detail: t(acuteZ > 2.0 ? 'today.battery.parts.strain.high' : 'today.battery.parts.strain.raised'),
       });
+    }
+  }
+
+  // ── 8. The cycle, while it's allowed for: a penalty softened, never added ──
+  if (judged) {
+    const byDate = new Map(judged.map((d) => [d.date, d]));
+    const aware = readiness(days.map((d) => byDate.get(d.date) ?? d), needSet).parts;
+    for (const p of parts) {
+      if (!CYCLE_MOVES.has(p.id) || p.contribution >= 0) continue;
+      const allowed = Math.min(0, Math.max(p.contribution, aware.find((a) => a.id === p.id)?.contribution ?? 0));
+      if (allowed === p.contribution) continue;
+      score += allowed - p.contribution;
+      p.detail = t('today.battery.parts.cycle', { detail: p.detail, all: allowed === 0 ? 'yes' : 'no' });
+      p.contribution = allowed;
     }
   }
 

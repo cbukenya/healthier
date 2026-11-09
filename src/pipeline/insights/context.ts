@@ -114,13 +114,14 @@ export function buildContext(ds: InsightDataset, now: Date, extras?: InsightOpti
   const doneSteps = stepsSeries.slice(0, -1);
   const lastNightDay = [...days].reverse().find((d) => d.sleep) ?? null;
 
-  const rNow = readiness(days, goals.sleepNeed);
-  const prevDays = beforeLatestMorning(days);
   const cycle = extras?.cycle ?? null;
   const judged = cycle?.judged ?? null;
-  const rPrev = readiness(prevDays, goals.sleepNeed);
-  // Several signals off on the latest morning, by the radar's own test (offTogether). The battery's
-  // score stays the person's own; this is judged with the cycle in mind too, while tracking is on.
+  // With cycle tracking on, the battery softens a penalty the cycle explains (see readiness).
+  const rNow = readiness(days, goals.sleepNeed, judged);
+  const prevDays = beforeLatestMorning(days);
+  const rPrev = readiness(prevDays, goals.sleepNeed, judged);
+  // Several signals off on the latest morning, by the radar's own test (offTogether), judged with
+  // the cycle in mind too, while tracking is on.
   const offOnLatestMorning = (rows: DailyRecord[]) => {
     const i = beforeLatestMorning(rows).length;
     return i < rows.length && isRecent(rows[i].date, rows[rows.length - 1].date) && offTogether(rows, i, judged);

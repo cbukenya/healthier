@@ -93,7 +93,7 @@ function battery(ctx: InsightContext, add: Add): void {
   if (rNow.score < COAST_BELOW) {
     // Escalates with the run of low mornings, counted on the mornings before this one.
     const lowDays = rPrev.score !== null && rPrev.score < COAST_BELOW
-      ? (readiness(beforeLatestMorning(prevDays), ctx.goals.sleepNeed).score ?? 99) < COAST_BELOW ? 3 : 2
+      ? (readiness(beforeLatestMorning(prevDays), ctx.goals.sleepNeed, ctx.judged).score ?? 99) < COAST_BELOW ? 3 : 2
       : 1;
     const why = topNeg && topNeg.contribution < 0 ? reason(topNeg, ctx, 'because') : null;
     add({
@@ -107,7 +107,7 @@ function battery(ctx: InsightContext, add: Add): void {
     });
   } else if (
     rNow.score >= CHARGED && topPos !== null && topPos.contribution > 0 &&
-    entered(ctx.days, (w) => (readiness(w, ctx.goals.sleepNeed).score ?? 0) >= CHARGED)
+    entered(ctx.days, (w) => (readiness(w, ctx.goals.sleepNeed, ctx.judged).score ?? 0) >= CHARGED)
   ) {
     const why = rNow.parts.filter((p) => p.contribution > 0).slice(0, 2).map((p) => reason(p, ctx, 'statement'));
     add({

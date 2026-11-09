@@ -6,6 +6,7 @@ import { WHO_WEEK } from '../pipeline/goals';
 import { monthSummary, type PeriodSummary } from '../pipeline/insights';
 import type { DailyRecord } from '../types/health';
 import { useGoals } from '../hooks/useGoals';
+import { useCycle } from '../hooks/useCycle';
 import { DayRuler } from '../ui/DayRuler';
 import { DOMAIN, Meter, fmtDuration, withUnits } from '../ui/primitives';
 import { TIER_STYLE } from './BodyBattery';
@@ -45,7 +46,8 @@ export function ThisWeek({ week, days, needMin, className = '' }: {
 }) {
   const goals = useGoals();
   const [view, setView] = useState<View>('week');
-  const month = useMemo(() => (view === 'month' ? monthSummary(days, goals) : null), [view, days, goals]);
+  const { judged } = useCycle();
+  const month = useMemo(() => (view === 'month' ? monthSummary(days, goals, judged) : null), [view, days, goals, judged]);
   // The month's chart scrubs: the bar under the pointer is the one in focus, today's otherwise.
   const [picked, setPicked] = useState<number | null>(null);
   const plotRef = useRef<HTMLDivElement>(null);
