@@ -20,7 +20,8 @@
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
     "test": "TZ=UTC tsx --test src/pipeline/__tests__/*.test.ts src/i18n/__tests__/*.test.ts server/__tests__/*.test.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "eval:cycles": "tsx scripts/cycle-eval/eval.ts"
   },
   "dependencies": {
     "compression": "^1.8.2",

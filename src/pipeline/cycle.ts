@@ -20,6 +20,9 @@ import type { HistoryAnswers, HistoryQueries } from './history';
  * Everything is arithmetic over the nights and the log, worked out on every read. Nothing found
  * is stored. It describes cycles after the fact and gives ranges from the person's own; it never
  * marks fertile days and is not a form of contraception.
+ *
+ * scripts/cycle-eval measures how well this finds period starts. Run it before and after you
+ * change it.
  */
 
 // ─────────────────────────────────────────────────────────────── the log
@@ -320,7 +323,7 @@ const CHAIN_PULL = 0.1;
  * How much the found starts have to stand out before they're shown, when nothing is logged: the
  * mean of their scores, at least EVIDENCE_FLOOR, and higher for fewer starts (a few can look strong
  * by chance). Set on people simulated without cycles, with the noise mcPHASES shows once its cycles
- * are taken out: at most 1 in 20 of them pass, at any history length. Two thirds of mcPHASES's
+ * are taken out: at most 1 in 20 of them pass, at any history length. Two in five of mcPHASES's
  * three-month stretches pass; the rest show "Finding your rhythm" until a period is logged.
  */
 const EVIDENCE_FLOOR = 1.65;
