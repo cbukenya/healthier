@@ -337,7 +337,14 @@ stores them on `users`, sends them with the dataset, and rejects anything off it
 bounds. Every ring, goal line, label and insight reads them from there (the screens through
 `useGoals`, the engine through `InsightOptions.goals`), so no screen repeats a goal as a literal.
 Sleep need stays automatic, the median of your nights held between 7 and 8.5 hours, until it's
-set; set, it replaces the estimate everywhere, the body battery included. The WHO's 150 minutes a
+set; set, it replaces the estimate everywhere, the body battery and the sleep score included.
+
+The sleep score holds each night to the person's own norms (`sleepNorms` in `src/pipeline/sleep.ts`):
+full duration marks from their sleep need to 9 hours, and full restoration marks at their usual
+share of deep and REM sleep, never a higher bar than 45%. Deep sleep falls with age and staging is
+what a wrist reads least well, so a night is held to the person's own usual rather than a young
+adult's. The server answers the history's sleep scores with the norms it works out from the same
+window, so a record is measured against the same bar. The WHO's 150 minutes a
 week is a guideline rather than a goal, so it's a constant beside them, not a setting.
 
 ## Type roles

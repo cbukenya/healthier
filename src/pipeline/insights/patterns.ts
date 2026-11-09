@@ -3,9 +3,9 @@ import type { DailyRecord, SleepSession } from '../../types/health';
 import {
   BASELINE_DAYS, BASELINE_MIN_READINGS, activeHeartRate, circularMeanMinutes, compareToBaseline, series, stats, theilSen, type Point,
 } from '../derive';
-import { MEASURES, type Answer, type Measure, type Reading } from '../history';
+import { measureOf, type Answer, type Measure, type Reading } from '../history';
 import { illnessDates, type IntradayDays } from '../labs';
-import { scoreSleep } from '../sleep';
+import { scoreSleep, type SleepNorms } from '../sleep';
 import { welch } from './association';
 import { isWorkday } from './helpers';
 
@@ -242,8 +242,8 @@ const fold = (m: number) => (m < 12 * 60 ? m + 1440 : m);
  * before looking at the scores so it can't be fished for. Silent unless both
  * sides have 10 nights, the gap is 5 points and Welch's test clears p < 0.05.
  */
-export function bestBedtime(days: DailyRecord[]): BestBedtime | null {
-  const nights = days.filter((d) => d.sleep).map((d) => ({ bed: fold(d.sleep!.bedtimeMin), score: scoreSleep(d.sleep!).total }));
+export function bestBedtime(days: DailyRecord[], norms?: SleepNorms): BestBedtime | null {
+  const nights = days.filter((d) => d.sleep).map((d) => ({ bed: fold(d.sleep!.bedtimeMin), score: scoreSleep(d.sleep!, norms).total }));
   if (nights.length < 20) return null;
   const cut = Math.round(stats(nights.map((x) => x.bed))!.median / 30) * 30;
   const early = nights.filter((x) => x.bed <= cut).map((x) => x.score);
@@ -305,7 +305,7 @@ export interface MonthTally {
  * window, plus the window's own days, which the yesterday test can still cut
  * back. A month split across the window's edge adds up exactly.
  */
-export function monthsOf(days: DailyRecord[], measure: Measure, answer: Answer | null | undefined): MonthTally[] {
+export function monthsOf(days: DailyRecord[], measure: Measure, answer: Answer | null | undefined, norms?: SleepNorms): MonthTally[] {
   const byMonth = new Map<string, MonthTally>();
   const add = (month: string, sum: number, n: number) => {
     const held = byMonth.get(month);
@@ -313,7 +313,7 @@ export function monthsOf(days: DailyRecord[], measure: Measure, answer: Answer |
   };
   for (const row of answer?.rows ?? []) if (row.key && row.count) add(row.key, row.sum ?? 0, row.count);
   for (const d of days) {
-    const v = MEASURES[measure](d);
+    const v = measureOf(measure)(d, norms);
     if (v !== null && Number.isFinite(v)) add(d.date.slice(0, 7), v, 1);
   }
   return [...byMonth.values()].sort((a, b) => (a.month < b.month ? -1 : 1));
@@ -370,9 +370,9 @@ export function dayRecord(
   measure: Measure,
   better: 'max' | 'min',
   answer: Answer | null | undefined,
-  opts: { finishedOnly?: boolean; mustReach?: number; minDays?: number; maxAge?: number } = {},
+  opts: { finishedOnly?: boolean; mustReach?: number; minDays?: number; maxAge?: number; norms?: SleepNorms } = {},
 ): DayRecord | null {
-  const get = MEASURES[measure];
+  const get = (d: DailyRecord) => measureOf(measure)(d, opts.norms);
   const pool = (opts.finishedOnly ? days.slice(0, -1) : days)
     .map((d) => ({ date: d.date, value: get(d) }))
     .filter((r): r is Reading => r.value !== null && Number.isFinite(r.value));

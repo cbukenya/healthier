@@ -12,7 +12,7 @@ import {
 } from '../insights';
 import { freshEntry } from '../insights/helpers';
 import { bringForward, carouselOf, TODAY_MIN } from '../insights/place';
-import { scoreSleep } from '../sleep';
+import { scoreSleep, sleepNorms } from '../sleep';
 import {
   compareToBaseline, coverage, findGaps, periodShift, rollingMean, series, stats, values,
   bedtimeConsistency, currentStreak, readiness, windowShift, firstObserved, sleepRegularity, circularMeanMinutes, typicalSleepWindow,
@@ -20,7 +20,7 @@ import {
 } from '../derive';
 import { DEFAULT_GOALS, GOAL_LIMITS, parseGoals, readGoals, type Goals } from '../goals';
 import { STREAMS } from '../registry';
-import { answerQueries, parseQueries, queryRange, type HistoryQueries } from '../history';
+import { answerQueries, answerQuery, parseQueries, queryRange, type HistoryQueries } from '../history';
 import { answerFromRows } from '../incremental';
 import { emptyRecord } from '../normalize';
 import { EMPTY_CYCLE_LOG, summarizeCycles } from '../cycle';
@@ -602,6 +602,46 @@ describe('second-pass corrections', () => {
     assert.equal(eight.duration, 50);
     const four = scoreSleep({ ...base, minutesAsleep: 240 } as any);
     assert.equal(four.duration, 0, 'the taper bottoms out at four hours');
+  });
+
+  it('holds a night to the sleep need the battery uses, never to less than 7 hours', () => {
+    const base = { minutesAwake: 10, minutesInBed: 490, efficiency: 96, stages: null, segments: [], shortAwakeningsMin: [] };
+    const night = (minutesAsleep: number, need: number) => scoreSleep({ ...base, minutesAsleep } as any, { need, restorative: 0.45 }).duration;
+    // Seven hours is a full night for a 7-hour need and an hour short for an 8-hour one.
+    assert.equal(night(420, 420), 50);
+    assert.ok(night(420, 480) < 50 && night(420, 480) > 35, `7h against an 8h need scored ${night(420, 480)}`);
+    assert.equal(night(480, 480), 50);
+    assert.equal(night(540, 480), 50, 'full marks run on to 9 hours');
+    assert.equal(night(240, 480), 0, 'the taper still bottoms out at four hours');
+    // A 9-hour need takes full marks at 9 hours, and a longer night tapers from there.
+    assert.equal(night(540, 540), 50);
+    assert.ok(night(600, 540) < 50);
+  });
+
+  it('holds deep and REM sleep to the person’s own usual, never to more than 45%', () => {
+    const night = (deep: number, rem: number) =>
+      ({ minutesAsleep: 480, minutesAwake: 10, minutesInBed: 490, efficiency: 96, stages: { deep, rem, light: 480 - deep - rem, awake: 10 } }) as any;
+    const days = (deep: number, rem: number, n = 10) => Array.from({ length: n }, () => ({ sleep: night(deep, rem) }) as any);
+    // An older sleeper's usual 30% earns full marks; it used to earn 17 of 25 against 45%.
+    const usual = sleepNorms(days(48, 96));
+    assert.equal(usual.restorative, 0.3);
+    assert.equal(scoreSleep(night(48, 96), usual).restoration, 25);
+    assert.equal(scoreSleep(night(48, 96)).restoration, 17);
+    // A night below their usual still loses points.
+    assert.ok(scoreSleep(night(24, 72), usual).restoration < 25);
+    // A usual above 45% doesn't raise the bar, and fewer than 8 staged nights keeps 45%.
+    assert.equal(sleepNorms(days(120, 120)).restorative, 0.45);
+    assert.equal(sleepNorms(days(48, 96, 7)).restorative, 0.45);
+  });
+
+  it('answers the history’s sleep scores with the same norms as the window', () => {
+    const norms = { need: 480, restorative: 0.3 };
+    const nights = [450, 480, 510].map((minutesAsleep, i) => ({
+      date: `2026-05-0${i + 1}`,
+      sleep: { minutesAsleep, minutesAwake: 10, minutesInBed: minutesAsleep + 10, efficiency: 96, stages: { deep: 48, rem: 96, light: minutesAsleep - 144, awake: 10 } },
+    })) as any[];
+    const a = answerQuery({ measure: 'sleepScore', aggregate: 'max', back: 365 }, nights, { from: '2026-05-01', to: '2026-05-03' }, norms);
+    assert.equal(a.rows[0].max!.value, Math.max(...nights.map((d) => scoreSleep(d.sleep, norms).total)));
   });
 
   it('makes efficiency discriminating rather than a free 25 points', () => {

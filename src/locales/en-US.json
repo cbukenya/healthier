@@ -1137,11 +1137,11 @@
         },
         "duration": {
           "label": "Duration",
-          "detail": "{duration} asleep · full marks at 7–9h"
+          "detail": "{duration} asleep · full marks {same, select, yes {at {from}} other {from {from} to {to}}}"
         },
         "restoration": {
           "label": "Restoration",
-          "detail": "{percent}% deep + REM · full marks at 45%",
+          "detail": "{percent}% deep + REM · full marks at {own, select, yes {your usual {target}%} other {{target}%}}",
           "noStages": "no stage data · scored at the midpoint"
         },
         "efficiency": {

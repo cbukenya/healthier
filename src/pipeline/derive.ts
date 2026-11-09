@@ -2,7 +2,7 @@ import { addDays, daysBetween, weekdayIndex, type CivilDate } from '../lib/date'
 import { t, type MessageKey } from '../i18n';
 import { formatCivil, formatDuration, formatFixed, formatRounded } from '../i18n/format';
 import type { DailyRecord, HealthDataset, SleepSession } from '../types/health';
-import { scoreSleep } from './sleep';
+import { scoreSleep, sleepNeedFor } from './sleep';
 import { fillSource } from './sources';
 
 /**
@@ -399,29 +399,9 @@ export function bedtimeConsistency(days: DailyRecord[]): { meanMin: number; sdMi
 }
 
 
-/** Where the sleep-need estimate stops: never below 7 h, nor above 8.5 h, and 7.5 h before any nights. */
-export const NEED_ESTIMATE = { floor: 420, ceiling: 510, fallback: 450 } as const;
-
-/**
- * Personal sleep-need estimate: the median of your own recorded nights, clamped
- * to never fall below 7 h — chronic restriction must not be allowed to redefine
- * "enough" (Van Dongen 2003) — nor above 8.5 h. One definition, shared by
- * readiness, the debt insight and the duration insights, so no two cards can
- * ever argue about what a full night means.
- */
-export function estimatedSleepTarget(days: DailyRecord[]): number {
-  const nights = days
-    .map((d) => d.sleep?.minutesAsleep ?? null)
-    .filter((m): m is number => m !== null);
-  const st = stats(nights);
-  return st ? Math.min(NEED_ESTIMATE.ceiling, Math.max(NEED_ESTIMATE.floor, st.median)) : NEED_ESTIMATE.fallback;
-}
-
-/**
- * The sleep need every night is judged against: the person's own figure when
- * they've set one (a goal, on the Settings page), else the estimate from these nights.
- */
-export const sleepNeedFor = (days: DailyRecord[], set?: number | null): number => set ?? estimatedSleepTarget(days);
+// The sleep need and the sleep score's norms live with the score, in sleep.ts, where the server can
+// read them without the app's words.
+export { NEED_ESTIMATE, estimatedSleepTarget, sleepNeedFor, sleepNorms } from './sleep';
 
 // ─────────────────────────────────────────────────────────────── readiness
 
