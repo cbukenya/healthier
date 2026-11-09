@@ -137,13 +137,12 @@ export function useSources(data: SyncResult, live: boolean, onChanged: (refetchi
   return { view: live ? loaded : demo, save, refetching };
 }
 
-/** What the Settings page's list says of them: "Google Fitbit Air first, then Smart scale". */
+/** What the Settings page's list says of them: the ones in use in their order, "Google Fitbit Air · Smart scale". */
 export function sourcesSummary(view: SourcesResponse): string {
   const off = new Set(view.prefs.off);
   const used = ordered(view).filter((s) => !off.has(s.id));
   if (!used.length) return t('data.overview.summaries.devicesNone');
-  if (used.length === 1) return used[0].label;
-  return t('data.overview.summaries.devices', { first: used[0].label, rest: formatList(used.slice(1).map((s) => s.label)) });
+  return used.map((s) => s.label).join(' · ');
 }
 
 export function SourcesCard({ data, live, sources }: {

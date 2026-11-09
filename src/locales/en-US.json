@@ -2141,13 +2141,12 @@
         "about": "About"
       },
       "summaries": {
-        "devices": "{first} first, then {rest}",
         "devicesNone": "Nothing reported yet",
-        "goals": "{steps} steps · {brisk} brisk min · {sleep} sleep",
-        "cycle": "{tracking, select, on {{cards, select, yes {On · cards on Today} other {On}}} other {Off}}",
-        "facts": "How your numbers are worked out",
-        "account": "{theme, select, dark {Dark theme · Sign out, or disconnect and delete} light {Light theme · Sign out, or disconnect and delete} other {Your device's theme · Sign out, or disconnect and delete}}",
-        "accountDemo": "{theme, select, dark {Dark theme · Leave the demo} light {Light theme · Leave the demo} other {Your device's theme · Leave the demo}}"
+        "streams": "{count, plural, one {# data type} other {# data types}}",
+        "cycle": "{tracking, select, on {On} other {Off}}",
+        "facts": "Data processing in Healthier",
+        "account": "Theme · Sign out · Delete",
+        "accountDemo": "Theme · Leave the demo"
       }
     },
     "status": {
@@ -2165,7 +2164,6 @@
       "signIn": "Sign in again",
       "current": {
         "title": "Your data is up to date",
-        "sub": "Healthier fetches what's new from Google Health on its own, and Full sync fetches your whole window again.",
         "demo": "This is the demo: made-up days, worked out in this browser."
       },
       "behind": {

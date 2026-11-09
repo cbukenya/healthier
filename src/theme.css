@@ -336,16 +336,25 @@ body::before {
     transparent);
 }
 /*
- * A score's glow is a status, so it's as strong as an insight card's glow and eases out the same
- * way: a circle centred on the dot, gone within a few hundred pixels of it, whatever the card's shape.
+ * A score's glow is a status, so it's nearly as strong as an insight card's glow (a little fainter) and
+ * eases out the same way, reaching a little further than an insight's (half its card's height,
+ * 86–99px) since it's all around the dot: an oval centred on it, wider than tall, the same size
+ * whatever the card's shape.
  */
 .glow-score {
-  background-image: radial-gradient(circle 300px at var(--glow-x, 0px) var(--glow-y, 0px),
-    color-mix(in srgb, var(--glow) 32%, transparent),
-    color-mix(in srgb, var(--glow) 19.8%, transparent) 22%,
-    color-mix(in srgb, var(--glow) 9.6%, transparent) 45%,
-    color-mix(in srgb, var(--glow) 3.2%, transparent) 70%,
+  --glow-size: 235px 140px;
+  background-image: radial-gradient(var(--glow-size) at var(--glow-x, 0px) var(--glow-y, 0px),
+    color-mix(in srgb, var(--glow) 23%, transparent),
+    color-mix(in srgb, var(--glow) 14.3%, transparent) 22%,
+    color-mix(in srgb, var(--glow) 6.9%, transparent) 45%,
+    color-mix(in srgb, var(--glow) 2.3%, transparent) 70%,
     transparent);
+}
+/* On wider screens the cards and their type are bigger, so the glow reaches further to look the same. */
+@media (min-width: 48rem) {
+  .glow-score {
+    --glow-size: 330px 195px;
+  }
 }
 :root[data-theme='light'] :is(.glow, .glow-score) {
   background-image: none;
@@ -366,13 +375,14 @@ body::before {
 }
 
 /*
- * A status pill is tinted and edged in its status's colour (--pill), the colour its glow is, and
- * names the status in a lighter shade of its ink (--pill-ink), the status's colour for words. The
- * light theme has no glows, so there the tint is fainter and the word a shade darker than its ink.
+ * A status pill is tinted and edged in its status's colour (--pill), the colour its glow is, as softly
+ * as the glow around it (.glow-score), and names the status in a lighter shade of its ink (--pill-ink),
+ * the status's colour for words. The light theme has no glows, so there the tint is fainter and the
+ * word a shade darker than its ink.
  */
 .status-pill {
-  background-color: color-mix(in srgb, var(--pill) 18%, rgb(9 9 11 / 0.6));
-  border-color: color-mix(in srgb, var(--pill) 45%, transparent);
+  background-color: color-mix(in srgb, var(--pill) 13%, rgb(9 9 11 / 0.6));
+  border-color: color-mix(in srgb, var(--pill) 32%, transparent);
 }
 .status-pill-word {
   color: color-mix(in srgb, var(--pill-ink) 70%, white);

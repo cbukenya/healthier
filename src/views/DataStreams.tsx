@@ -63,11 +63,10 @@ function streamCounts(reports: StreamReport[], today: CivilDate) {
     .filter((c) => c.n > 0);
 }
 
-/** The counts in plain words, for the Settings page's list: "20 up to date · 4 with nothing recorded". */
+/** For the Settings page's list: how many kinds of data have come in, "18 data types". */
 export function streamsSummary(data: SyncResult): string {
-  return streamCounts(data.meta.streams, data.meta.to)
-    .map(({ kind, n }) => t(KIND[kind].summary, { count: n }))
-    .join(' · ');
+  const count = data.meta.streams.filter((r) => !['empty', 'unshared'].includes(streamKind(r, data.meta.to))).length;
+  return t('data.overview.summaries.streams', { count });
 }
 
 /** Today, yesterday or a date, for the messages to say: "14 Aug", or "2 Mar 2025" from another year. */

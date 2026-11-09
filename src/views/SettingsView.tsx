@@ -1,16 +1,13 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { BookOpen, ChevronLeft, ChevronRight, CircleDotDashed, CircleUserRound, Database, Target, Watch, type LucideIcon } from 'lucide-react';
 import { t, type MessageKey } from '../i18n';
-import { formatInteger } from '../i18n/format';
 import { estimatedSleepTarget } from '../pipeline/derive';
 import type { SyncResult } from '../pipeline/sync';
 import type { SyncFailure } from '../hooks/useHealth';
 import { useHistory } from '../hooks/useHistory';
-import { useGoals } from '../hooks/useGoals';
 import { useCycle } from '../hooks/useCycle';
-import { useTheme } from '../hooks/useTheme';
 import { useMediaQuery } from '../hooks/useMediaQuery';
-import { Card, fmtDuration } from '../ui/primitives';
+import { Card } from '../ui/primitives';
 import { AccountCard, CycleCard, DataFacts, GoalsCard, SectionScreen } from './DataCards';
 import { DataStreams, streamsSummary } from './DataStreams';
 import { StatusCard } from './DataStatus';
@@ -87,9 +84,7 @@ export function SettingsView({
   const wide = useMediaQuery('(min-width: 1024px)');
   const history = useHistory().info;
   const sources = useSources(data, live, onSourcesChanged);
-  const goals = useGoals();
   const { log } = useCycle();
-  const { theme } = useTheme();
   const autoNeed = estimatedSleepTarget(data.days);
   const [section, setSection] = useState<SectionId | null>(null);
 
@@ -154,17 +149,11 @@ export function SettingsView({
   const summaries: Record<SectionId, string> = {
     devices: sources.view ? sourcesSummary(sources.view) : '',
     streams: streamsSummary(data),
-    goals: t('data.overview.summaries.goals', {
-      steps: formatInteger(goals.steps),
-      brisk: formatInteger(goals.briskMinutes),
-      sleep: fmtDuration(goals.sleepNeed ?? autoNeed),
-    }),
-    cycle: t('data.overview.summaries.cycle', {
-      tracking: log.settings.tracking ? 'on' : 'off',
-      cards: log.settings.todayCards ? 'yes' : 'no',
-    }),
+    // The goals there are by name, not their numbers.
+    goals: [t('data.goals.steps.label'), t('data.goals.brisk.label'), t('data.goals.sleepNeed.label')].join(' · '),
+    cycle: t('data.overview.summaries.cycle', { tracking: log.settings.tracking ? 'on' : 'off' }),
     facts: t('data.overview.summaries.facts'),
-    account: t(live ? 'data.overview.summaries.account' : 'data.overview.summaries.accountDemo', { theme }),
+    account: t(live ? 'data.overview.summaries.account' : 'data.overview.summaries.accountDemo'),
   };
 
   const render = (id: SectionId) => {

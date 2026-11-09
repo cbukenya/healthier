@@ -50,7 +50,8 @@ function sentences(status: DataStatus, data: SyncResult, synced: number | null, 
     formatList(dataTypes.map((dt) => streamNameInText(dt, data.meta.streams.find((r) => r.dataType === dt)?.label ?? dt)), join);
   switch (status.kind) {
     case 'current':
-      return { title: t('data.status.current.title'), sub: t(demo ? 'data.status.current.demo' : 'data.status.current.sub') };
+      // Up to date needs no explaining; only the demo says what it is.
+      return { title: t('data.status.current.title'), sub: demo ? t('data.status.current.demo') : null };
     case 'behind': {
       const count = status.streams.length;
       return {
@@ -166,7 +167,7 @@ export function StatusCard({ data, history, syncing, failure, demo, onFullSync, 
         <span aria-hidden="true" className={`size-2 shrink-0 rounded-full ring-3 ${DOT[status.kind]} ${syncing ? 'animate-pulse' : ''}`} />
         <span className="min-w-0 truncate">{eyebrow}</span>
       </p>
-      <p className="mt-1.5 text-detail leading-relaxed text-zinc-400">{sub}</p>
+      {sub && <p className="mt-1.5 text-detail leading-relaxed text-zinc-400">{sub}</p>}
       {reason && <p className="mt-2 text-caption leading-relaxed text-rose-300/90 break-words">{reason}</p>}
       <dl className="mt-4 pt-3.5 border-t border-zinc-800/60 grid grid-cols-3 gap-3">
         <Fact
