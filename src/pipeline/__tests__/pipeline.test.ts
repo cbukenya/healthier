@@ -1606,7 +1606,7 @@ describe('insight engine — data cards', () => {
     marked(thin);
     const card = cardOf(thin, 'sleep-coverage')!;
     assert.equal(card.title, 'Some nights have no record');
-    assert.match(card.text, /^Your watch recorded sleep on 14 of the last 40 nights\./);
+    assert.match(card.text, /^Your devices recorded sleep on 14 of the last 40 nights\./);
     assert.equal(cardOf(thin, 'sleep-gap'), undefined, 'one card about the record at a time');
   });
 

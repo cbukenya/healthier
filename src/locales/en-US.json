@@ -306,7 +306,7 @@
       },
       "vitalsFloor": {
         "titleEmpty": "No recent heart data",
-        "textEmpty": "Once your watch syncs your resting heart rate and HRV, this is where insights about them will show.",
+        "textEmpty": "Once your devices sync your resting heart rate and HRV, this is where insights about them will show.",
         "title": "Your latest readings",
         "text": "{known, select, both {Your resting heart rate is {restingHr} bpm and your HRV is {hrv} ms.} restingHr {Your resting heart rate is {restingHr} bpm.} other {Your HRV is {hrv} ms.}}",
         "steady": " Both are inside your usual range."
@@ -670,7 +670,7 @@
         "titleNew": "Still getting to know your sleep",
         "textNew": "Your sleep records start on {date}, so there {nights, plural, one {is # night} other {are # nights}} so far. Comparisons will get sharper as more nights come in.",
         "titleThin": "Some nights have no record",
-        "textThin": "Your watch recorded sleep on {recorded} of the last {nights, plural, one {# night} other {# nights}}. Nights without a record are left out of your averages rather than counted as zero."
+        "textThin": "Your devices recorded sleep on {recorded} of the last {nights, plural, one {# night} other {# nights}}. Nights without a record are left out of your averages rather than counted as zero."
       },
       "sleepGap": {
         "title": "A few nights are missing",
@@ -1168,8 +1168,8 @@
       "cycles": {
         "label": "Cycles",
         "short": "Cycles",
-        "more": "{count, plural, one {# light → deep → REM loop; 90–110 min is usual. Wrist staging can merge bouts, so cycles can look fewer and longer.} other {# light → deep → REM loops; 90–110 min is usual. Wrist staging can merge bouts, so cycles can look fewer and longer.}}",
-        "moreWithLength": "{count, plural, one {# light → deep → REM loop of about {minutes} min each; 90–110 min is usual. Wrist staging can merge bouts, so cycles can look fewer and longer.} other {# light → deep → REM loops of about {minutes} min each; 90–110 min is usual. Wrist staging can merge bouts, so cycles can look fewer and longer.}}"
+        "more": "{count, plural, one {# light → deep → REM loop; 90–110 min is usual. Your devices can merge bouts when they stage sleep, so cycles can look fewer and longer.} other {# light → deep → REM loops; 90–110 min is usual. Your devices can merge bouts when they stage sleep, so cycles can look fewer and longer.}}",
+        "moreWithLength": "{count, plural, one {# light → deep → REM loop of about {minutes} min each; 90–110 min is usual. Your devices can merge bouts when they stage sleep, so cycles can look fewer and longer.} other {# light → deep → REM loops of about {minutes} min each; 90–110 min is usual. Your devices can merge bouts when they stage sleep, so cycles can look fewer and longer.}}"
       },
       "remLatency": {
         "label": "REM latency",
@@ -1192,7 +1192,7 @@
       "awakenings": {
         "label": "Awakenings, 5 min+",
         "short": "Awakenings",
-        "more": "{count, plural, =0 {No wake-ups of 5 min or more that the watch staged.} one {# wake-up of 5 min or more that the watch staged.} other {# wake-ups of 5 min or more that the watch staged.}}"
+        "more": "{count, plural, =0 {No wake-ups of 5 min or more that your devices staged.} one {# wake-up of 5 min or more that your devices staged.} other {# wake-ups of 5 min or more that your devices staged.}}"
       },
       "onset": {
         "label": "Fell asleep in",
@@ -1387,7 +1387,7 @@
       "vo2Max": {
         "chip": "VO₂ max",
         "title": "Cardio fitness",
-        "hint": "Your watch’s VO₂ max estimate. It moves slowly, over weeks."
+        "hint": "The VO₂ max your devices estimate. It moves slowly, over weeks."
       },
       "latest": "latest {value}",
       "average": "{days}-day average {value}",
@@ -1542,7 +1542,7 @@
     },
     "noRhythm": {
       "title": "Healthier hasn't found your cycles yet",
-      "text": "Your nights haven't shown a cycle clearly enough to be sure of it. Wrist readings are often too faint for that, and it's common on hormonal contraception, when cycles vary a lot, or when the watch comes off at night.",
+      "text": "Your nights haven't shown a cycle clearly enough to be sure of it. Readings from your devices are often too faint for that, and it's common on hormonal contraception, when cycles vary a lot, or on nights your devices aren't worn.",
       "logged": "A period you log is certain, and shows your cycles straight away."
     },
     "now": {
@@ -1603,7 +1603,7 @@
     },
     "body": {
       "title": "Your body through the cycle",
-      "hint": "This cycle, night by night, against your last {count, plural, one {cycle} other {# cycles}}. The grey band is where your past cycles usually were on the same day. Skin temperature is the watch's change from your own baseline. Resting heart rate (basal) is your night's floor: the rate your heart sits at or below for the calmest tenth of your sleep.",
+      "hint": "This cycle, night by night, against your last {count, plural, one {cycle} other {# cycles}}. The grey band is where your past cycles usually were on the same day. Skin temperature is the change your devices measured from your own baseline. Resting heart rate (basal) is your night's floor: the rate your heart sits at or below for the calmest tenth of your sleep.",
       "hintFew": "This cycle so far, night by night. Your past cycles show as a band once there are three. Resting heart rate (basal) is your night's floor: the rate your heart sits at or below for the calmest tenth of your sleep.",
       "legend": {
         "mine": "This cycle",
@@ -1763,7 +1763,7 @@
       "watch": "<b>Watches</b> each night's oxygen, breathing rate and time awake against your usual range.",
       "light": "<b>Lights up</b> when 3 or more of the last 14 nights have two of them off together.",
       "how": {
-        "footer": "Uses the nightly averages your device reports. Wrist sensors miss a lot during sleep, so a quiet card doesn't rule anything out."
+        "footer": "Uses the nightly averages your devices report. Their sensors miss a lot during sleep, so a quiet card doesn't rule anything out."
       }
     },
     "strain": {
@@ -2049,7 +2049,7 @@
       "light": "<b>Lights up</b> for any stretch above 100 bpm lasting 10 minutes or more, listed with its peak.",
       "how": {
         "explainer": "Fever, alcohol and vivid dreams can all keep your heart rate <b>high during sleep</b>.",
-        "footer": "Wrist readings during sleep can be noisy, and movement or waking raises them."
+        "footer": "Readings from your devices can be noisy during sleep, and movement or waking raises them."
       }
     },
     "howItWorks": "How it works"
@@ -2089,15 +2089,15 @@
         "hint": "Steps, distance, energy, active and zone minutes, floors and minute heart rate come already added up by Google, so they can't be split by device. You can choose which kinds of source count.",
         "all": {
           "name": "Every device and app",
-          "note": "The default. Your watch, the steps your phone counts, and workouts other apps add."
+          "note": "The default. Your wearables, the steps your phone counts, and workouts other apps add."
         },
         "google": {
           "name": "Google and Fitbit only",
-          "note": "Your watch, your phone's step count and what you log in Google Health. Leaves out other apps."
+          "note": "Your wearables, your phone's step count and what you log in Google Health. Leaves out other apps."
         },
         "worn": {
           "name": "Only what you wear",
-          "note": "Your watch or band alone. Leaves out your phone's steps and anything logged by hand."
+          "note": "Your wearables alone. Leaves out your phone's steps and anything logged by hand."
         },
         "confirm": "With this choice, Healthier fetches your daily totals and minute heart rate from Google again. That takes a few minutes, and everything else keeps working.",
         "apply": "Fetch again",
@@ -2274,7 +2274,7 @@
       "less": "Less",
       "more": "More",
       "hint": "Minutes of heart rate recorded in each hour over the last {days, plural, one {# day} other {# days}}. Each block is one hour; solid means most of it was recorded.",
-      "hintWeekly": "Minutes of heart rate recorded in each hour, averaged per week over the {days, plural, one {# day} other {# days}} minute data is kept. Gaps show when the watch is usually off.",
+      "hintWeekly": "Minutes of heart rate recorded in each hour, averaged per week over the {days, plural, one {# day} other {# days}} minute data is kept. Gaps show the hours your devices are usually off.",
       "today": "Today",
       "cell": "{date} {time} · {minutes} min recorded",
       "cellAverage": "{date} {time} · {minutes} min recorded on average, over {days, plural, one {# day} other {# days}}"
@@ -2284,7 +2284,7 @@
       "hint": "What to know about the numbers Healthier shows you.",
       "arithmetic": {
         "lead": "Arithmetic, not AI",
-        "text": "Your body battery, sleep score and insights are worked out with plain arithmetic from your own data. Nothing is written or guessed by AI. Sleep stages and cardio fitness are your watch's own estimates."
+        "text": "Your body battery, sleep score and insights are worked out with plain arithmetic from your own data. Nothing is written or guessed by AI. Sleep stages and cardio fitness are estimated by your devices themselves."
       },
       "usual": {
         "lead": "Usual means usual for you",
@@ -2300,7 +2300,7 @@
       },
       "minutes": {
         "lead": "Heart rate, minute by minute",
-        "text": "Your watch measures your heart rate every few seconds. Healthier keeps one average per minute for the heart rate charts and Labs, so very short spikes are smoothed out."
+        "text": "Your devices measure your heart rate every few seconds. Healthier keeps one average per minute for the heart rate charts and Labs, so very short spikes are smoothed out."
       }
     },
     "streams": {
