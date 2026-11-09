@@ -78,6 +78,20 @@ describe('the choices', () => {
     assert.equal(ref.label, 'Huawei Health');
     assert.deepEqual(sourceFromId(ref.id), { id: ref.id, label: 'Huawei Health', platform: 'HEALTH_KIT', method: 'UNKNOWN' });
   });
+
+  it('knows a Google device as one source, with or without "Google" in its name', () => {
+    const before = { platform: 'FITBIT', recordingMethod: 'DERIVED', device: { displayName: 'Google Fitbit Air', formFactor: 'FITNESS_BAND' } };
+    const after = { ...before, device: { ...before.device, displayName: 'Fitbit Air' } };
+    assert.equal(parseSource(before)!.id, 'FITBIT:Fitbit Air');
+    assert.equal(parseSource(before)!.label, 'Fitbit Air');
+    const stream = STREAMS_BY_TYPE.get(HRV)!;
+    const { days, sources } = normalize([{ stream, points: [hrvPoint(before, '2026-09-04', 40), hrvPoint(after, '2026-09-05', 41)] }]);
+    assert.deepEqual([...sources.keys()], ['FITBIT:Fitbit Air']);
+    assert.equal(days.get('2026-09-04')!.sourceByType[HRV], days.get('2026-09-05')!.sourceByType[HRV]);
+    // Only a device on Google's own platform: an app's name, or another platform's device, stays as it came.
+    assert.equal(parseSource({ platform: 'HEALTH_CONNECT', application: { packageName: 'com.google.android.apps.fitness' } })!.label, 'Google Fit');
+    assert.equal(parseSource({ platform: 'HEALTH_CONNECT', device: { displayName: 'Google Pixel Watch' } })!.label, 'Google Pixel Watch');
+  });
 });
 
 describe('every source\'s reading, kept', () => {

@@ -27,9 +27,9 @@ export type RecordingMethod =
   | 'UNKNOWN';
 
 export interface SourceRef {
-  /** Stable key we can group by, e.g. "FITBIT:Google Fitbit Air". */
+  /** Stable key we can group by, e.g. "FITBIT:Fitbit Air". */
   id: string;
-  /** Human label, e.g. "Google Fitbit Air" or "Samsung Health". */
+  /** Human label, e.g. "Fitbit Air" or "Samsung Health". */
   label: string;
   platform: Platform;
   method: RecordingMethod;

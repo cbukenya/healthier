@@ -2242,6 +2242,9 @@
         "platform": "{platform, select, FITBIT {Google} HEALTH_CONNECT {through Health Connect} HEALTH_KIT {through Apple Health} GOOGLE_FIT {Google Fit} other {}}",
         "lastReading": "last reading {date}"
       },
+      "platformOnly": {
+        "FITBIT": "Google Health app"
+      },
       "supplies": {
         "none": "Nothing in the last {days} days."
       },

@@ -138,6 +138,32 @@ const MIGRATIONS: { id: number; name: string; sql: string }[] = [
       ALTER TABLE users ADD COLUMN theme text CHECK (theme IN ('dark', 'light', 'system'));
     `,
   },
+  {
+    id: 7,
+    name: 'one name per google device',
+    sql: `
+      -- A source's id is its platform and name (parseSource in src/pipeline/normalize.ts). Google
+      -- names its own devices with and without "Google " in front (the Fitbit Air came as "Google
+      -- Fitbit Air" until 4 September 2026), so one device was stored as two sources. parseSource
+      -- now drops "Google " from FITBIT devices; this gives the stored ids, the names stored beside
+      -- them (a sleep's source, a stream's sources), and the person's choices the same.
+      UPDATE stream_days
+      SET value = regexp_replace(
+        regexp_replace(value::text, '"id": "FITBIT:Google ([^"]+)", ("app": "[^"]*", )?"label": "Google \\1"', '"id": "FITBIT:\\1", \\2"label": "\\1"', 'g'),
+        '"FITBIT:Google ', '"FITBIT:', 'g')::jsonb
+      WHERE value::text LIKE '%"FITBIT:Google %';
+
+      UPDATE stream_state
+      SET state = regexp_replace(
+        regexp_replace(state::text, '"id": "FITBIT:Google ([^"]+)", ("app": "[^"]*", )?"label": "Google \\1"', '"id": "FITBIT:\\1", \\2"label": "\\1"', 'g'),
+        '"FITBIT:Google ', '"FITBIT:', 'g')::jsonb
+      WHERE state::text LIKE '%"FITBIT:Google %';
+
+      UPDATE users
+      SET sources = regexp_replace(sources::text, '"FITBIT:Google ', '"FITBIT:', 'g')::jsonb
+      WHERE sources::text LIKE '%"FITBIT:Google %';
+    `,
+  },
 ];
 
 export function createDb(connectionString: string): Db {
