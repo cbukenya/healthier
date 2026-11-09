@@ -57,7 +57,7 @@ export function getScoreTier(total: number) {
     dotColor: `var(--stage-${mark})`,
     pillInk: inkOf(mark),
     ink: inkOf(word),
-    glow: `0 0 10px ${tint(`var(--stage-${mark})`, 60)}`,
+    glow: `0 0 10px ${tint(`var(--stage-${mark})`, 45)}`,
   });
   if (total >= 85) return tier('sleep.night.score.tiers.excellent', 'deep', 'deep');
   if (total >= 70) return tier('sleep.night.score.tiers.good', 'light', 'rem');

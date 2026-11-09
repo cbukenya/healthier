@@ -250,7 +250,7 @@ const BAND_COPY: Record<Band, { label: MessageKey; cls: string }> = {
  * A score's tier in a pill: its name in capitals after a glowing dot of its colour, as the sleep
  * score and the body battery show it. Set in the body face even inside a title.
  */
-export function StatusPill({ name, dot, ink = dot, glow = `0 0 10px ${tint(dot, 60)}`, className = '', dotRef }: {
+export function StatusPill({ name, dot, ink = dot, glow = `0 0 10px ${tint(dot, 45)}`, className = '', dotRef }: {
   name: string;
   /** The status's colour: the dot, and the pill's tint and edge (.status-pill). */
   dot: string;
