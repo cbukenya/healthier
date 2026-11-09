@@ -1,7 +1,8 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { BookOpen, ChevronLeft, ChevronRight, CircleDotDashed, CircleUserRound, Database, Target, Watch, type LucideIcon } from 'lucide-react';
 import { t, type MessageKey } from '../i18n';
-import { estimatedSleepTarget } from '../pipeline/derive';
+import { estimatedSleepTarget, latestBody } from '../pipeline/derive';
+import { DEFAULT_GOALS, proteinTarget } from '../pipeline/goals';
 import type { SyncResult } from '../pipeline/sync';
 import type { SyncFailure } from '../hooks/useHealth';
 import { useHistory } from '../hooks/useHistory';
@@ -86,6 +87,7 @@ export function SettingsView({
   const sources = useSources(data, live, onSourcesChanged);
   const { log } = useCycle();
   const autoNeed = estimatedSleepTarget(data.days);
+  const autoProtein = proteinTarget(DEFAULT_GOALS, latestBody(data.days).latest?.value ?? null);
   const [section, setSection] = useState<SectionId | null>(null);
 
   // The back gesture closes a section opened on a phone, as it leaves any page.
@@ -163,7 +165,7 @@ export function SettingsView({
       case 'streams':
         return <DataStreams data={data} />;
       case 'goals':
-        return <GoalsCard autoNeed={autoNeed} />;
+        return <GoalsCard autoNeed={autoNeed} autoProtein={autoProtein} />;
       case 'cycle':
         return <CycleCard kept={!!data.profile?.cycleKept} />;
       case 'facts':

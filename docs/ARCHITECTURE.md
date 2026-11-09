@@ -331,6 +331,36 @@ Google Health lets apps add periods but not read them back, so cycles are found 
 `cycle.test.ts` holds it to both kinds of error on noisy nights: most starts found in people who
 have cycles, and almost no cycle shown to people who don't.
 
+## Nutrition
+
+The Nutrition page reads the food log in Google Health (`nutrition-log`): what people log in the
+Google Health app, or in an app that writes to it through Health Connect or Apple Health. Healthier
+only reads it; there's no food search or logging of its own, and nothing is guessed from photos.
+
+- **Reading** (`src/pipeline/nutrition.ts`). The stream is listed, not rolled up, so meals keep
+  their times: one point per logged food, with its energy, carbohydrate, fat, and protein and fibre
+  among its nutrients. Each source's foods on a day are folded into one day before the registry
+  applies them (`combineNutritionPoints`), so two apps logging the same day are two readings to
+  choose between, never added together. Foods within 45 minutes of each other are one meal.
+- **What counts** (`src/pipeline/eating.ts`). A day counts toward averages and maintenance only
+  when it was logged in full: meals running six hours or more into the evening, or a dinner and one
+  more main meal by meal type, and at least 800 kcal. Today is never judged.
+- **Maintenance** is what the body burns, from what was eaten on the full days plus the energy of
+  the weight lost (7,700 kcal a kilo), over the shortest block of 3, 4, 6 or 8 weeks that gets it
+  within about ±100 kcal (never past ±250). The weight's slope is Theil–Sen; the margin comes from
+  the weigh-ins' scatter around it and the spread of the days eaten. The page's trend line is the
+  same block worked out every 7 days, so the number is today's and the line shows how it moved.
+  The devices' own estimate (`totalKcal`) is shown beside it, never mixed in.
+- **Judging.** The average day holds protein and fibre to their targets (on target, close at 85%,
+  else short) and carbs and fat to the adult ranges (45–65% and 20–35% of energy; US National
+  Academies, 2005). A single day is described, never judged: today's plate says how far it is from
+  maintenance and remarks only on protein well behind late in the day, or a mix far from the
+  person's own usual.
+
+The page shows in the menu only while food has been logged in the window. Its colour is plum
+(`DOMAIN.nutrition`); the macros are plum protein, sky carbs and honey fat, carbs in the middle so
+every neighbouring pair stays apart for colour-blind eyes, and lime fibre.
+
 ## Goals
 
 The step goal, the daily brisk minutes and the sleep need are the person's own, set on the Settings
@@ -341,6 +371,9 @@ bounds. Every ring, goal line, label and insight reads them from there (the scre
 `useGoals`, the engine through `InsightOptions.goals`), so no screen repeats a goal as a literal.
 Sleep need stays automatic, the median of your nights held between 7 and 8.5 hours, until it's
 set; set, it replaces the estimate everywhere, the body battery and the sleep score included.
+Protein works the same way: automatic at 1.4 g per kg of the latest weigh-in until it's set. Fibre
+is 30 g a day unless set. Both arrived after the others, so a page that doesn't send them keeps
+their defaults.
 
 The sleep score holds each night to the person's own norms (`sleepNorms` in `src/pipeline/sleep.ts`):
 full duration marks from their sleep need to 9 hours, and full restoration marks at their usual
@@ -437,7 +470,9 @@ tests answer the same queries from `MemoryStore`.
 
 Stored rows are *processed* data. When normalisation changes (`registry.ts`, `normalize.ts`, sleep
 parsing) or a stored shape changes, bump `PIPELINE_VERSION`: every user is rebuilt with a full
-sync, and their dashboard shows onboarding until it completes.
+sync, and their dashboard shows onboarding until it completes. A stream that's now fetched another way than its
+stored days were (the food log moved from daily totals to listed foods) starts over on its own
+instead: the server sees the stored mode differ, purges that stream, and fetches it again.
 
 ## Demo mode
 

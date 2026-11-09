@@ -28,6 +28,19 @@ export const DOMAIN = {
   data: { text: 'text-amber-400', hex: 'var(--amber-400)' },
   wellbeing: { text: 'text-violet-400', hex: 'var(--violet-400)' },
   cycle: { text: 'text-pink-400', hex: 'var(--pink-400)' },
+  nutrition: { text: 'text-purple-400', hex: 'var(--purple-500)' },
+} as const;
+
+/**
+ * The food log's colours: protein in the Nutrition page's own plum, carbs sky and fat honey,
+ * with carbs between the other two so every neighbouring pair stays apart for colour-blind eyes,
+ * and fibre lime, for plants.
+ */
+export const MACRO = {
+  protein: 'var(--purple-500)',
+  carbs: 'var(--sky-400)',
+  fat: 'var(--amber-400)',
+  fibre: 'var(--lime-400)',
 } as const;
 
 /**

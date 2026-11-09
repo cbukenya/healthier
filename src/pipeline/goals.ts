@@ -13,9 +13,25 @@ export interface Goals {
   briskMinutes: number;
   /** Minutes asleep a night, or null to work it out from the person's own nights. */
   sleepNeed: number | null;
+  /** Grams of protein a day, or null to work it out from the person's weight (PROTEIN_PER_KG). */
+  protein: number | null;
+  /** Grams of fibre a day. */
+  fibre: number;
 }
 
-export const DEFAULT_GOALS: Goals = { steps: 10_000, briskMinutes: 30, sleepNeed: null };
+export const DEFAULT_GOALS: Goals = { steps: 10_000, briskMinutes: 30, sleepNeed: null, protein: null, fibre: 30 };
+
+/**
+ * The automatic protein target, in grams a day for each kilogram of body weight. 1.4 sits in the
+ * 1.2 to 1.6 that suits active adults and keeps muscle as people age, well above the 0.8 floor for
+ * health (US National Academies, DRI 2005), and below the 1.6 where gains in muscle level off in
+ * the largest meta-analysis (Morton et al., BJSM 2018).
+ */
+export const PROTEIN_PER_KG = 1.4;
+
+/** The protein target: the one set, else PROTEIN_PER_KG of the person's weight, else unknown. */
+export const proteinTarget = (goals: Goals, weightKg: number | null): number | null =>
+  goals.protein ?? (weightKg === null ? null : Math.round(PROTEIN_PER_KG * weightKg));
 
 /**
  * The WHO's weekly bar for adults: 150 minutes of moderate activity, vigorous
@@ -54,11 +70,21 @@ export interface GoalLimit {
  *                 notice how impaired they become (Van Dongen et al. 2003), so a
  *                 lower need set by feel would hide real debt. 7 hours is also
  *                 where the estimate from your own nights stops.
+ *   protein       40 to 250 grams a day: 0.8 g per kg, the floor for health (DRI
+ *                 2005), for a 50 kg adult, up to 2.2 g per kg, the top of the
+ *                 range where muscle still responds (Morton et al. 2018), for a
+ *                 115 kg one. Null works it out from weight (PROTEIN_PER_KG).
+ *   fibre         20 to 50 grams a day. 30 is the UK's recommendation (SACN,
+ *                 Carbohydrates and Health, 2015) and the default; 25 is the EU's
+ *                 adequate intake (EFSA 2010) and the WHO's minimum (2023); much
+ *                 above 50 tends to bring more discomfort than benefit.
  */
 export const GOAL_LIMITS = {
   steps: { min: 2_000, max: 25_000, step: 500 },
   briskMinutes: { min: 10, max: 120, step: 5 },
   sleepNeed: { min: 420, max: 540, step: 15 },
+  protein: { min: 40, max: 250, step: 5 },
+  fibre: { min: 20, max: 50, step: 5 },
 } as const satisfies Record<keyof Goals, GoalLimit>;
 
 /** A value moved onto its goal's steps and inside its bounds. */
@@ -77,14 +103,22 @@ export function readGoals(raw: unknown): Goals {
   const steps = finite(o.steps);
   const brisk = finite(o.briskMinutes);
   const need = finite(o.sleepNeed);
+  const protein = finite(o.protein);
+  const fibre = finite(o.fibre);
   return {
     steps: steps === null ? DEFAULT_GOALS.steps : fitGoal(steps, GOAL_LIMITS.steps),
     briskMinutes: brisk === null ? DEFAULT_GOALS.briskMinutes : fitGoal(brisk, GOAL_LIMITS.briskMinutes),
     sleepNeed: need === null ? null : fitGoal(need, GOAL_LIMITS.sleepNeed),
+    protein: protein === null ? null : fitGoal(protein, GOAL_LIMITS.protein),
+    fibre: fibre === null ? DEFAULT_GOALS.fibre : fitGoal(fibre, GOAL_LIMITS.fibre),
   };
 }
 
-/** Goals sent to be saved: null unless each one sits on its steps inside its bounds. Sleep need may be null, for automatic. */
+/**
+ * Goals sent to be saved: null unless each one sits on its steps inside its bounds. Sleep need and
+ * protein may be null, for automatic. Protein and fibre came later, so a page from before them may
+ * leave them out: they keep their defaults.
+ */
 export function parseGoals(raw: unknown): Goals | null {
   if (!raw || typeof raw !== 'object') return null;
   const o = raw as Record<string, unknown>;
@@ -94,8 +128,17 @@ export function parseGoals(raw: unknown): Goals | null {
   };
   if (!valid(o.steps, GOAL_LIMITS.steps) || !valid(o.briskMinutes, GOAL_LIMITS.briskMinutes)) return null;
   if (o.sleepNeed !== null && !valid(o.sleepNeed, GOAL_LIMITS.sleepNeed)) return null;
-  return { steps: o.steps as number, briskMinutes: o.briskMinutes as number, sleepNeed: o.sleepNeed as number | null };
+  if (o.protein !== undefined && o.protein !== null && !valid(o.protein, GOAL_LIMITS.protein)) return null;
+  if (o.fibre !== undefined && !valid(o.fibre, GOAL_LIMITS.fibre)) return null;
+  return {
+    steps: o.steps as number,
+    briskMinutes: o.briskMinutes as number,
+    sleepNeed: o.sleepNeed as number | null,
+    protein: (o.protein ?? null) as number | null,
+    fibre: (o.fibre ?? DEFAULT_GOALS.fibre) as number,
+  };
 }
 
 export const sameGoals = (a: Goals, b: Goals) =>
-  a.steps === b.steps && a.briskMinutes === b.briskMinutes && a.sleepNeed === b.sleepNeed;
+  a.steps === b.steps && a.briskMinutes === b.briskMinutes && a.sleepNeed === b.sleepNeed &&
+  a.protein === b.protein && a.fibre === b.fibre;

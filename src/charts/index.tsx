@@ -350,6 +350,8 @@ export function BarSeries({
   format = (v: number) => fmtNum(v, 0),
   bucket = 'day',
   minutes = false,
+  hollow,
+  hollowNote,
 }: {
   series: Point[];
   color: string;
@@ -361,6 +363,9 @@ export function BarSeries({
   bucket?: Bucket;
   /** The values are minutes, so the axis says them in hours: "30m", "1h", "1h 30m". */
   minutes?: boolean;
+  /** Days drawn as a dashed outline rather than filled, such as a day only partly logged, and what the tooltip calls them. */
+  hollow?: ReadonlySet<string>;
+  hollowNote?: string;
 }) {
   const rows = useMemo(() => toRows(series, undefined, bucket), [series, bucket]);
   const ticks = useMemo(() => (minutes && values(series).length ? minuteTicks(0, Math.max(...values(series))) : null), [series, minutes]);
@@ -385,19 +390,23 @@ export function BarSeries({
           contentStyle={tooltipStyle} itemStyle={{ color: 'var(--color-zinc-400)' }}
           labelStyle={{ color: 'var(--color-zinc-200)', fontWeight: 600 }}
           labelFormatter={tooltipHeading}
-          formatter={(v: any) => [
+          formatter={(v: any, _name: any, item: any) => [
             v === null ? t('charts.tooltip.notRecorded') : reading(format(Number(v)), unit),
-            bucket === 'day' ? '' : t('charts.bars.averagePerDay'),
+            hollow?.has(item?.payload?.date) ? hollowNote ?? '' : bucket === 'day' ? '' : t('charts.bars.averagePerDay'),
           ]}
         />
         <Bar dataKey="value" radius={[3, 3, 0, 0]} isAnimationActive={false}>
-          {rows.map((r, i) => (
-            <Cell
-              key={i}
-              fill={color}
-              fillOpacity={goal !== undefined && r.value !== null ? (r.value >= goal ? 0.95 : 0.42) : 0.85}
-            />
-          ))}
+          {rows.map((r, i) =>
+            hollow?.has(r.date) ? (
+              <Cell key={i} fill="transparent" stroke={AXIS} strokeWidth={1} strokeDasharray="3 2" />
+            ) : (
+              <Cell
+                key={i}
+                fill={color}
+                fillOpacity={goal !== undefined && r.value !== null ? (r.value >= goal ? 0.95 : 0.42) : 0.85}
+              />
+            ),
+          )}
         </Bar>
       </BarChart>
     </ResponsiveContainer>
@@ -471,6 +480,9 @@ export function DivergingBars({
   posColor = 'var(--rose-400)',
   negColor = 'var(--indigo-400)',
   bucket = 'day',
+  format = (v: number) => fmtNum(v, 2),
+  seriesName,
+  ruler = false,
 }: {
   series: Point[];
   height?: number;
@@ -478,15 +490,25 @@ export function DivergingBars({
   posColor?: string;
   negColor?: string;
   bucket?: Bucket;
+  format?: (v: number) => string;
+  /** What the tooltip calls a bar; by default, a deviation from the person's baseline. */
+  seriesName?: string;
+  /** The day axis as a ruler, as under the other bar charts, while it applies. */
+  ruler?: boolean;
 }) {
   const rows = useMemo(() => toRows(series, undefined, bucket), [series, bucket]);
   if (!values(series).length) return <NoSeries height={height} />;
+  const asRuler = ruler && isRuler(rows.length, bucket);
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <BarChart data={rows} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
+      <BarChart data={rows} margin={{ top: 8, right: asRuler ? 16 : 8, left: -16, bottom: 0 }}>
         <CartesianGrid stroke={GRID} strokeDasharray="2 4" vertical={false} />
         <ReferenceLine y={0} stroke="var(--color-zinc-600)" strokeWidth={1} />
-        <XAxis dataKey="label" axisLine={false} tickLine={false} interval={tickInterval(rows.length)} tick={TICK} dy={6} />
+        {ruler ? (
+          <XAxis dataKey="label" axisLine={false} tickLine={false} {...dayAxis(rows.length, bucket)} />
+        ) : (
+          <XAxis dataKey="label" axisLine={false} tickLine={false} interval={tickInterval(rows.length)} tick={TICK} dy={6} />
+        )}
         <YAxis axisLine={false} tickLine={false} tick={TICK} tickFormatter={axisTick} width={52} />
         <Tooltip
           contentStyle={tooltipStyle} itemStyle={{ color: 'var(--color-zinc-400)' }}
@@ -495,8 +517,8 @@ export function DivergingBars({
           formatter={(v: any) => [
             v === null
               ? t('charts.tooltip.notRecorded')
-              : t('charts.tooltip.valueSymbol', { value: `${v > 0 ? '+' : ''}${fmtNum(Number(v), 2)}`, unit }),
-            t('charts.diverging.series', { bucket }),
+              : t('charts.tooltip.valueSymbol', { value: `${v > 0 ? '+' : ''}${format(Number(v))}`, unit }),
+            seriesName ?? t('charts.diverging.series', { bucket }),
           ]}
         />
         <Bar dataKey="value" radius={[2, 2, 0, 0]} isAnimationActive={false}>

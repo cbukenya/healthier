@@ -1,12 +1,12 @@
 import React, { createContext, useContext, useEffect, useId, useRef, useState } from 'react';
 import { Minus, Plus } from 'lucide-react';
 import type { CivilDate } from '../lib/date';
-import { formatInteger, formatList, formatMonthYear } from '../i18n/format';
+import { formatInteger, formatList, formatMonthYear, formatNumber } from '../i18n/format';
 import { t, type MessageKey } from '../i18n';
 import { rich } from '../i18n/react';
 import { BASELINE_DAYS, NEED_ESTIMATE } from '../pipeline/derive';
 import { REFETCH_DAYS } from '../pipeline/incremental';
-import { DEFAULT_GOALS, GOAL_LIMITS, WHO_WEEK, fitGoal, sameGoals, type GoalLimit, type Goals } from '../pipeline/goals';
+import { DEFAULT_GOALS, GOAL_LIMITS, PROTEIN_PER_KG, WHO_WEEK, fitGoal, sameGoals, type GoalLimit, type Goals } from '../pipeline/goals';
 import { useGoalsControl } from '../hooks/useGoals';
 import { useCycle } from '../hooks/useCycle';
 import { useTheme } from '../hooks/useTheme';
@@ -135,9 +135,11 @@ function briskNote(perDay: number): string {
  * that stays inside its bounds (GOAL_LIMITS, and why). Sleep need is worked out
  * from your nights until you set it; a step either way takes it over from there.
  */
-export function GoalsCard({ autoNeed }: {
+export function GoalsCard({ autoNeed, autoProtein }: {
   /** The need the app works out from your nights, shown while yours is automatic. */
   autoNeed: number;
+  /** The protein target the app works out from your weight, while yours is automatic; null without a weigh-in. */
+  autoProtein: number | null;
 }) {
   const { goals, change, failed } = useGoalsControl();
   const screen = useSectionScreen();
@@ -149,7 +151,14 @@ export function GoalsCard({ autoNeed }: {
     more: value < limit.max ? () => set(patch(fitGoal(value + limit.step, limit))) : undefined,
   });
   const need = goals.sleepNeed ?? autoNeed;
+  // With no weigh-in to work from, a first step starts from the middle of the usual range.
+  const protein = goals.protein ?? autoProtein ?? fitGoal(100, GOAL_LIMITS.protein);
   const L = GOAL_LIMITS;
+  const backToAuto = (patch: Partial<Goals>) => (words: React.ReactNode) => (
+    <button type="button" onClick={() => set(patch)} className="text-zinc-300 underline underline-offset-2 hover:text-zinc-100">
+      {words}
+    </button>
+  );
 
   return (
     <SectionCard
@@ -211,6 +220,29 @@ export function GoalsCard({ autoNeed }: {
                   ),
                 })
           }
+        />
+        <GoalRow
+          label={t('data.goals.protein.label')}
+          per={t('data.goals.protein.per')}
+          badge={goals.protein === null ? t('data.goals.protein.auto') : undefined}
+          shown={goals.protein === null && autoProtein === null ? '—' : formatInteger(protein)}
+          {...stepper(protein, L.protein, (v) => ({ protein: v }))}
+          lessLabel={t('data.goals.protein.less')}
+          moreLabel={t('data.goals.protein.more')}
+          note={
+            goals.protein !== null
+              ? rich('data.goals.protein.noteOwn', { min: L.protein.min, max: L.protein.max, button: backToAuto({ protein: null }) })
+              : t(autoProtein === null ? 'data.goals.protein.noteNoWeight' : 'data.goals.protein.noteAuto', { perKg: formatNumber(PROTEIN_PER_KG, 1) })
+          }
+        />
+        <GoalRow
+          label={t('data.goals.fibre.label')}
+          per={t('data.goals.fibre.per')}
+          shown={formatInteger(goals.fibre)}
+          {...stepper(goals.fibre, L.fibre, (v) => ({ fibre: v }))}
+          lessLabel={t('data.goals.fibre.less')}
+          moreLabel={t('data.goals.fibre.more')}
+          note={t('data.goals.fibre.note')}
         />
       </div>
       {failed && (
