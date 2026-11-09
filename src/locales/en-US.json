@@ -901,6 +901,7 @@
           "label": "Skin temperature",
           "detail": "+{value} °C above your baseline"
         },
+        "cycle": "{detail} · {all, select, yes {usual for this part of your cycle} other {softened for this part of your cycle}}",
         "strain": {
           "label": "Recent strain",
           "high": "multi-day training load significantly above your 28-day baseline",

@@ -16,7 +16,7 @@ import { scoreSleep, sleepNorms } from '../sleep';
 import {
   compareToBaseline, coverage, findGaps, periodShift, rollingMean, series, stats, values,
   bedtimeConsistency, currentStreak, readiness, windowShift, firstObserved, sleepRegularity, circularMeanMinutes, typicalSleepWindow,
-  sleepNeedFor, goalStreak, weightTrend, batteryTier, latestBody,
+  sleepNeedFor, goalStreak, weightTrend, batteryTier, latestBody, BATTERY_START,
 } from '../derive';
 import { DEFAULT_GOALS, GOAL_LIMITS, parseGoals, readGoals, type Goals } from '../goals';
 import { STREAMS } from '../registry';
@@ -788,6 +788,33 @@ describe('readiness v2', () => {
     assert.ok(pExt.contribution <= Math.max(cMod, 8) + 0.01);
     assert.ok(pExt.note, 'the saturation caution must be attached');
     assert.match(pExt.note!, /overload/i);
+  });
+
+  it('with the cycle allowed for, softens a penalty it explains and never adds one', () => {
+    // A second-half morning: resting heart rate up and skin temperature warm.
+    const days = syntheticDays(28, { restingHr: 66, tempDev: 0.55 });
+    const raw = readiness(days);
+    // The judged copy moves the night back by this person's usual second-half shift.
+    const judged = days.map((d, i) => (i === days.length - 1 ? { ...d, restingHr: 63, skinTempDeviationC: 0.15 } : d));
+    const aware = readiness(days, null, judged);
+    const rhrRaw = part(raw, 'restingHr')!.contribution;
+    const rhr = part(aware, 'restingHr')!;
+    assert.ok(rhrRaw < rhr.contribution && rhr.contribution < 0, `${rhrRaw} → ${rhr.contribution}`);
+    assert.match(rhr.detail, /66 bpm/, 'the detail keeps the person’s own reading');
+    assert.match(rhr.detail, /softened for this part of your cycle/);
+    const temp = part(aware, 'skinTemp')!;
+    assert.equal(temp.contribution, 0);
+    assert.match(temp.detail, /usual for this part of your cycle/);
+    // The score is still where the morning starts plus what each contributor shows.
+    assert.equal(aware.score, Math.round(BATTERY_START + aware.parts.reduce((a, p) => a + p.contribution, 0)));
+    assert.ok(aware.score! > raw.score!);
+
+    // Judged nights that look worse never cost more, and a reward is never raised.
+    const worse = days.map((d, i) => (i === days.length - 1 ? { ...d, restingHr: 70 } : d));
+    assert.equal(readiness(days, null, worse).score, raw.score);
+    const good = syntheticDays(28, { hrv: 38 });
+    const better = good.map((d, i) => (i === good.length - 1 ? { ...d, hrv: 44 } : d));
+    assert.equal(readiness(good, null, better).score, readiness(good).score);
   });
 
   it('penalises suppressed HRV more than the same-sized elevation is rewarded', () => {

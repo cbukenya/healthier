@@ -321,9 +321,12 @@ Google Health lets apps add periods but not read them back, so cycles are found 
     while it's off on both, as the strain radar does;
   - the strain radar counts a signal the cycle explains as in, and says so;
   - a pill that would call a reading unusual says "usual for this part of your cycle" instead, when
-    the judged reading is usual.
+    the judged reading is usual;
+  - the body battery softens a penalty from HRV, resting heart rate or skin temperature to what the
+    judged nights would cost, never past zero, and the contributor says so ("usual for this part
+    of your cycle").
 
-  The body battery's score and every number shown stay the person's own readings.
+  Every number shown stays the person's own reading.
 
 `cycle.test.ts` holds it to both kinds of error on noisy nights: most starts found in people who
 have cycles, and almost no cycle shown to people who don't.

@@ -200,6 +200,8 @@ const byImpact = (parts: ReadinessPart[]) => [...parts].sort((a, b) => Math.abs(
  */
 function ContributorRow({ part, maxAbs, large = false }: { part: ReadinessPart; maxAbs: number; large?: boolean }) {
   const pos = part.contribution >= 0;
+  // A penalty the cycle explains away entirely shows as a plain 0.0, neither green nor rose.
+  const zero = Math.abs(part.contribution) < 0.05;
   return (
     <div className={`grid items-center border-t border-faint ${large ? 'grid-cols-[minmax(0,1fr)_minmax(96px,140px)_56px] gap-4 py-3' : 'grid-cols-[minmax(0,1fr)_72px_40px] gap-2.5 py-[9px]'}`}>
       <div className="min-w-0">
@@ -213,8 +215,8 @@ function ContributorRow({ part, maxAbs, large = false }: { part: ReadinessPart; 
           style={{ width: `${(Math.abs(part.contribution) / maxAbs) * 45}%`, ...(pos ? { left: '50%' } : { right: '50%' }) }}
         />
       </div>
-      <span className={`${large ? 'text-body-lg' : 'text-body'} font-semibold text-right tabular-nums ${pos ? 'text-(--green-500)' : 'text-(--rose-500)'}`}>
-        {pos ? '+' : '−'}{formatFixed(Math.abs(part.contribution), 1)}
+      <span className={`${large ? 'text-body-lg' : 'text-body'} font-semibold text-right tabular-nums ${zero ? 'text-zinc-500' : pos ? 'text-(--green-500)' : 'text-(--rose-500)'}`}>
+        {zero ? '' : pos ? '+' : '−'}{formatFixed(Math.abs(part.contribution), 1)}
       </span>
     </div>
   );
