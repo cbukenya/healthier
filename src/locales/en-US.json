@@ -99,6 +99,7 @@
       "vitals": "Vitals",
       "body": "Body",
       "cycle": "Cycle",
+      "nutrition": "Nutrition",
       "labs": "Labs",
       "settings": "Settings"
     },
@@ -191,6 +192,10 @@
           "title": "Body insights",
           "description": "What your weigh-ins add up to over time, measured against your own trend."
         },
+        "nutrition": {
+          "title": "Nutrition insights",
+          "description": "How what you eat and the rest of your days go together, worked out from your own logs."
+        },
         "cycle": {
           "title": "Cycle insights",
           "description": "What repeats across your cycles, found in your own nights and your log."
@@ -209,9 +214,34 @@
         "cardio": "Vitals",
         "sleep": "Sleep",
         "body": "Body",
+        "nutrition": "Nutrition",
         "data": "Data",
         "movement": "Activity",
         "cycle": "Cycle"
+      }
+    },
+    "nutrition": {
+      "shortNights": {
+        "title": "Short nights, bigger appetite",
+        "text": "After the {count} nights you slept under {line}, you ate about {kcal} kcal more the next day than after longer nights. Sleep studies find much the same."
+      },
+      "lateDinners": {
+        "title": "Late dinners show in your morning heart rate",
+        "text": "On the {count} nights your last meal came within {hours} hours of bed, your resting heart rate the next morning was {bpm} bpm higher than after earlier dinners.",
+        "action": "Finishing dinner earlier on a few nights would show whether it's the meal."
+      },
+      "fibreDeepSleep": {
+        "title": "More fibre, more deep sleep",
+        "text": "On days you ate {grams} g of fibre or more, your deep sleep that night ran about {minutes} minutes longer than after lower-fibre days."
+      },
+      "weekBalance": {
+        "title": "{side, select, over {A week above your maintenance} other {A week below your maintenance}}",
+        "text": "You ate {side, select, over {more} other {less}} than your maintenance on {count} of the last {days} days, about {kcal} kcal {side, select, over {over} other {under}} across the week, or roughly {kg} kg."
+      },
+      "proteinBehind": {
+        "title": "Protein is behind today",
+        "text": "You've had {got} g of your {target} g of protein so far{big, select, yes {, on a day of {steps} steps} other {}}.",
+        "action": "A dinner with about {grams} g of protein gets you there."
       }
     },
     "common": {
@@ -318,6 +348,12 @@
         "textLatest": "Your latest weigh-in was {weight} kg on {date}. A few more weigh-ins over the next weeks will show your trend.",
         "title": "No clear change in your weight",
         "text": "Your weight trend is moving by less than {threshold} kg a week either way. Your latest weigh-in was {weight} kg on {date}."
+      },
+      "nutritionFloor": {
+        "title": "Your eating this week",
+        "text": "{count, plural, one {On the one day you logged in full this week, you ate about {kcal} kcal and {protein} g of protein.} other {On the # days you logged in full this week, you ate about {kcal} kcal and {protein} g of protein a day.}}",
+        "titleEmpty": "Nothing logged in full this week",
+        "textEmpty": "Days with meals logged from the morning into the evening count here. Log in Google Health, or in an app that writes to it."
       },
       "cycleFloor": {
         "title": "{known, select, yes {Day {day} of your cycle} other {Your cycles}}",
@@ -2054,6 +2090,142 @@
     },
     "howItWorks": "How it works"
   },
+  "nutrition": {
+    "empty": {
+      "title": "No food logged yet",
+      "detail": "Log your meals in the Google Health app, or in an app that writes to it through Health Connect or Apple Health, and they'll show here."
+    },
+    "overTime": {
+      "title": "Your eating over time"
+    },
+    "chips": {
+      "label": "Charts",
+      "balance": "Balance",
+      "protein": "Protein",
+      "fibre": "Fibre"
+    },
+    "macros": {
+      "protein": "Protein",
+      "carbs": "Carbs",
+      "fat": "Fat",
+      "fibre": "Fibre"
+    },
+    "standing": {
+      "onTarget": "On target",
+      "close": "Close",
+      "short": "Short",
+      "inRange": "In range",
+      "above": "Above range",
+      "below": "Below range"
+    },
+    "grams": "{grams} g",
+    "gramsUnit": "g",
+    "percent": "{pct}%",
+    "partly": "partly logged",
+    "plate": {
+      "title": "Today's plate",
+      "meals": "{count, plural, =0 {nothing logged yet} one {# meal so far} other {# meals so far}}",
+      "of": "of about {kcal} {devices, select, yes {your devices say you burn in a day} other {your body burns in a day}}",
+      "over": "{kcal} more than {devices, select, yes {your devices say you burn in a day} other {your body burns in a day}}",
+      "targets": "Today's targets",
+      "grams": "<b>{grams}</b> g",
+      "ofTarget": "<b>{got}</b> of {target} g",
+      "maintenanceLine": "your maintenance",
+      "aria": "Today's food as squares, each 1% of what your body burns in a day: {protein} protein, {carbs} carbs and {fat} fat.",
+      "legend": {
+        "protein": "Protein{known, select, yes { {pct}%} other {}}",
+        "carbs": "Carbs, fibre included{known, select, yes { {pct}%} other {}}",
+        "fat": "Fat{known, select, yes { {pct}%} other {}}",
+        "toEat": "Still to eat"
+      },
+      "note": {
+        "protein": "Protein is at {got} of {target} g, so dinner is the place to catch up.",
+        "mix": "{macro, select, carbs {Carbs} other {Fat}} made up {share}% of today so far, against your usual {usual}%."
+      }
+    },
+    "clock": {
+      "title": "7-day meal clock",
+      "aria": "When you ate on each of the last 7 days, one ring a day, with your usual sleep from {bed} to {wake} shaded.",
+      "ariaNoSleep": "When you ate on each of the last 7 days, one ring a day.",
+      "meal": "{day}, {time}: {kcal} kcal, {protein} g protein",
+      "window": "eating window",
+      "midnight": "midnight",
+      "morning": "6am",
+      "noon": "noon",
+      "evening": "6pm",
+      "lastToBed": "Last meal {duration} before bed",
+      "outer": "Outer ring is yesterday",
+      "mix": "Each day's mix",
+      "dayMix": "{day}: protein {protein}%, carbs {carbs}%, fat {fat}%",
+      "dayNone": "{day}: nothing logged",
+      "legend": {
+        "meal": "A meal, bigger for more food",
+        "sleep": "Your usual sleep"
+      }
+    },
+    "average": {
+      "title": "Your average day",
+      "empty": "No day in this span was logged in full yet.",
+      "days": "{count, plural, one {# complete day} other {# complete days}}",
+      "energy": "Energy",
+      "vsMaintenance": "{kcal} kcal a day {dir, select, under {under} other {over}} your maintenance",
+      "name": "<b>{name}</b>",
+      "fibreOf": "of which <b>fibre</b>",
+      "noTarget": "Add a weigh-in, or set a protein target in Settings, to see it against a target",
+      "ofTarget": "{pct}% of your {target} g target",
+      "ofEnergy": "{pct}% of energy · usual {lo}–{hi}%",
+      "meals": "<b>Meals</b> {count} a day",
+      "logged": "{logged} of {finished} days logged"
+    },
+    "maintenance": {
+      "title": "Your maintenance",
+      "hint": "What your body burns in a day, worked out from what you ate and how your weight moved.",
+      "loading": "Loading your history…",
+      "needs": "Your maintenance needs about three weeks with most days logged in full and at least six weigh-ins. In the last four weeks: {days, plural, one {# full day} other {# full days}} and {weighIns, plural, one {# weigh-in} other {# weigh-ins}}.",
+      "block": "{weeks, plural, one {last week} other {last # weeks}}",
+      "perDay": "kcal a day",
+      "margin": "give or take about {kcal}",
+      "moved": "How it has moved",
+      "series": "maintenance",
+      "each": "Each point is the {weeks} weeks up to that day.",
+      "change": "{dir, select, down {Your maintenance has eased about {kcal} kcal since {date}.} up {Your maintenance has risen about {kcal} kcal since {date}.} other {Your maintenance has held steady since {date}.}}",
+      "ate": "What you ate",
+      "kcalPerDay": "{kcal} kcal a day",
+      "weight": "{dir, select, lost {Weight lost} gained {Weight gained} other {Weight}}",
+      "weightValue": "{kg} kg a week",
+      "devices": "What your devices estimate",
+      "devicesDiff": "{dir, select, higher {{pct}% higher} lower {{pct}% lower} other {the same}}",
+      "how": "How it's worked out",
+      "howText": "Over the last {weeks} weeks you ate {ate} kcal a day on your {days} fully logged days, and {weighIns} weigh-ins show your weight {dir, select, lost {falling {kg} kg a week, about {kcal} kcal a day at 7,700 kcal a kilo} gained {rising {kg} kg a week, about {kcal} kcal a day at 7,700 kcal a kilo} other {holding steady}}. So your body burned about {maintenance} a day. Your devices work out their own figure from your heart rate and movement."
+    },
+    "balance": {
+      "title": "Above or below maintenance",
+      "hint": "Each day's food against what your body burns. Bars above the line are days you ate more; below, days you ate less. Days logged only in part are left out.",
+      "series": "against your maintenance",
+      "needsMaintenance": "This chart needs your maintenance first.",
+      "more": "Ate more",
+      "less": "Ate less",
+      "summary": "You ate less than your maintenance on {under} of {days} days{moved, select, fell {, and your weight fell about {kg} kg} rose {, and your weight rose about {kg} kg} other {}}."
+    },
+    "protein": {
+      "title": "Protein",
+      "hintAuto": "Your target is {perKg} g per kg of body weight: {target} g at {weight} kg.",
+      "hintOwn": "Your target is {target} g a day, set in Settings.",
+      "hintNone": "Add a weigh-in, or set a target in Settings, to see days against a target."
+    },
+    "fibre": {
+      "title": "Fibre",
+      "hint": "Most adults fall short of 25 to 30 g a day."
+    },
+    "chartAverage": "avg <value>{avg} g</value>{known, select, yes { · target {target} g} other {}}",
+    "legend": {
+      "reached": "Reached target",
+      "under": "Under target",
+      "partly": "Partly logged",
+      "met": "You reached your target on {met} of {days} days.",
+      "noneMet": "No day reached {target} g yet; your best was {best} g on {date}."
+    }
+  },
   "data": {
     "sources": {
       "title": "Devices and sources",
@@ -2265,6 +2437,23 @@
         "hours": "{half, select, yes {{hours}½} other {{hours}}}",
         "noteAuto": "Worked out from your recent nights, between {min} and {max} hours. Your body battery and sleep debt use it.",
         "noteOwn": "Your own figure, between {min} and {max} hours. Your body battery and sleep debt use it. <button>Back to auto</button>"
+      },
+      "protein": {
+        "label": "Protein",
+        "per": "g a day",
+        "auto": "Auto",
+        "less": "Less protein",
+        "more": "More protein",
+        "noteAuto": "Worked out from your weight, at {perKg} g per kg. The Nutrition page measures against it.",
+        "noteNoWeight": "Worked out from your weight once you have a weigh-in, at {perKg} g per kg. Until then, set your own.",
+        "noteOwn": "Your own figure, between {min} and {max} g. The Nutrition page measures against it. <button>Back to auto</button>"
+      },
+      "fibre": {
+        "label": "Fibre",
+        "per": "g a day",
+        "less": "Less fibre",
+        "more": "More fibre",
+        "note": "The Nutrition page's fibre target. 30 g is the UK's recommendation; most adults eat less."
       },
       "failed": "Couldn't save that change, so your goals are as they were. Try again."
     },

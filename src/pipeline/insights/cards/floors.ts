@@ -4,6 +4,7 @@ import {
 import type { InsightContext } from '../context';
 import { sleepMins } from '../helpers';
 import { TREND_KG_PER_WEEK } from './body';
+import { isComplete } from '../../eating';
 import type { Finding, InsightPage, Observation } from '../types';
 import { t } from '../../../i18n';
 import { formatDayMonthLong, formatDuration, formatInteger, formatList, formatRounded } from '../../../i18n/format';
@@ -74,7 +75,7 @@ export function pageFloor(page: InsightPage, ctx: InsightContext, onToday: Obser
   return { ...floor, id: `${page}-floor`, page, domain: domainOf[page], ...floors[page](ctx) };
 }
 
-const domainOf = { activity: 'movement', sleep: 'sleep', vitals: 'cardio', body: 'body', cycle: 'cycle' } as const;
+const domainOf = { activity: 'movement', sleep: 'sleep', vitals: 'cardio', body: 'body', nutrition: 'nutrition', cycle: 'cycle' } as const;
 
 type FloorCopy = { title: string; text: string };
 
@@ -144,6 +145,20 @@ const floors: Record<InsightPage, (ctx: InsightContext) => FloorCopy> = {
     return {
       title: t('insights.floors.bodyFloor.title'),
       text: t('insights.floors.bodyFloor.text', { threshold: formatRounded(TREND_KG_PER_WEEK, 3), ...last }),
+    };
+  },
+  nutrition(ctx) {
+    // The week's food, from the days logged in full: what's there, without a verdict.
+    const week = ctx.days.slice(-8, -1).filter((d) => d.nutrition && isComplete(d.nutrition)).map((d) => d.nutrition!);
+    if (!week.length) {
+      return { title: t('insights.floors.nutritionFloor.titleEmpty'), text: t('insights.floors.nutritionFloor.textEmpty') };
+    }
+    const mean = (get: (n: (typeof week)[number]) => number) => week.reduce((a, n) => a + get(n), 0) / week.length;
+    return {
+      title: t('insights.floors.nutritionFloor.title'),
+      text: t('insights.floors.nutritionFloor.text', {
+        count: week.length, kcal: formatInteger(Math.round(mean((n) => n.kcal) / 10) * 10), protein: formatInteger(mean((n) => n.proteinG)),
+      }),
     };
   },
   cycle(ctx) {

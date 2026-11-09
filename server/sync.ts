@@ -187,6 +187,17 @@ async function syncUserLocked(deps: Deps, userId: string, status: SyncStatus, fo
     !state.lastFullSyncAt ||
     now.getTime() - state.lastFullSyncAt.getTime() > FULL_RESYNC_DAYS * DAY_MS;
 
+  // A stream now fetched another way than its stored days were (the food log moved from daily
+  // totals to listed meals) starts over on its own, history included, rather than everyone rebuilding.
+  if (!rebuild) {
+    for (const s of STREAMS) {
+      const was = streamStates.get(s.dataType)?.report?.mode;
+      if (!was || was === 'derived' || was === s.mode) continue;
+      await purgeStream(deps.db, userId, s.dataType);
+      streamStates.delete(s.dataType);
+    }
+  }
+
   const output = await syncIncremental({
     transport: new HealthTransport({ token }),
     today: todayCivilIn(user.timeZone, now),

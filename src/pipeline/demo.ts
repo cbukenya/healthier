@@ -1,4 +1,4 @@
-import { addDays, daysBetween, isoWeekdayIndex, startOfCivilDay, type CivilDate } from '../lib/date';
+import { addDays, daysBetween, ghDateFromCivil, isoWeekdayIndex, startOfCivilDay, type CivilDate } from '../lib/date';
 import {
   buildFixturePayloads, iso, listPoint, newestFirst, rollupPoint, sampleTime, type FixtureDay, type FixturePayloads,
   type MinuteSeries,
@@ -437,6 +437,80 @@ export function buildDemoPayloads(): FixturePayloads {
     dataPoints: [listPoint(WATCH_PASSIVE, 'irregularRhythmNotification', { sampleTime: sampleTime(iso(instant(irn, 3 * 60 + 12)), irn, offsetOn(irn)) })],
   };
   out['electrocardiogram'] = { dataPoints: [] };
-  out['nutrition-log'] = { rollupDataPoints: [] };
+  out['nutrition-log'] = { dataPoints: newestFirst(foodLog(days)) };
   return out;
+}
+
+/** Food logged by hand in the Google Health app. */
+const FOOD_LOG = { recordingMethod: 'MANUAL', platform: 'FITBIT' };
+
+/**
+ * A year of meals, made up: logged most days, a few days forgotten or left half done, more on
+ * weekends and after short nights, and a little under what the body burns while the weight comes
+ * down, so the page's maintenance agrees with the scale. Each meal is one logged entry.
+ */
+function foodLog(days: DemoDay[]): any[] {
+  const r = seeded(20261109);
+  const meanActive = days.reduce((a, d) => a + (d.activeKcal ?? 0), 0) / days.length;
+  const meanOf = (get: (d: DemoDay) => number | null | undefined) => {
+    const v = days.map(get).filter((x): x is number => typeof x === 'number');
+    return v.reduce((a, b) => a + b, 0) / v.length;
+  };
+  const meanRhr = meanOf((d) => d.restingHr);
+  const meanDeep = meanOf((d) => d.sleep?.deep);
+  const points: any[] = [];
+  for (const [i, day] of days.entries()) {
+    const next = days[i + 1];
+    const ago = daysBetween(day.date, TODAY);
+    if (ago > 0 && r.chance(0.06)) continue; // a day nothing was logged
+    const wd = isoWeekdayIndex(day.date); // 0 Monday … 6 Sunday
+    const weekend = wd >= 5;
+    const shortNight = (day.sleep?.asleep ?? 450) < 390;
+    // What the weight loss takes off each day, at 7,700 kcal a kilo: the same slopes the scale follows.
+    const deficit = ago <= 120 ? 0.034 * 7700 : 0.007 * 7700;
+    const kcal = clamp(2326 - deficit + (weekend ? 180 : -60) + (shortNight ? 300 : 0) + 0.35 * ((day.activeKcal ?? meanActive) - meanActive) + r.normal(130), 1400, 3400);
+    const proteinShare = clamp(0.2 + r.normal(0.025), 0.12, 0.3);
+    const fatShare = clamp(0.35 + r.normal(0.03), 0.25, 0.45);
+    // Made to go with the night after, so the Nutrition page's patterns have something to find: more
+    // fibre before more deep sleep, and late dinners before the mornings the heart rate sits higher.
+    const fibre = clamp(20 + r.normal(4) - (shortNight ? 3 : 0) + 0.45 * ((next?.sleep?.deep ?? meanDeep) - meanDeep), 8, 34);
+    const around = days.slice(Math.max(0, i - 14), i + 15).map((d) => d.restingHr).filter((v): v is number => v !== null);
+    const usualRhr = around.length ? around.reduce((a, b) => a + b, 0) / around.length : meanRhr;
+    const lateDinner = r.chance((next?.restingHr ?? usualRhr) >= usualRhr + 1 ? 0.9 : 0.04);
+    const snack = r.chance(0.55);
+    const meals: [string, number, number, number][] = [
+      ['BREAKFAST', 445 + r.normal(25), 0.22, 0.14],
+      ['LUNCH', 750 + r.normal(25), 0.32, 0.32],
+      ...(snack ? [['SNACK', 955 + r.normal(25), 0.1, 0.08] as [string, number, number, number]] : []),
+      ['DINNER', (lateDinner ? 1300 : 1160) + r.normal(20), snack ? 0.36 : 0.46, snack ? 0.46 : 0.54],
+    ];
+    // A half-logged day: breakfast went in, the rest never did. Today, only what's eaten by twenty to eight.
+    const partial = ago > 0 && r.chance(0.04);
+    const now = 7 * 60 + 40;
+    const logged = meals.filter(([, at], k) => (ago === 0 ? at < now : partial ? k === 0 : true));
+    const offset = offsetOn(day.date);
+    for (const [kind, at, share, proteinPart] of logged) {
+      const mealKcal = kcal * share;
+      const protein = (kcal * proteinShare * proteinPart) / 4;
+      const fat = (mealKcal * fatShare) / 9;
+      const carbs = Math.max(0, (mealKcal - protein * 4 - fat * 9) / 4);
+      const start = instant(day.date, Math.round(at));
+      points.push(listPoint(FOOD_LOG, 'nutritionLog', {
+        interval: {
+          startTime: iso(start), startUtcOffset: offset, endTime: iso(start + 15 * 60_000), endUtcOffset: offset,
+          civilStartTime: { date: ghDateFromCivil(day.date), time: { hours: Math.floor(at / 60), minutes: Math.round(at) % 60 } },
+        },
+        mealType: kind,
+        foodDisplayName: kind.toLowerCase(),
+        energy: { kcal: Math.round(mealKcal) },
+        totalCarbohydrate: { grams: round(carbs, 1) },
+        totalFat: { grams: round(fat, 1) },
+        nutrients: [
+          { nutrient: 'PROTEIN', quantity: { grams: round(protein, 1) } },
+          { nutrient: 'DIETARY_FIBER', quantity: { grams: round(fibre * share, 1) } },
+        ],
+      }));
+    }
+  }
+  return points;
 }

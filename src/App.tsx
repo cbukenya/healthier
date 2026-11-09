@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { IntradaySample } from './types/health';
-import { ChevronLeft, ChevronRight, CircleDotDashed, FlaskConical, Footprints, Heart, Moon, RefreshCw, Settings, User, ShieldAlert, PersonStanding } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CircleDotDashed, FlaskConical, Footprints, Heart, Moon, RefreshCw, Settings, User, ShieldAlert, PersonStanding, Utensils } from 'lucide-react';
 import { useAuth } from './hooks/useAuth';
 import { useInstance } from './hooks/useInstance';
 import { useHealth } from './hooks/useHealth';
@@ -9,6 +9,7 @@ import { GoalsProvider } from './hooks/useGoals';
 import { CycleProvider, useCycleTracking } from './hooks/useCycle';
 import { ThemeProvider } from './hooks/useTheme';
 import { CycleView } from './views/CycleView';
+import { NutritionView } from './views/NutritionView';
 import { DASHBOARD_WINDOW_DAYS } from './pipeline/sync';
 import { DEMO_CLOCK } from './pipeline/demo';
 import { formatCivilDay } from './i18n/format';
@@ -241,6 +242,7 @@ export default function App() {
             {view === 'sleep' && <SleepView data={health.data} intraday={intradayDays} clock={demo ? DEMO_CLOCK : undefined} />}
             {view === 'vitals' && <VitalsView data={health.data} intraday={intradayDays} clock={demo ? DEMO_CLOCK : undefined} />}
             {view === 'body' && <BodyView data={health.data} gender={gender} onGender={chooseGender} intraday={intradayDays} clock={demo ? DEMO_CLOCK : undefined} />}
+            {view === 'nutrition' && <NutritionView data={health.data} intraday={intradayDays} clock={demo ? DEMO_CLOCK : undefined} />}
             {view === 'cycle' && <CycleView data={health.data} intraday={intradayDays} clock={demo ? DEMO_CLOCK : undefined} />}
             {view === 'labs' && <LabsView data={health.data} intraday={intradayDays} />}
             {view === 'settings' && (
@@ -296,7 +298,7 @@ export default function App() {
           </div>
         </div>
         <div className="max-w-5xl mx-auto px-4 pt-1 md:pt-2">
-          <PageNav view={view} setView={setView} />
+          <PageNav view={view} setView={setView} food={!!health.data?.days.some((d) => d.nutrition)} />
         </div>
       </header>
       {shell}
@@ -311,7 +313,7 @@ export default function App() {
   );
 }
 
-type View = 'today' | 'activity' | 'sleep' | 'vitals' | 'body' | 'cycle' | 'labs' | 'settings';
+type View = 'today' | 'activity' | 'sleep' | 'vitals' | 'body' | 'nutrition' | 'cycle' | 'labs' | 'settings';
 
 /**
  * Who's here, in the bar: their picture and first name, or Demo in demo mode. It opens the
@@ -387,12 +389,18 @@ const EDGE = 48;
  * sideways on its own, by swipe, trackpad or mouse wheel, and an edge with pages past it shows a
  * small arrow that slides the row along.
  */
-function PageNav({ view, setView }: { view: View; setView: (view: View) => void }) {
+function PageNav({ view, setView, food }: {
+  view: View;
+  setView: (view: View) => void;
+  /** Food has been logged in the window: the Nutrition page shows only then. */
+  food: boolean;
+}) {
   const tracking = useCycleTracking();
   // Turning tracking off on the Settings page takes the Cycle page away; never leave anyone on it.
   useEffect(() => {
     if (view === 'cycle' && !tracking) setView('today');
-  }, [view, tracking, setView]);
+    if (view === 'nutrition' && !food) setView('today');
+  }, [view, tracking, food, setView]);
 
   const row = useRef<HTMLDivElement>(null);
   const [edges, setEdges] = useState({ before: false, after: false });
@@ -416,7 +424,7 @@ function PageNav({ view, setView }: { view: View; setView: (view: View) => void 
     }
     measure();
   }, [measure]);
-  useLayoutEffect(reveal, [view, tracking, reveal]);
+  useLayoutEffect(reveal, [view, tracking, food, reveal]);
 
   // A turned phone, a new text size or the fonts arriving change what fits, and how wide the open page is.
   useEffect(() => {
@@ -427,7 +435,7 @@ function PageNav({ view, setView }: { view: View; setView: (view: View) => void 
     for (const child of el.children) observer.observe(child);
     void document.fonts?.ready.then(reveal);
     return () => observer.disconnect();
-  }, [tracking, reveal]);
+  }, [tracking, food, reveal]);
 
   // A mouse wheel turns the row while it has pages past an edge, then hands back to the page.
   useEffect(() => {
@@ -477,6 +485,12 @@ function PageNav({ view, setView }: { view: View; setView: (view: View) => void 
           active={view === 'body'} onClick={() => setView('body')}
           icon={<PersonStanding size={14} />} label={t('app.nav.body')} color={DOMAIN.body.text}
         />
+        {food && (
+          <NavButton
+            active={view === 'nutrition'} onClick={() => setView('nutrition')}
+            icon={<Utensils size={14} />} label={t('app.nav.nutrition')} color={DOMAIN.nutrition.text}
+          />
+        )}
         {tracking && (
           <NavButton
             active={view === 'cycle'} onClick={() => setView('cycle')}
