@@ -70,7 +70,7 @@ export function SleepView({ data, clock, intraday }: { data: SyncResult; clock?:
       <div className="px-2 pb-3">
         <TrendChart
           series={groupSeries(sleepWin, bucket)} bucket={bucket} color={DOMAIN.sleep.hex} height={190}
-          format={(v) => fmtDuration(v)} area={false}
+          format={(v) => fmtDuration(v)} area={false} minutes
           baseline={usualRange(sleepCmp)}
         />
       </div>
@@ -80,7 +80,7 @@ export function SleepView({ data, clock, intraday }: { data: SyncResult; clock?:
     <Card>
       <CardHead title={t('sleep.rem.title')} hint={t('sleep.rem.hint')} hintBySummary right={<CardSummary isSleep data={remWin} color="var(--stage-rem)" format={(v) => fmtDuration(v)} />} />
       <div className="px-2 pb-3">
-        <BarSeries series={groupSeries(remWin, bucket)} bucket={bucket} color="var(--stage-rem)" unit={t('units.minutes')} height={150} />
+        <BarSeries series={groupSeries(remWin, bucket)} bucket={bucket} color="var(--stage-rem)" format={(v) => fmtDuration(v)} minutes height={150} />
       </div>
     </Card>
   );
@@ -88,7 +88,7 @@ export function SleepView({ data, clock, intraday }: { data: SyncResult; clock?:
     <Card>
       <CardHead title={t('sleep.deep.title')} hint={t('sleep.deep.hint')} hintBySummary right={<CardSummary isSleep data={deepWin} color="var(--stage-deep)" format={(v) => fmtDuration(v)} />} />
       <div className="px-2 pb-3">
-        <BarSeries series={groupSeries(deepWin, bucket)} bucket={bucket} color="var(--stage-deep)" unit={t('units.minutes')} height={150} />
+        <BarSeries series={groupSeries(deepWin, bucket)} bucket={bucket} color="var(--stage-deep)" format={(v) => fmtDuration(v)} minutes height={150} />
       </div>
     </Card>
   );
