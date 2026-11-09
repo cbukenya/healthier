@@ -294,12 +294,12 @@ function labsReminders(ctx: InsightContext, add: Add): void {
   if (ctx.intraday) {
     const intraday = ctx.intraday;
     const sick = illnessDates(days, ctx.judged);
-    const dip = dipping(days, intraday, sick);
+    const dip = dipping(days, intraday, sick, ctx.age);
     if (dip.status === 'pattern') {
       add({
         id: 'labs-dip-pattern', domain: 'cardio', page: 'today', kind: 'alert', tone: 'watch',
         importance: 91, topic: 'labs-dip', family: 'labs', today: 'as-news',
-        news: entered(days, (w: DailyRecord[]) => dipping(w, intraday, sick).status === 'pattern') || monthStart,
+        news: entered(days, (w: DailyRecord[]) => dipping(w, intraday, sick, ctx.age).status === 'pattern') || monthStart,
         title: t('insights.today.labsDipPattern.title'),
         text: t('insights.today.labsDipPattern.text', {
           higherAtNight: dip.riser ? 'yes' : 'no',
