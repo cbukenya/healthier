@@ -3,7 +3,7 @@ import { t, type MessageKey, type Values } from '../i18n';
 import { rich } from '../i18n/react';
 import { formatCivilLong, formatCivilRange, formatClock, formatFixed, formatHours, weekdayLetter, weekdayShort } from '../i18n/format';
 import { bedtimeConsistency, type PeriodShift, type SleepDebt } from '../pipeline/derive';
-import { scoreSleep } from '../pipeline/sleep';
+import { scoreSleep, type SleepNorms } from '../pipeline/sleep';
 import { Card, CardHead, DURATION_UNIT, Delta, Row, fmtDuration, tint, withUnits } from '../ui/primitives';
 import type { DailyRecord, SleepSession } from '../types/health';
 import { Stat, statUnit } from './ActivityCards';
@@ -96,17 +96,19 @@ const spreadWord = (sd: number) => (sd <= 30 ? 'steady' : sd <= 60 ? 'variable' 
  * stages against your need with its score beneath, then nights at need, sleep debt and how far
  * bedtime strayed.
  */
-export function LastSevenNights({ days, shift, needMin, debt, wide, glow }: {
+export function LastSevenNights({ days, shift, norms, debt, wide, glow }: {
   /** The last seven days, oldest first; each holds the night that ended that morning. */
   days: DailyRecord[];
   /** Their time asleep against the seven days before. */
   shift: PeriodShift;
-  needMin: number;
+  /** The need each night is held to, and the rest of what its score is held to. */
+  norms: SleepNorms;
   /** Over the seven nights before last night, as the body battery counts it. */
   debt: SleepDebt | null;
   wide: boolean;
   glow?: string;
 }) {
+  const needMin = norms.need;
   const nights = days.map((d) => d.sleep).filter((s): s is SleepSession => s !== null);
   const atNeed = nights.filter((s) => s.minutesAsleep >= needMin).length;
   const spread = bedtimeConsistency(days);
@@ -150,7 +152,7 @@ export function LastSevenNights({ days, shift, needMin, debt, wide, glow }: {
             <Delta value={shift.delta} goodWhen="up" digits={0} phrase="sleep.lastSeven.change" />
           </div>
         </div>
-        <NightBars days={days} needMin={needMin} need={need} wide={wide} />
+        <NightBars days={days} norms={norms} need={need} wide={wide} />
         {wide ? (
           <div className="grid grid-cols-3 lg:grid-cols-1 gap-3 lg:gap-3.5">
             {facts.map((f) => <Stat key={f.id} label={f.label} value={rich(f.value, { ...f.values, muted: statUnit })} tone={f.tone} />)}
@@ -173,14 +175,15 @@ export function LastSevenNights({ days, shift, needMin, debt, wide, glow }: {
 }
 
 /** One bar per night, split into stages, against the need line; each night's score sits beneath. */
-function NightBars({ days, needMin, need, wide }: { days: DailyRecord[]; needMin: number; need: string; wide: boolean }) {
+function NightBars({ days, norms, need, wide }: { days: DailyRecord[]; norms: SleepNorms; need: string; wide: boolean }) {
+  const needMin = norms.need;
   const plot = wide ? 120 : 110;
   const longest = Math.max(0, ...days.map((d) => d.sleep?.minutesAsleep ?? 0));
   // Headroom above the need, and above the longest night.
   const top = Math.max(needMin * 1.2, longest * 1.05);
   const px = (min: number) => (min / top) * plot;
   const columns = 'grid grid-cols-7 gap-x-2 md:gap-x-3.5 pr-[30px]';
-  const scored = days.map((d) => ({ date: d.date, sleep: d.sleep, score: d.sleep ? scoreSleep(d.sleep).total : null }));
+  const scored = days.map((d) => ({ date: d.date, sleep: d.sleep, score: d.sleep ? scoreSleep(d.sleep, norms).total : null }));
   return (
     <div
       role="img"
