@@ -10,7 +10,7 @@ import { latestBody, series, weightTrend } from '../pipeline/derive';
 import { PROTEIN_PER_KG, proteinTarget } from '../pipeline/goals';
 import {
   USUAL_SHARE, againstRange, averageDay, dayLog, deviceBurn, latestMaintenance, maintenanceTrend, mealClock, plateNote,
-  plateSquares, sharesOf, towardTarget, type AverageDay, type Maintenance, type MealClock, type Shares, type Standing,
+  plateSquares, sharesOf, towardTarget, waterSpan, type AverageDay, type Maintenance, type MealClock, type Shares, type Standing,
 } from '../pipeline/eating';
 import { groupSeries } from '../pipeline/aggregate';
 import { wallClock } from '../pipeline/insights/helpers';
@@ -28,7 +28,7 @@ import type { IntradayDays } from '../pipeline/labs';
 
 const PAGE = DOMAIN.nutrition.hex;
 
-type NutritionChart = 'balance' | 'protein' | 'fibre';
+type NutritionChart = 'balance' | 'protein' | 'fibre' | 'water';
 
 /** The tiers' colours, as the body battery has them: a mark's, and a word's on a tinted pill. */
 const STANDING_COLOUR: Record<Standing, { dot: string; ink: string }> = {
@@ -43,6 +43,7 @@ const STANDING_COLOUR: Record<Standing, { dot: string; ink: string }> = {
 const pct = (share: number) => Math.round(share * 100);
 const grams = (v: number) => formatInteger(v);
 const kcal = (v: number) => formatInteger(v);
+const litres = (v: number) => formatNumber(v, 1);
 
 /**
  * The Nutrition page, from the food log in Google Health: today's plate and the week's meals at the
@@ -85,10 +86,12 @@ export function NutritionView({ data, clock, intraday }: { data: SyncResult; clo
   const balance = <BalanceCard span={span} all={all} today={today} maintenance={maintenance} bucket={spanState.bucket} />;
   const proteinCard = <TargetCard kind="protein" span={span} today={today} target={protein} weight={weight} ownTarget={goals.protein !== null} bucket={spanState.bucket} />;
   const fibreCard = <TargetCard kind="fibre" span={span} today={today} target={goals.fibre} weight={weight} ownTarget bucket={spanState.bucket} />;
+  const waterCard = <WaterCard span={span} today={today} target={goals.water / 1000} bucket={spanState.bucket} />;
   const charts: { key: NutritionChart; label: string; card: React.ReactNode }[] = [
     { key: 'balance', label: t('nutrition.chips.balance'), card: balance },
     { key: 'protein', label: t('nutrition.chips.protein'), card: proteinCard },
     { key: 'fibre', label: t('nutrition.chips.fibre'), card: fibreCard },
+    { key: 'water', label: t('nutrition.chips.water'), card: waterCard },
   ];
   const shown = charts.find((c) => c.key === chart) ?? charts[0];
 
@@ -101,6 +104,8 @@ export function NutritionView({ data, clock, intraday }: { data: SyncResult; clo
           devices={devices}
           proteinTarget={protein}
           fibreTarget={goals.fibre}
+          water={todayRow.hydrationL ?? 0}
+          waterTarget={goals.water / 1000}
           note={todayRow.nutrition ? plateNote(todayRow.nutrition, usual?.shares ?? null, protein, minutesNow) : null}
           wide={wide}
         />
@@ -124,6 +129,7 @@ export function NutritionView({ data, clock, intraday }: { data: SyncResult; clo
             {proteinCard}
             {fibreCard}
           </div>
+          {waterCard}
         </>
       ) : (
         <>
@@ -152,16 +158,25 @@ function StandingPill({ standing }: { standing: Standing }) {
   );
 }
 
-/** A target's progress bar: what's in, against the target. */
-function TargetBar({ label, got, target, colour }: { label: string; got: number; target: number | null; colour: string }) {
+/** A target's progress bar: what's in, against the target, in grams or, for water, litres. */
+function TargetBar({ label, got, target, colour, inLitres = false }: {
+  label: string;
+  got: number;
+  target: number | null;
+  colour: string;
+  inLitres?: boolean;
+}) {
+  const b = (w: React.ReactNode) => <span className="text-zinc-100">{w}</span>;
   return (
     <div className="mt-2">
       <div className="flex items-baseline justify-between gap-2 text-detail text-zinc-400">
         <span>{label}</span>
         <span className="text-zinc-500">
           {target === null
-            ? rich('nutrition.plate.grams', { grams: grams(got), b: (w) => <span className="text-zinc-100">{w}</span> })
-            : rich('nutrition.plate.ofTarget', { got: grams(got), target: grams(target), b: (w) => <span className="text-zinc-100">{w}</span> })}
+            ? rich('nutrition.plate.grams', { grams: grams(got), b })
+            : inLitres
+              ? rich('nutrition.plate.ofLitres', { got: litres(got), target: litres(target), b })
+              : rich('nutrition.plate.ofTarget', { got: grams(got), target: grams(target), b })}
         </span>
       </div>
       {target !== null && (
@@ -199,12 +214,15 @@ function Squares({ protein, carbs, fat, empty, size }: { protein: number; carbs:
  * macros' colours as the day is eaten. Past maintenance, the plate is full and the rest spills
  * into new squares under a line; both keep the day's own mix.
  */
-function PlateCard({ day, maintenance, devices, proteinTarget, fibreTarget, note, wide }: {
+function PlateCard({ day, maintenance, devices, proteinTarget, fibreTarget, water, waterTarget, note, wide }: {
   day: DayNutrition | null;
   maintenance: number | null;
   devices: number | null;
   proteinTarget: number | null;
   fibreTarget: number;
+  /** Litres of water logged today so far, and the day's target. */
+  water: number;
+  waterTarget: number;
   note: ReturnType<typeof plateNote>;
   wide: boolean;
 }) {
@@ -255,6 +273,7 @@ function PlateCard({ day, maintenance, devices, proteinTarget, fibreTarget, note
           {day?.fibreG !== null && (
             <TargetBar label={t('nutrition.macros.fibre')} got={day?.fibreG ?? 0} target={fibreTarget} colour={MACRO.fibre} />
           )}
+          <TargetBar label={t('nutrition.water.title')} got={water} target={waterTarget} colour={MACRO.water} inLitres />
         </div>
       </div>
       {note && (
@@ -798,6 +817,72 @@ function TargetCard({ kind, span, today, target, weight, ownTarget, bucket }: {
           </p>
         )}
       </div>
+    </Card>
+  );
+}
+
+/**
+ * Water, day by day, against its target. Only what was logged counts: a day with nothing logged
+ * has no bar rather than an empty one, and today is drawn but left out of the figures.
+ */
+function WaterCard({ span, today, target, bucket }: {
+  span: DailyRecord[];
+  today: CivilDate;
+  /** Litres a day. */
+  target: number;
+  bucket: ReturnType<typeof useSpan>['bucket'];
+}) {
+  const water = useMemo(() => waterSpan(span, today, target), [span, today, target]);
+  // Grouped into weeks or months, today's glass so far would pull its week down.
+  const points = bucket === 'day' ? water.points : water.points.map((p) => (p.date === today ? { ...p, value: null } : p));
+  const any = water.points.some((p) => p.value !== null);
+
+  return (
+    <Card>
+      <CardHead
+        title={t('nutrition.water.title')}
+        hint={t('nutrition.water.hint', { target: litres(target) })}
+        right={water.average !== null && (
+          <span>
+            {rich('nutrition.water.average', {
+              avg: litres(water.average),
+              target: litres(target),
+              value: (w) => <span style={{ color: MACRO.water }}>{w}</span>,
+            })}
+          </span>
+        )}
+      />
+      {any ? (
+        <>
+          <div className="px-2 pb-1">
+            <BarSeries
+              series={groupSeries(points, bucket)}
+              bucket={bucket}
+              color={MACRO.water}
+              goal={target}
+              height={180}
+              unit={t('units.litres')}
+              format={litres}
+              tickStep={1}
+            />
+          </div>
+          <div className="px-5 pb-5">
+            <div className="flex flex-wrap gap-x-4 gap-y-1 text-caption text-zinc-400">
+              <Key colour={MACRO.water}>{t('nutrition.legend.reached')}</Key>
+              <Key colour={tint(MACRO.water, 42)}>{t('nutrition.legend.under')}</Key>
+            </div>
+            {water.logged > 0 && (
+              <p className="mt-2 text-detail leading-relaxed text-zinc-400">
+                {water.met === 0 && water.best
+                  ? t('nutrition.water.noneMet', { target: litres(target), best: litres(water.best.litres), date: formatCivilLong(water.best.date) })
+                  : t('nutrition.water.met', { met: water.met, days: water.logged })}
+              </p>
+            )}
+          </div>
+        </>
+      ) : (
+        <p className="px-5 pb-5 text-detail leading-relaxed text-zinc-500">{t('nutrition.water.none')}</p>
+      )}
     </Card>
   );
 }

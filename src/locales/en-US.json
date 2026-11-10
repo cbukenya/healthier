@@ -57,7 +57,8 @@
     "steps": "steps",
     "celsius": "°C",
     "cm": "cm",
-    "perHour": "/h"
+    "perHour": "/h",
+    "litres": "L"
   },
   "app": {
     "name": "Healthier",
@@ -2102,7 +2103,8 @@
       "label": "Charts",
       "balance": "Balance",
       "protein": "Protein",
-      "fibre": "Fibre"
+      "fibre": "Fibre",
+      "water": "Water"
     },
     "macros": {
       "protein": "Protein",
@@ -2130,6 +2132,7 @@
       "targets": "Today's targets",
       "grams": "<b>{grams}</b> g",
       "ofTarget": "<b>{got}</b> of {target} g",
+      "ofLitres": "<b>{got}</b> of {target} L",
       "maintenanceLine": "your maintenance",
       "aria": "Today's food as squares, each 1% of what your body burns in a day: {protein} protein, {carbs} carbs and {fat} fat.",
       "legend": {
@@ -2216,6 +2219,14 @@
     "fibre": {
       "title": "Fibre",
       "hint": "Most adults fall short of 25 to 30 g a day."
+    },
+    "water": {
+      "title": "Water",
+      "hint": "What you log, against your {target} L a day. Water in food, and drinks you don't log, aren't counted.",
+      "average": "avg <value>{avg} L</value> · target {target} L",
+      "met": "{days, plural, one {You reached your target on {met} of the # day you logged water.} other {You reached your target on {met} of the # days you logged water.}}",
+      "noneMet": "No day reached {target} L yet; your best was {best} L on {date}.",
+      "none": "No water logged in this span. Log what you drink in the Google Health app and it shows here."
     },
     "chartAverage": "avg <value>{avg} g</value>{known, select, yes { · target {target} g} other {}}",
     "legend": {
@@ -2457,6 +2468,13 @@
         "less": "Less fibre",
         "more": "More fibre",
         "note": "The Nutrition page's fibre target. 30 g is the UK's recommendation; most adults eat less."
+      },
+      "water": {
+        "label": "Water",
+        "per": "L a day",
+        "less": "Less water",
+        "more": "More water",
+        "note": "The Nutrition page's water target, for what you log. Europe's food safety authority suggests about 1.6 L a day from drinks for women and 2.0 L for men."
       },
       "failed": "Couldn't save that change, so your goals are as they were. Try again."
     },

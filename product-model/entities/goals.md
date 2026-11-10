@@ -17,3 +17,6 @@ Personal targets used throughout the dashboard.
 - **Steps** — Daily step target, initially 10000.
 - **Brisk minutes** — Daily brisk-minute target, initially 30.
 - **Sleep need** — Nightly minutes the person sets, or Auto, worked out from their recent nights; initially Auto.
+- **Protein** — Daily grams the person sets, or Auto, 1.4 g per kg of their latest weigh-in; initially Auto.
+- **Fibre** — Daily fibre target in grams, initially 30.
+- **Water** — Daily target in millilitres for the water they log, initially 2000.

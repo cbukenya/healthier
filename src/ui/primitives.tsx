@@ -34,13 +34,14 @@ export const DOMAIN = {
 /**
  * The food log's colours: protein in the Nutrition page's own plum, carbs sky and fat honey,
  * with carbs between the other two so every neighbouring pair stays apart for colour-blind eyes,
- * and fibre lime, for plants.
+ * fibre lime, for plants, and water teal, apart from the carbs' sky.
  */
 export const MACRO = {
   protein: 'var(--purple-500)',
   carbs: 'var(--sky-400)',
   fat: 'var(--amber-400)',
   fibre: 'var(--lime-400)',
+  water: 'var(--teal-400)',
 } as const;
 
 /**

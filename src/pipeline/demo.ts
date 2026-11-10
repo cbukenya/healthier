@@ -438,7 +438,25 @@ export function buildDemoPayloads(): FixturePayloads {
   };
   out['electrocardiogram'] = { dataPoints: [] };
   out['nutrition-log'] = { dataPoints: newestFirst(foodLog(days)) };
+  out['hydration-log'] = { rollupDataPoints: newestFirst(waterLog(days)) };
   return out;
+}
+
+/**
+ * Water logged in the Google Health app, as Google adds it up for each day: most days, a glass or
+ * two more on workout days, some days forgotten. Today, the glass with breakfast.
+ */
+function waterLog(days: DemoDay[]): any[] {
+  const r = seeded(20261110);
+  const points: any[] = [];
+  for (const day of days) {
+    const ago = daysBetween(day.date, TODAY);
+    if (ago > 0 && r.chance(0.12)) continue; // a day nothing was logged
+    const workout = day.workout ? 0.45 : 0;
+    const ml = ago === 0 ? 250 : Math.round(clamp(1.75 + workout + r.normal(0.3), 0.75, 3.2) * 20) * 50;
+    points.push(rollupPoint(day.date, 'hydrationLog', { amountConsumed: { millilitersSum: ml, userProvidedUnitLast: 'MILLILITER' } }));
+  }
+  return points;
 }
 
 /** Food logged by hand in the Google Health app. */

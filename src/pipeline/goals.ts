@@ -17,9 +17,11 @@ export interface Goals {
   protein: number | null;
   /** Grams of fibre a day. */
   fibre: number;
+  /** Millilitres of water logged a day. */
+  water: number;
 }
 
-export const DEFAULT_GOALS: Goals = { steps: 10_000, briskMinutes: 30, sleepNeed: null, protein: null, fibre: 30 };
+export const DEFAULT_GOALS: Goals = { steps: 10_000, briskMinutes: 30, sleepNeed: null, protein: null, fibre: 30, water: 2_000 };
 
 /**
  * The automatic protein target, in grams a day for each kilogram of body weight. 1.4 sits in the
@@ -78,6 +80,16 @@ export interface GoalLimit {
  *                 Carbohydrates and Health, 2015) and the default; 25 is the EU's
  *                 adequate intake (EFSA 2010) and the WHO's minimum (2023); much
  *                 above 50 tends to bring more discomfort than benefit.
+ *   water         1 to 4 litres a day, in steps of 100 ml. It's measured against
+ *                 what's logged, which is drinks: the EU's adequate intake is 2.0
+ *                 litres of water a day for women and 2.5 for men, about a fifth
+ *                 of it from food (EFSA 2010), so roughly 1.6 and 2.0 litres from
+ *                 drinks. 2.0 is the default. 1 litre leaves room for anyone who
+ *                 logs only plain water, not their tea or coffee; below it the
+ *                 target stops meaning much. 4 litres is past the US National
+ *                 Academies' 3.7 litres of total water for men (DRI 2004); needs
+ *                 beyond that come with heat or long training, which a fixed
+ *                 daily goal doesn't fit.
  */
 export const GOAL_LIMITS = {
   steps: { min: 2_000, max: 25_000, step: 500 },
@@ -85,6 +97,7 @@ export const GOAL_LIMITS = {
   sleepNeed: { min: 420, max: 540, step: 15 },
   protein: { min: 40, max: 250, step: 5 },
   fibre: { min: 20, max: 50, step: 5 },
+  water: { min: 1_000, max: 4_000, step: 100 },
 } as const satisfies Record<keyof Goals, GoalLimit>;
 
 /** A value moved onto its goal's steps and inside its bounds. */
@@ -105,19 +118,21 @@ export function readGoals(raw: unknown): Goals {
   const need = finite(o.sleepNeed);
   const protein = finite(o.protein);
   const fibre = finite(o.fibre);
+  const water = finite(o.water);
   return {
     steps: steps === null ? DEFAULT_GOALS.steps : fitGoal(steps, GOAL_LIMITS.steps),
     briskMinutes: brisk === null ? DEFAULT_GOALS.briskMinutes : fitGoal(brisk, GOAL_LIMITS.briskMinutes),
     sleepNeed: need === null ? null : fitGoal(need, GOAL_LIMITS.sleepNeed),
     protein: protein === null ? null : fitGoal(protein, GOAL_LIMITS.protein),
     fibre: fibre === null ? DEFAULT_GOALS.fibre : fitGoal(fibre, GOAL_LIMITS.fibre),
+    water: water === null ? DEFAULT_GOALS.water : fitGoal(water, GOAL_LIMITS.water),
   };
 }
 
 /**
  * Goals sent to be saved: null unless each one sits on its steps inside its bounds. Sleep need and
- * protein may be null, for automatic. Protein and fibre came later, so a page from before them may
- * leave them out: they keep their defaults.
+ * protein may be null, for automatic. Protein, fibre and water came later, so a page from before
+ * them may leave them out: they keep their defaults.
  */
 export function parseGoals(raw: unknown): Goals | null {
   if (!raw || typeof raw !== 'object') return null;
@@ -130,15 +145,17 @@ export function parseGoals(raw: unknown): Goals | null {
   if (o.sleepNeed !== null && !valid(o.sleepNeed, GOAL_LIMITS.sleepNeed)) return null;
   if (o.protein !== undefined && o.protein !== null && !valid(o.protein, GOAL_LIMITS.protein)) return null;
   if (o.fibre !== undefined && !valid(o.fibre, GOAL_LIMITS.fibre)) return null;
+  if (o.water !== undefined && !valid(o.water, GOAL_LIMITS.water)) return null;
   return {
     steps: o.steps as number,
     briskMinutes: o.briskMinutes as number,
     sleepNeed: o.sleepNeed as number | null,
     protein: (o.protein ?? null) as number | null,
     fibre: (o.fibre ?? DEFAULT_GOALS.fibre) as number,
+    water: (o.water ?? DEFAULT_GOALS.water) as number,
   };
 }
 
 export const sameGoals = (a: Goals, b: Goals) =>
   a.steps === b.steps && a.briskMinutes === b.briskMinutes && a.sleepNeed === b.sleepNeed &&
-  a.protein === b.protein && a.fibre === b.fibre;
+  a.protein === b.protein && a.fibre === b.fibre && a.water === b.water;
