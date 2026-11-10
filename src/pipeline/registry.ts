@@ -586,10 +586,11 @@ export const STREAMS: StreamDescriptor[] = [
     mode: 'rollup',
     container: 'hydrationLog',
     scope: 'nutrition',
+    note: 'Daily totals of what was logged, so the times are lost; a day summed to nothing was never logged.',
     dateOf: rollupDate,
     apply(ctx, c) {
       const ml = num(c?.amountConsumed?.millilitersSum ?? c?.millilitersSum);
-      if (ml === null) return false;
+      if (ml === null || ml <= 0) return false;
       ctx.row.hydrationL = round(ml / 1000, 2);
       mark(ctx, 'hydration-log');
       return true;

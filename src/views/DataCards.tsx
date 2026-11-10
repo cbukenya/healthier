@@ -244,6 +244,15 @@ export function GoalsCard({ autoNeed, autoProtein }: {
           moreLabel={t('data.goals.fibre.more')}
           note={t('data.goals.fibre.note')}
         />
+        <GoalRow
+          label={t('data.goals.water.label')}
+          per={t('data.goals.water.per')}
+          shown={formatNumber(goals.water / 1000, 1)}
+          {...stepper(goals.water, L.water, (v) => ({ water: v }))}
+          lessLabel={t('data.goals.water.less')}
+          moreLabel={t('data.goals.water.more')}
+          note={t('data.goals.water.note')}
+        />
       </div>
       {failed && (
         <p role="alert" className="px-5 pb-4 text-caption text-rose-400">

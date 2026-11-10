@@ -321,3 +321,34 @@ export function plateNote(today: DayNutrition, usual: Shares | null, proteinTarg
   }
   return null;
 }
+
+export interface WaterSpan {
+  /** Each day's water in litres, today's so far; null where nothing was logged. */
+  points: { date: CivilDate; value: number | null }[];
+  /** Finished days with water logged: what the average and the days on target count. */
+  logged: number;
+  /** Their average, in litres. */
+  average: number | null;
+  /** How many of them reached the target. */
+  met: number;
+  /** The most logged on one of them. */
+  best: { date: CivilDate; litres: number } | null;
+}
+
+/**
+ * Water across a span, from what was logged. A day with nothing logged is left out rather than
+ * counted as none drunk, and today is drawn but not judged, as it's still going.
+ */
+export function waterSpan(span: DailyRecord[], today: CivilDate, targetL: number): WaterSpan {
+  const points = span.map((d) => ({ date: d.date, value: d.hydrationL }));
+  const done = span.filter((d) => d.date !== today && d.hydrationL !== null);
+  const litres = done.map((d) => d.hydrationL!);
+  const best = done.reduce<DailyRecord | null>((a, d) => (!a || d.hydrationL! > a.hydrationL! ? d : a), null);
+  return {
+    points,
+    logged: done.length,
+    average: litres.length ? litres.reduce((a, b) => a + b, 0) / litres.length : null,
+    met: litres.filter((l) => l >= targetL).length,
+    best: best ? { date: best.date, litres: best.hydrationL! } : null,
+  };
+}

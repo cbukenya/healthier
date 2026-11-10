@@ -359,6 +359,7 @@ export function BarSeries({
   format = (v: number) => fmtNum(v, 0),
   bucket = 'day',
   minutes = false,
+  tickStep,
   hollow,
   hollowNote,
 }: {
@@ -372,12 +373,20 @@ export function BarSeries({
   bucket?: Bucket;
   /** The values are minutes, so the axis says them in hours: "30m", "1h", "1h 30m". */
   minutes?: boolean;
+  /** Axis ticks every this much from zero, past the goal and the tallest bar, where the chart's own would land on odd values. */
+  tickStep?: number;
   /** Days drawn as a dashed outline rather than filled, such as a day only partly logged, and what the tooltip calls them. */
   hollow?: ReadonlySet<string>;
   hollowNote?: string;
 }) {
   const rows = useMemo(() => toRows(series, undefined, bucket), [series, bucket]);
-  const ticks = useMemo(() => (minutes && values(series).length ? minuteTicks(0, Math.max(...values(series))) : null), [series, minutes]);
+  const ticks = useMemo(() => {
+    if (!values(series).length) return null;
+    if (minutes) return minuteTicks(0, Math.max(...values(series)));
+    if (!tickStep) return null;
+    const top = Math.max(...values(series), goal ?? 0);
+    return Array.from({ length: Math.ceil(top / tickStep) + 1 }, (_, i) => i * tickStep);
+  }, [series, minutes, tickStep, goal]);
   if (!values(series).length) return <NoSeries height={height} />;
   return (
     <ResponsiveContainer width="100%" height={height}>

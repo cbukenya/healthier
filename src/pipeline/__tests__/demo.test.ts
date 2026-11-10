@@ -50,11 +50,11 @@ describe('demo mode', () => {
     assert.equal(history.at(-1)!.date, today);
   });
 
-  it('fills every stream a watch, a scale and a food log would, and leaves the rest empty without errors', () => {
+  it('fills every stream a watch, a scale, a food log and a water log would, and leaves the rest empty without errors', () => {
     const status = Object.fromEntries(data.meta.streams.map((s) => [s.dataType, s.status]));
     assert.deepEqual(
       Object.keys(status).filter((k) => status[k] !== 'ok').sort(),
-      ['blood-glucose', 'electrocardiogram', 'hydration-log'],
+      ['blood-glucose', 'electrocardiogram'],
     );
     assert.ok(Object.values(status).every((s) => s === 'ok' || s === 'empty'));
     assert.ok(data.heartRateSamples.length > 60 * 24 * 50, 'minute heart rate for most of the window');

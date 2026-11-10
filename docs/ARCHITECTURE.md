@@ -361,6 +361,11 @@ only reads it; there's no food search or logging of its own, and nothing is gues
   Academies, 2005). A single day is described, never judged: today's plate says how far it is from
   maintenance and remarks only on protein well behind late in the day, or a mix far from the
   person's own usual.
+- **Water** (`hydration-log`) comes as Google's total for each day, so it has no times; a day
+  summed to nothing was never logged. Today's plate and the water chart hold what was logged to
+  the water target. A day without a log has no bar rather than an empty one, and today is drawn
+  but not counted. Water in food and drinks that weren't logged aren't in it, so the page says
+  nothing about hydration itself.
 
 - **Insights** (`src/pipeline/insights/cards/nutrition.ts`). Three patterns from the person's own
   days: what was eaten after short nights, the morning resting heart rate after late dinners, and
@@ -372,7 +377,7 @@ only reads it; there's no food search or logging of its own, and nothing is gues
 
 The page shows in the menu only while food has been logged in the window. Its colour is plum
 (`DOMAIN.nutrition`); the macros are plum protein, sky carbs and honey fat, carbs in the middle so
-every neighbouring pair stays apart for colour-blind eyes, and lime fibre.
+every neighbouring pair stays apart for colour-blind eyes, lime fibre and teal water.
 
 ## Goals
 
@@ -385,8 +390,8 @@ bounds. Every ring, goal line, label and insight reads them from there (the scre
 Sleep need stays automatic, the median of your nights held between 7 and 8.5 hours, until it's
 set; set, it replaces the estimate everywhere, the body battery and the sleep score included.
 Protein works the same way: automatic at 1.4 g per kg of the latest weigh-in until it's set. Fibre
-is 30 g a day unless set. Both arrived after the others, so a page that doesn't send them keeps
-their defaults.
+is 30 g a day and water 2.0 litres unless set. Protein, fibre and water arrived after the others,
+so a page that doesn't send them keeps their defaults.
 
 The sleep score holds each night to the person's own norms (`sleepNorms` in `src/pipeline/sleep.ts`):
 full duration marks from their sleep need to 9 hours, and full restoration marks at their usual

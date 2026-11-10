@@ -2716,18 +2716,22 @@ describe('goals', () => {
   it('reads stored goals inside their bounds, with defaults where one is missing', () => {
     assert.deepEqual(readGoals(null), DEFAULT_GOALS);
     assert.deepEqual(readGoals({ steps: 'lots', sleepNeed: 'auto' }), DEFAULT_GOALS);
-    assert.deepEqual(readGoals({ steps: 10, briskMinutes: 1000, sleepNeed: 60 }), { steps: 2000, briskMinutes: 120, sleepNeed: 420, protein: null, fibre: 30 },
+    assert.deepEqual(readGoals({ steps: 10, briskMinutes: 1000, sleepNeed: 60 }), { steps: 2000, briskMinutes: 120, sleepNeed: 420, protein: null, fibre: 30, water: 2000 },
       'ten steps and an hour of sleep are pulled up to the floors');
-    assert.deepEqual(readGoals({ steps: 7720, briskMinutes: 33, sleepNeed: 488 }), { steps: 7500, briskMinutes: 35, sleepNeed: 495, protein: null, fibre: 30 },
+    assert.deepEqual(readGoals({ steps: 7720, briskMinutes: 33, sleepNeed: 488 }), { steps: 7500, briskMinutes: 35, sleepNeed: 495, protein: null, fibre: 30, water: 2000 },
       'and onto their steps');
   });
 
   it('saves only goals on their steps and inside their bounds', () => {
-    assert.deepEqual(parseGoals({ steps: 8000, briskMinutes: 25, sleepNeed: null }), { steps: 8000, briskMinutes: 25, sleepNeed: null, protein: null, fibre: 30 },
+    assert.deepEqual(parseGoals({ steps: 8000, briskMinutes: 25, sleepNeed: null }), { steps: 8000, briskMinutes: 25, sleepNeed: null, protein: null, fibre: 30, water: 2000 },
       'a page from before the food targets keeps their defaults');
-    assert.deepEqual(parseGoals({ steps: 25000, briskMinutes: 120, sleepNeed: 540, protein: 150, fibre: 35 }), { steps: 25000, briskMinutes: 120, sleepNeed: 540, protein: 150, fibre: 35 });
+    assert.equal(readGoals({ water: 350 }).water, 1000, 'a glass a day is pulled up to the floor');
+    assert.equal(readGoals({ water: 2240 }).water, 2200, 'and onto its steps');
+    assert.deepEqual(parseGoals({ steps: 25000, briskMinutes: 120, sleepNeed: 540, protein: 150, fibre: 35, water: 2500 }), { steps: 25000, briskMinutes: 120, sleepNeed: 540, protein: 150, fibre: 35, water: 2500 });
     assert.equal(parseGoals({ steps: 10000, briskMinutes: 30, sleepNeed: null, protein: 12 }), null, 'twelve grams is no protein target');
     assert.equal(parseGoals({ steps: 10000, briskMinutes: 30, sleepNeed: null, fibre: 32 }), null, 'fibre off its steps');
+    assert.equal(parseGoals({ steps: 10000, briskMinutes: 30, sleepNeed: null, water: 2250 }), null, 'water off its steps');
+    assert.equal(parseGoals({ steps: 10000, briskMinutes: 30, sleepNeed: null, water: 6000 }), null, 'six litres is no water target');
     assert.equal(parseGoals({ steps: 10, briskMinutes: 30, sleepNeed: null }), null, 'ten steps is no goal');
     assert.equal(parseGoals({ steps: 10000, briskMinutes: 30, sleepNeed: 60 }), null, 'an hour is no sleep need');
     assert.equal(parseGoals({ steps: 10000, briskMinutes: 5, sleepNeed: null }), null);

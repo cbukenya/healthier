@@ -7,12 +7,14 @@ import { STREAMS } from '../registry';
 import { combineNutritionPoints } from '../nutrition';
 import {
   KCAL_PER_KG, againstRange, averageDay, isComplete, latestMaintenance, maintenanceAt, maintenanceTrend, mealClock, plateNote,
-  plateSquares, sharesOf, towardTarget,
+  plateSquares, sharesOf, towardTarget, waterSpan,
 } from '../eating';
+import { rollupPoint } from '../fixtures';
 import type { DailyRecord, DayNutrition } from '../../types/health';
 import { compareDays, MIN_EACH } from '../insights/cards/nutrition';
 
 const NUTRITION = STREAMS.find((s) => s.dataType === 'nutrition-log')!;
+const HYDRATION = STREAMS.find((s) => s.dataType === 'hydration-log')!;
 
 /** One logged food as Google Health lists it (v4 NutritionLog), at a local time on a date, two hours east of UTC. */
 function entry(date: CivilDate, hhmm: string, food: { kcal?: number; protein?: number; carbs?: number; fat?: number; fibre?: number; meal?: string }, source: unknown = { recordingMethod: 'MANUAL', platform: 'FITBIT' }) {
@@ -81,6 +83,36 @@ describe('the food log', () => {
     const variants = result.variants.get('nutrition-log')!.get(day)!;
     assert.deepEqual([...variants.values()].map((r) => r.nutrition!.kcal).sort(), [1400, 1430], 'each source kept for the person to choose');
     assert.equal(combineNutritionPoints([]).length, 0);
+  });
+});
+
+describe('the water log', () => {
+  it('reads each day\'s logged water in litres, and a day summed to nothing as not logged', () => {
+    const { days } = normalize([{
+      stream: HYDRATION,
+      points: [
+        rollupPoint('2026-10-10', 'hydrationLog', { amountConsumed: { millilitersSum: 1750, userProvidedUnitLast: 'MILLILITER' } }),
+        rollupPoint('2026-10-11', 'hydrationLog', { amountConsumed: { millilitersSum: 0 } }),
+      ],
+    }]);
+    assert.equal(days.get('2026-10-10')!.hydrationL, 1.75);
+    assert.equal(days.get('2026-10-11')?.hydrationL ?? null, null);
+  });
+
+  it('counts only finished days with water logged, never a day without a log as none drunk', () => {
+    const span = daysOf(6, () => null, () => null);
+    [1.5, null, 2.2, 2.0, null, 1.8].forEach((l, i) => { span[i].hydrationL = l; });
+    span[6].hydrationL = 0.4; // today, so far
+    const w = waterSpan(span, '2026-10-12', 2.0);
+    assert.equal(w.points.length, 7);
+    assert.equal(w.points.at(-1)!.value, 0.4, 'today is drawn');
+    assert.equal(w.logged, 4);
+    assert.ok(Math.abs(w.average! - 1.875) < 1e-9);
+    assert.equal(w.met, 2);
+    assert.deepEqual(w.best, { date: span[2].date, litres: 2.2 });
+    assert.deepEqual(waterSpan(daysOf(3, () => null, () => null), '2026-10-12', 2.0), {
+      points: daysOf(3, () => null, () => null).map((d) => ({ date: d.date, value: null })), logged: 0, average: null, met: 0, best: null,
+    });
   });
 });
 
