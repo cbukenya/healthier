@@ -1978,7 +1978,7 @@
       "light": "<b>Lights up</b> when half or more of the measured nights drop less than 10%.",
       "how": {
         "explainer": "Heart rate usually drops during sleep compared with the daytime, often by <b>10–20%</b>. Late meals, alcohol, heat, evening exercise and illness all shift it from night to night, so only a multi-week change is shown.",
-        "footer": "Daytime is the 08:00–20:00 average of your minute-level heart rate while you weren't active: minutes at moderate effort or harder (40% of your heart-rate reserve, from your age and resting heart rate) are left out, so a workout doesn't widen the drop. Night is your non-REM sleeping heart rate. A 10% drop is a night/day ratio of 0.90. The 10% and 20% lines come from overnight blood-pressure research and are only a rough guide for heart rate."
+        "footer": "Daytime is the 08:00–20:00 average of your minute-level heart rate while you weren't active: minutes at moderate effort or harder (40% of your heart-rate reserve, from your age and resting heart rate) are left out, so a workout doesn't widen the drop. Night is your non-REM sleeping heart rate. A 10% drop is a night/day ratio of 0.90. A smaller or blunted dip can be linked to chronic stress or an underlying cardiovascular condition, which is why it's worth mentioning at your next checkup."
       }
     },
     "entropy": {

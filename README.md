@@ -4,8 +4,8 @@
 [![License: AGPL v3](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
 
 **Your Google Health data, made clear.** Healthier is an open-source dashboard you host yourself.
-It covers the data your watch and phone collect: sleep, activity, heart rate, HRV, weight and
-more. Every insight is plain arithmetic that you can trace back to your own numbers. Every formula
+It covers the data your devices collect and the meals you log: sleep, activity, heart rate, HRV,
+weight, nutrition and more. Every insight is plain arithmetic that you can trace back to your own numbers. Every formula
 is open, for anyone to read and improve.
 
 ![The Today page: body battery and the readings that moved it, last night's sleep, activity so far and overnight vitals](docs/screenshots/today.png)
@@ -80,6 +80,13 @@ place at a time: on Today while it matters, otherwise on its own page.
   <tr>
     <td valign="top"><img src="docs/screenshots/labs.png" alt="The Labs page"><br><b>Labs.</b> Six experiments with multi-week patterns: breathing during sleep, signs of strain, irregular rhythm notifications from your device, heart rate dipping at night, HRV entropy, and fast heart rate during sleep.</td>
     <td valign="top"><img src="docs/screenshots/settings.png" alt="The Settings page"><br><b>Settings.</b> Every stream Healthier reads, what arrived and when, coverage day by day. Your devices, your goals, and a dark or light theme.</td>
+  </tr>
+</table>
+
+<table>
+  <tr>
+    <td width="50%" valign="top"><img src="docs/screenshots/nutrition.png" alt="The Nutrition page: today's plate and targets, the 7-day meal clock, your average day and your maintenance"></td>
+    <td width="50%" valign="top"><b>Nutrition.</b> Shows up once you log meals in the Google Health app, or in an app that writes to it through Health Connect or Apple Health. Today's plate shows what you've eaten against your protein and fibre targets, and the 7-day meal clock puts your meals beside your sleep. Your average day is set against the usual ranges for carbs and fat. Your maintenance, what your body burns in a day, is worked out from what you eat and how your weight moved, and shown as a trend. Its insight cards look for links between your eating, your sleep and your resting heart rate.</td>
   </tr>
 </table>
 
@@ -277,7 +284,7 @@ npm test
   - `incremental.ts` is the sync engine: what to fetch, and how per-stream daily rows are stored and
     reassembled. It runs on the server for live data and in the browser for demo mode.
   - `insights/` is the insight engine. Each page's cards are in `insights/cards/`.
-  - `labs.ts` holds the arithmetic for Labs.
+  - `labs.ts` holds the arithmetic for Labs, and `eating.ts` for Nutrition.
   - `demo.ts` makes up the demo person.
 - `src/locales/`: every word the app shows, one file per language.
 - `src/`: the React dashboard.
