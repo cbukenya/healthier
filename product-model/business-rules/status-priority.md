@@ -12,4 +12,4 @@ references:
 
 # Overall status reports the first actionable data condition
 
-Reconnection precedes whole-sync failure, then active history import, failed streams and delayed daily streams. Current status does not assert that every category has readings or is shared.
+Reconnection precedes whole-sync failure, then a history import that is running now, failed streams and delayed daily streams. Current status does not assert that every category has readings or is shared.

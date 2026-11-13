@@ -3,7 +3,7 @@ kind: alternate
 routes:
   personal: Connected profile
 steps:
-- text: The person syncs after signing in without allowing a reading.
+- text: The person signs in with Google again without allowing a reading they had shared, and the full sync that follows runs.
   kind: actor
   entities: []
   actor: person
@@ -28,6 +28,7 @@ steps:
     - Movement
     - Vitals
     - Body
+    - Logged
     - Notifications
     - Zones
     - Sources
@@ -62,4 +63,4 @@ A new consent result no longer shares a previously read category.
 
 ## Outcome
 
-The category is unshared and its stored readings are removed on the successful sync; other categories remain.
+The category reads Not shared, and every stored day of it is removed, history included; other categories remain. Withdrawing heart rate also removes the minute heart rate, and withdrawing the profile or height removes the age or height.

@@ -33,6 +33,7 @@ steps:
     - Movement
     - Vitals
     - Body
+    - Logged
     - Notifications
     - Zones
     - Sources
@@ -80,7 +81,7 @@ references:
 
 ## Trigger
 
-The person chooses Retry.
+The person chooses Retry, on the Settings status card after a failed sync, or in place of the dashboard when the first import failed.
 
 ## Outcome
 

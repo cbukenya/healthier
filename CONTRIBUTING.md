@@ -62,6 +62,11 @@ Read [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) first if you're changing sync 
   you can't get it, say so and a maintainer will run it.
 - **Changing normalisation means bumping `PIPELINE_VERSION`** in `src/pipeline/incremental.ts`.
   Stored data was produced by the old code; the bump makes every install rebuild it.
+- **Keep the product model current.** [`product-model/`](product-model/README.md) describes how
+  sync and data freshness work today. If your change alters what it describes (the code is listed
+  under `covered` in `product-model/coverage.md`), update the model in the same pull request.
+  `npx pdd-toolkit view` shows it as a report and `npx pdd-toolkit lint` checks it; neither is
+  required.
 - **Migrations are append-only.** Add a new entry in `server/db.ts`; never edit one that has been
   released, because installs that already ran it won't run it again.
 - **No medical claims.** Healthier is a wellness tool, not a medical device. Copy describes what was

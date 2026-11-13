@@ -50,3 +50,7 @@ Google has no readings of a stream in the window.
 ## Outcome
 
 The stream reads Nothing recorded: none of the person's devices record it, or nothing has been logged.
+
+## Edge cases
+
+- This holds for streams read as daily totals. A stream read as a list takes its latest day from every reading on the first page, which can reach back past the window, so a weight last logged 200 days ago reads as current and shows that date, since weight is occasional, and a sleep device off for 70 days reads as Behind.

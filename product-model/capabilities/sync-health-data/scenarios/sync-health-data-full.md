@@ -24,7 +24,7 @@ steps:
   contexts:
     personal:
       place: web::personal::settings
-- text: The Product refreshes the recent records and finishes the synchronization.
+- text: The Product fetches the whole window for every stream, replaces what was stored for it, and finishes the synchronization.
   kind: product
   entities:
   - entity: health-day
@@ -34,6 +34,7 @@ steps:
     - Movement
     - Vitals
     - Body
+    - Logged
     - Notifications
     - Zones
     - Sources
@@ -92,12 +93,17 @@ references:
   target: src/hooks/useHealth.ts#useHealth
 ---
 
-# Rebuild the recent window
+# Fetch the whole window again
 
 ## Trigger
 
-The person chooses Full sync.
+The person chooses Full sync on the status card in Settings.
 
 ## Outcome
 
-The whole 62-day window is re-fetched. Older history stays unless a changed processing version requires rebuilding it too.
+The whole 62-day window is fetched again and replaces what was stored; older history stays.
+
+## Edge cases
+
+- A sync is also full without anyone asking: the first after sign-in, any sync when the last full one was more than seven days ago, and the first after an upgrade that changes how stored days are worked out. That last one also deletes the history before the window, and the history import fetches it again.
+- A stream Healthier now fetches another way starts over on its own, history included, while the others sync as usual.

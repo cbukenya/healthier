@@ -32,7 +32,7 @@ references:
 
 # Healthier
 
-Healthier is an open-source dashboard people host themselves to understand their sleep, activity, heart rate, HRV, body measurements and cycles. It combines recent readings, longer history and explanations of the calculations, with automatic Labs that describe patterns in the person’s own data.
+Healthier is an open-source dashboard people host themselves to understand the data their devices collect and the meals they log: sleep, activity, heart rate, HRV, body measurements, nutrition and cycles. It combines recent readings, longer history and explanations of the calculations, with automatic Labs that describe patterns in the person’s own data.
 
 ## Intent
 

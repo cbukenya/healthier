@@ -3,7 +3,7 @@ kind: alternate
 routes:
   personal: Connected profile
 steps:
-- text: Successful synchronization advances the retention boundary.
+- text: A sync stores its results, and the history setting's oldest day has moved on.
   kind: condition
   entities:
   - entity: synchronization
@@ -18,7 +18,7 @@ steps:
   contexts:
     personal:
       place: web::personal::settings
-- text: The Product removes expired observations.
+- text: The Product removes stored days older than the history setting, and minute heart rate older than the window.
   kind: product
   entities:
   - entity: health-day
@@ -49,8 +49,12 @@ references:
 
 ## Trigger
 
-A successful sync advances the retained date range.
+A sync stores its results.
 
 ## Outcome
 
-Daily data older than the configured history span and minute heart rate older than 62 days are removed.
+Daily data older than the history setting (730 days by default) and minute heart rate older than the 62-day window are removed.
+
+## Edge cases
+
+- The first sync after an upgrade that changes how stored days are worked out removes everything older than the 62-day window. The history import brings the older days back afterwards.

@@ -6,6 +6,9 @@ appliesTo:
 references:
 - kind: code
   role: implementation
+  target: server/auth.ts#authRoutes
+- kind: code
+  role: implementation
   target: src/App.tsx#App
 - kind: code
   role: implementation
@@ -34,4 +37,4 @@ permits:
 
 # A person opens their connected or offered demo profile
 
-Connected profiles begin on an admitted signed-in visit. Demo profiles are available when the installation offers Demo mode.
+A connected profile is created when an admitted person signs in with Google. Demo profiles are available when the installation offers Demo mode.

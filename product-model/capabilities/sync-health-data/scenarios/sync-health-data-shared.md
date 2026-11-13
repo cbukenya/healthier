@@ -3,14 +3,14 @@ kind: alternate
 routes:
   personal: Connected profile
 steps:
-- text: The person syncs after allowing the reading on Google’s consent screen.
+- text: The person signs in with Google again and allows the reading on the consent screen.
   kind: actor
   entities: []
   actor: person
   contexts:
     personal:
       place: web::personal::settings
-- text: The Product fetches the newly allowed reading and shows its latest day.
+- text: The full sync that follows sign-in fetches the newly allowed reading over the window, and the history import fetches its older days.
   kind: product
   entities:
   - entity: data-stream
@@ -49,4 +49,4 @@ A reading Healthier was not given access to is allowed on a later sign-in.
 
 ## Outcome
 
-The stream is read on every sync from then on and shows its readings.
+The stream is read on every sync from then on and shows its readings. Sign-in always asks for a full sync, because the categories shared may have changed on the consent screen.

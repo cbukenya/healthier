@@ -3,7 +3,7 @@ kind: edge
 routes:
   personal: Connected profile
 steps:
-- text: The person requests refresh.
+- text: 'A sync runs: the person opens Healthier, comes back to it, chooses Full sync or Retry, or the schedule starts one.'
   kind: actor
   entities: []
   actor: person
@@ -41,6 +41,7 @@ steps:
     - Movement
     - Vitals
     - Body
+    - Logged
     - Notifications
     - Zones
     - Sources
@@ -72,4 +73,4 @@ Every attempted request is rejected, or refresh fails before usable results are 
 
 ## Outcome
 
-The failure is shown; an existing dataset remains visible, while a first import remains retryable.
+Nothing from the failed sync is stored. With a dashboard already stored, it stays on screen, and the Settings status card says when Healthier last synced, with the reason and Retry. Before the first import has finished, the app shows the reason and Retry in place of the dashboard.
