@@ -33,6 +33,7 @@ steps:
     - Movement
     - Vitals
     - Body
+    - Logged
     - Notifications
     - Zones
     - Sources
@@ -94,8 +95,12 @@ references:
 
 ## Trigger
 
-The configured background interval elapses for a connected profile.
+The host's sync interval (60 minutes by default) has passed since a connected, admitted person's last sync, or they have never synced, or an upgrade changed how stored days are worked out. The server checks every five minutes.
 
 ## Outcome
 
-Recent readings are refreshed without a browser being open; a full rebuild is due after seven days.
+Recent readings are refreshed without a browser being open, one person at a time; the sync is a full one when the last full sync was more than seven days ago. The history import follows it.
+
+## Edge cases
+
+- With an interval of zero, nothing is scheduled; a sync runs only when the person opens Healthier or asks for one.

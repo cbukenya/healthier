@@ -3,14 +3,14 @@ kind: alternate
 routes:
   personal: Connected profile
 steps:
-- text: The person syncs again.
-  kind: actor
+- text: Three days pass since a daily stream's latest day, whether or not a sync runs.
+  kind: condition
   entities: []
-  actor: person
+  unattended: true
   contexts:
     personal:
       place: web::personal::settings
-- text: A daily stream still has nothing three days after its latest reading, so the Product marks it behind.
+- text: The next time the status is read, the Product shows the stream as behind, working it out from today's date and the stream's latest day.
   kind: product
   entities:
   - entity: data-stream
@@ -22,7 +22,6 @@ steps:
     - Shared
     from: Current
     to: Behind
-  actor: person
   contexts:
     personal:
       place: web::personal::settings
@@ -49,4 +48,4 @@ A daily stream's latest reading is three or more days old.
 
 ## Outcome
 
-The stream reads Nothing since its latest date; occasional streams such as weight never fall behind with age.
+The stream reads Nothing since its latest date. Behind isn't set by a sync, so a stream turns Behind as days pass even when no sync runs. Occasional streams such as weight never fall behind with age.

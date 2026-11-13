@@ -3,7 +3,7 @@ kind: alternate
 routes:
   personal: Connected profile
 steps:
-- text: The person syncs again.
+- text: 'A sync runs after the device has recorded the stream again: the person opens Healthier, comes back to it, or the schedule starts one.'
   kind: actor
   entities: []
   actor: person
@@ -49,4 +49,4 @@ A daily stream had nothing for three days or more, and the device records it aga
 
 ## Outcome
 
-Its status returns from Behind; Healthier asks for it on every sync, so it fills in with no action needed.
+The status leaves Behind as soon as a sync stores a newer reading. Only the last three days fill in by themselves, because earlier syncs already settled the older days of the gap while they were empty. Those wait for the next full sync, at most a week away, or a Full sync from Settings.

@@ -39,11 +39,8 @@ permits:
   - entity: person
     fact: Admitted
     is: true
-  - entity: installation
-    fact: Sync interval
-    over: 0
 ---
 
 # Only the person and connected synchronization change their synchronization
 
-The operation stays within the person’s own information through an admitted connected session. Their temporary demonstration information is also available in Demo mode. Background synchronization operates on the admitted person’s connected information.
+The operation stays within the person’s own information through an admitted connected session. Their temporary demonstration information is also available in Demo mode. Background work operates on the admitted person’s connected information: the schedule, when the host's sync interval is above zero, and the history import, which follows every sync whatever the interval and carries on after the tab is closed.

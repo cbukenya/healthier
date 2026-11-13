@@ -6,13 +6,16 @@ appliesTo:
 references:
 - kind: code
   role: implementation
+  target: server/auth.ts#requireUser
+- kind: code
+  role: implementation
   target: server/api.ts#apiRoutes
 - kind: code
   role: implementation
   target: server/sync.ts#syncUserLocked
 - kind: code
   role: implementation
-  target: src/hooks/useCycle.tsx#CycleProvider
+  target: server/repo.ts#applySyncOutput
 permits:
 - related: &id001
   - verb: keeps

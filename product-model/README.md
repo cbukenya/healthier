@@ -1,69 +1,53 @@
 # Product Model
 
-This directory is the **Product Model** of this repository, kept with
-pdd-kit for Product-Driven Development (PDD): who the product serves, where
-they reach it, what it keeps, what it can do, and which rules must stay true. It
-is plain Markdown tracked in Git, and it is the source of truth for the intended
-product definition.
+This directory describes how Healthier works today, written down in the
+[pdd-kit](https://pdd-kit.dev) format: who uses it, what it keeps, what it
+lets people do, and which rules hold. Think of it as system documentation.
+It is plain Markdown tracked in Git.
 
-This is a first slice: it covers sync and data freshness only. `product.md`
-lists what is not modelled yet, and `coverage.md` names the code it describes.
+It follows the code. Where the two disagree, the code is what happens, and the
+model is corrected to match, even when the code looks like a bug. Whether the
+code should change is a separate question, for an issue or a pull request.
 
-The pdd-kit CLI and agent skills are optional. Everyone can read and edit these
-files without them, and nothing in this repository's build, tests or CI uses
-them.
+This is a first slice: it covers sync and data freshness only. `coverage.md`
+names the code it describes and lists what isn't modelled yet.
 
-## If you are an agent working in this repository
+## Keeping it current
 
-- **To implement it**, all of it or a part, work the way you and the user
-  normally do. The model is the acceptance contract: see *What the code must
-  honor* below. When you finish, you may suggest checking the code against the
-  model with the optional `pdd-verify` skill; do not run the check unless
-  asked.
-- If the repository's agent instructions or the request say "Implement with
-  pdd-verify: plan the work from `product-model/` in phases and check each
-  part before the next.", or the installed `pdd-verify` skill says this
-  install orchestrates implementation, implement with `pdd-verify` instead,
-  unless the request says to implement without it.
-- If the optional pdd-kit skills are installed: **to check the code against
-  it**, use `pdd-verify`; **to change what the product should do**, use
-  `pdd-ideate`; to model established code the model does not cover, use
-  `pdd-map`. Without them, read and edit the Markdown directly.
-- The skills are not required. Anyone who wants them can run
-  `npx pdd-toolkit install`.
-- Do not edit this directory while implementing. If the model is ambiguous or
-  seems wrong, stop and ask; never settle a product question in code.
-- Never edit `cache/`. For an optional structural check, run
-  `npx pdd-toolkit lint`; no workflow or CI runs it.
+When a pull request changes behaviour this model describes, it updates the
+model too, the way it would update a test. The code it describes is listed in
+`coverage.md` under `covered`. A change to the wording or look of a screen
+needs no model change; a change to what happens does.
 
-## What the code must honor
+Two optional commands help, and nothing in the build, tests or CI needs them:
 
-- Capability Scenarios are acceptance tests for one Capability; Journey
-  Scenarios are end-to-end tests across Capabilities.
-- Business Rules must stay true. A Rule's `permits` names exactly who may
-  perform an operation; everyone else is refused.
+- `npx pdd-toolkit view` opens the model as a report in your browser, served
+  on your own machine. It follows your edits as you save, and shows what
+  changed since your branch left `main`.
+- `npx pdd-toolkit lint` checks the files are well formed. A clean result
+  doesn't mean the model matches the code; only reading both does.
+
+If you use a coding agent, the optional pdd-kit skills (`npx pdd-toolkit
+install`) add `pdd-verify`, which checks the code against the model and lists
+the differences, and `pdd-map`, which models code the model doesn't cover yet.
+Without them, read and edit the Markdown directly.
+
+## How to read it
+
+- A Capability is something the product lets someone do. Its Scenarios walk
+  through what happens, step by step, in one situation.
+- A Business Rule is something that holds across behaviours. A Rule's
+  `permits` names who can perform an operation; everyone else is refused.
 - A Screen's `shows` and `collects` are the facts it presents and the input
   it takes, not its layout or design.
-- `availability` names the Interfaces and Experiences where behavior must
-  work.
-- An Entity's facts and states are what the product keeps and distinguishes,
+- `availability` names the Interfaces and Experiences where a behaviour works.
+- An Entity's facts and states are what the product keeps and tells apart,
   not a storage schema.
-- A Variation's `selectedWhen` says what chooses each supported alternative.
+- References point to the code behind each file, for finding your way. They
+  don't prove the code matches.
 
-## What it does not prescribe
+Start with `product.md`, then Entities, Interfaces with their Experiences and
+Screens, Capabilities and their Scenarios, and Business Rules. A resource is
+`<id>.md`, or `<id>/<type>.md` when it owns child resources.
 
-- The stack and architecture: choose them yourself.
-- Domains group the model by subject; they are not modules or services.
-- References are navigation and context. They never prove the code matches and
-  never prescribe a design.
-- `coverage.md` says which of the repository's code the model accounts for,
-  never whether that code matches it; it stays empty until code is mapped.
-
-## Reading order
-
-Start with `product.md` or `product/product.md`, then Entities, Interfaces
-with their Experiences and Screens, Domains, Capabilities and their Scenarios,
-Business Rules, Journeys and their Scenarios, and Variations. A resource is
-`<id>.md`, or `<id>/<type>.md` when it owns child resources or assets.
-
-Documentation: https://pdd-kit.dev
+Documentation of the format: https://pdd-kit.dev

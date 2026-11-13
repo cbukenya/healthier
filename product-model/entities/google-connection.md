@@ -25,4 +25,4 @@ Ongoing access is available.
 
 ### Reconnect required
 
-Google access must be renewed through sign-in.
+Google refused to renew access, so Healthier deleted the Google tokens it held. Access comes back only when the person signs in with Google again.

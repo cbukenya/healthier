@@ -3,13 +3,13 @@ kind: primary
 routes:
   personal: Connected profile
 steps:
-- text: The person requests a refresh.
+- text: The person opens Healthier, or comes back to its tab more than 15 minutes after the last sync.
   kind: actor
   entities: []
   actor: person
   contexts:
     personal:
-      place: web::personal::settings
+      place: web::personal::today
 - text: The Product starts or joins the running synchronization.
   kind: product
   entities:
@@ -23,8 +23,8 @@ steps:
   actor: person
   contexts:
     personal:
-      place: web::personal::settings
-- text: The Product stores the successfully fetched observations and completes the synchronization.
+      place: web::personal::today
+- text: The Product fetches each stream's last three days, or from the day after its settled days if those end earlier, stores what arrived and completes the synchronization.
   kind: product
   entities:
   - entity: health-day
@@ -34,6 +34,7 @@ steps:
     - Movement
     - Vitals
     - Body
+    - Logged
     - Notifications
     - Zones
     - Sources
@@ -76,7 +77,7 @@ steps:
   actor: person
   contexts:
     personal:
-      place: web::personal::settings
+      place: web::personal::today
 references:
 - kind: code
   role: implementation
@@ -96,13 +97,14 @@ references:
 
 ## Trigger
 
-The person requests refresh or returns to data older than 15 minutes.
+The person opens Healthier, or comes back to its tab, and the last sync was more than 15 minutes ago. Settings has no refresh button; its status card offers Full sync, Retry or Sign in again.
 
 ## Outcome
 
-Successful date ranges replace their corresponding readings; the latest three days are normally re-fetched.
+Each stream fetches the last three days, today included, or from the day after its settled days if those end earlier, and the days that arrived replace what was stored. Days before that aren't fetched again until the next full sync.
 
 ## Edge cases
 
-- A refresh already running is joined rather than duplicated.
-- A stale visit shows the existing dataset while refresh runs.
+- A sync already running is joined rather than duplicated.
+- The stored dashboard stays on screen while the sync runs.
+- Opening Healthier within 15 minutes of the last sync shows what is stored and fetches nothing.

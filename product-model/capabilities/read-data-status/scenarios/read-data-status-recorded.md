@@ -61,4 +61,9 @@ The person opens Settings.
 
 ## Outcome
 
-Only the first thing worth saying is shown: Google access has expired, the last sync failed, history is on its way, some readings couldn't be fetched, some haven't come in for days, or the data is up to date.
+Only the first thing worth saying is shown: Google access has expired, the last sync failed, history is on its way, some readings couldn't be fetched, some haven't come in for days, or the data is up to date. Beside it is the one action that fits: Sign in again, Retry, or Full sync.
+
+## Edge cases
+
+- The expired state is rarely seen here: when Google access expires, the app shows the sign-in screen in place of the dashboard.
+- History is on its way only while the history import is running now. When an import has stopped with streams still missing, the card says the history is incomplete and retrying, under the History figure.

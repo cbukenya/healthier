@@ -22,4 +22,4 @@ references:
 
 # Settings
 
-The Settings page: where the person's data stands (sync status, the window, history import and the last sync) above its sections: Devices and sources, Data streams, Goals, Cycle tracking, Data facts and Account.
+The Settings page: where the person's data stands (sync status, the window, history import and the last sync) above its sections in three groups: Your data (Devices and sources, Data streams), Preferences (Goals, Cycle tracking) and About (Data facts, Account).

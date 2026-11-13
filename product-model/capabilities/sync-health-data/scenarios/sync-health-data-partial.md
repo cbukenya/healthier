@@ -3,14 +3,14 @@ kind: edge
 routes:
   personal: Connected profile
 steps:
-- text: The person syncs.
+- text: 'A full sync runs: the weekly one, the first after sign-in, or Full sync from Settings.'
   kind: actor
   entities: []
   actor: person
   contexts:
     personal:
       place: web::personal::settings
-- text: The Product starts the sync and asks Google for each stream's due days, a daily total in date chunks of up to 14 days.
+- text: The Product starts the sync and asks Google for each stream's whole window, a daily total in date chunks of up to 14 days.
   kind: product
   entities:
   - entity: synchronization
@@ -34,7 +34,7 @@ steps:
   contexts:
     personal:
       place: web::personal::settings
-- text: The Product marks that stream Failed with what Google answered, and keeps its coverage where it was, so the next sync asks for the same days again.
+- text: The Product marks that stream Failed with what Google answered and keeps its coverage where it was.
   kind: product
   entities:
   - entity: data-stream
@@ -83,13 +83,14 @@ references:
 
 ## Trigger
 
-Google answers some of a daily total's date chunks with an error while the rest of the sync succeeds.
+Google answers some of a daily total's date chunks with an error while the rest of the sync succeeds. A partial failure needs more than one 14-day chunk, so it mostly happens in a full sync.
 
 ## Outcome
 
-Days from the complete chunks show their new readings, days from the failed chunk keep their earlier readings, and the stream reads Failed until the next sync fetches the same range again.
+Days from the complete chunks show their new readings and days from the failed chunk keep their earlier readings. The full sync still counts as done. The next ordinary sync only re-checks the last three days, so the failed chunk's days wait for the next full sync, usually a week later. The stream's Failed status clears on the next sync that fetches it without an error.
 
 ## Edge cases
 
+- If the stream had no coverage yet, as in a first import, the next sync fetches the whole window again.
 - A stream read as a list of readings replaces nothing unless its whole fetch succeeds.
 - When every stream the sync attempted fails, nothing is stored and the sync reports Google's error instead.

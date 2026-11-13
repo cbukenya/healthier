@@ -18,4 +18,4 @@ references:
 
 # Sync health data
 
-Import the recent window, refresh recent readings, rebuild on Full sync, and extend retained history after the window is ready.
+Import the recent 62-day window, re-check the last three days on every sync, fetch the whole window again on a full sync, and import older history in the background once the window is stored.
