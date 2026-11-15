@@ -26,13 +26,13 @@
   "dependencies": {
     "compression": "^1.8.2",
     "cookie-parser": "^1.4.7",
-    "dotenv": "^18.0.9",
+    "dotenv": "^18.0.10",
     "express": "^5.3.0",
     "pg": "^8.23.1"
   },
   "devDependencies": {
-    "@babel/parser": "^8.1.0",
-    "@tailwindcss/vite": "^4.3.4",
+    "@babel/parser": "^8.1.2",
+    "@tailwindcss/vite": "^4.3.5",
     "@types/compression": "^1.8.1",
     "@types/cookie-parser": "^1.4.10",
     "@types/express": "^5.0.6",
@@ -44,9 +44,9 @@
     "autoprefixer": "^10.6.2",
     "clsx": "^2.1.1",
     "esbuild": "^0.28.2",
-    "intl-messageformat": "^12.1.4",
-    "lucide-react": "^1.69.0",
-    "motion": "^14.10.1",
+    "intl-messageformat": "^12.1.5",
+    "lucide-react": "^1.72.0",
+    "motion": "^14.13.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "recharts": "^3.10.1",
@@ -54,6 +54,6 @@
     "tailwindcss": "^4.1.14",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2",
-    "vite": "^8.3.6"
+    "vite": "^8.3.8"
   }
 }
