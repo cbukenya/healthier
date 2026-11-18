@@ -157,7 +157,7 @@ curl -fsSL https://raw.githubusercontent.com/cbukenya/healthier/main/.env.exampl
 docker compose up -d
 ```
 
-Open http://localhost:3000 and choose **Connect Google Account**. Signing in for the first time
+Open http://localhost:3000 and choose **Continue with Google**. Signing in for the first time
 creates your account. If a required setting is missing, the app container exits, and
 `docker compose logs app` lists what to set.
 
