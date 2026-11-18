@@ -723,15 +723,15 @@
       },
       "ramp": {
         "title": "You're moving a lot more than usual",
-        "text": "This week you've taken {ratio} times as many steps as in an average week over the three before. Big jumps are easy to make without noticing, so let how you feel be your guide."
+        "text": "In the last 7 days you've taken {ratio} times as many steps as in an average week over the three before. Big jumps are easy to make without noticing, so let how you feel be your guide."
       },
       "stepsUp": {
         "title": "You've been moving more this week",
-        "text": "You're averaging {count, plural, one {# step} other {# steps}} a day this week, up from {previous} last week. That's {pct}% more."
+        "text": "You're averaging {count, plural, one {# step} other {# steps}} a day over the last 7 days, up from {previous} the week before. That's {pct}% more."
       },
       "stepsDown": {
         "title": "A quieter week",
-        "text": "You've averaged {count, plural, one {# step} other {# steps}} a day this week, compared with {previous} last week. Maybe it was a rest week, or just a busy one at the desk."
+        "text": "You've averaged {count, plural, one {# step} other {# steps}} a day over the last 7 days, compared with {previous} the week before. Maybe it was a rest week, or just a busy one at the desk."
       },
       "streak": {
         "title": "You're on a streak",
@@ -743,15 +743,15 @@
       },
       "whoWeek": {
         "title": "You hit the weekly activity target",
-        "text": "{source, select, zone {You've earned {count, plural, one {{minutes} active zone minute} other {{minutes} active zone minutes}} this week.} other {You've done {count, plural, one {{minutes} minute} other {{minutes} minutes}} of brisk activity this week, with harder minutes counting double.}} {spare, plural, =0 {That passes the WHO's recommended {target}.} one {That passes the WHO's recommended {target}, with # day to spare.} other {That passes the WHO's recommended {target}, with # days to spare.}}"
+        "text": "{source, select, zone {You've earned {count, plural, one {{minutes} active zone minute} other {{minutes} active zone minutes}} since Monday.} other {You've done {count, plural, one {{minutes} minute} other {{minutes} minutes}} of brisk activity since Monday, with harder minutes counting double.}} {spare, plural, =0 {That passes the WHO's recommended {target}.} one {That passes the WHO's recommended {target}, with # day to spare.} other {That passes the WHO's recommended {target}, with # days to spare.}}"
       },
       "mvpaUp": {
         "title": "More brisk activity this week",
-        "text": "You're averaging {count, plural, one {{minutes} minute} other {{minutes} minutes}} of brisk activity a day this week, up from {previous} last week. The WHO recommends {target} minutes of it a week."
+        "text": "{source, select, zone {You earned {count, plural, one {{minutes} active zone minute} other {{minutes} active zone minutes}} over the last 7 days, up from {previous} the week before.} other {You did {count, plural, one {{minutes} minute} other {{minutes} minutes}} of brisk activity over the last 7 days, up from {previous} the week before, with harder minutes counting double.}} The WHO recommends {target} a week."
       },
       "mvpaDown": {
         "title": "Less brisk activity this week",
-        "text": "You're averaging {count, plural, one {{minutes} minute} other {{minutes} minutes}} of brisk activity a day this week, down from {previous} last week."
+        "text": "{source, select, zone {You earned {count, plural, one {{minutes} active zone minute} other {{minutes} active zone minutes}} over the last 7 days, down from {previous} the week before.} other {You did {count, plural, one {{minutes} minute} other {{minutes} minutes}} of brisk activity over the last 7 days, down from {previous} the week before, with harder minutes counting double.}}"
       },
       "slowDay": {
         "title": "A slow start today",
@@ -785,7 +785,7 @@
       },
       "activityDistance": {
         "title": "A marathon's distance this week",
-        "text": "You've covered {km} km this week. That's more than the length of a marathon."
+        "text": "You've covered {km} km since Monday. That's more than the length of a marathon."
       },
       "activityDistanceMonth": {
         "title": "You've passed {mark} km this month",
@@ -1032,16 +1032,16 @@
         "zone": "Active zone minutes",
         "perWeek": "a week",
         "ofWho": "of {target}",
-        "none": "{period, select, month {No activity minutes recorded in the last 30 days} other {No activity minutes recorded this week}}",
+        "none": "{period, select, month {No activity minutes recorded in the last 30 full days} other {No activity minutes recorded in the last 7 full days}}",
         "pastMonth": "{unit, select, brisk {Past the WHO's weekly bar on average; vigorous minutes count double} other {Past the WHO's weekly bar on average; harder minutes count double}}",
         "shortMonth": "{unit, select, brisk {{minutes} a week short of the WHO's bar on average; vigorous minutes count double} other {{minutes} a week short of the WHO's bar on average; harder minutes count double}}",
-        "pastWeek": "{unit, select, brisk {Past the WHO's weekly bar; vigorous minutes count double} other {Past the WHO's weekly bar; harder minutes count double}}",
-        "toGo": "{unit, select, brisk {{minutes} to go for the WHO's weekly bar; vigorous minutes count double} other {{minutes} to go for the WHO's weekly bar; harder minutes count double}}"
+        "pastWeek": "{unit, select, brisk {Past the WHO's weekly bar over the last 7 full days; vigorous minutes count double} other {Past the WHO's weekly bar over the last 7 full days; harder minutes count double}}",
+        "shortWeek": "{unit, select, brisk {{minutes} short of the WHO's weekly bar over the last 7 full days; vigorous minutes count double} other {{minutes} short of the WHO's weekly bar over the last 7 full days; harder minutes count double}}"
       },
       "steps": {
         "label": "Steps",
         "unit": "a day",
-        "none": "{period, select, month {No finished days with steps in the last 30 days} other {No finished days with steps this week}}",
+        "none": "{period, select, month {No steps recorded in the last 30 full days} other {No steps recorded in the last 7 full days}}",
         "reached": "{goal} or more on {days} of {count, plural, one {# full day} other {# full days}}"
       }
     }
@@ -1078,6 +1078,7 @@
       "daysOver": "Days over {goal}",
       "daysOverCount": "{over}<muted> of {total}</muted>",
       "brisk": "Brisk minutes",
+      "zone": "Active zone minutes",
       "briskTotal": "{minutes}<muted> of {target}</muted>",
       "vsThreeWeeks": "vs 3 weeks before",
       "vsThreeWeeksLong": "vs the 3 weeks before",
@@ -1103,6 +1104,7 @@
       "distance": "Distance",
       "energy": "Active energy",
       "brisk": "Brisk minutes",
+      "zone": "Active zone minutes",
       "briskWeek": "{minutes} a week<muted> · target {target}</muted>",
       "firstToLast": "First week to last",
       "stepsADay": "{count, plural, one {{change}<muted> step a day</muted>} other {{change}<muted> steps a day</muted>}}"

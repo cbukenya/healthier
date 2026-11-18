@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { daysBetween } from '../lib/date';
 import { t, type MessageKey } from '../i18n';
 import { bucketFor, type Bucket } from '../pipeline/aggregate';
+import { fullDays } from '../pipeline/derive';
 import type { SyncResult } from '../pipeline/sync';
 import { useHistory } from '../hooks/useHistory';
 import type { DailyRecord } from '../types/health';
@@ -40,6 +41,8 @@ export interface SpanState {
   setSpan: (s: SpanId) => void;
   /** The selected days, oldest first. */
   days: DailyRecord[];
+  /** As many full days, the last of them yesterday: what a summary or an average of movement reads. */
+  full: DailyRecord[];
   /** How charts should group them. */
   bucket: Bucket;
   /** Days of history stored, back from the window's last day. */
@@ -63,11 +66,14 @@ export function useSpan(data: SyncResult, initial: SpanId = '30'): SpanState {
 
   const source = needsHistory && history.days ? history.days : window;
   const days = useMemo(() => source.slice(-Math.min(wanted, source.length)), [source, wanted]);
+  const today = window.at(-1)?.date;
+  const full = useMemo(() => (today ? fullDays(source, today, wanted) : []), [source, today, wanted]);
 
   return {
     span,
     setSpan,
     days,
+    full,
     bucket: bucketFor(days.length),
     available,
     loading: needsHistory && !history.days,

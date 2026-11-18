@@ -7,7 +7,7 @@ import type { DailyRecord } from '../../../types/health';
 import { completedDays, goalStreak, loadRatio, periodShift, series, stats, values, type Point } from '../../derive';
 import { WHO_DAY, WHO_WEEK } from '../../goals';
 import type { InsightContext } from '../context';
-import { ENTRY_WINDOW, briskMins, heldFor, pastYear, reachesYear, freshEntry, sinceNote, zoneMins } from '../helpers';
+import { ENTRY_WINDOW, briskMins, heldFor, pastYear, reachesYear, freshEntry, sinceNote, whoMins, whoUnit, zoneMins } from '../helpers';
 import { movementHrvAssociation } from '../association';
 import { activeHours, dayRecord, lastMonthBest, monthsOf, weekdayExtremes } from '../patterns';
 import type { HistoryQueries } from '../../history';
@@ -174,27 +174,47 @@ function milestones(ctx: InsightContext, add: Add): void {
   }
 }
 
-/** Moderate-plus-vigorous minutes: the band the guidelines actually count. */
+/** A change in the minutes worth a card: a fifth of the WHO's week, and a quarter of the week before. */
+const WHO_SHIFT = WHO_WEEK / 5;
+
+/**
+ * The last 7 full days' minutes against the 7 before, in the WHO's count, so the figure is the
+ * one on Activity's Last 7 days. Each week needs 6 days on record, since a missing day would read
+ * as a drop.
+ */
+function whoShift(done: DailyRecord[]): { now: number; before: number; unit: 'azm' | 'brisk'; days: number } | null {
+  // One count for both weeks, so they compare like with like.
+  const unit = whoUnit(done.slice(-14));
+  if (!unit) return null;
+  const week = (rows: DailyRecord[]) => rows.map((d) => whoMins(d, unit)).filter((m): m is number => m !== null);
+  const now = week(done.slice(-7));
+  const before = week(done.slice(-14, -7));
+  if (now.length < 6 || before.length < 6) return null;
+  const sum = (xs: number[]) => xs.reduce((a, b) => a + b, 0);
+  return { now: sum(now), before: sum(before), unit, days: now.length + before.length };
+}
+
+/** Brisk minutes, counted the WHO's way, over the last 7 days against the 7 before. */
 function intensity(ctx: InsightContext, add: Add): void {
-  const mvpa = series(completedDays(ctx.days), (d) => (d.activeMinutes ? d.activeMinutes.moderate + d.activeMinutes.vigorous : null));
-  const shiftP = (w: Point[], dir: 1 | -1) => {
-    const sh = periodShift(w, 7);
-    return sh.delta !== null && sh.nCurrent >= 4 && sh.nPrevious >= 4 && sh.deltaPct! * dir >= 25 && sh.delta * dir >= 8;
+  const done = completedDays(ctx.days);
+  const shiftP = (rows: DailyRecord[], dir: 1 | -1) => {
+    const sh = whoShift(rows);
+    return !!sh && sh.before > 0 && ((sh.now - sh.before) / sh.before) * dir >= 0.25 && (sh.now - sh.before) * dir >= WHO_SHIFT;
   };
   for (const dir of [1, -1] as const) {
-    if (!shiftP(mvpa, dir)) continue;
-    const sh = periodShift(mvpa, 7);
-    // Printed without digit grouping, as it always has been.
-    const minutes = Math.round(sh.current!);
+    if (!shiftP(done, dir)) continue;
+    const sh = whoShift(done)!;
+    // Printed without digit grouping, as it always has been: a hard week passes 1000.
+    const minutes = Math.round(sh.now);
     add({
       ...base, id: dir === 1 ? 'mvpa-up' : 'mvpa-down', kind: 'trend', tone: dir === 1 ? 'good' : 'neutral',
       direction: dir === 1 ? 'up' : 'down',
       importance: dir === 1 ? 59 : 38, topic: 'movement-intensity', family: 'movement-volume', today: 'never',
-      news: freshEntry((n) => shiftP(mvpa.slice(0, mvpa.length - n), dir)),
-      claims: { metric: 'brisk', direction: dir === 1 ? 'up' : 'down' }, evidence: sh.nCurrent + sh.nPrevious,
+      news: freshEntry((n) => shiftP(done.slice(0, done.length - n), dir)),
+      claims: { metric: 'brisk', direction: dir === 1 ? 'up' : 'down' }, evidence: sh.days,
       title: t(dir === 1 ? 'insights.activity.mvpaUp.title' : 'insights.activity.mvpaDown.title'),
       text: t(dir === 1 ? 'insights.activity.mvpaUp.text' : 'insights.activity.mvpaDown.text', {
-        count: minutes, minutes, previous: Math.round(sh.previous!), target: WHO_WEEK,
+        source: sh.unit === 'azm' ? 'zone' : 'brisk', count: minutes, minutes, previous: Math.round(sh.before), target: WHO_WEEK,
       }),
     });
     break;
