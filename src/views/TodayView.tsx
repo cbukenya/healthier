@@ -190,7 +190,7 @@ export function TodayView({
                     <Row label={t('today.sleep.restorative')}>
                       {sl.stages ? `${Math.round(((sl.stages.deep + sl.stages.rem) / sl.minutesAsleep) * 100)}${t('units.percent')}` : '—'}
                     </Row>
-                    <Row label={t('today.sleep.asleep')}>
+                    <Row label={t('today.sleep.window')}>
                       {t('today.sleep.span', { from: formatClock(sl.bedtimeMin), to: formatClock(sl.wakeMin) })}
                     </Row>
                   </div>

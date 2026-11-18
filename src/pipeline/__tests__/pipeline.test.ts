@@ -1372,7 +1372,7 @@ describe('insight engine — stateless guards', () => {
     assert.equal(sleepNeedFor(natural), 420, 'short nights never lower the need below 7 hours');
     assert.equal(cardOf(natural, 'sleep-debt'), undefined, listing(natural));
     const short = syntheticDays(28, {}, { sleepMin: 330 });
-    assert.equal(cardOf(short, 'sleep-debt')?.title, "You're very short on sleep this week", listing(short));
+    assert.equal(cardOf(short, 'sleep-debt')?.title, "You're very short on sleep", listing(short));
   });
 
   it('notices bedtime creeping later, with both clock times cited', () => {
@@ -1434,7 +1434,7 @@ describe('insight engine — stateless guards', () => {
     const indebted = syntheticDays(28, {}, { sleepMin: 330 });
     const card = cardOf(indebted, 'wind-down', EVENING)!;
     assert.ok(card, listing(indebted, EVENING));
-    assert.match(card.text, /hours short on sleep this week/);
+    assert.match(card.text, /You're also [\d.]+ hours short on sleep[.,]/);
     assert.ok(card.action);
 
     const fine = syntheticDays(28);
@@ -2198,7 +2198,8 @@ describe('insight engine — all time and the week in review', () => {
     const card = cardOf(days, 'weekly-review', new Date('2026-07-27T08:00:00'))!;
     assert.equal(card.title, 'Your week in review');
     assert.equal(card.text,
-      'Last week you averaged 8,000 steps a day, about the same as the week before. You earned 210 active zone minutes and slept 7h 30m a night on average. Your HRV was about usual.');
+      // Sleep reads last week's nights, filed Tuesday 21 to Monday 27 July; steps and minutes read 20 to 26 July.
+      'Last week you averaged 8,000 steps a day, about the same as the week before. You earned 210 active zone minutes and slept 7h 31m a night on average. Your HRV was about usual.');
     assert.equal(whereIs(days, 'weekly-review', new Date('2026-07-27T08:00:00')), 'today');
     assert.equal(cardOf(days, 'weekly-review', new Date('2026-07-27T14:00:00')), undefined, 'a morning card');
     assert.equal(cardOf(syntheticDays(28), 'weekly-review'), undefined, 'Tuesday');
@@ -2459,7 +2460,7 @@ describe('insight engine — calibrated against stored history', () => {
     assert.equal(trace(days, 'sleep-debt', 31),
       '- - - today today today sleep sleep sleep sleep sleep sleep sleep sleep sleep today today today sleep sleep sleep sleep sleep sleep sleep sleep sleep sleep sleep sleep');
     assert.match(cardOf(days.slice(0, 37), 'sleep-debt')!.text, / It's been like this for 4 nights\.$/);
-    assert.equal(cardOf(days.slice(0, 47), 'sleep-debt')!.title, "You're very short on sleep this week");
+    assert.equal(cardOf(days.slice(0, 47), 'sleep-debt')!.title, "You're very short on sleep");
   });
 
   it('lets the wind-down carry the debt in the evening, and keeps the debt card on Sleep', () => {
@@ -2471,7 +2472,7 @@ describe('insight engine — calibrated against stored history', () => {
     assert.equal(whereIs(days, 'sleep-debt'), 'today', listing(days));
     assert.equal(whereIs(days, 'sleep-debt', EVENING), 'sleep', listing(days, EVENING));
     assert.equal(whereIs(days, 'wind-down', EVENING), 'today');
-    assert.match(cardOf(days, 'wind-down', EVENING)!.text, /hours short on sleep this week/);
+    assert.match(cardOf(days, 'wind-down', EVENING)!.text, /You're also [\d.]+ hours short on sleep[.,]/);
   });
 
   it('warns about a jump in steps as it starts, then keeps it on Activity', () => {
