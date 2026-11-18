@@ -3,7 +3,8 @@ import { names, t, type MessageKey } from '../../../i18n';
 import { formatDayMonthLong, formatFixed, formatList, formatMonth } from '../../../i18n/format';
 import type { DailyRecord } from '../../../types/health';
 import {
-  BASELINE_DAYS, VITALS, WARM_C, compareVital, compareVitalOn, completedDays, isOff, isRecent, periodShift, quantile, series, stats, values, type Point,
+  BASELINE_DAYS, VITALS, WARM_C, compareVital, compareVitalOn, completedDays, isOff, isRecent, periodShift, pillSide, quantile, series, stats, values,
+  type Point, type VitalKey,
 } from '../../derive';
 import type { HistoryQueries } from '../../history';
 import type { InsightContext } from '../context';
@@ -155,7 +156,7 @@ function restingHeartRate(ctx: InsightContext, add: Add): void {
       claims: { metric: 'rhr', direction: up ? 'up' : 'down' }, evidence: sh.nCurrent + sh.nPrevious,
       title: t(up ? 'insights.vitals.rhrShiftUp.title' : 'insights.vitals.rhrShiftDown.title'),
       text: t(up ? 'insights.vitals.rhrShiftUp.text' : 'insights.vitals.rhrShiftDown.text', {
-        average: formatFixed(sh.current!, 1),
+        average: formatFixed(sh.current!, 0),
         change: formatFixed(Math.abs(sh.delta!), 1),
       }) + (news ? '' : sinceNote(held)),
     });
@@ -263,7 +264,7 @@ function records(ctx: InsightContext, add: Add): void {
       ...base, id: def.id, kind: 'milestone', tone: 'good',
       importance: 53, topic: 'records', family: 'recovery', today: 'as-news', news: !prevWasRecord,
       title: t(def.title, { reach }),
-      text: t(def.text, { reach, value: formatFixed(last.mean, 1), span }),
+      text: t(def.text, { reach, value: formatFixed(last.mean, 0), span }),
     });
   }
 }
@@ -340,9 +341,18 @@ type Signal = keyof typeof SIGNAL_NAMES;
  * beyond two spreads, the "far" bands, or off by oxygen's and temperature's own
  * lines. A night just outside the shaded band is ordinary; the cards that speak
  * about last night are cautious ones, and the conflict rules let them win.
+ * Last night is the exception: while a Vitals pill shows its reading outside the
+ * usual range, the card waits, so it never sits under an "above usual" tile.
  */
 function allQuiet(ctx: InsightContext, add: Add): void {
   const { days } = ctx;
+  // Each tile's reading from last night, judged as its pill judges it: the cycle allowed for on HRV and resting heart rate.
+  const pillOff = (key: VitalKey) => {
+    const c = compareVital(days, key);
+    const cycle = ctx.judged && (key === 'hrv' || key === 'restingHr') ? compareVital(ctx.judged, key) : null;
+    return isRecent(c.date, ctx.today) && pillSide(c, cycle) !== null;
+  };
+  if ((Object.keys(VITALS) as VitalKey[]).some(pillOff)) return;
   const N = 28;
   const vital = (name: Signal & keyof typeof VITALS, ok: (r: NightReading) => boolean) =>
     ({ name, nights: nightsAgainstUsual(days, VITALS[name].get, VITALS[name].floor, N), ok });
@@ -512,7 +522,7 @@ function calmestMonth(ctx: InsightContext, add: Add): void {
     importance: 62, topic: 'best-month-rhr', family: 'monthly-best', today: 'as-news', news: ctx.dom <= 2,
     title: t('insights.vitals.vitalsCalmestMonth.title'),
     text: t('insights.vitals.vitalsCalmestMonth.text', {
-      value: formatFixed(best.value, 1),
+      value: formatFixed(best.value, 0),
       month: formatMonth(best.month, ctx.today),
       span: pastYear(`${best.since}-01`, ctx.today),
     }),

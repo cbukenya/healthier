@@ -894,7 +894,7 @@ describe('readiness v2', () => {
     const r = readiness(days);
     const p = part(r, 'hrv')!;
     assert.ok(Math.abs(p.contribution) < 6, `deep-sleep series should dominate, got ${p.contribution}`);
-    assert.match(p.detail, /deep-sleep RMSSD/);
+    assert.match(p.detail, /^In deep sleep: \d+ ms last night/);
   });
 
   it('blends the 7-day trend so one aberrant night cannot swing the whole score', () => {
@@ -1010,7 +1010,8 @@ describe('battery arithmetic', () => {
     for (let i = 13; i < 28; i++) days[i].hrvDeepSleep = 30;
     const p = part(readiness(days), 'hrv');
     assert.ok(p, 'HRV must not drop out');
-    assert.match(p!.detail, /overnight RMSSD/);
+    assert.doesNotMatch(p!.detail, /deep sleep/);
+    assert.match(p!.detail, /^\d+ ms last night · 7-day \d+ vs \d+ ms typical$/);
   });
 
   it('restarts the baselines when the watch changes, instead of reading it as a change in you', () => {
@@ -1912,7 +1913,7 @@ describe('insight engine — Vitals in depth', () => {
     for (let i = 51; i < 58; i++) days[i].hrv = 34 + (i % 2 ? 0.4 : -0.4);
     days[57].hrv = 34;
     assert.match(cardOf(days, 'vitals-hrv-stability', AUG27)!.text,
-      /^This week your HRV varied by about \d+% around its average\. Usually it varies by about \d+%\. Steadier HRV often goes with good recovery\.$/);
+      /^Over the last 7 nights your HRV varied by about \d+% around its average\. Usually it varies by about \d+%\. Steadier HRV often goes with good recovery\.$/);
     assert.equal(cardOf(syntheticDays(58), 'vitals-hrv-stability', AUG27), undefined, 'an ordinary week is no news');
   });
 
@@ -2156,7 +2157,7 @@ describe('insight engine — all time and the week in review', () => {
     assert.match(find(f, 'sleep-best-month')!.card.text,
       /^In August you slept 7h 30m a night on average, and your average sleep score was \d+\. That's your best month of sleep since March, as far back as your history goes\.$/);
     assert.match(find(f, 'vitals-calmest-month')!.card.text,
-      /^Your resting heart rate averaged 62\.\d bpm in August\. That's your lowest month since March, as far back as your history goes\.$/);
+      /^Your resting heart rate averaged 62 bpm in August\. That's your lowest month since March, as far back as your history goes\.$/);
   });
 
   it('calls a step record all time only when it beats every stored day', () => {
@@ -2178,7 +2179,7 @@ describe('insight engine — all time and the week in review', () => {
     const at = SEP1;
     const calmer = find(feedsWith(days, older((d, i) => { d.restingHr = i >= 30 && i < 37 ? 58 : 62; }), at), 'record-rhr')!;
     assert.equal(calmer.card.title, 'Your calmest week yet');
-    assert.equal(calmer.card.text, "Your resting heart rate averaged 55.0 bpm this week. That's your lowest week since March, as far back as your history goes.");
+    assert.equal(calmer.card.text, "Your resting heart rate averaged 55 bpm over the last 7 days. That's your lowest week since March, as far back as your history goes.");
     const notYet = find(feedsWith(days, older((d, i) => { d.restingHr = i >= 30 && i < 37 ? 54 : 62; }), at), 'record-rhr')!;
     assert.equal(notYet.card.title, 'Your calmest week in two months');
   });

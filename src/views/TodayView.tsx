@@ -3,7 +3,7 @@ import { Footprints, Heart, Moon, Wind } from 'lucide-react';
 import type { CivilDate } from '../lib/date';
 import { t } from '../i18n';
 import { rich } from '../i18n/react';
-import { formatCivilLong, formatClock } from '../i18n/format';
+import { formatCivilLong, formatClock, formatNumber } from '../i18n/format';
 import {
   compareToBaseline, compareVital, goal, isRecent, latestPoint, series, usualRange as usual, type Point,
 } from '../pipeline/derive';
@@ -74,6 +74,9 @@ export function TodayView({
     .filter((d): d is CivilDate => !!d)
     .sort()
     .at(-1) ?? null;
+  // The night each phone tile's readings are from: its headline reading's, or its other one's without it.
+  const heartNight = rhrNow?.date ?? hrvNow?.date;
+  const breathNight = respNow?.date ?? spo2Now?.date;
 
   const battery = {
     score: s.readiness.score,
@@ -136,14 +139,14 @@ export function TodayView({
             icon={<Heart size={14} className={DOMAIN.cardio.text} />}
             glow={DOMAIN.cardio.hex}
             value={<Value value={rhrNow?.value ?? null} size="md" unit={t('units.bpm')} />}
-            pill={rhrNow && <BandPill c={rhrNow} cycle={rhrCycle} />}
+            pill={rhrNow && <BandPill c={rhrNow} cycle={rhrCycle} digits={0} />}
             chart={rhrNow && <Spark series={rhrSeries.slice(-21)} color={DOMAIN.cardio.hex} height={28} baseline={usual(rhrNow)} />}
             rows={[
-              [t('today.heart.hrv'), hrvNow && `${fmtNum(hrvNow.value)} ${t('units.ms')}`],
-              [t('today.heart.usualHrv'), hrvNow && hrvNow.baseline !== null && `${fmtNum(hrvNow.baseline)} ${t('units.ms')}`],
+              [t('today.heart.hrv'), hrvNow && onNight(`${fmtNum(hrvNow.value, 0)} ${t('units.ms')}`, hrvNow.date, heartNight)],
+              [t('today.heart.usualHrv'), hrvNow && hrvNow.baseline !== null && `${fmtNum(hrvNow.baseline, 0)} ${t('units.ms')}`],
             ]}
             empty={rhrNow || hrvNow ? null : t('today.heart.empty')}
-            note={from(rhrNow?.date)}
+            note={from(heartNight)}
           />
           <Tile
             label={t('today.breathing.label')}
@@ -154,10 +157,10 @@ export function TodayView({
             chart={respNow && <Spark series={respSeries.slice(-21)} color={BREATHING_HEX} height={28} baseline={usual(respNow)} />}
             rows={[
               [t('today.breathing.usual'), respNow && respNow.baseline !== null && `${fmtNum(respNow.baseline)} ${t('units.perMinute')}`],
-              [t('today.breathing.bloodOxygen'), spo2Now && `${fmtNum(spo2Now.value)}${t('units.percent')}`],
+              [t('today.breathing.bloodOxygen'), spo2Now && onNight(`${fmtNum(spo2Now.value)}${t('units.percent')}`, spo2Now.date, breathNight)],
             ]}
             empty={respNow || spo2Now ? null : t('today.breathing.empty')}
-            note={from(respNow?.date)}
+            note={from(breathNight)}
           />
         </div>
 
@@ -259,7 +262,8 @@ export function TodayView({
                   </div>
                   {rhrNow && (
                     <div className="mt-1.5 flex items-center gap-2">
-                      <BandPill c={rhrNow} cycle={rhrCycle} />
+                      <BandPill c={rhrNow} cycle={rhrCycle} digits={0} />
+                      {onNight(null, rhrNow.date, vitalsDate)}
                     </div>
                   )}
                   <div className="mt-3">
@@ -268,15 +272,19 @@ export function TodayView({
                   <div className="mt-2 space-y-0">
                     <Row label={t('today.vitals.hrv')}>
                       {hrvNow
-                        ? rich('today.vitals.hrvValue', {
-                            value: `${fmtNum(hrvNow.value)} ${t('units.ms')}`,
-                            usual: fmtNum(hrvNow.baseline),
+                        ? onNight(rich('today.vitals.hrvValue', {
+                            value: `${fmtNum(hrvNow.value, 0)} ${t('units.ms')}`,
+                            usual: fmtNum(hrvNow.baseline, 0),
                             muted: (words) => <span className="text-zinc-500">{words}</span>,
-                          })
+                          }), hrvNow.date, vitalsDate)
                         : '—'}
                     </Row>
-                    <Row label={t('today.vitals.breathing')}>{respNow ? `${fmtNum(respNow.value)} ${t('units.perMinute')}` : '—'}</Row>
-                    <Row label={t('today.vitals.bloodOxygen')}>{spo2Now ? `${fmtNum(spo2Now.value)}${t('units.percent')}` : '—'}</Row>
+                    <Row label={t('today.vitals.breathing')}>
+                      {respNow ? onNight(`${formatNumber(respNow.value!, 1)} ${t('units.perMinute')}`, respNow.date, vitalsDate) : '—'}
+                    </Row>
+                    <Row label={t('today.vitals.bloodOxygen')}>
+                      {spo2Now ? onNight(`${fmtNum(spo2Now.value)}${t('units.percent')}`, spo2Now.date, vitalsDate) : '—'}
+                    </Row>
                   </div>
                   {vitalsDate !== today && (
                     <p className="text-note text-amber-400/80 mt-2">
@@ -310,6 +318,20 @@ export function TodayView({
   );
 }
 
+
+/**
+ * A reading with its date under it, only when it's from another night than the rest of its card or
+ * tile (`night`), so readings from two nights never pass for one. Without a reading, just the date.
+ */
+function onNight(reading: React.ReactNode, date: CivilDate | undefined, night: CivilDate | null | undefined): React.ReactNode {
+  if (!date || !night || date === night) return reading;
+  return (
+    <>
+      {reading}
+      <span className={`${reading === null ? '' : 'block '}text-note text-amber-400/80`}>{t('today.from', { date: formatCivilLong(date) })}</span>
+    </>
+  );
+}
 
 /** A series' latest reading, if it's from today or yesterday. */
 function recentPoint(s: Point[], today: CivilDate): Point | null {

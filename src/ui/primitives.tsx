@@ -1,6 +1,6 @@
 import React, { useId, useLayoutEffect, useRef, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
-import { BASELINE_DAYS, BASELINE_MIN_READINGS, OFF_Z, type Band, type Comparison, stats, type Point } from '../pipeline/derive';
+import { BASELINE_DAYS, BASELINE_MIN_READINGS, OFF_Z, pillSide, type Band, type Comparison, stats, type Point } from '../pipeline/derive';
 import { t, type MessageKey, type Values } from '../i18n';
 import { rich } from '../i18n/react';
 import { durationPieces, formatDuration, formatFixed, formatNumber, formatRounded } from '../i18n/format';
@@ -300,10 +300,13 @@ export function StatusPill({ name, dot, ink = dot, glow = `0 0 10px ${tint(dot, 
  * `cycle` is the same reading judged with cycle tracking on (see cycleAdjusted): when it's
  * inside the usual range there, the pill says the reading is usual for this part of the cycle
  * instead of calling it unusual. The numbers shown stay the real ones.
+ *
+ * `digits` is how many decimals the tooltip's figures get: none for HRV and resting heart rate,
+ * which every page shows in whole numbers.
  */
 export function BandPill({
-  c, invert = false, partial = false, cycle = null,
-}: { c: Comparison; invert?: boolean; partial?: boolean; cycle?: Comparison | null }) {
+  c, invert = false, partial = false, cycle = null, digits = 1,
+}: { c: Comparison; invert?: boolean; partial?: boolean; cycle?: Comparison | null; digits?: number }) {
   if (partial) {
     return (
       <span className="text-note px-2 py-0.5 rounded-full border border-zinc-800 text-zinc-500">{t('ui.band.soFarToday')}</span>
@@ -318,17 +321,18 @@ export function BandPill({
       </span>
     );
   }
-  const copy = c.band !== 'typical' && cycle?.band === 'typical' && cycle.date === c.date
+  // Outside the usual range, but not by the pill's verdict: the cycle explains it.
+  const copy = c.band !== 'typical' && pillSide(c, cycle) === null
     ? { label: 'ui.band.cycle' as const, cls: 'text-pink-300/90 bg-pink-500/[0.07] border-pink-500/15' }
     : BAND_COPY[c.band];
   return (
     <span
       className={`text-note px-2 py-0.5 rounded-full border font-medium ${copy.cls}`}
       title={t('ui.band.detail', {
-        value: fmtNum(c.value),
+        value: fmtNum(c.value, digits),
         days: BASELINE_DAYS,
-        baseline: fmtNum(c.baseline),
-        spread: fmtNum(c.spread === null ? null : OFF_Z * c.spread),
+        baseline: fmtNum(c.baseline, digits),
+        spread: fmtNum(c.spread === null ? null : OFF_Z * c.spread, digits),
         z: c.z === null ? undefined : formatFixed(c.z, 2),
         count: c.n,
       })}

@@ -9,14 +9,14 @@ export function Tile({ label, icon, value, pill, chart, rows, empty, note, glow 
   pill?: React.ReactNode;
   chart?: React.ReactNode;
   /** Rows without a value are left out. */
-  rows: [string, string | false | null | undefined][];
+  rows: [string, React.ReactNode][];
   /** Shown instead when the tile has nothing to report. */
   empty?: string | null;
   note?: string | null;
   /** A colour for a faint glow from the tile's top right, in the dark theme: its icon's. */
   glow?: string;
 }) {
-  const shown = rows.filter((r): r is [string, string] => !!r[1]);
+  const shown = rows.filter((r) => !!r[1]);
   return (
     <article
       className={`min-w-0 bg-card border border-card-edge rounded-[18px] p-3.5 flex flex-col gap-1.5 ${glow ? 'glow' : ''}`}

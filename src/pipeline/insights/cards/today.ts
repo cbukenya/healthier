@@ -4,7 +4,9 @@ import {
   capitalize, formatDayMonthLong, formatDuration, formatFixed, formatHoursDecimal, formatList, formatRounded,
 } from '../../../i18n/format';
 import type { DailyRecord } from '../../../types/health';
-import { readiness, series, sleepRegularity, stats, values, type Readiness, type ReadinessPartId } from '../../derive';
+import {
+  compareVital, isRecent, pillSide, readiness, series, sleepRegularity, stats, values, type Readiness, type ReadinessPartId, type VitalKey,
+} from '../../derive';
 import { dipping, entropyShift, illnessDates, nocturnalTachycardia, sdbScreen } from '../../labs';
 import type { InsightContext } from '../context';
 import { CHARGED, COAST_BELOW, ENTRY_WINDOW, beforeLatestMorning, briskMins, entered, zoneMins } from '../helpers';
@@ -42,6 +44,18 @@ const REASONS = {
   strain: { because: 'insights.today.reasons.strain.because', statement: 'insights.today.reasons.strain.statement' },
 } as const satisfies Record<ReadinessPartId, Record<ReasonForm, MessageKey>>;
 
+/**
+ * Where last night's reading sits as its pill shows it (with the cycle allowed for, as the HRV and
+ * resting heart rate pills allow for it), so a reason says "higher than usual" only beside a pill
+ * that says so, and "a little higher" beside one that says it's in the usual range.
+ */
+function pill(ctx: InsightContext, key: VitalKey): 'above' | 'below' | null {
+  const c = compareVital(ctx.days, key);
+  if (!isRecent(c.date, ctx.today)) return null;
+  const cycle = ctx.judged && (key === 'hrv' || key === 'restingHr') ? compareVital(ctx.judged, key) : null;
+  return pillSide(c, cycle);
+}
+
 /** A battery part as a plain clause, in the form its sentence needs: "you slept 5h 50m compared to your 7h 20m need". */
 function reason(p: ReadinessPart, ctx: InsightContext, form: ReasonForm): string {
   const low = p.contribution < 0;
@@ -59,12 +73,17 @@ function reason(p: ReadinessPart, ctx: InsightContext, form: ReasonForm): string
       return ctx.debt && ctx.debt.netMin > 0
         ? t(REASONS.sleepDebt[form], { balance: 'short', hours: formatHoursDecimal(ctx.debt.netMin) })
         : t(REASONS.sleepDebt[form], { balance: 'extra' });
-    case 'hrv':
-      return t(REASONS.hrv[form], { direction: low ? 'lower' : 'higher' });
-    case 'restingHr':
-      return t(REASONS.restingHr[form], { direction: low ? 'higher' : 'lower' });
+    case 'hrv': {
+      const side = pill(ctx, 'hrv');
+      return t(REASONS.hrv[form], { direction: low ? (side === 'below' ? 'lower' : 'littleLower') : side === 'above' ? 'higher' : 'littleHigher' });
+    }
+    case 'restingHr': {
+      const side = pill(ctx, 'restingHr');
+      return t(REASONS.restingHr[form], { direction: low ? (side === 'above' ? 'higher' : 'littleHigher') : side === 'below' ? 'lower' : 'littleLower' });
+    }
     case 'breathing':
-      return t(REASONS.breathing[form]);
+      // The battery only ever takes points for faster breathing.
+      return t(REASONS.breathing[form], { off: pill(ctx, 'breathing') === 'above' ? 'yes' : 'no' });
     case 'skinTemp':
       return t(REASONS.skinTemp[form]);
     case 'strain':

@@ -33,7 +33,12 @@ How Healthier works and why, for contributors. What's planned lives in the
    shaded behind a chart, the pill beside a reading, and the line every card and lab calls off by.
    Resting heart rate, HRV, breathing and oxygen are each read one way, in `VITALS`, and judged
    with `compareVital` and `isOff`; skin temperature is off from `WARM_C` over the device's own
-   baseline. So a reading off on one page is off on every page.
+   baseline. So a reading off on one page is off on every page. Words that call a reading higher
+   or lower than usual take its pill's verdict, the cycle included (`pillSide`), so they never say
+   more than the pill beside them. The body battery is the one exception: it reads HRV in deep
+   sleep when the device records it (cleaner than the overnight average the vitals show), its 7-day
+   average against the four weeks before last week, so its figures differ from the vitals card's
+   and its line opens "In deep sleep".
 
 ## Components
 
