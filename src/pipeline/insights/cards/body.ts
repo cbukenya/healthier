@@ -157,8 +157,10 @@ function composition(ctx: InsightContext, add: Add): void {
     const comp = bodyComposition(grid);
     if (!comp) return null;
     const weeks = comp.spanDays / 7;
-    const lean = comp.leanKgPerWeek * weeks;
-    const fat = comp.fatKgPerWeek * weeks;
+    // To the weekly figures' two decimals: in binary 0.09 kg a week over 5 weeks comes out a hair under 0.45.
+    const over = (kgPerWeek: number) => Math.round(kgPerWeek * weeks * 100) / 100;
+    const lean = over(comp.leanKgPerWeek);
+    const fat = over(comp.fatKgPerWeek);
     return { comp, weeks, lean, fat, moved: Math.abs(lean) >= 0.3 || Math.abs(fat) >= 0.3 };
   };
   const now = change(days);

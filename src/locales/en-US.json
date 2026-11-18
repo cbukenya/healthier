@@ -1979,7 +1979,7 @@
       "light": "<b>Lights up</b> when half or more of the measured nights drop less than 10%.",
       "how": {
         "explainer": "Heart rate usually drops during sleep compared with the daytime, often by <b>10–20%</b>. Late meals, alcohol, heat, evening exercise and illness all shift it from night to night, so only a multi-week change is shown.",
-        "footer": "Daytime is the 08:00–20:00 average of your minute-level heart rate while you weren't active: minutes at moderate effort or harder (40% of your heart-rate reserve, from your age and resting heart rate) are left out, so a workout doesn't widen the drop. Night is your non-REM sleeping heart rate. A 10% drop is a night/day ratio of 0.90. A smaller or blunted dip can be linked to chronic stress or an underlying cardiovascular condition, which is why it's worth mentioning at your next checkup."
+        "footer": "Daytime is the 08:00–20:00 average of your minute-level heart rate while you were awake and not active. Minutes in a recorded sleep or nap are left out, so a lie-in doesn't narrow the drop. So are minutes at moderate effort or harder (40% of your heart-rate reserve, from your age and resting heart rate), so a workout doesn't widen it. Night is your non-REM sleeping heart rate. A 10% drop is a night/day ratio of 0.90. A smaller or blunted dip can be linked to chronic stress or an underlying cardiovascular condition, which is why it's worth mentioning at your next checkup."
       }
     },
     "entropy": {
@@ -2039,7 +2039,7 @@
         "glance": "Collecting your heart rate through the night: {done} of 7 days",
         "text": "Collecting whole-night heart rate",
         "progress": "{done} of {total, plural, one {# day} other {# days}}",
-        "waiting": "No night has had enough heart-rate readings yet; each sync adds more by itself.",
+        "waiting": "No night has had sleep stages and enough heart-rate readings yet; each sync adds more by itself.",
         "note": "Minute-level detail collects by itself with each sync; no action needed."
       },
       "events": {
@@ -2083,7 +2083,7 @@
         "longestValue": "{minutes} min",
         "peak": "peak {bpm}"
       },
-      "watch": "<b>Watches</b> minute-level heart rate through recorded sleep and naps, skipping minutes awake.",
+      "watch": "<b>Watches</b> minute-level heart rate through sleep and naps recorded with stages, skipping minutes awake.",
       "light": "<b>Lights up</b> for any stretch above 100 bpm lasting 10 minutes or more, listed with its peak.",
       "how": {
         "explainer": "Fever, alcohol and vivid dreams can all keep your heart rate <b>high during sleep</b>.",
