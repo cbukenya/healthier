@@ -382,16 +382,8 @@ function CompositionTrend({ comp }: { comp: BodyComposition | null }) {
         hint={t('body.compositionTrend.hint', { skipped: comp.rejectedForSource })}
         right={t('body.compositionTrend.readings', { pairs: comp.pairs, days: comp.spanDays })}
       />
+      {/* No weight figure of its own: the summary card's trend counts every weigh-in, this one only the paired ones. */}
       <div className="px-5 pb-5 flex-1 flex flex-col gap-3">
-        <div>
-          <Label>{t('body.compositionTrend.weight')}</Label>
-          <div className="mt-1 font-display text-number-sm text-zinc-50 tabular-nums">
-            {rich('body.compositionTrend.weightValue', {
-              change: changeText(weight, '', 2),
-              unit: (w) => <span className="font-sans text-detail font-normal text-zinc-500">{w}</span>,
-            })}
-          </div>
-        </div>
         {leanShare !== null && (
           <div
             role="img"

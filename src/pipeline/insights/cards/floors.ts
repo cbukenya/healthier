@@ -5,6 +5,7 @@ import type { InsightContext } from '../context';
 import { sleepMins } from '../helpers';
 import { TREND_KG_PER_WEEK } from './body';
 import { isComplete } from '../../eating';
+import { dayPlusMinus } from '../../cyclePhases';
 import type { Finding, InsightPage, Observation } from '../types';
 import { t } from '../../../i18n';
 import { formatDayMonthLong, formatDuration, formatInteger, formatList, formatRounded } from '../../../i18n/format';
@@ -163,7 +164,8 @@ const floors: Record<InsightPage, (ctx: InsightContext) => FloorCopy> = {
   },
   cycle(ctx) {
     const c = ctx.cycle?.summary.current;
-    const values = { known: c ? 'yes' : 'no', day: c?.day ?? 0 };
+    // "About day 22" when the start was found in the nights, as the Cycle page says it.
+    const values = { known: c ? 'yes' : 'no', about: c && dayPlusMinus(c) ? 'yes' : 'no', day: c?.day ?? 0 };
     return { title: t('insights.floors.cycleFloor.title', values), text: t('insights.floors.cycleFloor.text', values) };
   },
 };

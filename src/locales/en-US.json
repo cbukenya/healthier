@@ -357,7 +357,7 @@
         "textEmpty": "Days with meals logged from the morning into the evening count here. Log in Google Health, or in an app that writes to it."
       },
       "cycleFloor": {
-        "title": "{known, select, yes {Day {day} of your cycle} other {Your cycles}}",
+        "title": "{known, select, yes {{about, select, yes {About day {day}} other {Day {day}}} of your cycle} other {Your cycles}}",
         "text": "{known, select, yes {Nothing stands out in this cycle so far. When something repeats across your cycles, like shorter sleep before your period, it will show here.} other {Once Healthier has found a few cycles in your nights, anything that repeats across them will show here.}}"
       }
     },
@@ -1509,8 +1509,6 @@
       "hint": "{skipped, plural, =0 {From weigh-ins where the scale also measured body fat.} other {From weigh-ins where the scale also measured body fat. # skipped for mixing devices.}}",
       "needsMore": "Needs four of them across at least four weeks of this span.",
       "readings": "{pairs, plural, one {# paired reading} other {# paired readings}} · {days, plural, one {# day} other {# days}}",
-      "weight": "Weight trend",
-      "weightValue": "{change} <unit>kg a week</unit>",
       "shareBar": "Lean mass is {lean} percent of the change, fat {fat} percent",
       "lean": "Lean <b>{change}</b> kg a week",
       "fat": "Fat <b>{change}</b> kg a week",
