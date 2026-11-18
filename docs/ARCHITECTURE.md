@@ -360,7 +360,8 @@ only reads it; there's no food search or logging of its own, and nothing is gues
   else short) and carbs and fat to the adult ranges (45–65% and 20–35% of energy; US National
   Academies, 2005). A single day is described, never judged: today's plate says how far it is from
   maintenance and remarks only on protein well behind late in the day, or a mix far from the
-  person's own usual.
+  person's own usual. A day reaches its target by the figure on screen: protein and fibre in whole
+  grams, water to the 10 ml it's kept in (1.95 L shows as 1.95 and is under 2.0).
 - **Water** (`hydration-log`) comes as Google's total for each day, so it has no times; a day
   summed to nothing was never logged. Today's plate and the water chart hold what was logged to
   the water target. A day without a log has no bar rather than an empty one, and today is drawn
@@ -389,7 +390,9 @@ bounds. Every ring, goal line, label and insight reads them from there (the scre
 `useGoals`, the engine through `InsightOptions.goals`), so no screen repeats a goal as a literal.
 Sleep need stays automatic, the median of your nights held between 7 and 8.5 hours, until it's
 set; set, it replaces the estimate everywhere, the body battery and the sleep score included.
-Protein works the same way: automatic at 1.4 g per kg of the latest weigh-in until it's set. Fibre
+Protein works the same way: automatic at 1.4 g per kg of the latest weigh-in until it's set. That
+weigh-in is the window's latest, on the Settings page, the Nutrition page and in the cards alike, so
+with none in 62 days there's no automatic target anywhere. Fibre
 is 30 g a day and water 2.0 litres unless set. Protein, fibre and water arrived after the others,
 so a page that doesn't send them keeps their defaults.
 

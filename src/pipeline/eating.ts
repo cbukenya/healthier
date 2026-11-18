@@ -322,6 +322,13 @@ export function plateNote(today: DayNutrition, usual: Shares | null, proteinTarg
   return null;
 }
 
+/**
+ * An amount as the page shows it, so a day is judged by the figure on screen: water to the 10 ml it
+ * is kept in, 1.95 L under a 2.0 L target; protein and fibre in whole grams, 112.9 g as 113 g.
+ */
+export const shownLitres = (l: number) => Math.round(l * 100) / 100;
+export const shownGrams = (g: number) => Math.round(g);
+
 export interface WaterSpan {
   /** Each day's water in litres, today's so far; null where nothing was logged. */
   points: { date: CivilDate; value: number | null }[];
@@ -348,7 +355,7 @@ export function waterSpan(span: DailyRecord[], today: CivilDate, targetL: number
     points,
     logged: done.length,
     average: litres.length ? litres.reduce((a, b) => a + b, 0) / litres.length : null,
-    met: litres.filter((l) => l >= targetL).length,
+    met: litres.filter((l) => shownLitres(l) >= targetL).length,
     best: best ? { date: best.date, litres: best.hydrationL! } : null,
   };
 }

@@ -357,7 +357,7 @@
         "textEmpty": "Days with meals logged from the morning into the evening count here. Log in Google Health, or in an app that writes to it."
       },
       "cycleFloor": {
-        "title": "{known, select, yes {Day {day} of your cycle} other {Your cycles}}",
+        "title": "{known, select, yes {{about, select, yes {About day {day}} other {Day {day}}} of your cycle} other {Your cycles}}",
         "text": "{known, select, yes {Nothing stands out in this cycle so far. When something repeats across your cycles, like shorter sleep before your period, it will show here.} other {Once Healthier has found a few cycles in your nights, anything that repeats across them will show here.}}"
       }
     },
