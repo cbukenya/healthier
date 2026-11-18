@@ -1509,6 +1509,8 @@
       "hint": "{skipped, plural, =0 {From weigh-ins where the scale also measured body fat.} other {From weigh-ins where the scale also measured body fat. # skipped for mixing devices.}}",
       "needsMore": "Needs four of them across at least four weeks of this span.",
       "readings": "{pairs, plural, one {# paired reading} other {# paired readings}} · {days, plural, one {# day} other {# days}}",
+      "weight": "Weight trend",
+      "weightValue": "{change} <unit>kg a week</unit>",
       "shareBar": "Lean mass is {lean} percent of the change, fat {fat} percent",
       "lean": "Lean <b>{change}</b> kg a week",
       "fat": "Fat <b>{change}</b> kg a week",
