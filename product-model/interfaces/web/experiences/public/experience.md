@@ -10,4 +10,4 @@ references:
 
 # Welcome and demo
 
-Connect Google Account or explore the temporary demo profile.
+Continue with Google or explore the temporary demo profile.

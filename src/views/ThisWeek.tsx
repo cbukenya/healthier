@@ -71,9 +71,10 @@ export function ThisWeek({ week, days, needMin, className = '' }: {
         ? t('today.week.sleep.under', { gap: gap(short), need, ...coverage })
         : t('today.week.sleep.over', { gap: gap(-short), need, ...coverage });
 
-  // The WHO's bar is weekly, so a month reads as its average week against it.
+  // The WHO's bar is weekly, so a month reads as its average week against it, over the days that
+  // recorded minutes, as Activity's summary reads it.
   const active = p.activeMinutes;
-  const perWeek = active ? (isMonth ? (active.total / p.length) * 7 : active.total) : null;
+  const perWeek = active ? (isMonth ? active.perWeek : active.total) : null;
   // Brisk minutes count vigorous ones double; zone minutes count harder ones double.
   const unit = active?.unit ?? null;
   const activeNote = perWeek === null
@@ -84,7 +85,7 @@ export function ThisWeek({ week, days, needMin, className = '' }: {
         : t('today.week.active.shortMonth', { unit, minutes: Math.ceil(WHO_WEEK - perWeek) })
       : perWeek >= WHO_WEEK
         ? t('today.week.active.pastWeek', { unit })
-        : t('today.week.active.toGo', { unit, minutes: Math.ceil(WHO_WEEK - perWeek) });
+        : t('today.week.active.shortWeek', { unit, minutes: Math.ceil(WHO_WEEK - perWeek) });
 
   const steps = p.steps;
   const stepsNote = !steps

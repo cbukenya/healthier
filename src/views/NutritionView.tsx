@@ -10,7 +10,8 @@ import { latestBody, series, weightTrend } from '../pipeline/derive';
 import { PROTEIN_PER_KG, proteinTarget } from '../pipeline/goals';
 import {
   USUAL_SHARE, againstRange, averageDay, dayLog, deviceBurn, latestMaintenance, maintenanceTrend, mealClock, plateNote,
-  plateSquares, sharesOf, towardTarget, waterSpan, type AverageDay, type Maintenance, type MealClock, type Shares, type Standing,
+  plateSquares, sharesOf, shownGrams, shownLitres, towardTarget, waterSpan,
+  type AverageDay, type Maintenance, type MealClock, type Shares, type Standing,
 } from '../pipeline/eating';
 import { groupSeries } from '../pipeline/aggregate';
 import { wallClock } from '../pipeline/insights/helpers';
@@ -44,6 +45,11 @@ const pct = (share: number) => Math.round(share * 100);
 const grams = (v: number) => formatInteger(v);
 const kcal = (v: number) => formatInteger(v);
 const litres = (v: number) => formatNumber(v, 1);
+/** Water logged, to the 10 ml it's kept in where a tenth would round it: "1.95", but "2.0". */
+const loggedLitres = (v: number) => {
+  const l = shownLitres(v);
+  return formatNumber(l, Math.round(l * 100) % 10 ? 2 : 1);
+};
 
 /**
  * The Nutrition page, from the food log in Google Health: today's plate and the week's meals at the
@@ -67,7 +73,8 @@ export function NutritionView({ data, clock, intraday }: { data: SyncResult; clo
   const minutesNow = wallClock(clock?.now ?? new Date(), clock?.timeZone);
   const maintenance = useMemo(() => latestMaintenance(all, today), [all, today]);
   const devices = useMemo(() => deviceBurn(all, today), [all, today]);
-  const weight = useMemo(() => latestBody(all).latest?.value ?? null, [all]);
+  // The automatic protein target's weigh-in is the window's, as Settings and the insight cards take it.
+  const weight = useMemo(() => latestBody(data.days).latest?.value ?? null, [data.days]);
   const protein = proteinTarget(goals, weight);
   const week = useMemo(() => mealClock(all, today), [all, today]);
   const usual = useMemo(() => averageDay(all.slice(-29), today), [all, today]);
@@ -175,7 +182,7 @@ function TargetBar({ label, got, target, colour, inLitres = false }: {
           {target === null
             ? rich('nutrition.plate.grams', { grams: grams(got), b })
             : inLitres
-              ? rich('nutrition.plate.ofLitres', { got: litres(got), target: litres(target), b })
+              ? rich('nutrition.plate.ofLitres', { got: loggedLitres(got), target: litres(target), b })
               : rich('nutrition.plate.ofTarget', { got: grams(got), target: grams(target), b })}
         </span>
       </div>
@@ -764,7 +771,7 @@ function TargetCard({ kind, span, today, target, weight, ownTarget, bucket }: {
   const full = logs.filter((x) => x.log === 'complete' && x.d.nutrition && get(x.d.nutrition) !== null);
   const values = full.map((x) => get(x.d.nutrition!)!);
   const avg = values.length ? values.reduce((a, b) => a + b, 0) / values.length : null;
-  const met = target === null ? 0 : values.filter((v) => v >= target).length;
+  const met = target === null ? 0 : values.filter((v) => shownGrams(v) >= target).length;
   const best = full.reduce<(typeof full)[number] | null>((a, x) => (!a || get(x.d.nutrition!)! > get(a.d.nutrition!)! ? x : a), null);
 
   const hint = kind === 'fibre'
@@ -793,7 +800,7 @@ function TargetCard({ kind, span, today, target, weight, ownTarget, bucket }: {
       />
       <div className="px-2 pb-1">
         <BarSeries
-          series={groupSeries(points, bucket)}
+          series={groupSeries(points, bucket).map((p) => ({ ...p, value: p.value === null ? null : shownGrams(p.value) }))}
           bucket={bucket}
           color={colour}
           goal={target ?? undefined}
@@ -856,13 +863,13 @@ function WaterCard({ span, today, target, bucket }: {
         <>
           <div className="px-2 pb-1">
             <BarSeries
-              series={groupSeries(points, bucket)}
+              series={groupSeries(points, bucket).map((p) => ({ ...p, value: p.value === null ? null : shownLitres(p.value) }))}
               bucket={bucket}
               color={MACRO.water}
               goal={target}
               height={180}
               unit={t('units.litres')}
-              format={litres}
+              format={loggedLitres}
               tickStep={1}
             />
           </div>
@@ -874,7 +881,7 @@ function WaterCard({ span, today, target, bucket }: {
             {water.logged > 0 && (
               <p className="mt-2 text-detail leading-relaxed text-zinc-400">
                 {water.met === 0 && water.best
-                  ? t('nutrition.water.noneMet', { target: litres(target), best: litres(water.best.litres), date: formatCivilLong(water.best.date) })
+                  ? t('nutrition.water.noneMet', { target: litres(target), best: loggedLitres(water.best.litres), date: formatCivilLong(water.best.date) })
                   : t('nutrition.water.met', { met: water.met, days: water.logged })}
               </p>
             )}

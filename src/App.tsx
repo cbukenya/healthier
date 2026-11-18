@@ -29,12 +29,17 @@ import { VitalsView } from './views/VitalsView';
 import { BodyView } from './views/BodyView';
 import { SettingsView, type SectionId } from './views/SettingsView';
 import { LabsView } from './views/LabsView';
-import { AboutYourData, GoogleG, SignInConsent, SignInNote } from './views/SignInParts';
+import { AboutYourData, GoogleG, OpenSource, SignInConsent, SignInNote } from './views/SignInParts';
 
 export default function App() {
   const { user, needsReconnect, theme, ready, signIn, signOut, deleteAccount, reload } = useAuth();
   const instance = useInstance();
-  const [demo, setDemo] = useState(false);
+  // Demo mode lasts as long as the tab, so reloading a demo page stays in the demo.
+  const [demo, setDemoState] = useState(demoRemembered);
+  const setDemo = (on: boolean) => {
+    rememberDemo(on);
+    setDemoState(on);
+  };
   // Set by the server when a Google sign-in comes back with an error, e.g. ?auth_error=access_denied.
   const [authError] = useState(() => new URLSearchParams(window.location.search).get('auth_error'));
 
@@ -78,6 +83,8 @@ export default function App() {
 
   /** Out of the demo, or signed out, keeping the data. */
   const leave = () => {
+    // The sign-in screen has no pages, and whoever comes next starts at Today.
+    window.history.replaceState(null, '', addressOf('today'));
     if (demo) setDemo(false);
     else void signOut();
   };
@@ -102,7 +109,21 @@ export default function App() {
     return map;
   }, [health.data]);
 
-  const [view, setView] = useState<View>('today');
+  // The page is in the address (#sleep), so Back returns to the last page and a reload stays on it.
+  const [view, setViewState] = useState<View>(viewInAddress);
+  /** Open a page, as a new step in the browser's history, or in place of this one. */
+  const setView = useCallback((next: View, replace = false) => {
+    if (viewInAddress() !== next) {
+      if (replace) window.history.replaceState(null, '', addressOf(next));
+      else window.history.pushState(null, '', addressOf(next));
+    }
+    setViewState(next);
+  }, []);
+  useEffect(() => {
+    const onPop = () => setViewState(viewInAddress());
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
   // A Settings section to open: the chip in the bar asks for Account.
   const [settingsRequest, setSettingsRequest] = useState<{ section: SectionId; at: number } | null>(null);
   const openAccount = () => {
@@ -112,11 +133,15 @@ export default function App() {
   // The data's last day: yours on live data, the fixture's in demo mode.
   const today = health.data?.days.at(-1)?.date ?? null;
 
+  // Signing in or opening the demo starts on the page the address names: Today, unless a reload kept another.
   useEffect(() => {
-    if (user || demo) {
-      setView('today');
-    }
+    if (user || demo) setViewState(viewInAddress());
   }, [user, demo]);
+
+  // A demo remembered in this tab that the host has since turned off ends.
+  useEffect(() => {
+    if (instance && !instance.demo && demo) setDemo(false);
+  }, [instance, demo]);
 
   // A page opened from the bar starts at its top, not where the last one was left.
   useEffect(() => {
@@ -138,7 +163,7 @@ export default function App() {
 
   if ((!user || needsReconnect) && !demo) {
     return themed(
-      <div className="min-h-screen flex items-center justify-center p-6">
+      <div className="min-h-screen flex flex-col items-center justify-center gap-5 p-6">
         <div className="relative max-w-md w-full p-8 rounded-2xl bg-card border border-card-edge shadow-2xl">
           <AboutYourData privacy={instance.privacy} />
           <img src="/logo.svg" alt="" width={48} height={48} className="mb-6" />
@@ -161,7 +186,7 @@ export default function App() {
               className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-xl bg-white text-black font-semibold hover:bg-zinc-200 transition-colors"
             >
               <GoogleG />
-              {needsReconnect ? t('app.signIn.reconnect') : t('app.signIn.connect')}
+              {t('app.signIn.connect')}
             </button>
             {instance.demo && (
               <button
@@ -175,6 +200,7 @@ export default function App() {
           <SignInConsent terms={instance.terms} privacy={instance.privacy} />
           {instance.note && <SignInNote note={instance.note} />}
         </div>
+        <OpenSource />
       </div>
     );
   }
@@ -298,7 +324,7 @@ export default function App() {
           </div>
         </div>
         <div className="max-w-5xl mx-auto px-4 pt-1 md:pt-2">
-          <PageNav view={view} setView={setView} food={!!health.data?.days.some((d) => d.nutrition)} />
+          <PageNav view={view} setView={setView} loaded={!!health.data} food={!!health.data?.days.some((d) => d.nutrition)} />
         </div>
       </header>
       {shell}
@@ -313,7 +339,38 @@ export default function App() {
   );
 }
 
-type View = 'today' | 'activity' | 'sleep' | 'vitals' | 'body' | 'nutrition' | 'cycle' | 'labs' | 'settings';
+const VIEWS = ['today', 'activity', 'sleep', 'vitals', 'body', 'nutrition', 'cycle', 'labs', 'settings'] as const;
+type View = (typeof VIEWS)[number];
+
+/** The page the address names: #sleep, or #settings/goals for a section of Settings. Today has none. */
+function viewInAddress(): View {
+  const name = window.location.hash.slice(1).split('/')[0];
+  return (VIEWS as readonly string[]).includes(name) ? (name as View) : 'today';
+}
+
+/** This page's address with the page in it; Today's is the app's own address. */
+const addressOf = (view: View) => window.location.pathname + window.location.search + (view === 'today' ? '' : `#${view}`);
+
+// i18n-ignore: a storage key, never shown
+const DEMO_KEY = 'healthier.demo';
+
+/** Whether this tab was in the demo. Storage can be off, as in some private windows: then it wasn't. */
+function demoRemembered(): boolean {
+  try {
+    return window.sessionStorage.getItem(DEMO_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function rememberDemo(on: boolean): void {
+  try {
+    if (on) window.sessionStorage.setItem(DEMO_KEY, '1');
+    else window.sessionStorage.removeItem(DEMO_KEY);
+  } catch {
+    // Without storage, a reload leaves the demo, as it always did.
+  }
+}
 
 /**
  * Who's here, in the bar: their picture and first name, or Demo in demo mode. It opens the
@@ -389,18 +446,21 @@ const EDGE = 48;
  * sideways on its own, by swipe, trackpad or mouse wheel, and an edge with pages past it shows a
  * small arrow that slides the row along.
  */
-function PageNav({ view, setView, food }: {
+function PageNav({ view, setView, loaded, food }: {
   view: View;
-  setView: (view: View) => void;
+  setView: (view: View, replace?: boolean) => void;
+  /** The data has arrived, so whether Cycle and Nutrition show is known. */
+  loaded: boolean;
   /** Food has been logged in the window: the Nutrition page shows only then. */
   food: boolean;
 }) {
   const tracking = useCycleTracking();
-  // Turning tracking off on the Settings page takes the Cycle page away; never leave anyone on it.
+  // Turning tracking off on the Settings page takes the Cycle page away; never leave anyone on it,
+  // nor on an address naming a page that isn't there. Until the data arrives, neither is known.
   useEffect(() => {
-    if (view === 'cycle' && !tracking) setView('today');
-    if (view === 'nutrition' && !food) setView('today');
-  }, [view, tracking, food, setView]);
+    if (!loaded) return;
+    if ((view === 'cycle' && !tracking) || (view === 'nutrition' && !food)) setView('today', true);
+  }, [view, tracking, food, loaded, setView]);
 
   const row = useRef<HTMLDivElement>(null);
   const [edges, setEdges] = useState({ before: false, after: false });

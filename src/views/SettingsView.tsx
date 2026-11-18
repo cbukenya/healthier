@@ -53,8 +53,8 @@ function sectionIn(state: unknown): SectionId | null {
   return SECTIONS.includes(id as SectionId) ? (id as SectionId) : null;
 }
 
-/** Leave the page's address as it was before any section opened. */
-const forgetSection = () => window.history.replaceState(null, '', window.location.pathname + window.location.search);
+/** Leave the page's address as it was before any section opened: the Settings page's own. */
+const forgetSection = () => window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}#settings`);
 
 export function SettingsView({
   data, live, syncing, failure, email, request, onRequestDone, onFullSync, onRetry, onSignIn, onSignOut, onDisconnect, onSourcesChanged,

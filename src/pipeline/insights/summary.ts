@@ -2,11 +2,11 @@ import { addDays, dateRange, type CivilDate } from '../../lib/date';
 import type { DailyRecord } from '../../types/health';
 import { scoreSleep } from '../sleep';
 import {
-  compareVital, isRecent, readiness, sleepDebt, sleepNorms,
+  compareVital, fullDays, isRecent, readiness, sleepDebt, sleepNorms,
 } from '../derive';
 import { DEFAULT_GOALS, type Goals } from '../goals';
 import type { InsightDataset, InsightOptions } from './context';
-import { briskMins, sleepMins, zoneMins } from './helpers';
+import { sleepMins, whoWeek } from './helpers';
 import { insightFeeds } from './engine';
 
 /** Convenience: everything the Today view needs, computed once. */
@@ -43,7 +43,12 @@ export function todaySummary(ds: InsightDataset, now: Date = new Date(), extras?
 
 // ─────────────────────────────────────────────────────────── this week
 
-/** The days ending today, as Today's week card reads them: the last 7, or with Month the last 30. */
+/**
+ * The days ending today, as Today's week card reads them: the last 7, or with Month the last 30.
+ * The battery and sleep include this morning and last night. Movement reads as many full days,
+ * the last of them yesterday, since today's is still climbing: the same 7 days as Activity's
+ * "Last 7 days" and the week in review.
+ */
 export interface PeriodSummary {
   /** How many days it covers, today included. */
   length: number;
@@ -51,9 +56,12 @@ export interface PeriodSummary {
   battery: { date: CivilDate; score: number | null }[];
   /** Mean time asleep across the period's recorded nights. */
   sleep: { avgMin: number; nights: number } | null;
-  /** Minutes in the WHO's currency, today's so far included: Active Zone Minutes when the period has them. */
-  activeMinutes: { total: number; unit: 'azm' | 'brisk' } | null;
-  /** Finished days only: today's count is still climbing. `atGoal` counts the days that reached the step goal. */
+  /**
+   * Minutes in the WHO's currency over the full days: Active Zone Minutes when they have them. The
+   * total is what the days earned; `perWeek` is the average week, over the days that recorded any.
+   */
+  activeMinutes: { total: number; unit: 'azm' | 'brisk'; perWeek: number } | null;
+  /** Over the full days. `atGoal` counts the days that reached the step goal. */
   steps: { avg: number; days: number; atGoal: number } | null;
 }
 
@@ -79,20 +87,16 @@ function periodSummary(days: DailyRecord[], length: number, goals: Goals, judged
     return { date, score: i < 0 ? null : readiness(days.slice(0, i + 1), goals.sleepNeed, judged).score };
   });
   const nights = sleepMins(period, (s) => s.minutesAsleep);
-  const azm = period.some((d) => d.zoneMinutes !== null);
-  const brisk = period.some((d) => d.activeMinutes !== null);
-  const steps = period
-    .filter((d) => d.date !== today)
-    .map((d) => d.steps)
-    .filter((s): s is number => s !== null);
+  // Movement: the same number of full days, ending yesterday.
+  const done = fullDays(days, today, length);
+  const who = whoWeek(done);
+  const steps = done.map((d) => d.steps).filter((s): s is number => s !== null);
 
   return {
     length,
     battery,
     sleep: nights.length ? { avgMin: mean(nights), nights: nights.length } : null,
-    activeMinutes: azm || brisk
-      ? { total: period.reduce((a, d) => a + (azm ? zoneMins(d) : briskMins(d)), 0), unit: azm ? 'azm' : 'brisk' }
-      : null,
+    activeMinutes: who ? { total: who.total, unit: who.unit, perWeek: who.perWeek } : null,
     steps: steps.length
       ? { avg: mean(steps), days: steps.length, atGoal: steps.filter((s) => s >= goals.steps).length }
       : null,

@@ -420,10 +420,11 @@ function NowCard({ summary, nights, className = '' }: { summary: CycleSummary; n
   const pm = dayPlusMinus(c);
   const after = c.phase === 'after-rise' && c.riseDay !== null;
   const shifts = sinceRise(nights, summary);
+  // Each change to the decimals "Your body through the cycle" gives the same one (MEASURES).
   const rows: { name: string; value: string }[] = shifts
     ? ([
       ['temp', 'cycle.now.rows.temp', 2, t('units.celsius')],
-      ['sleepHr', 'cycle.now.rows.sleepHr', 1, t('units.bpm')],
+      ['sleepHr', 'cycle.now.rows.sleepHr', 0, t('units.bpm')],
       ['hrv', 'cycle.now.rows.hrv', 0, t('units.ms')],
     ] as const).flatMap(([key, name, digits, unit]) => {
       const v = shifts[key];

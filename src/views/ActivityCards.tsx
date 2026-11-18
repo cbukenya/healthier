@@ -8,6 +8,7 @@ import type { PeriodShift } from '../pipeline/derive';
 import { Card, CardHead, CardSummary, DOMAIN, Delta, Meter, Row, fmtNum } from '../ui/primitives';
 import type { DailyRecord } from '../types/health';
 import { WHO_WEEK } from '../pipeline/goals';
+import { whoWeek } from '../pipeline/insights/helpers';
 import { useGoals } from '../hooks/useGoals';
 
 const BRISK_HEX = 'var(--orange-400)';
@@ -76,8 +77,11 @@ export function LastSevenDays({ days, shift, ratio, wide, glow }: {
   const steps = days.map((d) => d.steps).filter((s): s is number => s !== null);
   const over = steps.filter((s) => s >= goal).length;
   const overLabel = t('activity.lastSevenDays.daysOver', { goal: formatThousands(goal) });
-  const briskDays = days.map(briskOf).filter((m): m is number => m !== null);
-  const brisk = briskDays.length ? briskDays.reduce((a, b) => a + b, 0) : null;
+  // Against the WHO's 150, in the same count as Today's week card: active zone minutes when the
+  // days have them, else moderate plus vigorous counted double.
+  const who = whoWeek(days);
+  const brisk = who?.total ?? null;
+  const briskLabel = t(who?.unit === 'azm' ? 'activity.lastSevenDays.zone' : 'activity.lastSevenDays.brisk');
   const ramp = rampOf(ratio);
 
   const headline = (
@@ -118,7 +122,7 @@ export function LastSevenDays({ days, shift, ratio, wide, glow }: {
           <Stat label={overLabel} value={rich('activity.lastSevenDays.daysOverCount', { over, total: steps.length, muted: statUnit })} />
           {brisk !== null && (
             <Stat
-              label={t('activity.lastSevenDays.brisk')}
+              label={briskLabel}
               value={rich('activity.lastSevenDays.briskTotal', { minutes: fmtNum(brisk, 0), target: WHO_WEEK, muted: statUnit })}
             />
           )}
@@ -133,7 +137,7 @@ export function LastSevenDays({ days, shift, ratio, wide, glow }: {
         <div>
           <Row dense label={overLabel}>{t('activity.lastSevenDays.daysOverCount', { over, total: steps.length })}</Row>
           {brisk !== null && (
-            <Row dense label={t('activity.lastSevenDays.brisk')}>
+            <Row dense label={briskLabel}>
               {rich('activity.lastSevenDays.briskTotal', {
                 minutes: fmtNum(brisk, 0),
                 target: WHO_WEEK,

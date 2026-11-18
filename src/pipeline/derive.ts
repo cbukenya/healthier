@@ -1,6 +1,6 @@
 import { addDays, daysBetween, weekdayIndex, type CivilDate } from '../lib/date';
 import { t, type MessageKey } from '../i18n';
-import { formatCivil, formatDuration, formatFixed, formatRounded } from '../i18n/format';
+import { formatCivil, formatDuration, formatFixed, formatNumber, formatRounded } from '../i18n/format';
 import type { DailyRecord, HealthDataset, SleepSession } from '../types/health';
 import { scoreSleep, sleepNeedFor } from './sleep';
 import { fillSource } from './sources';
@@ -223,6 +223,13 @@ export function isRecent(date: CivilDate | null | undefined, today: CivilDate | 
  * readings are keyed to the morning they ended and don't need this.
  */
 export const completedDays = (days: DailyRecord[]): DailyRecord[] => days.slice(0, -1);
+
+/**
+ * The n full days before today, oldest first: what a stretch of "the last n days" of movement reads,
+ * so Today's week and month, Activity's last 7 days and its span summary all count the same days.
+ */
+export const fullDays = (days: DailyRecord[], today: CivilDate, n: number): DailyRecord[] =>
+  days.filter((d) => d.date >= addDays(today, -n) && d.date < today);
 
 /**
  * A metric's series keeping only readings from the device behind the latest one.
@@ -550,9 +557,9 @@ export function readiness(days: DailyRecord[], needSet?: number | null, judged: 
       label: t('today.battery.parts.hrv.label'),
       contribution: c,
       detail: t('today.battery.parts.hrv.detail', {
-        last: fmt(Math.exp(hrv.lastLn)),
-        week: fmt(Math.exp(hrv.mean7Ln)),
-        typical: fmt(Math.exp(hrv.baselineLn)),
+        last: whole(Math.exp(hrv.lastLn)),
+        week: whole(Math.exp(hrv.mean7Ln)),
+        typical: whole(Math.exp(hrv.baselineLn)),
         source: useDeep ? 'deep' : 'overnight',
       }),
       note,
@@ -572,7 +579,7 @@ export function readiness(days: DailyRecord[], needSet?: number | null, judged: 
       id: 'restingHr',
       label: t('today.battery.parts.restingHr.label'),
       contribution: c,
-      detail: t('today.battery.parts.restingHr.detail', { value: fmt(rhr.value), typical: fmt(rhr.baseline) }),
+      detail: t('today.battery.parts.restingHr.detail', { value: whole(rhr.value), typical: whole(rhr.baseline) }),
     });
   }
 
@@ -648,7 +655,8 @@ export function readiness(days: DailyRecord[], needSet?: number | null, judged: 
       id: 'breathing',
       label: t('today.battery.parts.breathing.label'),
       contribution: c,
-      detail: t('today.battery.parts.breathing.detail', { value: fmt(resp.value), typical: fmt(resp.baseline) }),
+      // The penalty starts below the edge of the usual range; the word "elevated" waits for the pill's verdict.
+      detail: t('today.battery.parts.breathing.detail', { value: formatNumber(resp.value!, 1), typical: fmt(resp.baseline), elevated: isOff('breathing', resp) ? 'yes' : 'no' }),
     });
   }
 
@@ -848,7 +856,21 @@ export function compareVitalOn(days: DailyRecord[], key: VitalKey, i: number): C
 export const isOff = (key: VitalKey, c: { z: number | null } | null) =>
   !!c && c.z !== null && (VITALS[key].off === 'above' ? c.z >= OFF_Z : c.z <= -OFF_Z);
 
+/**
+ * The side of its usual range a reading's pill puts it on, either way: null inside it, without a
+ * usual range yet, or when `cycle` (the same reading judged against this part of the cycle) is
+ * usual. BandPill reads it, so words that call a reading higher or lower than usual can agree with
+ * the pill beside it.
+ */
+export function pillSide(c: Comparison | null, cycle: Comparison | null = null): 'above' | 'below' | null {
+  if (!c || !c.band || c.band === 'typical' || c.n < BASELINE_MIN_READINGS) return null;
+  if (cycle?.band === 'typical' && cycle.date === c.date) return null;
+  return c.band === 'above' || c.band === 'far-above' ? 'above' : 'below';
+}
+
 const fmt = (v: number | null) => (v === null ? '—' : formatRounded(v, 1));
+/** HRV and resting heart rate read in whole numbers, as every page shows them. */
+const whole = (v: number | null) => (v === null ? '—' : formatRounded(v, 0));
 
 // ─────────────────────────────────────── typical sleep window (circular)
 

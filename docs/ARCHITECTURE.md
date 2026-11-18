@@ -26,13 +26,19 @@ How Healthier works and why, for contributors. What's planned lives in the
 6. **One today.** The window ends on the user's today, in their own zone (demo mode: the demo
    person's clock and zone). Every card and insight judges against that day; the device clock only picks
    morning, midday or evening. Only readings from today or yesterday count as "last night", and
-   today's movement is still in progress, so whole-day comparisons read finished days.
+   today's movement is still in progress, so whole-day comparisons read finished days: "the last
+   n days" of movement are the n full days before today (`fullDays`) on every page.
 7. **One verdict per reading.** A reading is outside its usual range when it's 1.5 spreads or more
    from the middle of the four weeks before it (`OFF_Z` in `derive.ts`). That one edge is the band
    shaded behind a chart, the pill beside a reading, and the line every card and lab calls off by.
    Resting heart rate, HRV, breathing and oxygen are each read one way, in `VITALS`, and judged
    with `compareVital` and `isOff`; skin temperature is off from `WARM_C` over the device's own
-   baseline. So a reading off on one page is off on every page.
+   baseline. So a reading off on one page is off on every page. Words that call a reading higher
+   or lower than usual take its pill's verdict, the cycle included (`pillSide`), so they never say
+   more than the pill beside them. The body battery is the one exception: it reads HRV in deep
+   sleep when the device records it (cleaner than the overnight average the vitals show), its 7-day
+   average against the four weeks before last week, so its figures differ from the vitals card's
+   and its line opens "In deep sleep".
 
 ## Components
 
@@ -360,7 +366,8 @@ only reads it; there's no food search or logging of its own, and nothing is gues
   else short) and carbs and fat to the adult ranges (45–65% and 20–35% of energy; US National
   Academies, 2005). A single day is described, never judged: today's plate says how far it is from
   maintenance and remarks only on protein well behind late in the day, or a mix far from the
-  person's own usual.
+  person's own usual. A day reaches its target by the figure on screen: protein and fibre in whole
+  grams, water to the 10 ml it's kept in (1.95 L shows as 1.95 and is under 2.0).
 - **Water** (`hydration-log`) comes as Google's total for each day, so it has no times; a day
   summed to nothing was never logged. Today's plate and the water chart hold what was logged to
   the water target. A day without a log has no bar rather than an empty one, and today is drawn
@@ -389,7 +396,9 @@ bounds. Every ring, goal line, label and insight reads them from there (the scre
 `useGoals`, the engine through `InsightOptions.goals`), so no screen repeats a goal as a literal.
 Sleep need stays automatic, the median of your nights held between 7 and 8.5 hours, until it's
 set; set, it replaces the estimate everywhere, the body battery and the sleep score included.
-Protein works the same way: automatic at 1.4 g per kg of the latest weigh-in until it's set. Fibre
+Protein works the same way: automatic at 1.4 g per kg of the latest weigh-in until it's set. That
+weigh-in is the window's latest, on the Settings page, the Nutrition page and in the cards alike, so
+with none in 62 days there's no automatic target anywhere. Fibre
 is 30 g a day and water 2.0 litres unless set. Protein, fibre and water arrived after the others,
 so a page that doesn't send them keeps their defaults.
 
@@ -542,3 +551,7 @@ when the radar reads Elevated or High.
 `src/pipeline/__tests__/normalize.test.ts`: a day comes out the same whatever order its readings
 arrive in; a partial reading never wipes a complete one; two devices' copies of a night count once;
 a night split by a long awakening is one night; a short night without metadata is still the night.
+
+`src/pipeline/__tests__/consistency-activity.test.ts`: Today's week and month, Activity's Last 7
+days, its span summary and the brisk activity card count the same full days the same way, so a
+week's minutes or a month's steps read alike on every page.
