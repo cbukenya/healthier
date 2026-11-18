@@ -37,17 +37,19 @@ const barStyle = (score: number | null, lit: boolean, maxPx = BAR_MAX_PX): React
  * The last seven days at a glance, or with Month the last 30: the battery each morning, then
  * sleep, WHO minutes and steps against their bars. Where the numbers came from lives on the Settings page.
  */
-export function ThisWeek({ week, days, needMin, className = '' }: {
+export function ThisWeek({ week, days, needMin, age, className = '' }: {
   week: PeriodSummary;
   /** The window, for the month view, worked out only when someone opens it. */
   days: DailyRecord[];
   needMin: number;
+  /** The person's age, when it's known: the month's batteries are scored with it, as the week's were. */
+  age: number | null;
   className?: string;
 }) {
   const goals = useGoals();
   const [view, setView] = useState<View>('week');
   const { judged } = useCycle();
-  const month = useMemo(() => (view === 'month' ? monthSummary(days, goals, judged) : null), [view, days, goals, judged]);
+  const month = useMemo(() => (view === 'month' ? monthSummary(days, goals, judged, age) : null), [view, days, goals, judged, age]);
   // The month's chart scrubs: the bar under the pointer is the one in focus, today's otherwise.
   const [picked, setPicked] = useState<number | null>(null);
   const plotRef = useRef<HTMLDivElement>(null);

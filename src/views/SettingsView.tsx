@@ -1,7 +1,7 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { BookOpen, ChevronLeft, ChevronRight, CircleDotDashed, CircleUserRound, Database, Target, Watch, type LucideIcon } from 'lucide-react';
 import { t, type MessageKey } from '../i18n';
-import { estimatedSleepTarget, latestBody } from '../pipeline/derive';
+import { estimatedSleepTarget, latestBody, needFloor } from '../pipeline/derive';
 import { DEFAULT_GOALS, proteinTarget } from '../pipeline/goals';
 import type { SyncResult } from '../pipeline/sync';
 import type { SyncFailure } from '../hooks/useHealth';
@@ -86,7 +86,9 @@ export function SettingsView({
   const history = useHistory().info;
   const sources = useSources(data, live, onSourcesChanged);
   const { log } = useCycle();
-  const autoNeed = estimatedSleepTarget(data.days);
+  // The age, when Google Health's profile gives one: the automatic need's floor depends on it.
+  const age = data.profile?.age ?? null;
+  const autoNeed = estimatedSleepTarget(data.days, age);
   const autoProtein = proteinTarget(DEFAULT_GOALS, latestBody(data.days).latest?.value ?? null);
   const [section, setSection] = useState<SectionId | null>(null);
 
@@ -165,7 +167,7 @@ export function SettingsView({
       case 'streams':
         return <DataStreams data={data} />;
       case 'goals':
-        return <GoalsCard autoNeed={autoNeed} autoProtein={autoProtein} />;
+        return <GoalsCard autoNeed={autoNeed} autoNeedFloor={needFloor(age)} autoProtein={autoProtein} />;
       case 'cycle':
         return <CycleCard kept={!!data.profile?.cycleKept} />;
       case 'facts':

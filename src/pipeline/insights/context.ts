@@ -72,7 +72,7 @@ export interface InsightContext {
    */
   need: number;
   needH: string;
-  /** What every night's sleep score is held to: the need above and the person's usual deep + REM (sleepNorms). */
+  /** What every night's sleep score is held to: the need above and the person's usual deep + REM and efficiency (sleepNorms). */
   norms: SleepNorms;
   stepsSeries: Point[];
   /** Today's steps are still counting, so whole-day comparisons read finished days only. */
@@ -112,7 +112,8 @@ export function buildContext(ds: InsightDataset, now: Date, extras?: InsightOpti
   const minutesNow = wallClock(now, extras?.timeZone);
 
   const goals = extras?.goals ?? DEFAULT_GOALS;
-  const norms = sleepNorms(days, goals.sleepNeed);
+  const age = ds.profile?.age ?? null;
+  const norms = sleepNorms(days, goals.sleepNeed, age);
   const need = norms.need;
   const stepsSeries = series(days, (d) => d.steps);
   const doneSteps = stepsSeries.slice(0, -1);
@@ -121,9 +122,9 @@ export function buildContext(ds: InsightDataset, now: Date, extras?: InsightOpti
   const cycle = extras?.cycle ?? null;
   const judged = cycle?.judged ?? null;
   // With cycle tracking on, the battery softens a penalty the cycle explains (see readiness).
-  const rNow = readiness(days, goals.sleepNeed, judged);
+  const rNow = readiness(days, goals.sleepNeed, judged, age);
   const prevDays = beforeLatestMorning(days);
-  const rPrev = readiness(prevDays, goals.sleepNeed, judged);
+  const rPrev = readiness(prevDays, goals.sleepNeed, judged, age);
   // Several signals off on the latest morning, by the radar's own test (offTogether), judged with
   // the cycle in mind too, while tracking is on.
   const offOnLatestMorning = (rows: DailyRecord[]) => {
@@ -143,7 +144,7 @@ export function buildContext(ds: InsightDataset, now: Date, extras?: InsightOpti
     part: daypartOf(minutesNow),
     dom: Number(today.slice(8, 10)),
     intraday: extras?.intraday,
-    age: ds.profile?.age ?? null,
+    age,
     heightCm: ds.profile?.heightCm ?? null,
     answers: ds.answers ?? {},
     goals,

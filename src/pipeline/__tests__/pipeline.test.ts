@@ -12,7 +12,7 @@ import {
 } from '../insights';
 import { freshEntry, whoMins, whoUnit } from '../insights/helpers';
 import { bringForward, carouselOf, TODAY_MIN } from '../insights/place';
-import { scoreSleep, sleepNorms } from '../sleep';
+import { NEED_ESTIMATE, STANDARD_NORMS, fullEfficiency, needFloor, scoreSleep, sleepNorms } from '../sleep';
 import {
   compareToBaseline, coverage, findGaps, periodShift, rollingMean, series, stats, values,
   bedtimeConsistency, currentStreak, readiness, windowShift, firstObserved, sleepRegularity, circularMeanMinutes, typicalSleepWindow,
@@ -606,7 +606,7 @@ describe('second-pass corrections', () => {
 
   it('holds a night to the sleep need the battery uses, never to less than 7 hours', () => {
     const base = { minutesAwake: 10, minutesInBed: 490, efficiency: 96, stages: null, segments: [], shortAwakeningsMin: [] };
-    const night = (minutesAsleep: number, need: number) => scoreSleep({ ...base, minutesAsleep } as any, { need, restorative: 0.45 }).duration;
+    const night = (minutesAsleep: number, need: number) => scoreSleep({ ...base, minutesAsleep } as any, { ...STANDARD_NORMS, need }).duration;
     // Seven hours is a full night for a 7-hour need and an hour short for an 8-hour one.
     assert.equal(night(420, 420), 50);
     assert.ok(night(420, 480) < 50 && night(420, 480) > 35, `7h against an 8h need scored ${night(420, 480)}`);
@@ -634,8 +634,49 @@ describe('second-pass corrections', () => {
     assert.equal(sleepNorms(days(48, 96, 7)).restorative, 0.45);
   });
 
+  it('holds efficiency to the person’s own usual, never to more than an ordinary 88%', () => {
+    const night = (efficiency: number) =>
+      ({ minutesAsleep: 400, minutesAwake: 80, minutesInBed: 480, efficiency, stages: null, segments: [], shortAwakeningsMin: [] }) as any;
+    const days = (efficiency: number, n = 10) => Array.from({ length: n }, () => ({ sleep: night(efficiency) }) as any);
+    // Someone up several times a night: 82% is their usual. It used to earn nothing; now it earns
+    // what an ordinary 88% night earns anyone, and full marks start as far under 100% as they are under 88%.
+    const usual = sleepNorms(days(82));
+    assert.equal(usual.efficiency, 82);
+    assert.equal(fullEfficiency(usual), 94);
+    assert.equal(scoreSleep(night(82)).efficiency, 0);
+    assert.equal(scoreSleep(night(82), usual).efficiency, scoreSleep(night(88)).efficiency);
+    assert.equal(scoreSleep(night(87), usual).efficiency, scoreSleep(night(93)).efficiency);
+    assert.equal(scoreSleep(night(94), usual).efficiency, 25);
+    // A night under their usual still loses points, down to nothing 3 points under it.
+    assert.ok(scoreSleep(night(80), usual).efficiency < scoreSleep(night(82), usual).efficiency);
+    assert.equal(scoreSleep(night(79), usual).efficiency, 0);
+    // A usual above 88% doesn't raise the bar, fewer than 8 nights keeps it, and it stops following at 75%.
+    assert.equal(sleepNorms(days(95)).efficiency, 88);
+    assert.equal(fullEfficiency(sleepNorms(days(95))), 100);
+    assert.equal(sleepNorms(days(82, 7)).efficiency, 88);
+    assert.equal(sleepNorms(days(68)).efficiency, 75);
+    // So for an ordinary sleeper the score is what it was.
+    assert.deepEqual(scoreSleep(night(91), sleepNorms(days(91))), scoreSleep(night(91)));
+  });
+
+  it('lets the need estimate fall to 6 hours from the age of 65, and no lower', () => {
+    const nights = (minutesAsleep: number) => syntheticDays(28, {}, { sleepMin: minutesAsleep });
+    assert.equal(needFloor(null), 420);
+    assert.equal(needFloor(64), 420);
+    assert.equal(needFloor(65), 360);
+    // 6 h 10 m a night: short of the need at 40, the need itself at 68.
+    assert.equal(sleepNeedFor(nights(370)), 420);
+    assert.equal(sleepNeedFor(nights(370), null, 40), 420);
+    assert.equal(sleepNeedFor(nights(370), null, 68), 370);
+    assert.equal(sleepNeedFor(nights(330), null, 68), 360, 'never under 6 hours');
+    assert.equal(sleepNorms(nights(370), null, 68).need, 370);
+    // A need the person set wins at any age, and a long sleeper's ceiling doesn't move.
+    assert.equal(sleepNeedFor(nights(370), 405, 68), 405);
+    assert.equal(sleepNeedFor(nights(560), null, 68), NEED_ESTIMATE.ceiling);
+  });
+
   it('answers the history’s sleep scores with the same norms as the window', () => {
-    const norms = { need: 480, restorative: 0.3 };
+    const norms = { need: 480, restorative: 0.3, efficiency: 82 };
     const nights = [450, 480, 510].map((minutesAsleep, i) => ({
       date: `2026-05-0${i + 1}`,
       sleep: { minutesAsleep, minutesAwake: 10, minutesInBed: minutesAsleep + 10, efficiency: 96, stages: { deep: 48, rem: 96, light: minutesAsleep - 144, awake: 10 } },
@@ -1003,6 +1044,50 @@ describe('battery arithmetic', () => {
     const withStages = part(readiness(staged), 'sleep')!.contribution;
     const without = part(readiness(plain), 'sleep')!.contribution;
     assert.ok(withStages <= without, `${withStages} > ${without}`);
+  });
+
+  it('reads how deep and unbroken a night was against the person’s own usual', () => {
+    // An older sleeper: 82% of the night asleep and 27% deep + REM, every night.
+    const older = (last: { efficiency: number; deep: number; rem: number }) => {
+      const days = syntheticDays(28);
+      days.forEach((d, i) => {
+        const night = d.sleep!;
+        const { efficiency, deep, rem } = i === 27 ? last : { efficiency: 82, deep: 40, rem: 81 };
+        night.efficiency = efficiency;
+        night.stages = { deep, rem, light: night.minutesAsleep - deep - rem, awake: 10 };
+      });
+      return days;
+    };
+    // Their usual night costs nothing. Held to 25% deep + REM and 90% efficiency it cost points every morning.
+    assert.equal(part(readiness(older({ efficiency: 82, deep: 40, rem: 81 })), 'sleep')!.contribution, 0);
+    // A night that's shallow and broken for them still does.
+    const rough = part(readiness(older({ efficiency: 74, deep: 20, rem: 50 })), 'sleep')!.contribution;
+    assert.ok(rough < -1, `a rough night cost ${rough}`);
+    // And an ordinary sleeper's battery is what it was: a usual at or over the standard bars changes nothing.
+    const ordinary = syntheticDays(28);
+    ordinary.forEach((d) => { d.sleep!.efficiency = 91; d.sleep!.stages = { deep: 90, rem: 120, light: d.sleep!.minutesAsleep - 210, awake: 10 }; });
+    ordinary[27].sleep!.efficiency = 86;
+    ordinary[27].sleep!.stages = { deep: 40, rem: 60, light: 350, awake: 10 };
+    // 22% deep + REM and 86% efficiency against the fixed levels: (30 − 22) × 0.15 + (12 − 2) × 0.15.
+    assert.ok(Math.abs(part(readiness(ordinary), 'sleep')!.contribution - -2.7) < 0.01);
+  });
+
+  it('holds a 68-year-old to the 6-hour floor in the battery and the debt card', () => {
+    // 6 h 10 m every night. Under 65, or with no age, that's 50 minutes short each night.
+    const days = syntheticDays(28, {}, { sleepMin: 370 });
+    const battery = (age: number | null) => readiness(days, null, null, age);
+    assert.ok(part(battery(null), 'sleepDebt')!.contribution < -5);
+    assert.ok(part(battery(null), 'sleep')!.contribution < -3);
+    assert.equal(part(battery(68), 'sleepDebt'), undefined, 'no debt against their own usual night');
+    assert.equal(part(battery(68), 'sleep')!.contribution, 0);
+    const card = (age: number | null, id: string) => {
+      const f = insightFeeds({ days, profile: { age } } as any, MORNING);
+      return [...f.today, ...Object.values(f.pages).flat()].find((o) => o.id === id);
+    };
+    assert.ok(card(null, 'sleep-debt'), 'short on sleep at an unknown age');
+    assert.equal(card(68, 'sleep-debt'), undefined);
+    assert.match(card(null, 'sleep-need')!.text, /most adults need at least 7 hours/);
+    assert.match(card(68, 'sleep-need')!.text, /That's the middle of your last 28 recorded nights/);
   });
 
   it('falls back to the overnight HRV when deep-sleep RMSSD is too new for a baseline', () => {
@@ -2734,7 +2819,7 @@ describe('goals', () => {
   it('reads stored goals inside their bounds, with defaults where one is missing', () => {
     assert.deepEqual(readGoals(null), DEFAULT_GOALS);
     assert.deepEqual(readGoals({ steps: 'lots', sleepNeed: 'auto' }), DEFAULT_GOALS);
-    assert.deepEqual(readGoals({ steps: 10, briskMinutes: 1000, sleepNeed: 60 }), { steps: 2000, briskMinutes: 120, sleepNeed: 420, protein: null, fibre: 30, water: 2000 },
+    assert.deepEqual(readGoals({ steps: 10, briskMinutes: 1000, sleepNeed: 60 }), { steps: 2000, briskMinutes: 120, sleepNeed: 360, protein: null, fibre: 30, water: 2000 },
       'ten steps and an hour of sleep are pulled up to the floors');
     assert.deepEqual(readGoals({ steps: 7720, briskMinutes: 33, sleepNeed: 488 }), { steps: 7500, briskMinutes: 35, sleepNeed: 495, protein: null, fibre: 30, water: 2000 },
       'and onto their steps');

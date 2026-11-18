@@ -735,7 +735,7 @@ export class MemoryStore implements StoredData {
     const dataset = assembleDataset(this, from, to);
     // The sleep score is held to the norms the app works out from this same window.
     return queries
-      ? { ...dataset, answers: answerFromRows(this.rows, queries, from, to, undefined, sleepNorms(dataset.days, dataset.profile.goals?.sleepNeed)) }
+      ? { ...dataset, answers: answerFromRows(this.rows, queries, from, to, undefined, sleepNorms(dataset.days, dataset.profile.goals?.sleepNeed, dataset.profile.age)) }
       : dataset;
   }
 }

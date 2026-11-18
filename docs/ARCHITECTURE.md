@@ -395,7 +395,9 @@ stores them on `users`, sends them with the dataset, and rejects anything off it
 bounds. Every ring, goal line, label and insight reads them from there (the screens through
 `useGoals`, the engine through `InsightOptions.goals`), so no screen repeats a goal as a literal.
 Sleep need stays automatic, the median of your nights held between 7 and 8.5 hours, until it's
-set; set, it replaces the estimate everywhere, the body battery and the sleep score included.
+set; set, it replaces the estimate everywhere, the body battery and the sleep score included. From
+the age of 65 the estimate's floor is 6 hours (`needFloor`), when Google Health's profile gives
+an age, and anyone can set a need from 6 to 9 hours.
 Protein works the same way: automatic at 1.4 g per kg of the latest weigh-in until it's set. That
 weigh-in is the window's latest, on the Settings page, the Nutrition page and in the cards alike, so
 with none in 62 days there's no automatic target anywhere. Fibre
@@ -403,11 +405,14 @@ is 30 g a day and water 2.0 litres unless set. Protein, fibre and water arrived 
 so a page that doesn't send them keeps their defaults.
 
 The sleep score holds each night to the person's own norms (`sleepNorms` in `src/pipeline/sleep.ts`):
-full duration marks from their sleep need to 9 hours, and full restoration marks at their usual
-share of deep and REM sleep, never a higher bar than 45%. Deep sleep falls with age and staging is
-what a wrist reads least well, so a night is held to the person's own usual rather than a young
-adult's. The server answers the history's sleep scores with the norms it works out from the same
-window, so a record is measured against the same bar. The WHO's 150 minutes a
+full duration marks from their sleep need to 9 hours, full restoration marks at their usual
+share of deep and REM sleep, never a higher bar than 45%, and efficiency on its 15-point scale
+set around their usual efficiency, never higher than an ordinary 88% (so 85–100% for most
+people, and lower by the difference for someone whose usual is lower). Deep sleep and efficiency
+fall with age and staging is what a wrist reads least well, so a night is held to the person's
+own usual rather than a young adult's. The body battery reads how deep and how unbroken last
+night was against the same norms. The server answers the history's sleep scores with the norms
+it works out from the same window, so a record is measured against the same bar. The WHO's 150 minutes a
 week is a guideline rather than a goal, so it's a constant beside them, not a setting.
 
 ## Type roles

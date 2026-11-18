@@ -1185,7 +1185,7 @@
         },
         "efficiency": {
           "label": "Efficiency",
-          "detail": "{percent}% of time in bed asleep · full marks at 100%"
+          "detail": "{percent}% of time in bed asleep · full marks at {full}%"
         }
       }
     },

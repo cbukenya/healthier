@@ -5,7 +5,7 @@ import { formatCivilLong, formatClock, formatHours, formatRounded } from '../i18
 import {
   compareToBaseline, isRecent, periodShift, series, sleepArchitecture, sleepDebt, sleepNorms, stats, usualRange, values, windowShift,
 } from '../pipeline/derive';
-import { LONG_NIGHT_MIN, RESTORATIVE_TARGET, scoreSleep } from '../pipeline/sleep';
+import { LONG_NIGHT_MIN, RESTORATIVE_TARGET, fullEfficiency, scoreSleep } from '../pipeline/sleep';
 import { BarSeries, Hypnogram, StageBar, StageLegend, TrendChart, SleepWindowChart } from '../charts';
 import { BandPill, Card, CardHead, Contributors, DOMAIN, Delta, EmptyState, Row, Segmented, StatusPill, Value, fmtDuration, CardSummary } from '../ui/primitives';
 import { SpanSelector, spanSummaryTitle, useSpan } from '../ui/span';
@@ -41,7 +41,8 @@ export function SleepView({ data, clock, intraday }: { data: SyncResult; clock?:
 
   const sleepCmp = compareToBaseline(sleepAll);
   const shift = periodShift(sleepAll, 7);
-  const norms = sleepNorms(days, needSet);
+  // The age, when Google Health's profile gives one: the need's floor depends on it.
+  const norms = sleepNorms(days, needSet, data.profile?.age ?? null);
   const targetMin = norms.need;
   const debt = sleepDebt(days, targetMin);
   const recorded = values(sleepAll).length;
@@ -188,7 +189,7 @@ export function SleepView({ data, clock, intraday }: { data: SyncResult; clock?:
                   points: score.efficiency,
                   max: 25,
                   color: "var(--emerald-500)",
-                  detail: latest ? t('sleep.night.score.efficiency.detail', { percent: Math.round(latest.efficiency) }) : "",
+                  detail: latest ? t('sleep.night.score.efficiency.detail', { percent: Math.round(latest.efficiency), full: Math.round(fullEfficiency(norms)) }) : "",
                 },
               ];
 

@@ -473,7 +473,7 @@ export async function loadDataset(
   dataset.meta.fromCache = true;
   dataset.meta.cacheAgeMs = Date.now() - state.lastSyncAt.getTime();
   // The sleep score is held to the norms the app works out from this same window.
-  const norms = sleepNorms(dataset.days, readGoals(user.goals).sleepNeed);
+  const norms = sleepNorms(dataset.days, readGoals(user.goals).sleepNeed, dataset.profile.age);
   if (Object.keys(queries).length) dataset.answers = await answerHistory(deps, userId, queries, from, to, choice, norms);
   return { dataset, syncedAt: state.lastSyncAt, history: await describeHistory(deps, userId, to, states) };
 }
