@@ -29,7 +29,7 @@ import { VitalsView } from './views/VitalsView';
 import { BodyView } from './views/BodyView';
 import { SettingsView, type SectionId } from './views/SettingsView';
 import { LabsView } from './views/LabsView';
-import { AboutYourData, GoogleG, SignInConsent, SignInNote } from './views/SignInParts';
+import { AboutYourData, GoogleG, OpenSource, SignInConsent, SignInNote } from './views/SignInParts';
 
 export default function App() {
   const { user, needsReconnect, theme, ready, signIn, signOut, deleteAccount, reload } = useAuth();
@@ -138,7 +138,7 @@ export default function App() {
 
   if ((!user || needsReconnect) && !demo) {
     return themed(
-      <div className="min-h-screen flex items-center justify-center p-6">
+      <div className="min-h-screen flex flex-col items-center justify-center gap-5 p-6">
         <div className="relative max-w-md w-full p-8 rounded-2xl bg-card border border-card-edge shadow-2xl">
           <AboutYourData privacy={instance.privacy} />
           <img src="/logo.svg" alt="" width={48} height={48} className="mb-6" />
@@ -161,7 +161,7 @@ export default function App() {
               className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-xl bg-white text-black font-semibold hover:bg-zinc-200 transition-colors"
             >
               <GoogleG />
-              {needsReconnect ? t('app.signIn.reconnect') : t('app.signIn.connect')}
+              {t('app.signIn.connect')}
             </button>
             {instance.demo && (
               <button
@@ -175,6 +175,7 @@ export default function App() {
           <SignInConsent terms={instance.terms} privacy={instance.privacy} />
           {instance.note && <SignInNote note={instance.note} />}
         </div>
+        <OpenSource />
       </div>
     );
   }

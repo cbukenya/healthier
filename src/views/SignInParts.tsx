@@ -10,6 +10,12 @@ const DATA_POINTS = ['reads', 'uses', 'keeps', 'delete'] as const;
 
 const LINK = 'text-zinc-200 underline decoration-zinc-600 underline-offset-2 hover:decoration-zinc-300';
 
+/** Healthier's own source code, and its guide to running a copy, wherever this one runs. */
+// i18n-ignore: addresses, never shown as words
+const SOURCE_URL = 'https://github.com/cbukenya/healthier';
+// i18n-ignore: addresses, never shown as words
+const SELF_HOST_URL = `${SOURCE_URL}#self-hosting`;
+
 /** A web link on the sign-in screen: it opens beside it, so the screen stays where it was. */
 function WebLink({ href, children }: { href: string; children: ReactNode }) {
   return (
@@ -110,5 +116,18 @@ export function GoogleG({ size = 18 }: { size?: number }) {
       <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
       <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
     </svg>
+  );
+}
+
+/** Under the sign-in card: that Healthier is free and open source, with its code and how to host it. */
+export function OpenSource() {
+  return (
+    <p className="max-w-md w-full text-center text-detail leading-relaxed text-zinc-500">
+      {rich('app.signIn.openSource', {
+        // Each link stays on one line, so a narrow screen breaks the line between them.
+        source: (words) => <span className="whitespace-nowrap"><WebLink href={SOURCE_URL}>{words}</WebLink></span>,
+        selfHost: (words) => <span className="whitespace-nowrap"><WebLink href={SELF_HOST_URL}>{words}</WebLink></span>,
+      })}
+    </p>
   );
 }
