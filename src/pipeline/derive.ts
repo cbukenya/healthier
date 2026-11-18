@@ -550,9 +550,9 @@ export function readiness(days: DailyRecord[], needSet?: number | null, judged: 
       label: t('today.battery.parts.hrv.label'),
       contribution: c,
       detail: t('today.battery.parts.hrv.detail', {
-        last: fmt(Math.exp(hrv.lastLn)),
-        week: fmt(Math.exp(hrv.mean7Ln)),
-        typical: fmt(Math.exp(hrv.baselineLn)),
+        last: whole(Math.exp(hrv.lastLn)),
+        week: whole(Math.exp(hrv.mean7Ln)),
+        typical: whole(Math.exp(hrv.baselineLn)),
         source: useDeep ? 'deep' : 'overnight',
       }),
       note,
@@ -572,7 +572,7 @@ export function readiness(days: DailyRecord[], needSet?: number | null, judged: 
       id: 'restingHr',
       label: t('today.battery.parts.restingHr.label'),
       contribution: c,
-      detail: t('today.battery.parts.restingHr.detail', { value: fmt(rhr.value), typical: fmt(rhr.baseline) }),
+      detail: t('today.battery.parts.restingHr.detail', { value: whole(rhr.value), typical: whole(rhr.baseline) }),
     });
   }
 
@@ -648,7 +648,8 @@ export function readiness(days: DailyRecord[], needSet?: number | null, judged: 
       id: 'breathing',
       label: t('today.battery.parts.breathing.label'),
       contribution: c,
-      detail: t('today.battery.parts.breathing.detail', { value: fmt(resp.value), typical: fmt(resp.baseline) }),
+      // The penalty starts below the edge of the usual range; the word "elevated" waits for the pill's verdict.
+      detail: t('today.battery.parts.breathing.detail', { value: fmt(resp.value), typical: fmt(resp.baseline), elevated: isOff('breathing', resp) ? 'yes' : 'no' }),
     });
   }
 
@@ -848,7 +849,21 @@ export function compareVitalOn(days: DailyRecord[], key: VitalKey, i: number): C
 export const isOff = (key: VitalKey, c: { z: number | null } | null) =>
   !!c && c.z !== null && (VITALS[key].off === 'above' ? c.z >= OFF_Z : c.z <= -OFF_Z);
 
+/**
+ * The side of its usual range a reading's pill puts it on, either way: null inside it, without a
+ * usual range yet, or when `cycle` (the same reading judged against this part of the cycle) is
+ * usual. BandPill reads it, so words that call a reading higher or lower than usual can agree with
+ * the pill beside it.
+ */
+export function pillSide(c: Comparison | null, cycle: Comparison | null = null): 'above' | 'below' | null {
+  if (!c || !c.band || c.band === 'typical' || c.n < BASELINE_MIN_READINGS) return null;
+  if (cycle?.band === 'typical' && cycle.date === c.date) return null;
+  return c.band === 'above' || c.band === 'far-above' ? 'above' : 'below';
+}
+
 const fmt = (v: number | null) => (v === null ? '—' : formatRounded(v, 1));
+/** HRV and resting heart rate read in whole numbers, as every page shows them. */
+const whole = (v: number | null) => (v === null ? '—' : formatRounded(v, 0));
 
 // ─────────────────────────────────────── typical sleep window (circular)
 

@@ -97,18 +97,18 @@ export function VitalsView({ data, clock, intraday }: { data: SyncResult; clock?
   const metrics: Metric[] = [
     {
       key: 'hrv', chip: t('vitals.trends.hrv.chip'), title: t('vitals.trends.hrv.title'), color: DOMAIN.cardio.hex,
-      latest: unit(latestOf(hrvWin), ` ${t('units.ms')}`), average: unit(meanOf(hrvWin), ` ${t('units.ms')}`),
+      latest: unit(latestOf(hrvWin), ` ${t('units.ms')}`, 0), average: unit(meanOf(hrvWin), ` ${t('units.ms')}`, 0),
       hint: t('vitals.trends.hrv.hint'),
       chart: (
         <TrendChart
           series={groupSeries(hrvWin, bucket)} bucket={bucket} color={DOMAIN.cardio.hex} height={200} unit={t('units.ms')} area={false}
-          baseline={usual(hrvCmp)}
+          format={(v) => fmtNum(v, 0)} baseline={usual(hrvCmp)}
         />
       ),
     },
     {
       key: 'rhr', chip: t('vitals.trends.restingHr.chip'), title: t('vitals.trends.restingHr.title'), color: DOMAIN.cardio.hex,
-      latest: unit(latestOf(rhrWin), ` ${t('units.bpm')}`, 0), average: unit(meanOf(rhrWin), ` ${t('units.bpm')}`),
+      latest: unit(latestOf(rhrWin), ` ${t('units.bpm')}`, 0), average: unit(meanOf(rhrWin), ` ${t('units.bpm')}`, 0),
       change: rhrChange !== null && (
         <Delta value={rhrChange} goodWhen="down" digits={1} unit={` ${t('units.bpm')}`} phrase="vitals.trends.change" />
       ),
@@ -116,7 +116,7 @@ export function VitalsView({ data, clock, intraday }: { data: SyncResult; clock?
       chart: (
         <TrendChart
           series={groupSeries(rhrWin, bucket)} bucket={bucket} color={DOMAIN.cardio.hex} height={200} unit={t('units.bpm')} area={false}
-          baseline={usual(rhrCmp)}
+          format={(v) => fmtNum(v, 0)} baseline={usual(rhrCmp)}
         />
       ),
     },
@@ -172,7 +172,7 @@ export function VitalsView({ data, clock, intraday }: { data: SyncResult; clock?
               icon={<Activity size={14} className={DOMAIN.cardio.text} />}
               glow={DOMAIN.cardio.hex}
               value={<Value value={hrvCmp.value} size="md" unit={t('units.ms')} />}
-              pill={hrvCmp.value !== null && <BandPill c={hrvCmp} cycle={hrvCycle} />}
+              pill={hrvCmp.value !== null && <BandPill c={hrvCmp} cycle={hrvCycle} digits={0} />}
               chart={hrvCmp.value !== null && <Spark series={hrvAll.slice(-28)} color={DOMAIN.cardio.hex} height={28} baseline={usual(hrvCmp)} />}
               rows={[[t('vitals.latest.usual'), hrvCmp.baseline !== null && `${fmtNum(hrvCmp.baseline, 0)} ${t('units.ms')}`]]}
               empty={hrvCmp.value === null ? t('vitals.latest.hrv.empty') : null}
@@ -183,7 +183,7 @@ export function VitalsView({ data, clock, intraday }: { data: SyncResult; clock?
               icon={<Heart size={14} className={DOMAIN.cardio.text} />}
               glow={DOMAIN.cardio.hex}
               value={<Value value={rhrCmp.value} size="md" unit={t('units.bpm')} />}
-              pill={rhrCmp.value !== null && <BandPill c={rhrCmp} cycle={rhrCycle} />}
+              pill={rhrCmp.value !== null && <BandPill c={rhrCmp} cycle={rhrCycle} digits={0} />}
               chart={rhrCmp.value !== null && <Spark series={rhrAll.slice(-28)} color={DOMAIN.cardio.hex} height={28} baseline={usual(rhrCmp)} />}
               rows={[[t('vitals.latest.usual'), rhrCmp.baseline !== null && `${fmtNum(rhrCmp.baseline, 0)} ${t('units.bpm')}`]]}
               note={from(rhrCmp.date)}

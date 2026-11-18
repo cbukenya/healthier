@@ -396,16 +396,16 @@
           "statement": "{balance, select, short {you're {hours} short on sleep this week} other {you've had a little extra sleep this week}}"
         },
         "hrv": {
-          "because": "{direction, select, lower {your HRV came in lower than usual} other {your HRV is higher than usual}}",
-          "statement": "{direction, select, lower {your HRV came in lower than usual} other {your HRV is higher than usual}}"
+          "because": "{direction, select, lower {your HRV came in lower than usual} littleLower {your HRV came in a little lower than usual} littleHigher {your HRV is a little higher than usual} other {your HRV is higher than usual}}",
+          "statement": "{direction, select, lower {your HRV came in lower than usual} littleLower {your HRV came in a little lower than usual} littleHigher {your HRV is a little higher than usual} other {your HRV is higher than usual}}"
         },
         "restingHr": {
-          "because": "{direction, select, higher {your resting heart rate is higher than usual} other {your resting heart rate is lower than usual}}",
-          "statement": "{direction, select, higher {your resting heart rate is higher than usual} other {your resting heart rate is lower than usual}}"
+          "because": "{direction, select, higher {your resting heart rate is higher than usual} littleHigher {your resting heart rate is a little higher than usual} littleLower {your resting heart rate is a little lower than usual} other {your resting heart rate is lower than usual}}",
+          "statement": "{direction, select, higher {your resting heart rate is higher than usual} littleHigher {your resting heart rate is a little higher than usual} littleLower {your resting heart rate is a little lower than usual} other {your resting heart rate is lower than usual}}"
         },
         "breathing": {
-          "because": "your breathing rate is higher than usual",
-          "statement": "your breathing rate is higher than usual"
+          "because": "{off, select, yes {your breathing rate is higher than usual} other {your breathing rate is a little higher than usual}}",
+          "statement": "{off, select, yes {your breathing rate is higher than usual} other {your breathing rate is a little higher than usual}}"
         },
         "skinTemp": {
           "because": "your skin temperature is running warm",
@@ -912,7 +912,7 @@
       "parts": {
         "hrv": {
           "label": "HRV vs baseline",
-          "detail": "{source, select, deep {{last} ms in deep sleep last night · 7-day {week} vs {typical} ms typical} other {{last} ms last night · 7-day {week} vs {typical} ms typical}}",
+          "detail": "{source, select, deep {In deep sleep: {last} ms last night · 7-day {week} vs {typical} ms typical} other {{last} ms last night · 7-day {week} vs {typical} ms typical}}",
           "note": "Your HRV is unusually far above your baseline. Higher is usually better, but a sudden spike can also follow heavy training overload, so treat this peak with mild suspicion."
         },
         "restingHr": {
@@ -932,7 +932,7 @@
         },
         "breathing": {
           "label": "Breathing rate",
-          "detail": "{value}/min vs {typical} typical — elevated"
+          "detail": "{value}/min vs {typical} typical{elevated, select, yes { — elevated} other {}}"
         },
         "skinTemp": {
           "label": "Skin temperature",
