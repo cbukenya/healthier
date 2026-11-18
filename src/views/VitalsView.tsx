@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Activity, Droplet, Heart, Wind } from 'lucide-react';
-import { formatCivilLong } from '../i18n/format';
+import { formatCivilLong, formatNumber } from '../i18n/format';
 import { t } from '../i18n';
 import { rich } from '../i18n/react';
 import {
@@ -122,12 +122,14 @@ export function VitalsView({ data, clock, intraday }: { data: SyncResult; clock?
     },
     {
       key: 'resp', chip: t('vitals.trends.breathing.chip'), title: t('vitals.trends.breathing.title'), color: BREATHING_HEX,
-      latest: unit(latestOf(respWin), ` ${t('units.perMinute')}`), average: unit(meanOf(respWin), ` ${t('units.perMinute')}`),
+      // A night's breathing in one decimal, as its tile shows it: "14.0", not "14".
+      latest: latestOf(respWin) === null ? null : `${formatNumber(latestOf(respWin)!, 1)} ${t('units.perMinute')}`,
+      average: unit(meanOf(respWin), ` ${t('units.perMinute')}`),
       hint: t('vitals.trends.breathing.hint'),
       chart: (
         <TrendChart
           series={groupSeries(respWin, bucket)} bucket={bucket} color={BREATHING_HEX} unit={t('units.perMinute')} height={180} area={false}
-          format={(v) => fmtNum(v, 1)} baseline={usual(respCmp)}
+          format={(v) => formatNumber(v, 1)} baseline={usual(respCmp)}
         />
       ),
     },

@@ -1913,7 +1913,7 @@ describe('insight engine — Vitals in depth', () => {
     for (let i = 51; i < 58; i++) days[i].hrv = 34 + (i % 2 ? 0.4 : -0.4);
     days[57].hrv = 34;
     assert.match(cardOf(days, 'vitals-hrv-stability', AUG27)!.text,
-      /^This week your HRV varied by about \d+% around its average\. Usually it varies by about \d+%\. Steadier HRV often goes with good recovery\.$/);
+      /^Over the last 7 nights your HRV varied by about \d+% around its average\. Usually it varies by about \d+%\. Steadier HRV often goes with good recovery\.$/);
     assert.equal(cardOf(syntheticDays(58), 'vitals-hrv-stability', AUG27), undefined, 'an ordinary week is no news');
   });
 
@@ -2179,7 +2179,7 @@ describe('insight engine — all time and the week in review', () => {
     const at = SEP1;
     const calmer = find(feedsWith(days, older((d, i) => { d.restingHr = i >= 30 && i < 37 ? 58 : 62; }), at), 'record-rhr')!;
     assert.equal(calmer.card.title, 'Your calmest week yet');
-    assert.equal(calmer.card.text, "Your resting heart rate averaged 55 bpm this week. That's your lowest week since March, as far back as your history goes.");
+    assert.equal(calmer.card.text, "Your resting heart rate averaged 55 bpm over the last 7 days. That's your lowest week since March, as far back as your history goes.");
     const notYet = find(feedsWith(days, older((d, i) => { d.restingHr = i >= 30 && i < 37 ? 54 : 62; }), at), 'record-rhr')!;
     assert.equal(notYet.card.title, 'Your calmest week in two months');
   });

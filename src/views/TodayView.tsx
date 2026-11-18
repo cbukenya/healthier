@@ -3,7 +3,7 @@ import { Footprints, Heart, Moon, Wind } from 'lucide-react';
 import type { CivilDate } from '../lib/date';
 import { t } from '../i18n';
 import { rich } from '../i18n/react';
-import { formatCivilLong, formatClock } from '../i18n/format';
+import { formatCivilLong, formatClock, formatNumber } from '../i18n/format';
 import {
   compareToBaseline, compareVital, goal, isRecent, latestPoint, series, usualRange as usual, type Point,
 } from '../pipeline/derive';
@@ -280,7 +280,7 @@ export function TodayView({
                         : '—'}
                     </Row>
                     <Row label={t('today.vitals.breathing')}>
-                      {respNow ? onNight(`${fmtNum(respNow.value)} ${t('units.perMinute')}`, respNow.date, vitalsDate) : '—'}
+                      {respNow ? onNight(`${formatNumber(respNow.value!, 1)} ${t('units.perMinute')}`, respNow.date, vitalsDate) : '—'}
                     </Row>
                     <Row label={t('today.vitals.bloodOxygen')}>
                       {spo2Now ? onNight(`${fmtNum(spo2Now.value)}${t('units.percent')}`, spo2Now.date, vitalsDate) : '—'}

@@ -1,6 +1,6 @@
 import { addDays, daysBetween, weekdayIndex, type CivilDate } from '../lib/date';
 import { t, type MessageKey } from '../i18n';
-import { formatCivil, formatDuration, formatFixed, formatRounded } from '../i18n/format';
+import { formatCivil, formatDuration, formatFixed, formatNumber, formatRounded } from '../i18n/format';
 import type { DailyRecord, HealthDataset, SleepSession } from '../types/health';
 import { scoreSleep, sleepNeedFor } from './sleep';
 import { fillSource } from './sources';
@@ -649,7 +649,7 @@ export function readiness(days: DailyRecord[], needSet?: number | null, judged: 
       label: t('today.battery.parts.breathing.label'),
       contribution: c,
       // The penalty starts below the edge of the usual range; the word "elevated" waits for the pill's verdict.
-      detail: t('today.battery.parts.breathing.detail', { value: fmt(resp.value), typical: fmt(resp.baseline), elevated: isOff('breathing', resp) ? 'yes' : 'no' }),
+      detail: t('today.battery.parts.breathing.detail', { value: formatNumber(resp.value!, 1), typical: fmt(resp.baseline), elevated: isOff('breathing', resp) ? 'yes' : 'no' }),
     });
   }
 

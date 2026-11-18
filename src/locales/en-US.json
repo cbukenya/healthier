@@ -459,11 +459,11 @@
     "vitals": {
       "hrvTrendUp": {
         "title": "Your recovery is improving",
-        "text": "Your average HRV this week is {current} ms, {change}% higher than last week's {previous} ms. A rise that lasts several days usually means real recovery, not just one good night."
+        "text": "Your HRV averaged {current} ms over the last 7 nights, up {change}% from {previous} ms the week before. A rise that lasts several days usually means real recovery, not just one good night."
       },
       "hrvTrendDown": {
         "title": "Your recovery has been slipping",
-        "text": "Your average HRV this week is {current} ms, {change}% lower than last week's {previous} ms. A slide like this often comes with heavy training, short sleep, stress or a cold."
+        "text": "Your HRV averaged {current} ms over the last 7 nights, down {change}% from {previous} ms the week before. A slide like this often comes with heavy training, short sleep, stress or a cold."
       },
       "hrvAcuteHigh": {
         "title": "Great recovery last night",
@@ -503,11 +503,11 @@
       },
       "recordRhr": {
         "title": "{reach, select, twoMonths {Your calmest week in two months} year {Your calmest week in a year} other {Your calmest week yet}}",
-        "text": "{reach, select, twoMonths {Your resting heart rate averaged {value} bpm this week. That's your lowest week in the last two months.} other {Your resting heart rate averaged {value} bpm this week. That's your lowest week {span}.}}"
+        "text": "{reach, select, twoMonths {Your resting heart rate averaged {value} bpm over the last 7 days. That's your lowest week in the last two months.} other {Your resting heart rate averaged {value} bpm over the last 7 days. That's your lowest week {span}.}}"
       },
       "recordHrv": {
         "title": "{reach, select, twoMonths {Your best week of recovery in two months} year {Your best week of recovery in a year} other {Your best week of recovery yet}}",
-        "text": "{reach, select, twoMonths {Your HRV averaged {value} ms this week. That's your highest week in the last two months.} other {Your HRV averaged {value} ms this week. That's your highest week {span}.}}"
+        "text": "{reach, select, twoMonths {Your HRV averaged {value} ms over the last 7 nights. That's your highest week in the last two months.} other {Your HRV averaged {value} ms over the last 7 nights. That's your highest week {span}.}}"
       },
       "vitalsBreathingUp": {
         "title": "You've been breathing faster at night",
@@ -536,7 +536,7 @@
       },
       "vitalsHrvStability": {
         "title": "Your recovery is steady",
-        "text": "This week your HRV varied by about {now}% around its average. Usually it varies by about {usual}%. Steadier HRV often goes with good recovery."
+        "text": "Over the last 7 nights your HRV varied by about {now}% around its average. Usually it varies by about {usual}%. Steadier HRV often goes with good recovery."
       },
       "vitalsBounceBack": {
         "title": "{pace, select, quick {You bounce back quickly} other {How quickly you bounce back}}",
