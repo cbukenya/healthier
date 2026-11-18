@@ -2664,28 +2664,30 @@ describe('this week', () => {
     assert.equal(w.battery.find((b) => b.date === '2026-07-25')!.score, null);
   });
 
-  it('averages steps over finished days, leaving out today’s count in progress', () => {
+  it('reads steps over the seven full days before today, leaving out today’s count in progress', () => {
     const days = syntheticDays(28, { steps: 15000 });
     days[26].steps = 12000;
     const w = weekSummary(days)!;
-    const done = days.slice(21, 27).map((d) => d.steps!);
-    assert.equal(w.steps!.days, 6);
-    assert.equal(w.steps!.avg, done.reduce((a, b) => a + b, 0) / 6);
+    const done = days.slice(20, 27).map((d) => d.steps!);
+    assert.equal(w.steps!.days, 7);
+    assert.equal(w.steps!.avg, done.reduce((a, b) => a + b, 0) / 7);
     assert.equal(w.steps!.atGoal, 1, 'today’s 15,000 waits until the day is done');
   });
 
-  it('counts minutes the WHO’s way: Active Zone Minutes when the week has them, else moderate + 2 × vigorous', () => {
+  it('counts minutes the WHO’s way over the same full days: Active Zone Minutes when they have them, else moderate + 2 × vigorous', () => {
     const days = syntheticDays(28);
-    for (const d of days.slice(-7)) d.activeMinutes = { light: 100, moderate: 10, vigorous: 5 };
-    assert.deepEqual(weekSummary(days)!.activeMinutes, { total: 140, unit: 'brisk' });
+    for (const d of days.slice(-8, -1)) d.activeMinutes = { light: 100, moderate: 10, vigorous: 5 };
+    days[27].activeMinutes = { light: 100, moderate: 500, vigorous: 500 };
+    assert.deepEqual(weekSummary(days)!.activeMinutes, { total: 140, unit: 'brisk' }, 'today’s minutes wait until the day is done');
     days[26].zoneMinutes = { fatBurn: 30, cardio: 10, peak: 5 };
     assert.deepEqual(weekSummary(days)!.activeMinutes, { total: 60, unit: 'azm' });
   });
 
   it('gives Activity the same count for the same days, so a week reads alike on every page', () => {
     const days = syntheticDays(28);
-    for (const d of days.slice(-7)) d.activeMinutes = { light: 100, moderate: 10, vigorous: 5 };
-    const week = days.slice(-7);
+    for (const d of days.slice(-8, -1)) d.activeMinutes = { light: 100, moderate: 10, vigorous: 5 };
+    // Activity's last 7 days: the seven full days before today.
+    const week = days.slice(-8, -1);
     const total = (unit: 'azm' | 'brisk') => week.reduce((a, d) => a + (whoMins(d, unit) ?? 0), 0);
     assert.equal(whoUnit(week), 'brisk');
     assert.equal(total('brisk'), weekSummary(days)!.activeMinutes!.total);
@@ -2705,7 +2707,7 @@ describe('this week', () => {
     assert.equal(w.sleep!.avgMin, nights.reduce((a, b) => a + b, 0) / 6);
   });
 
-  it('reads the month the same way: the 30 days ending today', () => {
+  it('reads the month the same way: 30 mornings ending today, and the 30 full days before it for movement', () => {
     const days = syntheticDays(40, { steps: 15000 });
     for (const d of days) d.activeMinutes = { light: 100, moderate: 10, vigorous: 5 };
     days[20].sleep = null;
@@ -2715,7 +2717,7 @@ describe('this week', () => {
     assert.equal(m.battery[29].score, readiness(days).score);
     assert.equal(m.sleep!.nights, 29, 'the missing night is left out, not counted as zero');
     assert.deepEqual(m.activeMinutes, { total: 30 * 20, unit: 'brisk' });
-    assert.equal(m.steps!.days, 29, 'finished days only');
+    assert.equal(m.steps!.days, 30, 'thirty full days, today left out');
     assert.equal(weekSummary(days)!.length, 7);
   });
 });

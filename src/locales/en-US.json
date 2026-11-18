@@ -1032,16 +1032,16 @@
         "zone": "Active zone minutes",
         "perWeek": "a week",
         "ofWho": "of {target}",
-        "none": "{period, select, month {No activity minutes recorded in the last 30 days} other {No activity minutes recorded this week}}",
+        "none": "{period, select, month {No activity minutes recorded in the last 30 full days} other {No activity minutes recorded in the last 7 full days}}",
         "pastMonth": "{unit, select, brisk {Past the WHO's weekly bar on average; vigorous minutes count double} other {Past the WHO's weekly bar on average; harder minutes count double}}",
         "shortMonth": "{unit, select, brisk {{minutes} a week short of the WHO's bar on average; vigorous minutes count double} other {{minutes} a week short of the WHO's bar on average; harder minutes count double}}",
-        "pastWeek": "{unit, select, brisk {Past the WHO's weekly bar; vigorous minutes count double} other {Past the WHO's weekly bar; harder minutes count double}}",
-        "toGo": "{unit, select, brisk {{minutes} to go for the WHO's weekly bar; vigorous minutes count double} other {{minutes} to go for the WHO's weekly bar; harder minutes count double}}"
+        "pastWeek": "{unit, select, brisk {Past the WHO's weekly bar over the last 7 full days; vigorous minutes count double} other {Past the WHO's weekly bar over the last 7 full days; harder minutes count double}}",
+        "shortWeek": "{unit, select, brisk {{minutes} short of the WHO's weekly bar over the last 7 full days; vigorous minutes count double} other {{minutes} short of the WHO's weekly bar over the last 7 full days; harder minutes count double}}"
       },
       "steps": {
         "label": "Steps",
         "unit": "a day",
-        "none": "{period, select, month {No finished days with steps in the last 30 days} other {No finished days with steps this week}}",
+        "none": "{period, select, month {No steps recorded in the last 30 full days} other {No steps recorded in the last 7 full days}}",
         "reached": "{goal} or more on {days} of {count, plural, one {# full day} other {# full days}}"
       }
     }

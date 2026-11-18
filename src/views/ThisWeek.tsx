@@ -84,7 +84,7 @@ export function ThisWeek({ week, days, needMin, className = '' }: {
         : t('today.week.active.shortMonth', { unit, minutes: Math.ceil(WHO_WEEK - perWeek) })
       : perWeek >= WHO_WEEK
         ? t('today.week.active.pastWeek', { unit })
-        : t('today.week.active.toGo', { unit, minutes: Math.ceil(WHO_WEEK - perWeek) });
+        : t('today.week.active.shortWeek', { unit, minutes: Math.ceil(WHO_WEEK - perWeek) });
 
   const steps = p.steps;
   const stepsNote = !steps

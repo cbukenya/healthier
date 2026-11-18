@@ -43,7 +43,12 @@ export function todaySummary(ds: InsightDataset, now: Date = new Date(), extras?
 
 // ─────────────────────────────────────────────────────────── this week
 
-/** The days ending today, as Today's week card reads them: the last 7, or with Month the last 30. */
+/**
+ * The days ending today, as Today's week card reads them: the last 7, or with Month the last 30.
+ * The battery and sleep include this morning and last night. Movement reads as many full days,
+ * the last of them yesterday, since today's is still climbing: the same 7 days as Activity's
+ * "Last 7 days" and the week in review.
+ */
 export interface PeriodSummary {
   /** How many days it covers, today included. */
   length: number;
@@ -51,9 +56,9 @@ export interface PeriodSummary {
   battery: { date: CivilDate; score: number | null }[];
   /** Mean time asleep across the period's recorded nights. */
   sleep: { avgMin: number; nights: number } | null;
-  /** Minutes in the WHO's currency, today's so far included: Active Zone Minutes when the period has them. */
+  /** Minutes in the WHO's currency over the full days: Active Zone Minutes when they have them. */
   activeMinutes: { total: number; unit: 'azm' | 'brisk' } | null;
-  /** Finished days only: today's count is still climbing. `atGoal` counts the days that reached the step goal. */
+  /** Over the full days. `atGoal` counts the days that reached the step goal. */
   steps: { avg: number; days: number; atGoal: number } | null;
 }
 
@@ -79,17 +84,16 @@ function periodSummary(days: DailyRecord[], length: number, goals: Goals, judged
     return { date, score: i < 0 ? null : readiness(days.slice(0, i + 1), goals.sleepNeed, judged).score };
   });
   const nights = sleepMins(period, (s) => s.minutesAsleep);
-  const unit = whoUnit(period);
-  const steps = period
-    .filter((d) => d.date !== today)
-    .map((d) => d.steps)
-    .filter((s): s is number => s !== null);
+  // Movement: the same number of full days, ending yesterday.
+  const done = days.filter((d) => d.date >= addDays(today, -length) && d.date < today);
+  const unit = whoUnit(done);
+  const steps = done.map((d) => d.steps).filter((s): s is number => s !== null);
 
   return {
     length,
     battery,
     sleep: nights.length ? { avgMin: mean(nights), nights: nights.length } : null,
-    activeMinutes: unit ? { total: period.reduce((a, d) => a + (whoMins(d, unit) ?? 0), 0), unit } : null,
+    activeMinutes: unit ? { total: done.reduce((a, d) => a + (whoMins(d, unit) ?? 0), 0), unit } : null,
     steps: steps.length
       ? { avg: mean(steps), days: steps.length, atGoal: steps.filter((s) => s >= goals.steps).length }
       : null,
