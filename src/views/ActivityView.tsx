@@ -16,10 +16,11 @@ import { ChartChips } from '../ui/ChartChips';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 import { useGoals } from '../hooks/useGoals';
 import { WHO_WEEK } from '../pipeline/goals';
+import { whoMins, whoUnit } from '../pipeline/insights/helpers';
 import { InsightsCarousel } from '../components/InsightsCarousel';
 import { usePageInsights, type Clock } from '../hooks/usePageInsights';
 import type { IntradayDays } from '../pipeline/labs';
-import { LastSevenDays, TodaySoFar, WeeklyTotals, briskOf, type WeekTotal } from './ActivityCards';
+import { LastSevenDays, TodaySoFar, WeeklyTotals, type WeekTotal } from './ActivityCards';
 
 type ActivityChart = 'steps' | 'energy' | 'intensity' | 'distance' | 'weekdays' | 'weekly';
 
@@ -158,7 +159,9 @@ export function ActivityView({ data, clock, intraday }: { data: SyncResult; cloc
   const spanSteps = values(stepsSpanDone);
   const typical = stats(spanSteps)?.median;
   const best = spanDone.reduce<DailyRecord | null>((a, d) => (d.steps !== null && (!a || d.steps > (a.steps ?? 0)) ? d : a), null);
-  const briskPerDay = stats(values(series(spanDone, briskOf)));
+  // A week's worth against the WHO's 150, counted as Today's week card counts it.
+  const whoIn = whoUnit(spanDone);
+  const briskPerDay = whoIn ? stats(values(series(spanDone, (d) => whoMins(d, whoIn)))) : null;
   const firstToLast = windowShift(stepsSpanDone, 7).delta;
   const total = (s: Point[]) => stats(values(s))?.sum;
   const summaryCard = (
@@ -181,7 +184,7 @@ export function ActivityView({ data, clock, intraday }: { data: SyncResult; cloc
         <Row dense={!wide} label={t('activity.summary.distance')}>{fmtNum(total(distWin), 1)} {t('units.km')}</Row>
         <Row dense={!wide} label={t('activity.summary.energy')}>{fmtNum(total(kcalWin), 0)} {t('units.kcal')}</Row>
         {briskPerDay && (
-          <Row dense={!wide} label={t('activity.summary.brisk')}>
+          <Row dense={!wide} label={t(whoIn === 'azm' ? 'activity.summary.zone' : 'activity.summary.brisk')}>
             {rich('activity.summary.briskWeek', {
               minutes: fmtNum(briskPerDay.mean * 7, 0),
               target: WHO_WEEK,

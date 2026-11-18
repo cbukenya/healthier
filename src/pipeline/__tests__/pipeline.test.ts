@@ -10,7 +10,7 @@ import {
   HISTORY_QUERIES, evaluate, insightFeeds, monthSummary, observations, recoveryTax, settle, todaySummary, weekSummary,
   type Finding,
 } from '../insights';
-import { freshEntry } from '../insights/helpers';
+import { freshEntry, whoMins, whoUnit } from '../insights/helpers';
 import { bringForward, carouselOf, TODAY_MIN } from '../insights/place';
 import { scoreSleep, sleepNorms } from '../sleep';
 import {
@@ -2680,6 +2680,20 @@ describe('this week', () => {
     assert.deepEqual(weekSummary(days)!.activeMinutes, { total: 140, unit: 'brisk' });
     days[26].zoneMinutes = { fatBurn: 30, cardio: 10, peak: 5 };
     assert.deepEqual(weekSummary(days)!.activeMinutes, { total: 60, unit: 'azm' });
+  });
+
+  it('gives Activity the same count for the same days, so a week reads alike on every page', () => {
+    const days = syntheticDays(28);
+    for (const d of days.slice(-7)) d.activeMinutes = { light: 100, moderate: 10, vigorous: 5 };
+    const week = days.slice(-7);
+    const total = (unit: 'azm' | 'brisk') => week.reduce((a, d) => a + (whoMins(d, unit) ?? 0), 0);
+    assert.equal(whoUnit(week), 'brisk');
+    assert.equal(total('brisk'), weekSummary(days)!.activeMinutes!.total);
+    days[26].zoneMinutes = { fatBurn: 30, cardio: 10, peak: 5 };
+    assert.equal(whoUnit(week), 'azm');
+    assert.equal(total('azm'), weekSummary(days)!.activeMinutes!.total);
+    assert.equal(whoMins(days[25], 'azm'), null, 'a day without zone minutes is a gap, not a zero');
+    assert.equal(whoUnit([emptyRecord('2026-07-01')]), null);
   });
 
   it('averages sleep over the nights on record', () => {

@@ -63,6 +63,20 @@ export const zoneMins = (d: DailyRecord) =>
 export const briskMins = (d: DailyRecord) =>
   d.activeMinutes ? d.activeMinutes.moderate + 2 * d.activeMinutes.vigorous : 0;
 
+/**
+ * Which of the two counts a stretch of days is measured in against the WHO's weekly 150: Active
+ * Zone Minutes when any of the days has them, else moderate + 2 × vigorous. Null with neither.
+ * Every figure set against the 150 uses this, so a week reads the same on every page.
+ */
+export function whoUnit(days: DailyRecord[]): 'azm' | 'brisk' | null {
+  if (days.some((d) => d.zoneMinutes !== null)) return 'azm';
+  return days.some((d) => d.activeMinutes !== null) ? 'brisk' : null;
+}
+
+/** A day's minutes in that unit, or null when the day recorded none. */
+export const whoMins = (d: DailyRecord, unit: 'azm' | 'brisk'): number | null =>
+  unit === 'azm' ? (d.zoneMinutes ? zoneMins(d) : null) : d.activeMinutes ? briskMins(d) : null;
+
 // ─────────────────────────────────────────────── stateless guards
 
 /** Truncate the grid by n days: the heart of the yesterday test. */

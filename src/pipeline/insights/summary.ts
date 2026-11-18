@@ -6,7 +6,7 @@ import {
 } from '../derive';
 import { DEFAULT_GOALS, type Goals } from '../goals';
 import type { InsightDataset, InsightOptions } from './context';
-import { briskMins, sleepMins, zoneMins } from './helpers';
+import { sleepMins, whoMins, whoUnit } from './helpers';
 import { insightFeeds } from './engine';
 
 /** Convenience: everything the Today view needs, computed once. */
@@ -79,8 +79,7 @@ function periodSummary(days: DailyRecord[], length: number, goals: Goals, judged
     return { date, score: i < 0 ? null : readiness(days.slice(0, i + 1), goals.sleepNeed, judged).score };
   });
   const nights = sleepMins(period, (s) => s.minutesAsleep);
-  const azm = period.some((d) => d.zoneMinutes !== null);
-  const brisk = period.some((d) => d.activeMinutes !== null);
+  const unit = whoUnit(period);
   const steps = period
     .filter((d) => d.date !== today)
     .map((d) => d.steps)
@@ -90,9 +89,7 @@ function periodSummary(days: DailyRecord[], length: number, goals: Goals, judged
     length,
     battery,
     sleep: nights.length ? { avgMin: mean(nights), nights: nights.length } : null,
-    activeMinutes: azm || brisk
-      ? { total: period.reduce((a, d) => a + (azm ? zoneMins(d) : briskMins(d)), 0), unit: azm ? 'azm' : 'brisk' }
-      : null,
+    activeMinutes: unit ? { total: period.reduce((a, d) => a + (whoMins(d, unit) ?? 0), 0), unit } : null,
     steps: steps.length
       ? { avg: mean(steps), days: steps.length, atGoal: steps.filter((s) => s >= goals.steps).length }
       : null,

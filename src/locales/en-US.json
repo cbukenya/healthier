@@ -1078,6 +1078,7 @@
       "daysOver": "Days over {goal}",
       "daysOverCount": "{over}<muted> of {total}</muted>",
       "brisk": "Brisk minutes",
+      "zone": "Active zone minutes",
       "briskTotal": "{minutes}<muted> of {target}</muted>",
       "vsThreeWeeks": "vs 3 weeks before",
       "vsThreeWeeksLong": "vs the 3 weeks before",
@@ -1103,6 +1104,7 @@
       "distance": "Distance",
       "energy": "Active energy",
       "brisk": "Brisk minutes",
+      "zone": "Active zone minutes",
       "briskWeek": "{minutes} a week<muted> · target {target}</muted>",
       "firstToLast": "First week to last",
       "stepsADay": "{count, plural, one {{change}<muted> step a day</muted>} other {{change}<muted> steps a day</muted>}}"
