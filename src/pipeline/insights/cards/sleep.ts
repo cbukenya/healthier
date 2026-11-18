@@ -251,10 +251,11 @@ function timing(ctx: InsightContext, add: Add, shift: BedtimeShift | null): void
     });
   }
 
-  // Regularity climbing a band: the first two days of the month.
+  // Regularity climbing a band: the first two days of the month. The last 30 nights, last night
+  // included, against the 30 before, as the monthly summary and the Sleep page's 30-day chart read it.
   if (ctx.dom <= 2 && days.length >= 55) {
-    const now = sleepRegularity(days.slice(-31));
-    const before = sleepRegularity(days.slice(-62, -31));
+    const now = sleepRegularity(days.slice(-30));
+    const before = sleepRegularity(days.slice(-60, -30));
     const rank = { critical: 0, bad: 1, good: 2, excellent: 3 } as const;
     if (now && before && rank[now.band] > rank[before.band]) {
       add({

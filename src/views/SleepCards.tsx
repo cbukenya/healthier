@@ -6,6 +6,7 @@ import { bedtimeConsistency, type PeriodShift, type SleepDebt } from '../pipelin
 import { scoreSleep, type SleepNorms } from '../pipeline/sleep';
 import { Card, CardHead, DURATION_UNIT, Delta, Row, fmtDuration, tint, withUnits } from '../ui/primitives';
 import type { DailyRecord, SleepSession } from '../types/health';
+import { useGoals } from '../hooks/useGoals';
 import { Stat, statUnit } from './ActivityCards';
 
 /** A four-pointed star, centred on (x, y), `r` from the centre to each point. */
@@ -72,7 +73,7 @@ const STAGES = [
   { key: 'rem', label: 'sleep.stages.rem', color: 'var(--stage-rem)' },
 ] as const;
 
-/** A need as a short label: "7h", or "~7h" when it isn't a whole hour. */
+/** A need short enough for the chart's gutter: "7h", or "~7h" when it isn't a whole hour. */
 const needShort = (min: number) =>
   min % 60 === 0 ? formatHours(min) : t('sleep.lastSeven.needAbout', { hours: formatHours(Math.round(min / 60) * 60) });
 
@@ -108,11 +109,13 @@ export function LastSevenNights({ days, shift, norms, debt, wide, glow }: {
   wide: boolean;
   glow?: string;
 }) {
+  const needSet = useGoals().sleepNeed;
   const needMin = norms.need;
   const nights = days.map((d) => d.sleep).filter((s): s is SleepSession => s !== null);
   const atNeed = nights.filter((s) => s.minutesAsleep >= needMin).length;
   const spread = bedtimeConsistency(days);
-  const need = needShort(needMin);
+  // The need the nights are counted against, written as This week writes it: "about" when it's the estimate.
+  const need = needSet === null ? t('sleep.lastSeven.needAbout', { hours: formatHours(needMin) }) : formatHours(needMin);
   const facts: Fact[] = [
     { id: 'atNeed', label: t('sleep.lastSeven.atNeed.label', { need }), value: 'sleep.lastSeven.atNeed.value', values: { count: atNeed, total: nights.length } },
   ];
@@ -216,7 +219,7 @@ function NightBars({ days, norms, need, wide }: { days: DailyRecord[]; norms: Sl
         </div>
         {/* The need line, over the bars, labelled in the gutter on the right. */}
         <div className="absolute left-0 right-[30px] border-t border-dashed border-zinc-400/70" style={{ bottom: px(needMin) + 1 }} />
-        <span className="absolute right-0 translate-y-1/2 text-note leading-none text-zinc-500" style={{ bottom: px(needMin) + 1 }}>{need}</span>
+        <span className="absolute right-0 translate-y-1/2 text-note leading-none text-zinc-500" style={{ bottom: px(needMin) + 1 }}>{needShort(needMin)}</span>
       </div>
       <div className={`${columns} mt-1.5`}>
         {scored.map((n) => (

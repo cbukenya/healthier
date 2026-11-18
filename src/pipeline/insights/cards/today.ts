@@ -55,10 +55,14 @@ function reason(p: ReadinessPart, ctx: InsightContext, form: ReasonForm): string
         need: ctx.needH,
       });
     }
-    case 'sleepDebt':
-      return ctx.debt && ctx.debt.netMin > 0
-        ? t(REASONS.sleepDebt[form], { balance: 'short', hours: formatHoursDecimal(ctx.debt.netMin) })
-        : t(REASONS.sleepDebt[form], { balance: 'extra' });
+    case 'sleepDebt': {
+      // The battery has a debt part only when there's a debt figure, so it is ctx.debt here too, and
+      // its nights are the ones before last night that the part's detail counts.
+      const debt = ctx.debt!;
+      return debt.netMin > 0
+        ? t(REASONS.sleepDebt[form], { balance: 'short', hours: formatHoursDecimal(debt.netMin), nights: debt.nightsKnown })
+        : t(REASONS.sleepDebt[form], { balance: 'extra', nights: debt.nightsKnown });
+    }
     case 'hrv':
       return t(REASONS.hrv[form], { direction: low ? 'lower' : 'higher' });
     case 'restingHr':
@@ -145,6 +149,11 @@ function battery(ctx: InsightContext, add: Add): void {
  * Monday mornings: last week, Monday to Sunday, against the week before. Only
  * measures with 5 or more days of readings get a sentence, and the card needs
  * two of them.
+ *
+ * Steps, minutes and weight read the calendar days. Sleep and HRV are filed under
+ * the morning a night ends, so last week's nights, Monday's to Sunday's, are the
+ * ones filed Tuesday to this morning: the same nights This week and the Sleep
+ * page's last 7 nights show on a Monday.
  */
 function weeklyReview(ctx: InsightContext, add: Add): void {
   const { days, today } = ctx;
@@ -152,6 +161,7 @@ function weeklyReview(ctx: InsightContext, add: Add): void {
   const monday = addDays(today, -7);
   const week = days.filter((d) => d.date >= monday && d.date < today);
   const before = days.filter((d) => d.date >= addDays(monday, -7) && d.date < monday);
+  const weekNights = days.filter((d) => d.date > monday && d.date <= today);
   const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
   const sentences: string[] = [];
   // The first sentence opens with "Last week"; the ones after it don't repeat it, and bring the space
@@ -175,7 +185,7 @@ function weeklyReview(ctx: InsightContext, add: Add): void {
   // Movement and sleep share a sentence: a message for each mix of the two.
   const azm = week.some((d) => d.zoneMinutes);
   const moved = week.filter((d) => (azm ? d.zoneMinutes : d.activeMinutes));
-  const nights = week.filter((d) => d.sleep).map((d) => d.sleep!.minutesAsleep);
+  const nights = weekNights.filter((d) => d.sleep).map((d) => d.sleep!.minutesAsleep);
   const minutes = moved.length >= 5 ? Math.round(week.reduce((a, d) => a + (azm ? zoneMins(d) : briskMins(d)), 0)) : null;
   const sleep = nights.length >= 5 ? formatDuration(mean(nights)) : null;
   if (minutes !== null) {
@@ -189,8 +199,9 @@ function weeklyReview(ctx: InsightContext, add: Add): void {
 
   // HRV and weight are clauses of their own, listed in one sentence.
   const tail: string[] = [];
-  const hrv = values(series(week, (d) => d.hrv));
-  const weeksBefore = days.filter((d) => d.date >= addDays(monday, -28) && d.date < monday);
+  // HRV's usual is the four weeks of nights before last week's.
+  const hrv = values(series(weekNights, (d) => d.hrv));
+  const weeksBefore = days.filter((d) => d.date > addDays(monday, -28) && d.date <= monday);
   const usual = stats(values(series(weeksBefore, (d) => d.hrv)));
   if (hrv.length >= 5 && usual && usual.n >= 14) {
     const pct = (mean(hrv) / usual.median - 1) * 100;
@@ -241,8 +252,10 @@ function monthlyReview(ctx: InsightContext, add: Add): void {
       bpm: formatFixed(Math.abs(delta), 1),
     }));
   }
-  const sriA = sleepRegularity(lastMonth);
-  const sriB = sleepRegularity(priorMonth);
+  // Steps and resting heart rate read finished days, but last night is over by morning, so
+  // regularity reads the last 30 nights with it, as the Sleep page's 30-day chart does.
+  const sriA = sleepRegularity(days.slice(-30));
+  const sriB = sleepRegularity(days.slice(-60, -30));
   if (sriA && sriB) bits.push(t('insights.today.monthlyLedger.regularity', { from: sriB.score, to: sriA.score }));
 
   if (bits.length >= 2) {

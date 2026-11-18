@@ -392,8 +392,8 @@
           "statement": "{night, select, short {you slept {slept} compared to your {need} need} enough {you slept {slept}, more than your {need} need} other {you slept {slept}}}"
         },
         "sleepDebt": {
-          "because": "{balance, select, short {you're {hours} short on sleep this week} other {you've had a little extra sleep this week}}",
-          "statement": "{balance, select, short {you're {hours} short on sleep this week} other {you've had a little extra sleep this week}}"
+          "because": "{balance, select, short {you're {hours} short on sleep over the prior {nights, plural, one {# night} other {# nights}}} other {you've had a little extra sleep over the prior {nights, plural, one {# night} other {# nights}}}}",
+          "statement": "{balance, select, short {you're {hours} short on sleep over the prior {nights, plural, one {# night} other {# nights}}} other {you've had a little extra sleep over the prior {nights, plural, one {# night} other {# nights}}}}"
         },
         "hrv": {
           "because": "{direction, select, lower {your HRV came in lower than usual} other {your HRV is higher than usual}}",
@@ -587,8 +587,8 @@
         "text": "You got {minutes, plural, one {# minute} other {# minutes}} of deep sleep last night. You usually get about {usual}. Deep sleep is when your body does most of its physical recovery."
       },
       "sleepDebt": {
-        "title": "You're short on sleep this week",
-        "titleSevere": "You're very short on sleep this week",
+        "title": "You're short on sleep",
+        "titleSevere": "You're very short on sleep",
         "text": "Over the {nights, plural, one {# night} other {# nights}} before last night, you slept {shortfall} less than you need.",
         "textAfterGoodNight": "Last night's {slept} helped. Over the {nights, plural, one {# night} other {# nights}} before it, you slept {shortfall} less than you need.",
         "severe": " Short nights like these add up and wear on your focus and recovery.",
@@ -621,13 +621,13 @@
       "windDown": {
         "title": "Time to start winding down",
         "textBest": "You tend to sleep best when you're asleep by {time}.",
-        "bestAlsoShort": " You're also {shortfall} short on sleep this week, so an early night would help.",
+        "bestAlsoShort": " You're also {shortfall} short on sleep, so an early night would help.",
         "bestLastNightShort": " Last night was short, so an early night would help.",
         "bestThisWeek": " This week you've been going to bed around {time}.",
         "bestGettingLater": " Lately your bedtime has been getting later.",
         "actionBest": "Being asleep by {time} tonight would help.",
         "textUsual": "{later, select, true {You've been going to bed around {time} lately, and it's been getting later.} other {You've been going to bed around {time} lately.}}",
-        "usualAlsoShort": " You're also {shortfall} short on sleep this week.",
+        "usualAlsoShort": " You're also {shortfall} short on sleep.",
         "usualLastNightShort": " Last night was short.",
         "actionUsual": "Getting to bed around your usual time tonight, with time for a full night's sleep, will help."
       },
@@ -955,7 +955,6 @@
       "restorativeShort": "Deep+REM",
       "restorative": "Deep + REM",
       "window": "Window",
-      "asleep": "Asleep",
       "span": "{from} → {to}",
       "tileEmpty": "Nothing synced for last night or the night before",
       "latest": "Most recent night on record: {date}",
@@ -1195,7 +1194,7 @@
         "short": "Window",
         "value": "{bed} → {wake}",
         "shortValue": "{bed}–{wake}",
-        "more": "From falling asleep at {bed} to waking at {wake}."
+        "more": "From {bed} to {wake}, including time awake."
       },
       "efficiency": {
         "label": "Efficiency",
@@ -1261,7 +1260,7 @@
         "value": "{count}<muted> of {total}</muted>"
       },
       "debt": {
-        "label": "Sleep debt",
+        "label": "Debt before last night",
         "owed": "{hours}<muted> h short</muted>",
         "banked": "{hours}<muted> h banked</muted>"
       },
