@@ -36,7 +36,7 @@ Healthier is an open-source dashboard people host themselves to understand the d
 
 ## Intent
 
-“Your Google Health data, made clear.” Healthier started because the Google Health app was hard to read: all the data was there, but it took too much digging to learn what it meant. Its principles are the project's own:
+“Your health data, explained.” Healthier started because the Google Health app was hard to read: all the data was there, but it took too much digging to learn what it meant. Its principles are the project's own:
 
 - **Clear before clever.** A glance should tell the person how they slept, how much they've moved and how they're recovering, in plain sentences with the numbers inside them.
 - **Arithmetic you can trace.** Every score and insight is plain arithmetic on the person's own data; the same data always gives the same answer, and every result can be followed back to the readings behind it.

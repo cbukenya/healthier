@@ -3,7 +3,7 @@
 [![CI](https://github.com/cbukenya/healthier/actions/workflows/ci.yml/badge.svg)](https://github.com/cbukenya/healthier/actions/workflows/ci.yml)
 [![License: AGPL v3](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
 
-**Your Google Health data, made clear.** Healthier is an open-source dashboard you host yourself.
+**Your health data, explained.** Healthier is an open-source dashboard you host yourself.
 It covers the data your devices collect and the meals you log: sleep, activity, heart rate, HRV,
 weight, nutrition and more. Every insight is plain arithmetic that you can trace back to your own numbers. Every formula
 is open, for anyone to read and improve.
