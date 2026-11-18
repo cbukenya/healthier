@@ -894,7 +894,7 @@ describe('readiness v2', () => {
     const r = readiness(days);
     const p = part(r, 'hrv')!;
     assert.ok(Math.abs(p.contribution) < 6, `deep-sleep series should dominate, got ${p.contribution}`);
-    assert.match(p.detail, /deep-sleep RMSSD/);
+    assert.match(p.detail, /in deep sleep last night/);
   });
 
   it('blends the 7-day trend so one aberrant night cannot swing the whole score', () => {
@@ -1010,7 +1010,7 @@ describe('battery arithmetic', () => {
     for (let i = 13; i < 28; i++) days[i].hrvDeepSleep = 30;
     const p = part(readiness(days), 'hrv');
     assert.ok(p, 'HRV must not drop out');
-    assert.match(p!.detail, /overnight RMSSD/);
+    assert.doesNotMatch(p!.detail, /deep sleep/);
   });
 
   it('restarts the baselines when the watch changes, instead of reading it as a change in you', () => {

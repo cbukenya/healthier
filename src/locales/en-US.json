@@ -912,7 +912,7 @@
       "parts": {
         "hrv": {
           "label": "HRV vs baseline",
-          "detail": "{source, select, deep {{last} ms last night · 7-day {week} vs {typical} ms typical (deep-sleep RMSSD)} other {{last} ms last night · 7-day {week} vs {typical} ms typical (overnight RMSSD)}}",
+          "detail": "{source, select, deep {{last} ms in deep sleep last night · 7-day {week} vs {typical} ms typical} other {{last} ms last night · 7-day {week} vs {typical} ms typical}}",
           "note": "Your HRV is unusually far above your baseline. Higher is usually better, but a sudden spike can also follow heavy training overload, so treat this peak with mild suspicion."
         },
         "restingHr": {
