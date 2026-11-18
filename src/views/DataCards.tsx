@@ -135,9 +135,11 @@ function briskNote(perDay: number): string {
  * that stays inside its bounds (GOAL_LIMITS, and why). Sleep need is worked out
  * from your nights until you set it; a step either way takes it over from there.
  */
-export function GoalsCard({ autoNeed, autoProtein }: {
+export function GoalsCard({ autoNeed, autoNeedFloor, autoProtein }: {
   /** The need the app works out from your nights, shown while yours is automatic. */
   autoNeed: number;
+  /** The least that automatic need can be, in minutes: it depends on the person's age (needFloor). */
+  autoNeedFloor: number;
   /** The protein target the app works out from your weight, while yours is automatic; null without a weigh-in. */
   autoProtein: number | null;
 }) {
@@ -205,7 +207,7 @@ export function GoalsCard({ autoNeed, autoProtein }: {
           moreLabel={t('data.goals.sleepNeed.more')}
           note={
             goals.sleepNeed === null
-              ? t('data.goals.sleepNeed.noteAuto', { min: hours(NEED_ESTIMATE.floor), max: hours(NEED_ESTIMATE.ceiling) })
+              ? t('data.goals.sleepNeed.noteAuto', { min: hours(autoNeedFloor), max: hours(NEED_ESTIMATE.ceiling) })
               : rich('data.goals.sleepNeed.noteOwn', {
                   min: hours(L.sleepNeed.min),
                   max: hours(L.sleepNeed.max),

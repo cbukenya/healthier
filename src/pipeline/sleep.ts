@@ -334,14 +334,16 @@ export interface SleepScore {
 }
 
 /**
- * What a night is scored against: the person's own sleep need and their usual share of deep and
- * REM sleep (sleepNorms in derive.ts works both out from their nights).
+ * What a night is scored against: the person's own sleep need, their usual share of deep and REM
+ * sleep and their usual efficiency (sleepNorms works all three out from their nights).
  */
 export interface SleepNorms {
   /** Minutes: full duration marks from here. */
   need: number;
   /** Deep + REM as a share of time asleep that earns full restoration marks, 0–1. */
   restorative: number;
+  /** The efficiency, in percent, the efficiency scale is set around: EFFICIENCY_USUAL, or the person's own usual when that's lower. */
+  efficiency: number;
 }
 
 /** Where full duration marks stop: 9 hours, or the need when it's set higher. */
@@ -350,11 +352,27 @@ export const LONG_NIGHT_MIN = 540;
 /** Full restoration marks before a person's own usual is known, and never a higher bar than this. */
 export const RESTORATIVE_TARGET = 0.45;
 
-/** A 7-hour need and the 45% bar: what every night was scored against before norms were the person's own. */
-export const STANDARD_NORMS: SleepNorms = { need: 420, restorative: RESTORATIVE_TARGET };
+/**
+ * The efficiency an ordinary night has: 88% of the sleep period asleep, the middle of 5,386 nights
+ * from 42 young adults (mcPHASES; half of their nights fall between 85% and 90%). The efficiency
+ * scale is set around it: no marks from 3 points under, full marks 12 points over, which is the
+ * 85–100% it has always run over. A person whose own usual is lower has the scale set around
+ * theirs instead, down to EFFICIENCY_USUAL_MIN.
+ */
+export const EFFICIENCY_USUAL = 88;
+/**
+ * The lowest usual the scale follows a person to. Efficiency is the one measure of sleep that
+ * keeps falling after 60, by about 3 points a decade (Ohayon et al. 2004, whose healthy 65 to
+ * 80-year-olds still slept through about four fifths of the night). A usual under three quarters
+ * isn't ordinary ageing, so the scale stops following there.
+ */
+export const EFFICIENCY_USUAL_MIN = 75;
 
-/** Nights with stages before their usual share of deep and REM counts: as many as a usual range needs (BASELINE_MIN_READINGS). */
-const STAGED_NIGHTS_WANTED = 8;
+/** A 7-hour need, the 45% bar and an ordinary efficiency: what every night was scored against before norms were the person's own. */
+export const STANDARD_NORMS: SleepNorms = { need: 420, restorative: RESTORATIVE_TARGET, efficiency: EFFICIENCY_USUAL };
+
+/** Nights before a person's own usual counts, for deep and REM (staged nights) and for efficiency: as many as a usual range needs (BASELINE_MIN_READINGS). */
+const NIGHTS_WANTED = 8;
 
 /** The middle value, halfway between the two middle ones for an even count. */
 function median(xs: number[]): number {
@@ -363,43 +381,69 @@ function median(xs: number[]): number {
   return (sorted[Math.floor(mid)] + sorted[Math.ceil(mid)]) / 2;
 }
 
-/** Where the sleep-need estimate stops: never below 7 h, nor above 8.5 h, and 7.5 h before any nights. */
-export const NEED_ESTIMATE = { floor: 420, ceiling: 510, fallback: 450 } as const;
+/**
+ * Where the sleep-need estimate stops: never below 7 h (6 h from the age of 65, see needFloor),
+ * nor above 8.5 h, and 7.5 h before any nights.
+ */
+export const NEED_ESTIMATE = { floor: 420, floorOlder: 360, olderFrom: 65, ceiling: 510, fallback: 450 } as const;
+
+/**
+ * The least the estimate can say a person needs, by their age in years when Google Health's
+ * profile gives one: 7 h, and 6 h from 65.
+ *
+ * The 7 h is for adults of 18 to 60 (AASM and SRS consensus, Watson et al. 2015). Sleep shortens
+ * with age: given all the time in bed they wanted, people of 60 to 76 slept 7.4 h at most where
+ * people of 18 to 32 slept 8.9 h (Klerman & Dijk 2008), and from 65 the National Sleep
+ * Foundation lists 5 to 6 h as appropriate for some (Hirshkowitz et al. 2015). Held to 7 h, an
+ * older person who sleeps 6 h 10 m every night and wakes rested is short on sleep every morning.
+ */
+export const needFloor = (age?: number | null): number =>
+  age != null && age >= NEED_ESTIMATE.olderFrom ? NEED_ESTIMATE.floorOlder : NEED_ESTIMATE.floor;
 
 /**
  * Personal sleep-need estimate: the median of your own recorded nights, clamped
- * to never fall below 7 h — chronic restriction must not be allowed to redefine
- * "enough" (Van Dongen 2003) — nor above 8.5 h. One definition, shared by
- * readiness, the debt insight, the duration insights and the sleep score, so no
- * two cards can ever argue about what a full night means.
+ * to never fall below 7 h (needFloor) — chronic restriction must not be allowed
+ * to redefine "enough" (Van Dongen 2003) — nor above 8.5 h. One definition,
+ * shared by readiness, the debt insight, the duration insights and the sleep
+ * score, so no two cards can ever argue about what a full night means.
  */
-export function estimatedSleepTarget(days: DailyRecord[]): number {
+export function estimatedSleepTarget(days: DailyRecord[], age?: number | null): number {
   const nights = days.flatMap((d) => (d.sleep ? [d.sleep.minutesAsleep] : []));
-  return nights.length ? Math.min(NEED_ESTIMATE.ceiling, Math.max(NEED_ESTIMATE.floor, median(nights))) : NEED_ESTIMATE.fallback;
+  return nights.length ? Math.min(NEED_ESTIMATE.ceiling, Math.max(needFloor(age), median(nights))) : NEED_ESTIMATE.fallback;
 }
 
 /**
  * The sleep need every night is judged against: the person's own figure when
  * they've set one (a goal, on the Settings page), else the estimate from these nights.
  */
-export const sleepNeedFor = (days: DailyRecord[], set?: number | null): number => set ?? estimatedSleepTarget(days);
+export const sleepNeedFor = (days: DailyRecord[], set?: number | null, age?: number | null): number =>
+  set ?? estimatedSleepTarget(days, age);
 
 /**
  * What every night's sleep score is held to (scoreSleep), from these nights: the sleep need, as
- * above, and the person's usual share of deep and REM sleep, the median over their staged nights
- * once there are 8, never above 45%. One pair for the whole window and the history before it, so
- * a night scores the same on every page and a record is measured against the same bar.
+ * above; the person's usual share of deep and REM sleep, the median over their staged nights
+ * once there are 8, never above 45%; and their usual efficiency, the median over their nights
+ * once there are 8, never above an ordinary 88% nor below 75%. One set for the whole window and
+ * the history before it, so a night scores the same on every page and a record is measured
+ * against the same bar.
  */
-export function sleepNorms(days: DailyRecord[], needSet?: number | null): SleepNorms {
+export function sleepNorms(days: DailyRecord[], needSet?: number | null, age?: number | null): SleepNorms {
   const shares = days.flatMap((d) =>
     d.sleep?.stages && d.sleep.minutesAsleep > 0 ? [(d.sleep.stages.deep + d.sleep.stages.rem) / d.sleep.minutesAsleep] : [],
   );
-  const usual = shares.length >= STAGED_NIGHTS_WANTED ? median(shares) : null;
+  const usual = shares.length >= NIGHTS_WANTED ? median(shares) : null;
+  const efficiencies = days.flatMap((d) => (d.sleep && d.sleep.efficiency > 0 ? [d.sleep.efficiency] : []));
   return {
-    need: sleepNeedFor(days, needSet),
+    need: sleepNeedFor(days, needSet, age),
     restorative: usual !== null && usual > 0 ? Math.min(RESTORATIVE_TARGET, usual) : RESTORATIVE_TARGET,
+    efficiency: efficiencies.length >= NIGHTS_WANTED
+      ? Math.min(EFFICIENCY_USUAL, Math.max(EFFICIENCY_USUAL_MIN, median(efficiencies)))
+      : EFFICIENCY_USUAL,
   };
 }
+
+/** Where full efficiency marks start under these norms, in percent: 100, or lower by as far as the person's usual sits under an ordinary 88%. */
+export const fullEfficiency = (norms: SleepNorms): number => 100 - (EFFICIENCY_USUAL - norms.efficiency);
 
 export function scoreSleep(s: SleepSession, norms: SleepNorms = STANDARD_NORMS): SleepScore {
   const mins = s.minutesAsleep;
@@ -435,11 +479,17 @@ export function scoreSleep(s: SleepSession, norms: SleepNorms = STANDARD_NORMS):
   }
 
   /**
-   * Efficiency over the 85–100% range, not 0–100%. Almost nobody scores below
-   * 85% time-asleep-in-bed, so the old mapping handed out 21+ points of the 25
-   * unconditionally and the component carried no information.
+   * Efficiency over 15 points, not 0–100%: over the whole range the mapping handed out 21+
+   * points of the 25 unconditionally and the component carried no information. The 15 points
+   * run from 85% to 100% for a person whose usual night is an ordinary 88% or better. For
+   * someone whose usual is lower they sit lower by the difference, so a night at their usual
+   * earns what an ordinary night earns anyone. Efficiency falls with age (Ohayon et al. 2004)
+   * and with every waking in the night, and held to 85% an older sleeper scored nothing here
+   * on a night that was ordinary for them. Like the deep + REM bar, the scale only moves
+   * towards the person: a usual above 88% doesn't raise it.
    */
-  const efficiency = Math.min(25, Math.max(0, Math.round(((s.efficiency - 85) / 15) * 25)));
+  const full = fullEfficiency(norms);
+  const efficiency = Math.min(25, Math.max(0, Math.round(((s.efficiency - (full - 15)) / 15) * 25)));
 
   return {
     total: Math.min(100, Math.max(1, duration + restoration + efficiency)),

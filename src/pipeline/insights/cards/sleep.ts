@@ -5,7 +5,7 @@ import {
 } from '../../../i18n/format';
 import type { DailyRecord } from '../../../types/health';
 import {
-  NEED_ESTIMATE, circularMeanMinutes, compareToBaseline, findGaps, firstObserved, series, sleepDebt, sleepNeedFor, sleepRegularity,
+  NEED_ESTIMATE, circularMeanMinutes, compareToBaseline, findGaps, firstObserved, needFloor, series, sleepDebt, sleepNeedFor, sleepRegularity,
   stats, values,
 } from '../../derive';
 import { scoreSleep } from '../../sleep';
@@ -138,7 +138,7 @@ function debt(ctx: InsightContext, add: Add, goodNightMin: number | null, tonigh
   const nights = ctx.debt!.nightsKnown;
   // The debt as the card showed it on an earlier day, against the need as it stood then.
   const owed = (w: DailyRecord[]) => {
-    const d = sleepDebt(w, sleepNeedFor(w, ctx.goals.sleepNeed));
+    const d = sleepDebt(w, sleepNeedFor(w, ctx.goals.sleepNeed, ctx.age));
     return d && d.coverage === 'full' ? d.netMin : 0;
   };
   const news = freshEntry((n) => owed(cut(days, n)) > SHORT_DEBT)
@@ -375,8 +375,8 @@ function sleepNeed(ctx: InsightContext, add: Add): void {
   const median = stats(nights)!.median;
   const text = ctx.goals.sleepNeed !== null
     ? t('insights.sleep.sleepNeed.textSet', { need: formatHours(ctx.need), usual: formatDuration(median) })
-    : median < NEED_ESTIMATE.floor
-      ? t('insights.sleep.sleepNeed.textFloor', { hours: NEED_ESTIMATE.floor / 60, usual: formatDuration(median) })
+    : median < needFloor(ctx.age)
+      ? t('insights.sleep.sleepNeed.textFloor', { hours: needFloor(ctx.age) / 60, usual: formatDuration(median) })
       : median > NEED_ESTIMATE.ceiling
         ? t('insights.sleep.sleepNeed.textCeiling', { need: ctx.needH, usual: formatDuration(median) })
         : t('insights.sleep.sleepNeed.textEstimate', { need: ctx.needH, nights: nights.length });

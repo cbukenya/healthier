@@ -66,12 +66,17 @@ export interface GoalLimit {
  *                 lower risk of early death (Garcia et al., BJSM 2023). 120 is
  *                 past where the benefit tops out, at 3 to 5 times the WHO's 150
  *                 a week (Arem et al., JAMA Internal Medicine 2015).
- *   sleepNeed     7 to 9 hours. Adults need 7 or more, and more than 9 suits only
- *                 some, such as young adults or anyone ill or recovering (AASM and
- *                 SRS consensus, Watson et al. 2015). People kept to 6 hours don't
- *                 notice how impaired they become (Van Dongen et al. 2003), so a
- *                 lower need set by feel would hide real debt. 7 hours is also
- *                 where the estimate from your own nights stops.
+ *   sleepNeed     6 to 9 hours. Adults of 18 to 60 need 7 or more, and more than 9
+ *                 suits only some, such as young adults or anyone ill or recovering
+ *                 (AASM and SRS consensus, Watson et al. 2015). People kept to 6
+ *                 hours don't notice how impaired they become (Van Dongen et al.
+ *                 2003), so 7 hours is where the estimate from your own nights
+ *                 stops (6 from the age of 65: needFloor in sleep.ts). But 6 hours
+ *                 is appropriate for some adults, and 5 to 6 from 65 (National
+ *                 Sleep Foundation, Hirshkowitz et al. 2015), and a device counts
+ *                 less sleep than people say they get: 6.1 hours measured against
+ *                 6.8 reported (Lauderdale et al. 2008). So someone who knows
+ *                 their nights can set 6, and the automatic figure keeps its floor.
  *   protein       40 to 250 grams a day: 0.8 g per kg, the floor for health (DRI
  *                 2005), for a 50 kg adult, up to 2.2 g per kg, the top of the
  *                 range where muscle still responds (Morton et al. 2018), for a
@@ -94,7 +99,7 @@ export interface GoalLimit {
 export const GOAL_LIMITS = {
   steps: { min: 2_000, max: 25_000, step: 500 },
   briskMinutes: { min: 10, max: 120, step: 5 },
-  sleepNeed: { min: 420, max: 540, step: 15 },
+  sleepNeed: { min: 360, max: 540, step: 15 },
   protein: { min: 40, max: 250, step: 5 },
   fibre: { min: 20, max: 50, step: 5 },
   water: { min: 1_000, max: 4_000, step: 100 },

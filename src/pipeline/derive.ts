@@ -2,7 +2,7 @@ import { addDays, daysBetween, weekdayIndex, type CivilDate } from '../lib/date'
 import { t, type MessageKey } from '../i18n';
 import { formatCivil, formatDuration, formatFixed, formatNumber, formatRounded } from '../i18n/format';
 import type { DailyRecord, HealthDataset, SleepSession } from '../types/health';
-import { scoreSleep, sleepNeedFor } from './sleep';
+import { RESTORATIVE_TARGET, scoreSleep, sleepNorms } from './sleep';
 import { fillSource } from './sources';
 
 /**
@@ -408,7 +408,7 @@ export function bedtimeConsistency(days: DailyRecord[]): { meanMin: number; sdMi
 
 // The sleep need and the sleep score's norms live with the score, in sleep.ts, where the server can
 // read them without the app's words.
-export { NEED_ESTIMATE, estimatedSleepTarget, sleepNeedFor, sleepNorms } from './sleep';
+export { NEED_ESTIMATE, estimatedSleepTarget, needFloor, sleepNeedFor, sleepNorms } from './sleep';
 
 // ─────────────────────────────────────────────────────────────── readiness
 
@@ -484,9 +484,11 @@ export const BATTERY_START = 70;
  *   5. Sleep counts twice, on purpose: last night against a personal need
  *      estimate, and the debt accumulated across the prior week — restriction
  *      compounds (Van Dongen et al. 2003, Sleep). The need estimate is the
- *      median of recent nights clamped to ≥7 h, so chronic short sleep cannot
- *      quietly redefine "enough". A need the person sets themselves (7–9 h, the
- *      same floor) replaces the estimate.
+ *      median of recent nights clamped to ≥7 h (≥6 h from the age of 65, when
+ *      `age` is known: needFloor), so chronic short sleep cannot quietly
+ *      redefine "enough". A need the person sets themselves (6–9 h) replaces
+ *      the estimate. How deep and how unbroken the night was is read against
+ *      the person's own usual, as the sleep score reads it (sleepNorms).
  *   6. Elevated breathing rate and skin temperature are penalty-only illness
  *      signals (the same multi-signal deviation logic behind the wearable
  *      illness-detection studies). Being below baseline earns nothing.
@@ -512,7 +514,7 @@ export const BATTERY_START = 70;
  * This sits between them, with every weight visible below and every component
  * returned as a signed, explained contribution.
  */
-export function readiness(days: DailyRecord[], needSet?: number | null, judged: DailyRecord[] | null = null): Readiness {
+export function readiness(days: DailyRecord[], needSet?: number | null, judged: DailyRecord[] | null = null, age: number | null = null): Readiness {
   const parts: ReadinessPart[] = [];
   let score = BATTERY_START;
   // Only last night counts. The window ends on the user's today, and a reading from before yesterday is
@@ -585,7 +587,8 @@ export function readiness(days: DailyRecord[], needSet?: number | null, judged: 
 
   // ── 3. Sleep: Holistic Quality & Need from scoreSleep() ──────────────────
   // The person's own need when they've set one; the estimate from their nights otherwise.
-  const need = sleepNeedFor(days, needSet);
+  const norms = sleepNorms(days, needSet, age);
+  const need = norms.need;
   const latestNight = [...days].reverse().find((d) => d.sleep)?.sleep ?? null;
   const lastNight = latestNight && recent(latestNight.date) ? latestNight : null;
   const sleepOk = lastNight !== null;
@@ -594,12 +597,17 @@ export function readiness(days: DailyRecord[], needSet?: number | null, judged: 
     const durationC = clamp(durationDeltaH * 5, -14, 8);
     
     // Architecture and efficiency: a small bonus for a deep, unbroken night, a
-    // small penalty for a shallow or broken one. Efficiency here is scoreSleep's
-    // 0–25 points (85–100% asleep in bed), not the percentage. The penalty is
-    // floored at zero: a deep night can soften a broken one, never turn it into
-    // a bonus.
-    const sc = scoreSleep(lastNight);
-    const rest = sc.restorativePct;
+    // small penalty for a shallow or broken one. Both are read against the
+    // person's own usual, as the sleep score reads them: deep + REM as a share
+    // of their usual, on the scale where a usual night is 45%, and efficiency
+    // as scoreSleep's 0–25 points (the 15 points from 85% for an ordinary
+    // sleeper, lower for one whose usual is lower), not the percentage. Both
+    // fall with age, and held to fixed levels an older sleeper lost points
+    // every morning for a night that was ordinary for them. The penalty is
+    // floored at zero: a deep night can soften a broken one, never turn it
+    // into a bonus.
+    const sc = scoreSleep(lastNight, norms);
+    const rest = sc.restorativePct === null ? null : (sc.restorativePct * RESTORATIVE_TARGET) / norms.restorative;
     const effPoints = sc.efficiency;
     let qualityBonus = 0;
     if (rest !== null) {
@@ -705,7 +713,7 @@ export function readiness(days: DailyRecord[], needSet?: number | null, judged: 
   // ── 8. The cycle, while it's allowed for: a penalty softened, never added ──
   if (judged) {
     const byDate = new Map(judged.map((d) => [d.date, d]));
-    const aware = readiness(days.map((d) => byDate.get(d.date) ?? d), needSet).parts;
+    const aware = readiness(days.map((d) => byDate.get(d.date) ?? d), needSet, null, age).parts;
     for (const p of parts) {
       if (!CYCLE_MOVES.has(p.id) || p.contribution >= 0) continue;
       const allowed = Math.min(0, Math.max(p.contribution, aware.find((a) => a.id === p.id)?.contribution ?? 0));
