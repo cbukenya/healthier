@@ -77,6 +77,19 @@ export function whoUnit(days: DailyRecord[]): 'azm' | 'brisk' | null {
 export const whoMins = (d: DailyRecord, unit: 'azm' | 'brisk'): number | null =>
   unit === 'azm' ? (d.zoneMinutes ? zoneMins(d) : null) : d.activeMinutes ? briskMins(d) : null;
 
+/**
+ * A stretch of days against the WHO's weekly 150, in whoUnit's count: the minutes the days
+ * recorded, how many days that is, and the average week, their mean times seven. A day without
+ * a reading is left out of the average, not counted as nothing. Null when no day recorded any.
+ */
+export function whoWeek(days: DailyRecord[]): { unit: 'azm' | 'brisk'; total: number; days: number; perWeek: number } | null {
+  const unit = whoUnit(days);
+  const mins = unit ? days.map((d) => whoMins(d, unit)).filter((m): m is number => m !== null) : [];
+  if (!unit || !mins.length) return null;
+  const total = mins.reduce((a, b) => a + b, 0);
+  return { unit, total, days: mins.length, perWeek: (total / mins.length) * 7 };
+}
+
 // ─────────────────────────────────────────────── stateless guards
 
 /** Truncate the grid by n days: the heart of the yesterday test. */

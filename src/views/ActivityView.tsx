@@ -16,7 +16,7 @@ import { ChartChips } from '../ui/ChartChips';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 import { useGoals } from '../hooks/useGoals';
 import { WHO_WEEK } from '../pipeline/goals';
-import { whoMins, whoUnit } from '../pipeline/insights/helpers';
+import { whoWeek } from '../pipeline/insights/helpers';
 import { InsightsCarousel } from '../components/InsightsCarousel';
 import { usePageInsights, type Clock } from '../hooks/usePageInsights';
 import type { IntradayDays } from '../pipeline/labs';
@@ -29,7 +29,7 @@ export function ActivityView({ data, clock, intraday }: { data: SyncResult; cloc
   const insights = usePageInsights(data, 'activity', clock, intraday);
   const goal = useGoals().steps;
   const spanState = useSpan(data, '30');
-  const { days: window, bucket } = spanState;
+  const { days: window, full: spanFull, bucket } = spanState;
   // A phone shows one chart at a time behind chips; wider screens show them all.
   const wide = useMediaQuery('(min-width: 768px)');
   const [chart, setChart] = useState<ActivityChart>('steps');
@@ -43,6 +43,9 @@ export function ActivityView({ data, clock, intraday }: { data: SyncResult; cloc
   const stepsDone = series(done, (d) => d.steps);
   const spanDone = completedDays(window);
   const stepsSpanDone = series(spanDone, (d) => d.steps);
+  // The span's averages and summary read as many full days, the last of them yesterday: the same
+  // days as Today's month and Activity's last 7 days.
+  const stepsFull = series(spanFull, (d) => d.steps);
   const recorded = values(series(days, (d) => d.steps)).length;
 
   // Grouped spans (a hook, so it must run before the early return below): average minutes per recorded day, per intensity.
@@ -87,7 +90,7 @@ export function ActivityView({ data, clock, intraday }: { data: SyncResult; cloc
     <Card>
       <CardHead
         title={t('activity.steps.title')}
-        right={<CardSummary data={stepsWin} color={DOMAIN.movement.hex} format={(v) => fmtNum(v, 0)} />}
+        right={<CardSummary data={stepsWin} meanOf={stepsFull} color={DOMAIN.movement.hex} format={(v) => fmtNum(v, 0)} />}
       />
       <div className="px-2 pb-3">
         <BarSeries series={groupSeries(stepsWin, bucket)} bucket={bucket} color={DOMAIN.movement.hex} goal={goal} unit={t('units.steps')} height={210} />
@@ -96,7 +99,7 @@ export function ActivityView({ data, clock, intraday }: { data: SyncResult; cloc
   );
   const energyCard = (
     <Card>
-      <CardHead title={t('activity.energy.title')} hint={t('activity.energy.hint')} hintBySummary right={<CardSummary data={kcalWin} color="var(--amber-400)" unit={t('units.kcal')} format={(v) => fmtNum(v, 0)} />} />
+      <CardHead title={t('activity.energy.title')} hint={t('activity.energy.hint')} hintBySummary right={<CardSummary data={kcalWin} meanOf={series(spanFull, (d) => d.activeKcal)} color="var(--amber-400)" unit={t('units.kcal')} format={(v) => fmtNum(v, 0)} />} />
       <div className="px-2 pb-3">
         <BarSeries series={groupSeries(kcalWin, bucket)} bucket={bucket} color="var(--amber-400)" unit={t('units.kcal')} height={200} />
       </div>
@@ -114,9 +117,9 @@ export function ActivityView({ data, clock, intraday }: { data: SyncResult; cloc
         title={t('activity.mix.title')}
         right={
           latestMixRow?.activeMinutes ? (() => {
-            const lightMean = stats(values(series(window, d => d.activeMinutes?.light ?? null)))?.mean ?? 0;
-            const modMean = stats(values(series(window, d => d.activeMinutes?.moderate ?? null)))?.mean ?? 0;
-            const vigMean = stats(values(series(window, d => d.activeMinutes?.vigorous ?? null)))?.mean ?? 0;
+            const lightMean = stats(values(series(spanFull, d => d.activeMinutes?.light ?? null)))?.mean ?? 0;
+            const modMean = stats(values(series(spanFull, d => d.activeMinutes?.moderate ?? null)))?.mean ?? 0;
+            const vigMean = stats(values(series(spanFull, d => d.activeMinutes?.vigorous ?? null)))?.mean ?? 0;
             return (
               <div className="flex items-center gap-2.5 text-caption font-medium text-zinc-300">
                 <span className="text-zinc-500">{t(latestMixRow.date === today ? 'activity.mix.vsToday' : 'activity.mix.vsLatest')}</span>
@@ -148,21 +151,20 @@ export function ActivityView({ data, clock, intraday }: { data: SyncResult; cloc
   );
   const distanceCard = (
     <Card>
-      <CardHead title={t('activity.distance.title')} hint={t('activity.distance.hint')} right={<CardSummary data={distWin} color="var(--teal-400)" unit={t('units.km')} format={(v) => fmtNum(v, 2)} />} />
+      <CardHead title={t('activity.distance.title')} hint={t('activity.distance.hint')} right={<CardSummary data={distWin} meanOf={series(spanFull, (d) => d.distanceKm)} color="var(--teal-400)" unit={t('units.km')} format={(v) => fmtNum(v, 2)} />} />
       <div className="px-2 pb-3">
         <TrendChart series={groupSeries(distWin, bucket)} bucket={bucket} color="var(--teal-400)" unit={t('units.km')} height={150} format={(v) => fmtNum(v, 2)} />
       </div>
     </Card>
   );
   const weeklyCard = weeks.length > 0 && <WeeklyTotals weeks={weeks} />;
-  // The span in numbers: totals count today so far; the typical and best days are finished ones.
-  const spanSteps = values(stepsSpanDone);
+  // The span in numbers, over its full days.
+  const spanSteps = values(stepsFull);
   const typical = stats(spanSteps)?.median;
-  const best = spanDone.reduce<DailyRecord | null>((a, d) => (d.steps !== null && (!a || d.steps > (a.steps ?? 0)) ? d : a), null);
-  // A week's worth against the WHO's 150, counted as Today's week card counts it.
-  const whoIn = whoUnit(spanDone);
-  const briskPerDay = whoIn ? stats(values(series(spanDone, (d) => whoMins(d, whoIn)))) : null;
-  const firstToLast = windowShift(stepsSpanDone, 7).delta;
+  const best = spanFull.reduce<DailyRecord | null>((a, d) => (d.steps !== null && (!a || d.steps > (a.steps ?? 0)) ? d : a), null);
+  // An average week against the WHO's 150, counted as Today's month counts it.
+  const who = whoWeek(spanFull);
+  const firstToLast = windowShift(stepsFull, 7).delta;
   const total = (s: Point[]) => stats(values(s))?.sum;
   const summaryCard = (
     <Card>
@@ -180,13 +182,13 @@ export function ActivityView({ data, clock, intraday }: { data: SyncResult; cloc
             })}
           </Row>
         )}
-        <Row dense={!wide} label={t('activity.summary.daysOver', { goal: formatThousands(goal) })}>{formatInteger(values(stepsWin).filter((v) => v >= goal).length)}</Row>
-        <Row dense={!wide} label={t('activity.summary.distance')}>{fmtNum(total(distWin), 1)} {t('units.km')}</Row>
-        <Row dense={!wide} label={t('activity.summary.energy')}>{fmtNum(total(kcalWin), 0)} {t('units.kcal')}</Row>
-        {briskPerDay && (
-          <Row dense={!wide} label={t(whoIn === 'azm' ? 'activity.summary.zone' : 'activity.summary.brisk')}>
+        <Row dense={!wide} label={t('activity.summary.daysOver', { goal: formatThousands(goal) })}>{formatInteger(spanSteps.filter((v) => v >= goal).length)}</Row>
+        <Row dense={!wide} label={t('activity.summary.distance')}>{fmtNum(total(series(spanFull, (d) => d.distanceKm)), 1)} {t('units.km')}</Row>
+        <Row dense={!wide} label={t('activity.summary.energy')}>{fmtNum(total(series(spanFull, (d) => d.activeKcal)), 0)} {t('units.kcal')}</Row>
+        {who && (
+          <Row dense={!wide} label={t(who.unit === 'azm' ? 'activity.summary.zone' : 'activity.summary.brisk')}>
             {rich('activity.summary.briskWeek', {
-              minutes: fmtNum(briskPerDay.mean * 7, 0),
+              minutes: fmtNum(who.perWeek, 0),
               target: WHO_WEEK,
               muted: (w) => <span className="text-zinc-500">{w}</span>,
             })}

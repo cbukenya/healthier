@@ -8,7 +8,7 @@ import type { PeriodShift } from '../pipeline/derive';
 import { Card, CardHead, CardSummary, DOMAIN, Delta, Meter, Row, fmtNum } from '../ui/primitives';
 import type { DailyRecord } from '../types/health';
 import { WHO_WEEK } from '../pipeline/goals';
-import { whoMins, whoUnit } from '../pipeline/insights/helpers';
+import { whoWeek } from '../pipeline/insights/helpers';
 import { useGoals } from '../hooks/useGoals';
 
 const BRISK_HEX = 'var(--orange-400)';
@@ -79,10 +79,9 @@ export function LastSevenDays({ days, shift, ratio, wide, glow }: {
   const overLabel = t('activity.lastSevenDays.daysOver', { goal: formatThousands(goal) });
   // Against the WHO's 150, in the same count as Today's week card: active zone minutes when the
   // days have them, else moderate plus vigorous counted double.
-  const unit = whoUnit(days);
-  const weekMinutes = unit ? days.map((d) => whoMins(d, unit)).filter((m): m is number => m !== null) : [];
-  const brisk = weekMinutes.length ? weekMinutes.reduce((a, b) => a + b, 0) : null;
-  const briskLabel = t(unit === 'azm' ? 'activity.lastSevenDays.zone' : 'activity.lastSevenDays.brisk');
+  const who = whoWeek(days);
+  const brisk = who?.total ?? null;
+  const briskLabel = t(who?.unit === 'azm' ? 'activity.lastSevenDays.zone' : 'activity.lastSevenDays.brisk');
   const ramp = rampOf(ratio);
 
   const headline = (

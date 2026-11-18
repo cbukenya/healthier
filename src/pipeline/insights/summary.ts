@@ -2,11 +2,11 @@ import { addDays, dateRange, type CivilDate } from '../../lib/date';
 import type { DailyRecord } from '../../types/health';
 import { scoreSleep } from '../sleep';
 import {
-  compareVital, isRecent, readiness, sleepDebt, sleepNorms,
+  compareVital, fullDays, isRecent, readiness, sleepDebt, sleepNorms,
 } from '../derive';
 import { DEFAULT_GOALS, type Goals } from '../goals';
 import type { InsightDataset, InsightOptions } from './context';
-import { sleepMins, whoMins, whoUnit } from './helpers';
+import { sleepMins, whoWeek } from './helpers';
 import { insightFeeds } from './engine';
 
 /** Convenience: everything the Today view needs, computed once. */
@@ -56,8 +56,11 @@ export interface PeriodSummary {
   battery: { date: CivilDate; score: number | null }[];
   /** Mean time asleep across the period's recorded nights. */
   sleep: { avgMin: number; nights: number } | null;
-  /** Minutes in the WHO's currency over the full days: Active Zone Minutes when they have them. */
-  activeMinutes: { total: number; unit: 'azm' | 'brisk' } | null;
+  /**
+   * Minutes in the WHO's currency over the full days: Active Zone Minutes when they have them. The
+   * total is what the days earned; `perWeek` is the average week, over the days that recorded any.
+   */
+  activeMinutes: { total: number; unit: 'azm' | 'brisk'; perWeek: number } | null;
   /** Over the full days. `atGoal` counts the days that reached the step goal. */
   steps: { avg: number; days: number; atGoal: number } | null;
 }
@@ -85,15 +88,15 @@ function periodSummary(days: DailyRecord[], length: number, goals: Goals, judged
   });
   const nights = sleepMins(period, (s) => s.minutesAsleep);
   // Movement: the same number of full days, ending yesterday.
-  const done = days.filter((d) => d.date >= addDays(today, -length) && d.date < today);
-  const unit = whoUnit(done);
+  const done = fullDays(days, today, length);
+  const who = whoWeek(done);
   const steps = done.map((d) => d.steps).filter((s): s is number => s !== null);
 
   return {
     length,
     battery,
     sleep: nights.length ? { avgMin: mean(nights), nights: nights.length } : null,
-    activeMinutes: unit ? { total: done.reduce((a, d) => a + (whoMins(d, unit) ?? 0), 0), unit } : null,
+    activeMinutes: who ? { total: who.total, unit: who.unit, perWeek: who.perWeek } : null,
     steps: steps.length
       ? { avg: mean(steps), days: steps.length, atGoal: steps.filter((s) => s >= goals.steps).length }
       : null,

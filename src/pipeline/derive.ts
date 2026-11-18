@@ -225,6 +225,13 @@ export function isRecent(date: CivilDate | null | undefined, today: CivilDate | 
 export const completedDays = (days: DailyRecord[]): DailyRecord[] => days.slice(0, -1);
 
 /**
+ * The n full days before today, oldest first: what a stretch of "the last n days" of movement reads,
+ * so Today's week and month, Activity's last 7 days and its span summary all count the same days.
+ */
+export const fullDays = (days: DailyRecord[], today: CivilDate, n: number): DailyRecord[] =>
+  days.filter((d) => d.date >= addDays(today, -n) && d.date < today);
+
+/**
  * A metric's series keeping only readings from the device behind the latest one.
  * A new watch measures HRV and resting HR its own way; judged against the old
  * one's numbers it reads as a physiological change for weeks. Filtered like this,

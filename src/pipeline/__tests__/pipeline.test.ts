@@ -1467,7 +1467,7 @@ describe('insight engine — stateless guards', () => {
     const card = cardOf(days, 'who-week')!;
     assert.ok(card, listing(days));
     assert.equal(whereIs(days, 'who-week'), 'today');
-    assert.match(card.text, /minutes of brisk activity this week/);
+    assert.match(card.text, /minutes of brisk activity since Monday/);
     assert.match(card.text, /with 5 days to spare/);
 
     const next = [...days, emptyRecord('2026-07-29')];
@@ -1686,7 +1686,7 @@ describe('insight engine — Activity in depth', () => {
     for (const d of days) d.distanceKm = 8;
     // Weeks start on Monday; 8 km a day passes 42.2 km on Saturday.
     assert.equal(trace(days, 'activity-distance', 29), '- - - today activity - - - - - today activity - - - -');
-    assert.match(cardOf(days.slice(0, 32), 'activity-distance')!.text, /^You've covered 48\.0 km this week\. That's more than the length of a marathon\.$/);
+    assert.match(cardOf(days.slice(0, 32), 'activity-distance')!.text, /^You've covered 48\.0 km since Monday\. That's more than the length of a marathon\.$/);
   });
 
   it('notes 100, 200 and 300 km months', () => {
@@ -2497,9 +2497,9 @@ describe('insight engine — calibrated against stored history', () => {
 
   it('counts one minute of brisk activity as one minute', () => {
     const days = syntheticDays(28);
-    days.forEach((d, i) => { d.activeMinutes = { light: 200, moderate: i < 20 ? 10 : 1, vigorous: 0 }; });
+    days.forEach((d, i) => { d.activeMinutes = { light: 200, moderate: i < 20 ? 10 : i === 26 ? 1 : 0, vigorous: 0 }; });
     assert.equal(cardOf(days, 'mvpa-down')?.text,
-      "You're averaging 1 minute of brisk activity a day this week, down from 10 last week.");
+      'You did 1 minute of brisk activity over the last 7 days, down from 70 the week before, with harder minutes counting double.');
   });
 });
 
@@ -2678,9 +2678,9 @@ describe('this week', () => {
     const days = syntheticDays(28);
     for (const d of days.slice(-8, -1)) d.activeMinutes = { light: 100, moderate: 10, vigorous: 5 };
     days[27].activeMinutes = { light: 100, moderate: 500, vigorous: 500 };
-    assert.deepEqual(weekSummary(days)!.activeMinutes, { total: 140, unit: 'brisk' }, 'today’s minutes wait until the day is done');
+    assert.deepEqual(weekSummary(days)!.activeMinutes, { total: 140, unit: 'brisk', perWeek: 140 }, 'today’s minutes wait until the day is done');
     days[26].zoneMinutes = { fatBurn: 30, cardio: 10, peak: 5 };
-    assert.deepEqual(weekSummary(days)!.activeMinutes, { total: 60, unit: 'azm' });
+    assert.deepEqual(weekSummary(days)!.activeMinutes, { total: 60, unit: 'azm', perWeek: 420 }, 'the average week reads the one day with zone minutes');
   });
 
   it('gives Activity the same count for the same days, so a week reads alike on every page', () => {
@@ -2716,7 +2716,7 @@ describe('this week', () => {
     assert.deepEqual(m.battery.map((b) => b.date), dateRange('2026-07-11', '2026-08-09'));
     assert.equal(m.battery[29].score, readiness(days).score);
     assert.equal(m.sleep!.nights, 29, 'the missing night is left out, not counted as zero');
-    assert.deepEqual(m.activeMinutes, { total: 30 * 20, unit: 'brisk' });
+    assert.deepEqual(m.activeMinutes, { total: 30 * 20, unit: 'brisk', perWeek: 7 * 20 });
     assert.equal(m.steps!.days, 30, 'thirty full days, today left out');
     assert.equal(weekSummary(days)!.length, 7);
   });

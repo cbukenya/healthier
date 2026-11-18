@@ -26,7 +26,8 @@ How Healthier works and why, for contributors. What's planned lives in the
 6. **One today.** The window ends on the user's today, in their own zone (demo mode: the demo
    person's clock and zone). Every card and insight judges against that day; the device clock only picks
    morning, midday or evening. Only readings from today or yesterday count as "last night", and
-   today's movement is still in progress, so whole-day comparisons read finished days.
+   today's movement is still in progress, so whole-day comparisons read finished days: "the last
+   n days" of movement are the n full days before today (`fullDays`) on every page.
 7. **One verdict per reading.** A reading is outside its usual range when it's 1.5 spreads or more
    from the middle of the four weeks before it (`OFF_Z` in `derive.ts`). That one edge is the band
    shaded behind a chart, the pill beside a reading, and the line every card and lab calls off by.
@@ -542,3 +543,7 @@ when the radar reads Elevated or High.
 `src/pipeline/__tests__/normalize.test.ts`: a day comes out the same whatever order its readings
 arrive in; a partial reading never wipes a complete one; two devices' copies of a night count once;
 a night split by a long awakening is one night; a short night without metadata is still the night.
+
+`src/pipeline/__tests__/consistency-activity.test.ts`: Today's week and month, Activity's Last 7
+days, its span summary and the brisk activity card count the same full days the same way, so a
+week's minutes or a month's steps read alike on every page.

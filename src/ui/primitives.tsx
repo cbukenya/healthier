@@ -503,10 +503,13 @@ export function CardSummary({
   digits = 1,
   format,
   showMean = true,
-  isSleep = false
+  isSleep = false,
+  meanOf,
 }: { 
   data?: Point[] | number[];
   vals?: number[];
+  /** The readings the average reads, when not all of data's: Activity's leave out today's day in progress. */
+  meanOf?: Point[];
   color: string; 
   unit?: string; 
   digits?: number;
@@ -528,9 +531,9 @@ export function CardSummary({
   // Span series end on the user's today, so the latest reading is today's when it sits on the last day.
   const lastDate = isPoints ? (source as Point[])[source.length - 1].date : undefined;
 
-  const st = stats(numbers);
+  const st = stats(meanOf ? meanOf.map((p) => p.value).filter((v): v is number => v !== null) : numbers);
   const latest = numbers.length > 0 ? numbers[numbers.length - 1] : null;
-  if (!st || latest === null) return null;
+  if (latest === null) return null;
   
   const unitStr = unit ? ` ${unit}` : '';
   const fmt = format || ((v: number) => fmtNum(v, digits));
@@ -540,7 +543,7 @@ export function CardSummary({
   
   return (
     <div className="flex items-center gap-3 text-caption font-medium leading-tight justify-end">
-      {showMean && (
+      {showMean && st && (
         <div>
           <span className="text-zinc-500">{t('ui.summary.average')} </span>
           <span style={{ color }}>{fmt(st.mean)}</span>
