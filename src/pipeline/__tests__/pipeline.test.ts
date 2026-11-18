@@ -16,8 +16,9 @@ import { NEED_ESTIMATE, STANDARD_NORMS, fullEfficiency, needFloor, scoreSleep, s
 import {
   compareToBaseline, coverage, findGaps, periodShift, rollingMean, series, stats, values,
   bedtimeConsistency, currentStreak, readiness, windowShift, firstObserved, sleepRegularity, circularMeanMinutes, typicalSleepWindow,
-  sleepNeedFor, goalStreak, weightTrend, batteryTier, latestBody, BATTERY_START,
+  sleepNeedFor, goalStreak, weightTrend, batteryTier, latestBody, BATTERY_START, asleepSpans, bodyComposition, sleepArchitecture,
 } from '../derive';
+import { welch } from '../insights/association';
 import { DEFAULT_GOALS, GOAL_LIMITS, parseGoals, readGoals, type Goals } from '../goals';
 import { STREAMS } from '../registry';
 import { answerQueries, answerQuery, parseQueries, queryRange, type HistoryQueries } from '../history';
@@ -456,6 +457,11 @@ describe('derivations', () => {
     const c = bedtimeConsistency(nights)!;
     // 23:50, 00:10, 00:00 are 20 minutes apart, not 16 hours.
     assert.ok(c.sdMin < 15, `sd was ${c.sdMin}`);
+    // A day sleeper's 11:50, 12:10 and 12:00 are as close: the clock has no seam at noon either.
+    const byDay = [11 * 60 + 50, 12 * 60 + 10, 12 * 60].map((bedtimeMin, i) => ({ date: `2026-08-1${6 + i}`, sleep: { bedtimeMin } })) as any;
+    assert.ok(Math.abs(bedtimeConsistency(byDay)!.sdMin - c.sdMin) < 0.01, `sd was ${bedtimeConsistency(byDay)!.sdMin}`);
+    // And it's the spread the sleep window's cards give for the same nights.
+    assert.equal(c.sdMin, circularMeanMinutes([23 * 60 + 50, 10, 0])!.sdMin);
   });
 
   it('counts a streak only over consecutive recorded days', () => {
@@ -1208,6 +1214,42 @@ describe('sleep regularity index', () => {
     assert.ok(alternating.score < withNaps.score, `${alternating.score} !< ${withNaps.score}`);
   });
 
+  it('knows which minutes of a day were asleep, from the night that ended it to the one that began in it', () => {
+    // A night 23:00–07:00 ending each day, a nap from 13:00, and on the second day a nap 23:40–00:20.
+    const days = sleepDays(3, () => ({ bed: '23:00', wake: '07:00' }), (i) => (i === 1 ? [{ bed: '13:00', wake: '13:45' }, { bed: '23:40', wake: '00:20' }] : []));
+    assert.deepEqual(asleepSpans(days, 0), [[0, 420], [1380, 1440]]);
+    assert.deepEqual(asleepSpans(days, 1), [[0, 420], [780, 825], [1420, 1440], [1380, 1440]]);
+    assert.deepEqual(asleepSpans(days, 2), [[0, 420], [0, 20]], 'the last day has no next night; the nap from the day before runs into it');
+    // A night that began at 17:30 crossed midnight all the same; one that began and ended in an evening didn't.
+    const early = sleepDays(2, () => ({ bed: '17:30', wake: '01:30' }));
+    assert.deepEqual(asleepSpans(early, 0), [[0, 90], [1050, 1440]]);
+    const evening = sleepDays(2, () => ({ bed: '19:00', wake: '23:30' }));
+    assert.deepEqual(asleepSpans(evening, 0), [[1140, 1410]]);
+  });
+
+  it('reads a bedtime before 18:00 like any other: only how far it moves counts', () => {
+    // The same two-hour swing in bedtime, once across 18:00 and once late in the evening.
+    const across = sleepRegularity(sleepDays(20, (i) => (i % 2 === 0 ? { bed: '17:30', wake: '01:30' } : { bed: '19:30', wake: '03:30' })))!;
+    const late = sleepRegularity(sleepDays(20, (i) => (i % 2 === 0 ? { bed: '20:30', wake: '04:30' } : { bed: '22:30', wake: '06:30' })))!;
+    // Four hours of every 24 differ in each: about 67. The early nights used to be lost, which read as 33.
+    assert.ok(Math.abs(across.score - late.score) <= 2, `${across.score} across 18:00, ${late.score} late`);
+    assert.ok(late.score > 60 && late.score < 72, `got ${late.score}`);
+    // A sleep that begins and ends in the same evening is only as long as it is.
+    const evenings = sleepRegularity(sleepDays(20, (i) => (i % 2 === 0 ? { bed: '19:00', wake: '23:30' } : { bed: '23:00', wake: '07:00' })))!;
+    assert.ok(evenings.score > 0, `got ${evenings.score}`);
+  });
+
+  it('counts stage changes per hour asleep', () => {
+    const seg = (stage: 'light' | 'deep' | 'rem' | 'awake', offsetMin: number, durationMin: number) => ({ stage, offsetMin, durationMin, clockMin: 0 });
+    const night = {
+      ...sleepDays(1, () => ({ bed: '23:00', wake: '07:00' }))[0].sleep!,
+      minutesAsleep: 420, minutesAwake: 60, minutesInBed: 480,
+      segments: [seg('light', 0, 60), seg('deep', 60, 60), seg('light', 120, 60), seg('rem', 180, 60), seg('awake', 240, 60), seg('light', 300, 180)],
+    };
+    // Five changes in seven hours asleep: 0.7 an hour. Over the eight hours in bed it read 0.6.
+    assert.equal(sleepArchitecture(night)!.transitionsPerHour, 0.7);
+  });
+
   it('produces a stable value on the real fixture nights', async () => {
     const ds = await dataset();
     const r = sleepRegularity(ds.days)!;
@@ -1559,6 +1601,25 @@ describe('insight engine — stateless guards', () => {
     const next = [...days, emptyRecord('2026-07-29')];
     next[28].activeMinutes = { light: 20, moderate: 10, vigorous: 0 };
     assert.equal(homeOf(next, 'who-week', new Date('2026-07-29T08:00:00')), 'activity', 'the day after, on its page');
+  });
+
+  it('gives the t test the p-value a t table gives', () => {
+    // Two groups of 11 with the same spread: 20 degrees of freedom, and a t we choose.
+    const p = (t: number) => {
+      const base = Array.from({ length: 11 }, (_, i) => (i % 2 ? 1 : -1));
+      const mean = base.reduce((a, b) => a + b, 0) / 11;
+      const variance = base.reduce((a, b) => a + (b - mean) ** 2, 0) / 10;
+      const w = welch(base.map((x) => x + t * Math.sqrt((2 * variance) / 11)), base)!;
+      assert.ok(Math.abs(w.t - t) < 1e-9 && Math.abs(w.df - 20) < 1e-9);
+      return w.p;
+    };
+    // Two-sided critical values of t at 20 degrees of freedom.
+    for (const [t, expected] of [[0.687, 0.5], [1.325, 0.2], [1.725, 0.1], [2.086, 0.05], [2.845, 0.01]]) {
+      assert.ok(Math.abs(p(t) - expected) < 0.001, `t ${t} gave p ${p(t)}, not ${expected}`);
+    }
+    // Next to no difference is next to certain under chance. Below about t = 1.65 this used to come back wrong.
+    assert.ok(p(0.05) > 0.95, `t 0.05 gave p ${p(0.05)}`);
+    assert.ok(p(1) > 0.32 && p(1) < 0.34, `t 1 gave p ${p(1)}`);
   });
 
   it('finds a real recovery tax and stays silent on a null one', () => {
@@ -2067,6 +2128,18 @@ describe('insight engine — Body in depth', () => {
     assert.equal(cardOf(days, 'body-composition', AUG9)?.text,
       'Over the last 5 weeks you gained 0.5 kg of lean mass and lost 0.9 kg of fat. That\'s from 4 readings that measured both.');
     assert.equal(cardOf(days, 'body-fat-trend', AUG9), undefined, 'one card about composition at a time');
+  });
+
+  it('gives a lean and a fat trend that add up to the weight trend', () => {
+    // Eight weigh-ins over seven weeks, with the wobble a scale has: the three slopes taken separately didn't add up.
+    const days = syntheticDays(50);
+    const kg = [80.4, 79.6, 80.1, 79.2, 79.9, 78.8, 79.3, 78.9];
+    const pct = [22.6, 21.2, 22.9, 21.6, 20.9, 22.1, 20.4, 21.3];
+    [1, 8, 15, 22, 29, 36, 43, 49].forEach((i, k) => { days[i].weightKg = kg[k]; days[i].bodyFatPct = pct[k]; });
+    const c = bodyComposition(days)!;
+    assert.equal(c.pairs, 8);
+    assert.equal(Math.round((c.fatKgPerWeek + c.leanKgPerWeek) * 100), Math.round(c.weightKgPerWeek * 100));
+    assert.ok(c.weightKgPerWeek < 0 && c.fatKgPerWeek < 0);
   });
 
   it('counts weeks with a weigh-in, and notes BMI on the first days of the month', () => {

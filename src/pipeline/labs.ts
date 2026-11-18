@@ -1,6 +1,6 @@
 import type { DailyRecord, IntradaySample, SleepSession } from '../types/health';
 import {
-  BASELINE_DAYS, BASELINE_MIN_READINGS, NOISE_FLOOR, VITALS, WARM_C, activeHeartRate, compareToBaseline, compareVitalOn, isOff, series, stats, values,
+  BASELINE_DAYS, BASELINE_MIN_READINGS, NOISE_FLOOR, VITALS, WARM_C, activeHeartRate, asleepSpans, compareToBaseline, compareVitalOn, isOff, series, stats, values,
 } from './derive';
 import { addDays } from '../lib/date';
 import { t } from '../i18n';
@@ -139,10 +139,14 @@ const AGE_UNKNOWN = 40;
 /**
  * Day-to-night heart-rate drop over the last 30 finished days, rest to rest.
  *
- * The daytime side is the 08:00–20:00 average of the minutes you weren't active: a minute at 40%
- * of heart-rate reserve or above (activeHeartRate, from your age and the median resting heart
- * rate of the last four weeks) is left out. Otherwise a workout raises the daytime figure and
- * widens the drop, and the lab reads how active the day was rather than how the heart settles.
+ * The daytime side is the 08:00–20:00 average of the minutes you were awake and not active. A
+ * minute at 40% of heart-rate reserve or above (activeHeartRate, from your age and the median
+ * resting heart rate of the last four weeks) is left out. Otherwise a workout raises the daytime
+ * figure and widens the drop, and the lab reads how active the day was rather than how the heart
+ * settles. A minute inside a recorded sleep, the night's or a nap's (asleepSpans), is left out
+ * too: counted as daytime, a lie-in's or a nap's sleeping heart rate lowers the daytime figure
+ * and narrows the drop. Studies of the heart-rate dip split the day the same way, by the sleep
+ * people recorded, naps included (Ben-Dov et al. 2007, Arch Intern Med).
  *
  * A night counts only when its daytime side was measured: an hour or more of such minutes. A
  * stand-in daytime figure would be shown as if it had been measured. Today is left out (its
@@ -150,15 +154,18 @@ const AGE_UNKNOWN = 40;
  * figure, by default here, so the card and the insight agree.
  */
 export function dipping(days: DailyRecord[], intraday: IntradayDays, sick: Set<string> = illnessDates(days), age: number | null = null) {
-  const window = days.slice(0, -1).slice(-30);
   const resting = stats(values(series(days.slice(-28), (d) => d.restingHr)))?.median ?? null;
   const active = resting === null ? null : activeHeartRate(age ?? AGE_UNKNOWN, resting);
   const nights: { date: string; dayMean: number; nightMean: number; dip: number }[] = [];
   let excludedIllnessNights = 0;
-  for (const d of window) {
+  // The last 30 finished days: today is left out.
+  for (let i = Math.max(0, days.length - 31); i < days.length - 1; i++) {
+    const d = days[i];
     if (d.nonRemHr === null) continue;
+    const asleep = asleepSpans(days, i);
     const daytime = (intraday[d.date] ?? []).filter(
-      (s) => s.minutesOfDay >= 8 * 60 && s.minutesOfDay <= 20 * 60 && (active === null || s.value < active),
+      (s) => s.minutesOfDay >= 8 * 60 && s.minutesOfDay <= 20 * 60 && (active === null || s.value < active)
+        && !asleep.some(([from, to]) => s.minutesOfDay >= from && s.minutesOfDay < to),
     );
     if (daytime.length <= 60) continue;
     if (sick.has(d.date)) {
@@ -306,6 +313,10 @@ export interface TachycardiaEvent {
  *     two readings hours apart never join into one long event.
  *   - Minutes the hypnogram marks awake are left out: getting up raises heart
  *     rate, and that isn't heart rate during sleep.
+ *   - Only a sleep with stages is scanned. Without a hypnogram nothing says
+ *     which minutes were awake, so none can be left out. On mcPHASES the
+ *     sleeps without stages, most of them short naps, were a fifth of all
+ *     sleeps and gave over a third of the stretches found.
  *   - A night counts as scanned only when readings cover at least half of it,
  *     so "none found" never rests on a handful of samples.
  */
@@ -331,6 +342,7 @@ export function nocturnalTachycardia(days: DailyRecord[], intraday: IntradayDays
   }
 
   for (const { dayDate, session, isNap } of sessions) {
+    if (!session.segments.length) continue;
     const startMs = Date.parse(session.bedtimeIso);
     const endMs = Date.parse(session.wakeIso);
     if (isNaN(startMs) || isNaN(endMs) || endMs <= startMs) continue;

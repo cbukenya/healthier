@@ -91,6 +91,26 @@ describe('day-to-night heart rate', () => {
     assert.equal(dipping(days, workouts, new Set()).medianDipPct, calm.medianDipPct);
   });
 
+  it('leaves a lie-in and a nap out of the daytime side', () => {
+    const days = nights(20);
+    // Asleep until 10:00 and again from 14:00 to 15:00, at 55 bpm; 70 awake.
+    for (const d of days) {
+      d.sleep = session(d.date, 2 * 60, 10 * 60, 450, 30);
+      d.naps = [{ ...session(d.date, 14 * 60, 15 * 60, 55, 5), isMainSleep: false, isNap: true }];
+    }
+    const asleep = (m: number) => m < 10 * 60 || (m >= 14 * 60 && m < 15 * 60);
+    const intraday = byDate(days.flatMap((d) => minutes(d.date, 8 * 60, 12 * 60, (i) => (asleep(8 * 60 + i) ? 55 : 70))));
+    const r = dipping(days, intraday, new Set());
+    assert.equal(r.nightsScanned, 19);
+    // Counted as daytime, the three sleeping hours pulled the daytime figure down to 66 and the drop under it.
+    assert.ok(r.nights.every((n) => n.dayMean === 70), `daytime read ${r.nights[0].dayMean}`);
+    // An evening bedtime leaves the minutes before midnight out of that day as well.
+    const early = nights(20);
+    for (const d of early) d.sleep = session(d.date, 19 * 60, 3 * 60, 450, 30);
+    const evenings = byDate(early.flatMap((d) => minutes(d.date, 8 * 60, 12 * 60, (i) => (8 * 60 + i >= 19 * 60 ? 55 : 70))));
+    assert.ok(dipping(early, evenings, new Set()).nights.every((n) => n.dayMean === 70));
+  });
+
   it('leaves sick nights out of every figure, card and insight alike', () => {
     const days = nights(20);
     const intraday = daytime(days);
@@ -206,7 +226,9 @@ describe('night breathing and oxygen', () => {
 });
 
 describe('high heart rate during sleep', () => {
-  const night = (date: string, samples: IntradaySample[], segments: SleepSession['segments'] = []) => {
+  /** A night staged as light sleep throughout: only a sleep with stages is scanned. */
+  const STAGED: SleepSession['segments'] = [{ stage: 'light', offsetMin: 0, durationMin: 480, clockMin: 23 * 60 }];
+  const night = (date: string, samples: IntradaySample[], segments: SleepSession['segments'] = STAGED) => {
     const d = emptyRecord(date);
     d.sleep = session(date, 23 * 60, 7 * 60, 450, 30, segments);
     return { days: [d], intraday: byDate(samples) };
@@ -219,6 +241,25 @@ describe('high heart rate during sleep', () => {
     const r = nocturnalTachycardia(night(date, samples).days, night(date, samples).intraday);
     assert.equal(r.events.length, 1);
     assert.equal(r.events[0].durationMin, 12);
+  });
+
+  it("doesn't scan a sleep without stages, where minutes awake can't be told from minutes asleep", () => {
+    // The same twelve minutes at 112, in a night and in a nap the device didn't stage.
+    const samples = minutes(prev, 23 * 60, 480, (i) => (i >= 120 && i < 132 ? 112 : 60));
+    const unstaged = night(date, samples, []);
+    const r = nocturnalTachycardia(unstaged.days, unstaged.intraday);
+    assert.equal(r.nightsScanned, 0);
+    assert.equal(r.events.length, 0);
+    assert.equal(r.status, 'collecting');
+    const napped = emptyRecord(date);
+    napped.naps = [{ ...session(date, 13 * 60, 14 * 60, 55, 5), isMainSleep: false, isNap: true }];
+    const nap = nocturnalTachycardia([napped], byDate(minutes(date, 13 * 60, 60, (i) => (i >= 10 && i < 25 ? 112 : 60))));
+    assert.equal(nap.events.length, 0);
+    // Staged, the nap is scanned like a night.
+    napped.naps[0].segments = [{ stage: 'light', offsetMin: 0, durationMin: 60, clockMin: 13 * 60 }];
+    const staged = nocturnalTachycardia([napped], byDate(minutes(date, 13 * 60, 60, (i) => (i >= 10 && i < 25 ? 112 : 60))));
+    assert.equal(staged.events.length, 1);
+    assert.equal(staged.events[0].sessionType, 'nap');
   });
 
   it('never joins readings across a gap', () => {
@@ -284,7 +325,7 @@ describe('high heart rate during sleep', () => {
     const third = addDays(date, 2);
     const records = [date, addDays(date, 1), third].map((d) => {
       const r = emptyRecord(d);
-      r.sleep = session(d, 23 * 60, 7 * 60, 450, 30);
+      r.sleep = session(d, 23 * 60, 7 * 60, 450, 30, STAGED);
       return r;
     });
     const samples = [

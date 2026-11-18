@@ -52,10 +52,20 @@ function tTwoSidedP(t: number, df: number): number {
   return incompleteBeta(x, df / 2, 0.5);
 }
 
-/** Regularised incomplete beta I_x(a,b) by continued fraction (Lentz). */
+/**
+ * Regularised incomplete beta I_x(a,b). The continued fraction converges fast only for
+ * x < (a+1)/(a+b+2); past that, the symmetry I_x(a,b) = 1 − I_(1−x)(b,a) puts it back on the
+ * side where it does (Abramowitz & Stegun 26.5.2 and 26.5.8). Taking 1 − the fraction at the
+ * same x, a and b, as this did, returned the wrong p for any |t| under about 1.65.
+ */
 function incompleteBeta(x: number, a: number, b: number): number {
   if (x <= 0) return 0;
   if (x >= 1) return 1;
+  return x < (a + 1) / (a + b + 2) ? betaFraction(x, a, b) : 1 - betaFraction(1 - x, b, a);
+}
+
+/** The continued fraction for I_x(a,b), by Lentz's method. */
+function betaFraction(x: number, a: number, b: number): number {
   const lbeta = lgamma(a) + lgamma(b) - lgamma(a + b);
   const front = Math.exp(Math.log(x) * a + Math.log(1 - x) * b - lbeta) / a;
   let f = 1, c = 1, d = 0;
@@ -74,11 +84,7 @@ function incompleteBeta(x: number, a: number, b: number): number {
     f *= cd;
     if (Math.abs(1 - cd) < 1e-10) break;
   }
-  const result = front * (f - 1);
-  return x < (a + 1) / (a + b + 2) ? result : 1 - incompleteBetaComplement(x, a, b, result);
-}
-function incompleteBetaComplement(_x: number, _a: number, _b: number, result: number): number {
-  return result; // symmetry handled by the caller's x-choice; kept explicit for clarity
+  return front * (f - 1);
 }
 function lgamma(z: number): number {
   // Lanczos approximation, g = 7.

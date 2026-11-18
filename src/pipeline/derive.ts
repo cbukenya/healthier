@@ -392,17 +392,17 @@ export function activeHeartRate(age: number, restingHr: number): number | null {
   return maxHr <= restingHr ? null : Math.round(restingHr + 0.4 * (maxHr - restingHr));
 }
 
-/** Bedtime consistency: SD of clock time, handling the midnight wrap. */
+/**
+ * Bedtime consistency: the spread of bedtimes around the clock (circularMeanMinutes), so 23:50
+ * and 00:10 are 20 minutes apart, not 23 hours, wherever on the clock the bedtimes sit. It's the
+ * figure typicalSleepWindow gives the other cards. Folding the clock at noon, as this did, split
+ * a day sleeper's bedtimes either side of 12:00 a day apart.
+ */
 export function bedtimeConsistency(days: DailyRecord[]): { meanMin: number; sdMin: number; n: number } | null {
-  const mins = days
-    .map((d) => d.sleep?.bedtimeMin)
-    .filter((m): m is number => m !== undefined && m !== null)
-    // Fold post-midnight bedtimes onto the previous evening so 23:50 and 00:10
-    // are 20 minutes apart, not 23 hours.
-    .map((m) => (m < 12 * 60 ? m + 1440 : m));
+  const mins = days.map((d) => d.sleep?.bedtimeMin).filter((m): m is number => m !== undefined && m !== null);
   if (mins.length < 3) return null;
-  const st = stats(mins)!;
-  return { meanMin: st.mean % 1440, sdMin: st.sd, n: st.n };
+  const c = circularMeanMinutes(mins);
+  return c && { meanMin: c.mean, sdMin: c.sdMin, n: c.n };
 }
 
 
@@ -947,6 +947,30 @@ export function typicalSleepWindow(days: DailyRecord[]): TypicalSleepWindow | nu
   };
 }
 
+// ─────────────────────────────────────────────── minutes asleep on a day
+
+/**
+ * The stretches of one day's clock that a recorded sleep covers, each [from, to) in minutes past
+ * midnight: the night that ended that morning, the day's naps, and the part before midnight of a
+ * night or nap that ran on into the next day. `days` is the day grid and `i` the day's place in it.
+ *
+ * A night is filed under the day it ended and a nap under the day it began. Either crossed
+ * midnight when its bedtime is later on the clock than its wake time. Taking an evening bedtime
+ * to mean the day before, as the regularity index did, lost a night that began at 17:30 and ran
+ * past midnight, and stretched one that began and ended in the same evening across a whole day.
+ */
+export function asleepSpans(days: DailyRecord[], i: number): [number, number][] {
+  const spans: [number, number][] = [];
+  const crossedMidnight = (s: SleepSession) => s.bedtimeMin >= s.wakeMin;
+  const night = days[i]?.sleep;
+  if (night) spans.push(crossedMidnight(night) ? [0, night.wakeMin] : [night.bedtimeMin, night.wakeMin]);
+  for (const nap of days[i]?.naps ?? []) spans.push(crossedMidnight(nap) ? [nap.bedtimeMin, 1440] : [nap.bedtimeMin, nap.wakeMin]);
+  const next = days[i + 1]?.sleep;
+  if (next && crossedMidnight(next)) spans.push([next.bedtimeMin, 1440]);
+  for (const nap of days[i - 1]?.naps ?? []) if (crossedMidnight(nap)) spans.push([0, nap.wakeMin]);
+  return spans;
+}
+
 // ─────────────────────────────────────────────── sleep regularity (SRI)
 
 export type RegularityBand = 'excellent' | 'good' | 'bad' | 'critical';
@@ -988,34 +1012,12 @@ export function sleepRegularity(days: DailyRecord[]): SleepRegularity | null {
   if (n < 2) return null;
 
   const grid = Array.from({ length: n }, () => new Uint8Array(1440));
-  const covered = new Array<boolean>(n).fill(false);
+  const covered = days.map((day) => day.sleep !== null);
   const EVENING = 18 * 60;
 
-  /** Paint [start … end) across day boundaries, clamped to the window. */
-  const paint = (startDay: number, startMin: number, endDay: number, endMin: number) => {
-    for (let d = startDay; d <= endDay; d++) {
-      if (d < 0 || d >= n) continue;
-      const from = d === startDay ? startMin : 0;
-      const to = d === endDay ? endMin : 1440;
-      grid[d].fill(1, Math.max(0, from), Math.min(1440, to));
-    }
-  };
-
-  days.forEach((day, i) => {
-    const main = day.sleep;
-    if (main) {
-      covered[i] = true;
-      // Main sessions are keyed to the wake date; an evening bedtime belongs to
-      // the previous calendar day.
-      const bedDay = main.bedtimeMin >= EVENING ? i - 1 : i;
-      paint(bedDay, main.bedtimeMin, i, main.wakeMin);
-    }
-    for (const nap of day.naps) {
-      // Naps are keyed to their start date; one that crosses midnight ends on
-      // the next calendar day.
-      const endDay = nap.wakeMin > nap.bedtimeMin ? i : i + 1;
-      paint(i, nap.bedtimeMin, endDay, nap.wakeMin);
-    }
+  // Each day's minutes inside a recorded sleep, night or nap, on whichever side of midnight they fell.
+  days.forEach((_, i) => {
+    for (const [from, to] of asleepSpans(days, i)) grid[i].fill(1, Math.max(0, from), Math.min(1440, to));
   });
 
   let agree = 0;
@@ -1205,7 +1207,7 @@ export interface SleepArchitecture {
   minutesPerCycleApprox: number | null;
   /** Share of deep sleep landing in the first third of the night, 0–100. */
   deepFirstThirdPct: number | null;
-  /** Distinct-stage transitions per hour of the sleep period. */
+  /** Distinct-stage transitions per hour asleep. */
   transitionsPerHour: number | null;
   /** Staged awake bouts after onset (the hypnogram kind, not sub-minute). */
   awakenings: number;
@@ -1271,7 +1273,7 @@ export function sleepArchitecture(s: SleepSession): SleepArchitecture | null {
     cycles,
     minutesPerCycleApprox: cycles > 0 ? Math.round(s.minutesInBed / cycles) : null,
     deepFirstThirdPct: totalDeep > 0 ? Math.round((deepFirst / totalDeep) * 100) : null,
-    transitionsPerHour: s.minutesInBed > 0 ? Math.round((transitions / s.minutesInBed) * 60 * 10) / 10 : null,
+    transitionsPerHour: s.minutesAsleep > 0 ? Math.round((transitions / s.minutesAsleep) * 60 * 10) / 10 : null,
     awakenings,
   };
 }
@@ -1399,7 +1401,11 @@ export function latestBody(days: DailyRecord[]): LatestBody {
 
 /**
  * Is weight change *fat* change? Pair weight and body-fat readings within
- * 48 h → fat mass = w × bf%, lean = w − fat; Theil–Sen slope per series.
+ * 48 h → fat mass = w × bf%, lean = w − fat. The weight and fat trends are
+ * Theil–Sen slopes; the lean trend is the weight trend less the fat trend.
+ * A median of slopes doesn't add up the way the masses do, so three slopes
+ * taken separately gave a lean and a fat trend that didn't sum to the weight
+ * trend beside them, and now and then a lean trend pointing the other way.
  * Requires ≥4 pairs spanning ≥28 days — below that the honest answer is
  * silence. BIA fat% carries ±3–5-point absolute error and swings with
  * hydration, so same-scale trends are meaningful and absolute levels are not;
@@ -1416,13 +1422,16 @@ export function bodyComposition(days: DailyRecord[]): BodyComposition | null {
     return sl === null ? 0 : Math.round(sl * 7 * 100) / 100;
   };
   const last = pairs[pairs.length - 1];
+  const weightKgPerWeek = perWeek((p) => p.weightKg);
+  const fatKgPerWeek = perWeek((p) => p.fatKg);
   return {
     pairs: pairs.length,
     spanDays,
     rejectedForSource,
-    weightKgPerWeek: perWeek((p) => p.weightKg),
-    fatKgPerWeek: perWeek((p) => p.fatKg),
-    leanKgPerWeek: perWeek((p) => p.leanKg),
+    weightKgPerWeek,
+    fatKgPerWeek,
+    // From the rounded figures, so the card's three numbers add up as shown.
+    leanKgPerWeek: Math.round((weightKgPerWeek - fatKgPerWeek) * 100) / 100,
     latest: {
       date: last.date,
       weightKg: Math.round(last.weightKg * 10) / 10,

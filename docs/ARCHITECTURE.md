@@ -233,9 +233,11 @@ Labs are experiments that look for patterns over several weeks. Their arithmetic
 - breathing, oxygen and time awake off together at night;
 - strain across four signals: resting heart rate, breathing, HRV and skin temperature;
 - heart rate dipping at night, rest to rest: the daytime side leaves out active minutes (40% of
-  heart-rate reserve or above), so a workout doesn't widen the drop;
+  heart-rate reserve or above), so a workout doesn't widen the drop, and minutes inside a recorded
+  sleep or nap (`asleepSpans` in `derive.ts`), so a lie-in doesn't narrow it;
 - shifts in HRV entropy;
-- fast heart rate during sleep;
+- fast heart rate during sleep, in sleeps recorded with stages: only a hypnogram says which
+  minutes were awake, and those are left out;
 - irregular rhythm notifications, as the device reports them.
 
 Each lab is a pure function from the days, and minute heart rate where it needs it, to a status
