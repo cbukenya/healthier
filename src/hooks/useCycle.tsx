@@ -73,8 +73,11 @@ export function CycleProvider({
   const current = useRef(log);
   current.current = log;
 
-  // A new dataset brings the log as the server holds it, every saved change included.
-  useEffect(() => setChanged(null), [saved]);
+  // A new dataset brings the log as the server holds it, every saved change included. The demo's
+  // dataset always brings the demo's own log, so there the changes stay until the page goes.
+  useEffect(() => {
+    if (live) setChanged(null);
+  }, [saved, live]);
 
   /** Apply a change now, save it, and undo it if the save fails. */
   const change = useCallback(
