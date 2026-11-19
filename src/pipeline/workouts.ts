@@ -569,6 +569,31 @@ function fitLine(points: { date: CivilDate; value: number }[]): [number, number]
   return [my + slope * (x[0] - mx), my + slope * (x[n - 1] - mx)];
 }
 
+/** The share of the zone minutes the kinds listed must make up between them: the rest are left out. */
+export const MAIN_SHARE = 0.95;
+/** And never more kinds than this, for the rare person who does a bit of everything. */
+export const MAIN_MAX = 5;
+
+/**
+ * The kinds that make up most of the workouts: biggest share first, until they come to MAIN_SHARE
+ * of the zone minutes (of the time, when none earned any), so a walk now and then doesn't make
+ * the list. At least one, at most MAIN_MAX.
+ */
+export function mainKinds(workouts: DatedWorkout[]): ReturnType<typeof kindsIn> {
+  const kinds = kindsIn(workouts);
+  const zone = kinds.reduce((a, k) => a + k.zoneMinutes, 0);
+  const of = (k: (typeof kinds)[number]) => (zone ? k.zoneMinutes : k.minutes);
+  const total = zone || kinds.reduce((a, k) => a + k.minutes, 0);
+  const out: typeof kinds = [];
+  let sum = 0;
+  for (const k of [...kinds].sort((a, b) => of(b) - of(a))) {
+    if (out.length && (sum >= MAIN_SHARE * total || out.length >= MAIN_MAX)) break;
+    out.push(k);
+    sum += of(k);
+  }
+  return out;
+}
+
 /** Each kind's share of the zone minutes from workouts, biggest first, with its sessions newest first. */
 export function kindsIn(workouts: DatedWorkout[]): { kind: WorkoutKind; label: string | null; sessions: DatedWorkout[]; zoneMinutes: number; minutes: number }[] {
   const by = new Map<string, { kind: WorkoutKind; label: string | null; sessions: DatedWorkout[]; zoneMinutes: number; minutes: number }>();

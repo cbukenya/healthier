@@ -5,7 +5,7 @@ import { addDays, type CivilDate } from '../../lib/date';
 import { emptyRecord, normalize } from '../normalize';
 import { STREAMS } from '../registry';
 import {
-  LEVELS, calorieBurn, combineExercisePoints, familyOf, kindOf, kindsIn, levelHistory, levelIndex, loadAdvice, paceOf,
+  LEVELS, calorieBurn, combineExercisePoints, familyOf, kindOf, kindsIn, levelHistory, levelIndex, loadAdvice, mainKinds, paceOf,
   parseWorkout, progressOf, restingKcalPerMinute, weeklyZoneMinutes, workoutHeart, workoutLevel, workoutLoad,
   workoutsIn, zoneMinutesOf,
 } from '../workouts';
@@ -250,6 +250,17 @@ describe('how a kind of workout is going', () => {
     const p = progressOf(sessions)!;
     assert.equal(p.measure, 'zoneMinutes');
     assert.deepEqual(p.points.map((x) => x.value), [30, 40, 50]);
+  });
+
+  it('lists the kinds behind 95% of the zone minutes, so a walk now and then stays off the list', () => {
+    const at = (type: string, zoneMinutes: number, day: number, minutes = 40) =>
+      ({ id: `${type}${day}`, date: addDays('2026-10-01', day), workout: workout({ type, zoneMinutes, activeMin: minutes, startIso: `2026-10-0${day + 1}T16:00:00.000Z` }) });
+    const list = [at('RUNNING', 70, 0), at('WEIGHTLIFTING', 20, 1), at('SWIMMING', 6, 2), at('WALKING', 4, 3)];
+    assert.deepEqual(mainKinds(list).map((k) => k.kind), ['run', 'strength', 'swim'], '70 + 20 is 90%; the swim takes it past 95%');
+    const easy = [at('YOGA', 0, 0, 60), at('WALKING', 0, 1, 30), at('PILATES', 0, 2, 2)];
+    assert.deepEqual(mainKinds(easy).map((k) => k.kind), ['yoga', 'walk'], 'by time, when none earned zone minutes');
+    const everything = ['RUNNING', 'BIKING', 'SWIMMING', 'YOGA', 'HIIT', 'WEIGHTLIFTING', 'TENNIS'].map((type, i) => at(type, 10, i));
+    assert.equal(mainKinds(everything).length, 5, 'never more than five');
   });
 
   it('shares out zone minutes by kind, the biggest first', () => {
