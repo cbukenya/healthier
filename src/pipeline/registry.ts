@@ -232,7 +232,7 @@ export const STREAMS: StreamDescriptor[] = [
   // ───────────────────────────────────────────────────────────────── energy
   {
     dataType: 'total-calories',
-    label: 'Total energy',
+    label: 'Total calories',
     domain: 'movement',
     mode: 'rollup',
     container: 'totalCalories',
@@ -248,7 +248,7 @@ export const STREAMS: StreamDescriptor[] = [
   },
   {
     dataType: 'active-energy-burned',
-    label: 'Active energy',
+    label: 'Calorie burn',
     domain: 'movement',
     mode: 'rollup',
     container: 'activeEnergyBurned',

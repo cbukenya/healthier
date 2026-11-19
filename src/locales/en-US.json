@@ -968,8 +968,8 @@
       "distance": "Distance",
       "active": "Active",
       "brisk": "{minutes} min brisk",
-      "energy": "Energy",
-      "activeKcal": "{kcal} active kcal",
+      "energy": "Calorie burn",
+      "activeKcal": "{kcal} kcal",
       "tileEmpty": "No steps synced today or yesterday",
       "notSynced": "{date} · today hasn't synced yet",
       "emptyTitle": "No movement data",
@@ -1062,7 +1062,7 @@
       "brisk": "Brisk minutes",
       "briskGoal": "/ {goal} min",
       "distance": "Distance",
-      "energy": "Active energy"
+      "energy": "Calorie burn"
     },
     "lastSevenDays": {
       "title": "Last 7 days",
@@ -1101,7 +1101,7 @@
       "bestDayValue": "{steps}<muted> · {date}</muted>",
       "daysOver": "Days over {goal}",
       "distance": "Distance",
-      "energy": "Active energy",
+      "energy": "Calorie burn",
       "brisk": "Brisk minutes",
       "zone": "Active zone minutes",
       "briskWeek": "{minutes} a week<muted> · target {target}</muted>",
@@ -1111,7 +1111,7 @@
     "chips": {
       "label": "Chart",
       "steps": "Steps",
-      "energy": "Energy",
+      "energy": "Calorie burn",
       "intensity": "Intensity",
       "distance": "Distance",
       "weekdays": "Weekdays",
@@ -1125,7 +1125,7 @@
       "title": "Daily steps"
     },
     "energy": {
-      "title": "Active energy",
+      "title": "Calorie burn",
       "hint": "Above your basal rate."
     },
     "mix": {
@@ -2171,13 +2171,13 @@
       "title": "Your average day",
       "empty": "No day in this span was logged in full yet.",
       "days": "{count, plural, one {# complete day} other {# complete days}}",
-      "energy": "Energy",
+      "energy": "Calories eaten",
       "vsMaintenance": "{kcal} kcal a day {dir, select, under {under} other {over}} your maintenance",
       "name": "<b>{name}</b>",
       "fibreOf": "of which <b>fibre</b>",
       "noTarget": "Add a weigh-in, or set a protein target in Settings, to see it against a target",
       "ofTarget": "{pct}% of your {target} g target",
-      "ofEnergy": "{pct}% of energy · usual {lo}–{hi}%",
+      "ofEnergy": "{pct}% of calories · usual {lo}–{hi}%",
       "meals": "<b>Meals</b> {count} a day",
       "logged": "{logged} of {finished} days logged"
     },
@@ -2273,7 +2273,7 @@
       },
       "totals": {
         "title": "Daily totals",
-        "hint": "Steps, distance, energy, active and zone minutes, floors and minute heart rate come already added up by Google, so they can't be split by device. You can choose which kinds of source count.",
+        "hint": "Steps, distance, calories, active and zone minutes, floors and minute heart rate come already added up by Google, so they can't be split by device. You can choose which kinds of source count.",
         "all": {
           "name": "Every device and app",
           "note": "The default. Your wearables, the steps your phone counts, and workouts other apps add."
@@ -2648,8 +2648,8 @@
     "floors": "Floors climbed",
     "active-minutes": "Active minutes",
     "active-zone-minutes": "Active Zone Minutes",
-    "total-calories": "Total energy",
-    "active-energy-burned": "Active energy",
+    "total-calories": "Total calories",
+    "active-energy-burned": "Calorie burn",
     "sleep": "Sleep sessions",
     "heart-rate": "Heart rate (intraday)",
     "sleep-heart-rate-floor": "Resting heart rate (basal)",
@@ -2675,8 +2675,8 @@
     "floors": "floors climbed",
     "active-minutes": "active minutes",
     "active-zone-minutes": "Active Zone Minutes",
-    "total-calories": "total energy",
-    "active-energy-burned": "active energy",
+    "total-calories": "total calories",
+    "active-energy-burned": "calorie burn",
     "sleep": "sleep sessions",
     "heart-rate": "minute-by-minute heart rate",
     "sleep-heart-rate-floor": "basal resting heart rate",
