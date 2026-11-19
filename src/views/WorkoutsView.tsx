@@ -20,7 +20,7 @@ import { useGoals } from '../hooks/useGoals';
 import { useCycle } from '../hooks/useCycle';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 import {
-  FigureBox, HeartChart, HeartKey, LEVEL_COLOUR, LatestWorkoutCard, LevelCard, LoadCard, WORKOUT, WorkoutIcon,
+  FigureBox, HeartChart, HeartKey, LEVEL_COLOUR, LatestWorkoutCard, LevelCard, LoadCard, Ruler, WORKOUT, WorkoutIcon,
   ZONE_COLOURS, ZONE_KEYS, allFigures, bigFigure, formatPace, heartLabel, kindName, levelName, spanLabel, workoutName,
   workoutTime, zoneRange,
 } from './WorkoutCards';
@@ -230,13 +230,11 @@ function LevelShiftCard({ days, from, span, wide }: { days: DailyRecord[]; from:
               );
             })}
           </div>
-          <div className="mt-2 flex" aria-hidden="true">
-            {periods.map((p, i) => (
-              <span key={p.date} className="flex-1 whitespace-nowrap text-center text-caption text-zinc-500">
-                {(n - 1 - i) % every === 0 ? label(p) : ''}
-              </span>
-            ))}
-          </div>
+          {/* A tick under every bar, a longer one with a date every few, counted back from now, which is bright. */}
+          <Ruler
+            marks={periods.map((_, i) => ((i + 0.5) / n) * 100)}
+            labels={periods.flatMap((p, i) => ((n - 1 - i) % every === 0 ? [{ at: ((i + 0.5) / n) * 100, text: label(p), strong: i === n - 1 }] : []))}
+          />
         </div>
       </div>
       <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1.5 md:ml-20">
@@ -392,10 +390,20 @@ function ProgressChart({ progress, kind, wide }: { progress: Progress; kind: str
           </span>
         ))}
       </div>
-      <div className="mt-1.5 flex justify-between pr-11 text-caption text-zinc-500">
-        <span>{formatCivil(first)}</span>
-        {points.length > 2 && <span>{formatCivil(mid)}</span>}
-        {points.length > 1 && <span>{formatCivil(last)}</span>}
+      {/* A tick under every session, and the first, middle and last dated. */}
+      <div className="pr-11">
+        <Ruler
+          marks={points.map((p) => xOf(p.date))}
+          labels={
+            points.length === 1
+              ? [{ at: 50, text: formatCivil(first) }]
+              : [
+                  { at: 0, text: formatCivil(first), align: 'start' as const },
+                  ...(points.length > 2 ? [{ at: xOf(mid), text: formatCivil(mid) }] : []),
+                  { at: 100, text: formatCivil(last), align: 'end' as const },
+                ]
+          }
+        />
       </div>
     </div>
   );

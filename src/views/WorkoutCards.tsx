@@ -366,19 +366,52 @@ export function HeartChart({ heart, zones, height, marks = false, ticks = false,
           </div>
         )}
       </div>
-      {ticks && (
-        <div className="relative mt-1 h-4">
-          {[0, heart.end / 2, heart.end].map((at, i) => (
-            <span
-              key={i}
-              className="absolute whitespace-nowrap text-caption text-zinc-500"
-              style={{ left: `${(at / span) * 100}%`, transform: i === 0 ? undefined : 'translateX(-50%)' }}
-            >
-              {formatClock(Math.round(startMin + at) % 1440)}
-            </span>
-          ))}
-        </div>
-      )}
+      {ticks && (() => {
+        // A tick every few minutes on the clock, about 10 to 24 of them, with the start, the middle and the end labelled.
+        const step = [1, 2, 5, 10, 15, 30, 60].find((s) => span / s <= 24) ?? 60;
+        const first = (step - (startMin % step)) % step;
+        const marks: number[] = [];
+        for (let m = first; m <= span; m += step) marks.push((m / span) * 100);
+        const mid = Math.round((startMin + heart.end / 2) / step) * step - startMin;
+        const at = (m: number) => (m / span) * 100;
+        const clock = (m: number) => formatClock(Math.round(startMin + m) % 1440);
+        return (
+          <Ruler
+            marks={marks}
+            labels={[
+              { at: 0, text: clock(0), align: 'start' as const },
+              ...(mid > step && mid < heart.end - step ? [{ at: at(mid), text: clock(mid) }] : []),
+              { at: at(heart.end), text: clock(heart.end) },
+            ]}
+          />
+        );
+      })()}
+    </div>
+  );
+}
+
+/**
+ * A ruler under a chart, the way the app's day ruler marks days: a short tick at every mark, and a
+ * longer one under each label. `strong` is now, bright and bold. Positions are percentages across.
+ */
+export function Ruler({ marks, labels }: {
+  marks: number[];
+  labels: { at: number; text: string; align?: 'start' | 'centre' | 'end'; strong?: boolean }[];
+}) {
+  return (
+    <div aria-hidden="true" className="relative mt-1 h-[26px]">
+      {marks.map((x, i) => <div key={`m${i}`} className="absolute top-0 h-[3px] w-px bg-zinc-700" style={{ left: `${x}%` }} />)}
+      {labels.map((l, i) => (
+        <React.Fragment key={`l${i}`}>
+          <div className={`absolute top-0 h-1.5 w-px ${l.strong ? 'bg-zinc-200' : 'bg-zinc-500'}`} style={{ left: `${l.at}%` }} />
+          <span
+            className={`absolute top-[9px] whitespace-nowrap text-note ${l.strong ? 'font-bold text-zinc-200' : 'text-zinc-500'}`}
+            style={{ left: `${l.at}%`, transform: l.align === 'start' ? undefined : l.align === 'end' ? 'translateX(-100%)' : 'translateX(-50%)' }}
+          >
+            {l.text}
+          </span>
+        </React.Fragment>
+      ))}
     </div>
   );
 }
