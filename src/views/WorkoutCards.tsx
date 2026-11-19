@@ -572,14 +572,9 @@ export function LoadCard({ load, battery, wide, className = '' }: { load: Workou
   const tier = battery === null ? null : batteryTier(battery);
   const low = tier !== null && (tier.tag === 'LOW' || tier.tag === 'DRAINED');
   const advice = load.ratio === null ? null : loadAdvice(load.ratio, low);
-  // The dot takes the stretch the advice comes from; taking today easy is the battery's warning.
-  const colour = advice === 'recover' || advice === 'easy' ? STRETCHES[2].colour : advice === 'keep' ? STRETCHES[1].colour : STRETCHES[0].colour;
   const words = (
     <div className="min-w-0 flex-1">
-      <div className="flex items-center gap-2">
-        <i className="size-[9px] shrink-0 rounded-full" style={{ background: colour }} />
-        <span className="font-display text-number-sm text-zinc-50">{t(advice ? `workouts.load.headline.${advice}` : 'workouts.load.headline.none')}</span>
-      </div>
+      <div className="font-display text-number-sm text-zinc-50">{t(advice ? `workouts.load.headline.${advice}` : 'workouts.load.headline.none')}</div>
       <p className="mt-2 font-display text-insight-body text-zinc-400">
         {advice === null
           ? t('workouts.load.advice.none')
