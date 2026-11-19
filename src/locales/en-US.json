@@ -1297,14 +1297,14 @@
       "title": "Your workouts over time"
     },
     "shift": {
-      "title": "How your level has shifted",
+      "title": "Workout level trend",
       "byWeek": "Zone minutes from workouts, week by week",
       "byMonth": "Zone minutes from workouts, in the average week of each month",
       "from": "{moved, select, up {Up from {level} since {date}} down {Down from {level} since {date}} other {Steady since {date}}}",
       "barWeek": "Zone minutes each week",
       "barMonth": "Average week of each month",
       "line": "4-week average, which sets your level",
-      "label": "How your workout level has shifted: {periods}.",
+      "label": "Workout level trend: {periods}.",
       "period": "{level, select, none {{date}, {minutes} zone minutes} other {{date}, {minutes} zone minutes, {level}}}",
       "separator": "; ",
       "readout": "{by, select, month {{date} · {minutes} zone min a week{partial, select, yes { so far} other {}}} other {Week of {date} · {minutes} zone min{partial, select, yes { so far} other {}}}}"

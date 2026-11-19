@@ -140,7 +140,7 @@ function bandY(v: number): number {
 }
 
 /**
- * How the level has moved: a bar for each week (or the average week of each month, over a year
+ * How the level has moved, on the Workout level trend: a bar for each week (or the average week of each month, over a year
  * or more), coloured by the step it reached, under the line of the 4-week average that sets the
  * level. The scale gives each step the same height, so a move between steps shows wherever it is.
  */
