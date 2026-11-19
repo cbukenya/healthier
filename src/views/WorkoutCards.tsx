@@ -239,7 +239,7 @@ export function HeartKey({ coolDown = true }: { coolDown?: boolean }) {
       ))}
       {coolDown && (
         <span className="flex items-center gap-1.5 whitespace-nowrap text-caption text-zinc-400">
-          <i className="size-[9px] shrink-0 rounded-sm border border-dashed border-zinc-500 bg-panel-raised" />
+          <i className="h-2.5 w-3 shrink-0 rounded-r-sm border-l border-dashed border-zinc-500 bg-panel-raised" />
           {t('workouts.heart.coolDown')}
         </span>
       )}
