@@ -128,87 +128,142 @@ export function combineExercisePoints(points: any[]): any[] {
 // ─────────────────────────────────────────────────────────────── kinds
 
 /**
- * Families of workout, for what each one's figures and progress show: a distance and pace on
- * foot, speed on a bike, pace a hundred metres in the water, and time and effort for the rest.
+ * Families of workout, for what each one's figures and progress show: on foot a distance and pace
+ * a kilometre; wheels, boats and skates their speed; in the water pace a hundred metres; and time
+ * and effort for the rest.
  */
-export type WorkoutFamily = 'foot' | 'bike' | 'water' | 'strength' | 'cardio' | 'mind' | 'other';
+export type WorkoutFamily = 'foot' | 'speed' | 'water' | 'strength' | 'cardio' | 'mind' | 'other';
 
-/** The kinds the language file names (workouts.kinds), each in its family. */
+/**
+ * The kinds of workout, each in its family. A kind sets a workout's icon, colour and figures; its
+ * name is its own type's (workouts.types in the language file), so a trail run says so.
+ */
 export const KINDS = {
   run: 'foot',
   walk: 'foot',
   hike: 'foot',
-  ride: 'bike',
-  indoorRide: 'bike',
+  ride: 'speed',
+  indoorRide: 'speed',
+  row: 'speed',
+  paddle: 'speed',
+  skate: 'speed',
   swim: 'water',
+  waterSport: 'cardio',
+  winter: 'cardio',
   strength: 'strength',
+  climbing: 'strength',
   hiit: 'cardio',
   cardio: 'cardio',
-  row: 'cardio',
   elliptical: 'cardio',
   stairs: 'cardio',
   dance: 'cardio',
-  boxing: 'cardio',
-  climbing: 'strength',
-  skiing: 'cardio',
+  martialArts: 'cardio',
   sport: 'cardio',
   yoga: 'mind',
   pilates: 'mind',
+  mobility: 'mind',
   other: 'other',
 } as const satisfies Record<string, WorkoutFamily>;
 
 export type WorkoutKind = keyof typeof KINDS;
 
-/** Google's exercise types by kind. A type not listed here is `other`, named as Google names it. */
-const TYPES: Record<Exclude<WorkoutKind, 'other'>, string[]> = {
-  run: ['RUNNING', 'TRAIL_RUN', 'TREADMILL', 'TREADMILL_RUNNING', 'INCLINE_RUN'],
-  walk: ['WALKING', 'POWER_WALKING', 'NORDIC_WALKING', 'TREADMILL_WALK', 'INCLINE_WALK', 'STROLLER_WALK', 'WALK_WITH_WEIGHTS'],
-  hike: ['HIKING'],
-  ride: ['BIKING', 'OUTDOOR_BIKE', 'MOUNTAIN_BIKE', 'ELECTRIC_BIKE', 'HAND_CYCLING'],
-  indoorRide: ['STATIONARY_BIKE', 'SPINNING', 'ASSAULT_BIKE'],
-  swim: ['SWIMMING', 'SWIMMING_POOL', 'SWIMMING_OPEN_WATER'],
-  strength: [
-    'WEIGHTLIFTING', 'STRENGTH_TRAINING', 'FUNCTIONAL_STRENGTH_TRAINING', 'FREE_WEIGHTS', 'WEIGHT_MACHINES',
-    'BODY_WEIGHT', 'CALISTHENICS', 'CORE_TRAINING',
+/**
+ * Every one of Google's exercise types (the v4 Exercise.ExerciseType list, 181 of them), by kind.
+ * The test holds this to Google's list, so none is missing or made up. A type Google adds later is
+ * `other` until it's placed here.
+ */
+const TYPES: Record<WorkoutKind, string[]> = {
+  run: ['RUNNING', 'TRAIL_RUN', 'TREADMILL', 'INCLINE_RUN'],
+  walk: [
+    'WALKING', 'POWER_WALKING', 'NORDIC_WALKING', 'TREADMILL_WALK', 'INCLINE_WALK', 'STROLLER_WALK',
+    'WALK_WITH_WEIGHTS', 'RUCKING', 'WHEELCHAIR',
   ],
-  hiit: ['HIIT', 'INTERVAL_WORKOUT', 'TABATA_WORKOUT', 'CIRCUIT_TRAINING', 'CROSSFIT', 'BOOTCAMP'],
-  cardio: ['AEROBIC_WORKOUT', 'CARDIO_WORKOUT', 'CROSS_TRAINING', 'STEP_TRAINING', 'OUTDOOR_WORKOUT', 'WATER_AEROBICS'],
-  row: ['ROWING', 'ROWING_MACHINE', 'KAYAKING'],
-  elliptical: ['ELLIPTICAL'],
-  stairs: ['STAIRCLIMBER', 'STAIR_CLIMBING'],
-  dance: ['DANCE', 'BALLROOM_DANCE', 'JAZZ_DANCE', 'MODERN_DANCE'],
-  boxing: ['BOXING', 'KICKBOXING', 'MARTIAL_ARTS'],
+  hike: ['HIKING', 'BACKPACKING', 'ORIENTEERING', 'SNOWSHOEING'],
+  ride: ['BIKING', 'OUTDOOR_BIKE', 'MOUNTAIN_BIKE', 'ELECTRIC_BIKE', 'HAND_CYCLING', 'UNICYCLING'],
+  indoorRide: ['STATIONARY_BIKE', 'SPINNING', 'ASSAULT_BIKE'],
+  row: ['ROWING', 'ROWING_MACHINE'],
+  paddle: ['KAYAKING', 'CANOEING', 'PADDLEBOARDING'],
+  skate: [
+    'ROLLERBLADING', 'ROLLER_SKATING', 'ICE_SKATING', 'SPEED_SKATING', 'SKATING', 'SKATEBOARDING',
+    'SCOOTERING', 'ELECTRIC_SCOOTER',
+  ],
+  swim: ['SWIMMING', 'SWIMMING_POOL', 'SWIMMING_OPEN_WATER', 'SYNCHRONIZED_SWIMMING'],
+  waterSport: [
+    'SURFING', 'KITESURFING', 'WINDSURFING', 'WAKEBOARDING', 'WATER_SKIING', 'FOILING', 'DIVING',
+    'SCUBA_DIVING', 'SNORKELING', 'SAILING', 'WATER_SPORT',
+  ],
+  winter: ['SKIING', 'CROSS_COUNTRY_SKI', 'SNOWBOARDING', 'SNOW_SPORT'],
+  strength: [
+    'WEIGHTLIFTING', 'WEIGHTS', 'STRENGTH_TRAINING', 'FUNCTIONAL_STRENGTH_TRAINING', 'FREE_WEIGHTS',
+    'WEIGHT_MACHINES', 'BODY_WEIGHT', 'CALISTHENICS', 'CORE_TRAINING', 'POWERLIFTING',
+    'RESISTANCE_BANDS', 'TRX',
+  ],
   climbing: ['CLIMBING', 'ROCK_CLIMBING', 'INDOOR_CLIMBING'],
-  skiing: ['SKIING', 'CROSS_COUNTRY_SKI'],
+  hiit: ['HIIT', 'INTERVAL_WORKOUT', 'TABATA_WORKOUT', 'CIRCUIT_TRAINING', 'CROSSFIT', 'BOOTCAMP'],
+  cardio: [
+    'AEROBIC_WORKOUT', 'CARDIO_WORKOUT', 'CARDIO_SCULPT', 'CROSS_TRAINING', 'STEP_TRAINING',
+    'OUTDOOR_WORKOUT', 'EXERCISE_CLASS', 'WATER_AEROBICS', 'WATER_JOGGING', 'JUMPING_ROPE',
+    'TRAMPOLINE', 'FITNESS_GAMING', 'PARKOUR', 'GYMNASTICS', 'MULTISPORT', 'WORKOUT',
+  ],
+  elliptical: ['ELLIPTICAL'],
+  stairs: ['STAIRCLIMBER'],
+  dance: [
+    'DANCING', 'BALLROOM_DANCE', 'JAZZ_DANCE', 'MODERN_DANCE', 'BALLET', 'BREAKDANCING', 'HIP_HOP',
+    'TANGO', 'ZUMBA', 'CHEERLEADING',
+  ],
+  martialArts: [
+    'BOXING', 'KICKBOXING', 'MARTIAL_ARTS', 'KARATE', 'JIU_JITSU', 'MUAY_THAI', 'TAEKWONDO',
+    'WRESTLING', 'FENCING',
+  ],
   sport: [
-    'TENNIS', 'TABLE_TENNIS', 'SOCCER', 'BASKETBALL', 'FOOTBALL', 'FOOTBALL_AMERICAN', 'FOOTBALL_AUSTRALIAN', 'GOLF',
-    'BADMINTON', 'SQUASH', 'VOLLEYBALL', 'HOCKEY', 'RUGBY', 'PADEL',
+    'TENNIS', 'TABLE_TENNIS', 'BADMINTON', 'SQUASH', 'PADEL', 'PICKELBALL', 'RACQUETBALL',
+    'RACKET_SPORTS', 'SOCCER', 'BASKETBALL', 'VOLLEYBALL', 'VOLLEYBALL_BEACH', 'HANDBALL', 'HOCKEY',
+    'FIELD_HOCKEY', 'LACROSSE', 'RUGBY', 'FOOTBALL_AMERICAN', 'FOOTBALL_AUSTRALIAN', 'CRICKET',
+    'BASEBALL', 'SOFTBALL', 'ULTIMATE_FRISBEE', 'FRISBEE_PLAYING_GENERAL', 'WATER_POLO',
+    'WATER_VOLLEYBALL', 'POLO', 'GOLF', 'TRACK_AND_FIELD', 'SPORT', 'CURLING', 'CROQUET', 'BOWLING',
+    'BILLIARDS', 'ARCHERY', 'SHOOTING', 'EQUESTRIAN_SPORTS',
   ],
   yoga: ['YOGA', 'YOGA_BIKRAM', 'YOGA_HATHA', 'YOGA_POWER', 'YOGA_VINYASA'],
-  pilates: ['PILATES'],
+  pilates: ['PILATES', 'BARRE_CLASS'],
+  mobility: ['STRETCHING', 'TAI_CHI', 'MEDITATE'],
+  other: [
+    'OTHER', 'CLEANING', 'GARDENING', 'HOEING', 'HOUSEHOLD_CHORES', 'MOWING_LAWN', 'SHOVELING',
+    'WEEDING', 'CARPENTRY', 'PAINTING', 'MUSICAL_PERFORMANCE', 'FISHING', 'HUNTING', 'MOTOCROSS',
+    'MOTORCYCLE', 'SNOWMOBILING', 'PARAGLIDING', 'SKYDIVING',
+  ],
 };
+
+/**
+ * Kinds that gather different sports: How you work out keeps their types apart (tennis and
+ * football aren't one thing), where a run on a trail and on a treadmill are both runs.
+ */
+const UMBRELLA: ReadonlySet<WorkoutKind> = new Set(['paddle', 'skate', 'waterSport', 'winter', 'cardio', 'dance', 'martialArts', 'sport', 'mobility', 'other']);
+export const isUmbrella = (kind: WorkoutKind) => UMBRELLA.has(kind);
 
 const KIND_OF_TYPE = new Map<string, WorkoutKind>(
   (Object.entries(TYPES) as [WorkoutKind, string[]][]).flatMap(([kind, types]) => types.map((type) => [type, kind] as const)),
 );
 
+/** Every type placed here. */
+export const KNOWN_TYPES: ReadonlySet<string> = new Set(KIND_OF_TYPE.keys());
+
 export const kindOf = (w: Pick<Workout, 'type'>): WorkoutKind => KIND_OF_TYPE.get(w.type) ?? 'other';
 export const familyOf = (w: Pick<Workout, 'type'>): WorkoutFamily => KINDS[kindOf(w)];
 
-/** Whether a workout's big figure is its distance: on foot, on a bike, in the water. */
+/** Whether a workout's big figure is its distance: on foot, on wheels, boats and skates, in the water. */
 export const goesADistance = (w: Pick<Workout, 'type' | 'distanceKm'>) =>
-  w.distanceKm !== null && ['foot', 'bike', 'water'].includes(familyOf(w));
+  w.distanceKm !== null && ['foot', 'speed', 'water'].includes(familyOf(w));
 
 /**
  * The pace or speed a family is timed in: minutes a kilometre on foot, kilometres an hour on a
- * bike, minutes a hundred metres in the water. Null for the others, or without a distance.
+ * bike, a boat or skates, minutes a hundred metres in the water. Null for the others, or without a distance.
  */
 export function paceOf(w: Pick<Workout, 'type' | 'distanceKm' | 'activeMin'>): { measure: 'pace' | 'speed' | 'swimPace'; value: number } | null {
   if (!w.distanceKm || w.activeMin <= 0) return null;
   switch (familyOf(w)) {
     case 'foot':
       return { measure: 'pace', value: (w.activeMin * 60) / w.distanceKm };
-    case 'bike':
+    case 'speed':
       return { measure: 'speed', value: w.distanceKm / (w.activeMin / 60) };
     case 'water':
       return { measure: 'swimPace', value: (w.activeMin * 60) / (w.distanceKm * 10) };
@@ -595,14 +650,14 @@ export function mainKinds(workouts: DatedWorkout[]): ReturnType<typeof kindsIn> 
 }
 
 /** Each kind's share of the zone minutes from workouts, biggest first, with its sessions newest first. */
-export function kindsIn(workouts: DatedWorkout[]): { kind: WorkoutKind; label: string | null; sessions: DatedWorkout[]; zoneMinutes: number; minutes: number }[] {
-  const by = new Map<string, { kind: WorkoutKind; label: string | null; sessions: DatedWorkout[]; zoneMinutes: number; minutes: number }>();
+export function kindsIn(workouts: DatedWorkout[]): { kind: WorkoutKind; type: string | null; sessions: DatedWorkout[]; zoneMinutes: number; minutes: number }[] {
+  const by = new Map<string, { kind: WorkoutKind; type: string | null; sessions: DatedWorkout[]; zoneMinutes: number; minutes: number }>();
   for (const s of workouts) {
     const kind = kindOf(s.workout);
-    // Kinds the language file names group together; the rest go by Google's own name for them.
-    const label = kind === 'other' || kind === 'sport' ? s.workout.displayName : null;
-    const key = `${kind}|${label ?? ''}`;
-    const entry = by.get(key) ?? { kind, label, sessions: [], zoneMinutes: 0, minutes: 0 };
+    // A kind is one thing, except the ones that gather different sports: those go by type.
+    const type = UMBRELLA.has(kind) ? s.workout.type : null;
+    const key = `${kind}|${type ?? ''}`;
+    const entry = by.get(key) ?? { kind, type, sessions: [], zoneMinutes: 0, minutes: 0 };
     by.set(key, entry);
     entry.sessions.push(s);
     entry.zoneMinutes += zoneMinutesOf(s.workout);

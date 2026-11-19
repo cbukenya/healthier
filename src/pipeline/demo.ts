@@ -52,7 +52,11 @@ const HIIT_SINCE = 48;
  * Each extra workout's calorie burn, added to its day's, so a workout's burn stays part of its day's.
  * The weights' fits in the day as it is.
  */
-const EXTRA_BURN = { strength: 0, ride: 760, swim: 300, walk: 130, hiit: 330, spin: 380, tennis: 480, yoga: 110 } as const;
+const EXTRA_BURN = {
+  strength: 0, ride: 760, swim: 300, walk: 130, hiit: 330, spin: 380, tennis: 480, yoga: 110, row: 330, paddle: 420,
+  skate: 380, surf: 400, ski: 700, climb: 450, classes: 330, elliptical: 300, stairs: 260, dance: 380, kickbox: 520,
+  pilates: 130, stretch: 40, garden: 300,
+} as const;
 
 const WATCH = { recordingMethod: 'DERIVED', device: { displayName: 'Google Fitbit Air' }, platform: 'FITBIT' };
 const WATCH_PASSIVE = { recordingMethod: 'PASSIVELY_MEASURED', device: { displayName: 'Google Fitbit Air' }, platform: 'FITBIT' };
@@ -179,7 +183,7 @@ function demoDays(): DemoDay[] {
     // Saturdays without a hike; a ride on summer Sundays, or yoga. Mostly easier than the runs: they
     // add kinds more than effort, so the level stays a Blaze.
     const summer = month >= 5 && month <= 8;
-    const extra: DemoDay['extra'] =
+    const planned: DemoDay['extra'] =
       ago < 1 ? null
         : wd === 0 ? (ago <= STRENGTH_SINCE && g.chance(0.78) ? 'strength' : null)
           : wd === 2 ? (ago <= SWIM_SINCE && g.chance(0.45) ? 'swim' : g.chance(0.4) ? 'walk' : null)
@@ -187,6 +191,8 @@ function demoDays(): DemoDay[] {
               : wd === 5 ? (!workout && summer && g.chance(0.6) ? 'tennis' : null)
                 : wd === 6 ? (!workout && summer && g.chance(0.45) ? 'ride' : g.chance(0.4) ? 'yoga' : null)
                   : null;
+    // Each other kind once, in place of that day's usual extra; the generator draws as it would have.
+    const extra = ONE_OFF.get(ago) ?? planned;
     let steps = wd <= 4 ? 8600 : wd === 5 ? 11000 : 7400;
     if (winter) steps *= 0.86;
     if (ago < 14) steps *= 1.18; // the last fortnight, more walking than usual
@@ -382,7 +388,32 @@ const SESSION = {
   spin: { start: 18 * 60, minutes: 45, end: 128 },
   tennis: { start: 11 * 60, minutes: 75, end: 122 },
   yoga: { start: 10 * 60, minutes: 50, end: 88 },
+  // Once each, on the days in ONE_OFF.
+  row: { start: 18 * 60, minutes: 35, end: 122 },
+  paddle: { start: 10 * 60, minutes: 90, end: 110 },
+  skate: { start: 15 * 60 + 30, minutes: 50, end: 116 },
+  surf: { start: 10 * 60, minutes: 90, end: 108 },
+  ski: { start: 10 * 60, minutes: 150, end: 112 },
+  climb: { start: 18 * 60 + 30, minutes: 90, end: 104 },
+  classes: { start: 18 * 60, minutes: 45, end: 118 },
+  elliptical: { start: 18 * 60, minutes: 40, end: 120 },
+  stairs: { start: 18 * 60 + 30, minutes: 30, end: 124 },
+  dance: { start: 18 * 60, minutes: 60, end: 116 },
+  kickbox: { start: 18 * 60, minutes: 60, end: 124 },
+  pilates: { start: 19 * 60, minutes: 50, end: 92 },
+  stretch: { start: 12 * 60 + 15, minutes: 30, end: 80 },
+  garden: { start: 16 * 60, minutes: 90, end: 98 },
 } as const;
+
+/**
+ * Days ago the demo tries each of the other kinds once, so the Workouts tab shows every kind: on
+ * days nothing else is on at that hour, in the minute heart rate's window and the last 90 days,
+ * but before the last 4 weeks, so they don't move the level. And a yoga class on a recent Sunday.
+ */
+const ONE_OFF = new Map<number, Exclude<SessionKind, 'run' | 'hike'>>([
+  [8, 'yoga'], [29, 'skate'], [31, 'dance'], [33, 'climb'], [35, 'row'], [36, 'ski'], [38, 'classes'], [40, 'stairs'],
+  [42, 'kickbox'], [43, 'garden'], [47, 'stretch'], [49, 'elliptical'], [50, 'surf'], [54, 'pilates'], [57, 'paddle'],
+]);
 type SessionKind = keyof typeof SESSION;
 
 /**
@@ -413,6 +444,34 @@ function sessionBpm(kind: SessionKind, k: number, length: number, clock: number)
       return 104 + 20 * Math.abs(Math.sin(k / 2.2));
     case 'yoga':
       return 84 + 5 * Math.sin(k / 7);
+    case 'row':
+      return 108 + 24 * Math.sin(Math.PI * Math.min(1, (k / length) * 1.1)) + 4 * Math.sin(k / 2);
+    case 'paddle':
+      return 104 + 10 * Math.sin(k / 9);
+    case 'skate':
+      return 106 + 16 * Math.sin(Math.PI * Math.min(1, (k / length) * 1.1)) + 5 * Math.sin(k / 4);
+    case 'surf':
+      return 96 + 24 * Math.abs(Math.sin(k / 3.5));
+    case 'ski':
+      return 100 + 20 * Math.abs(Math.sin(k / 12));
+    case 'climb':
+      return 96 + 24 * Math.max(0, Math.sin(k / 2.5));
+    case 'classes':
+      return 104 + 20 * Math.sin(Math.PI * Math.min(1, (k / length) * 1.1)) + 6 * Math.sin(k / 2);
+    case 'elliptical':
+      return 108 + 22 * Math.sin(Math.PI * Math.min(1, (k / length) * 1.15));
+    case 'stairs':
+      return 110 + 24 * Math.sin(Math.PI * Math.min(1, (k / length) * 1.1));
+    case 'dance':
+      return 104 + 18 * Math.sin(Math.PI * Math.min(1, (k / length) * 1.1)) + 8 * Math.sin(k / 1.7);
+    case 'kickbox':
+      return k < 8 ? 98 + 3 * k : 116 + 22 * Math.abs(Math.sin(k / 2));
+    case 'pilates':
+      return 88 + 8 * Math.sin(k / 5);
+    case 'stretch':
+      return 76 + 4 * Math.sin(k / 6);
+    case 'garden':
+      return 90 + 10 * Math.sin(k / 8);
   }
 }
 
@@ -570,6 +629,20 @@ const EXERCISE = {
   spin: { type: 'SPINNING', name: 'Spinning' },
   tennis: { type: 'TENNIS', name: 'Tennis' },
   yoga: { type: 'YOGA', name: 'Yoga' },
+  row: { type: 'ROWING_MACHINE', name: 'Rowing machine' },
+  paddle: { type: 'KAYAKING', name: 'Kayaking' },
+  skate: { type: 'ROLLERBLADING', name: 'Rollerblading' },
+  surf: { type: 'SURFING', name: 'Surfing' },
+  ski: { type: 'SKIING', name: 'Skiing' },
+  climb: { type: 'INDOOR_CLIMBING', name: 'Indoor climbing' },
+  classes: { type: 'EXERCISE_CLASS', name: 'Exercise class' },
+  elliptical: { type: 'ELLIPTICAL', name: 'Elliptical' },
+  stairs: { type: 'STAIRCLIMBER', name: 'Stair climber' },
+  dance: { type: 'ZUMBA', name: 'Zumba' },
+  kickbox: { type: 'KICKBOXING', name: 'Kickboxing' },
+  pilates: { type: 'PILATES', name: 'Pilates' },
+  stretch: { type: 'STRETCHING', name: 'Stretching' },
+  garden: { type: 'GARDENING', name: 'Gardening' },
 } as const;
 
 /**
@@ -624,7 +697,10 @@ function workoutLog(days: DemoDay[], minutes: MinuteSeries) {
               : kind === 'spin' ? ((27 + 2 * progress + w.normal(0.6)) * active) / 60
                 : kind === 'walk' ? ((5.2 + w.normal(0.2)) * active) / 60
                   : kind === 'swim' ? (active * 60) / ((150 - 12 * progress + w.normal(3)) * 10) // a hundred metres in 2:30, down to 2:18
-                    : null;
+                    : kind === 'row' ? ((11 + w.normal(0.3)) * active) / 60
+                      : kind === 'paddle' ? ((6.5 + w.normal(0.3)) * active) / 60
+                        : kind === 'skate' ? ((16 + w.normal(0.6)) * active) / 60
+                          : null;
       // The whole burn: the run's, hike's and weights' a minute; the rest what their day was given, plus resting.
       const kcal =
         kind === 'run' ? length * (11.2 + w.normal(0.4))
@@ -675,7 +751,7 @@ function workoutLog(days: DemoDay[], minutes: MinuteSeries) {
           ...(kind === 'swim' && km ? { totalSwimLengths: Math.round((km * 1000) / 25) } : {}),
         },
         ...(splits.length ? { splits } : {}),
-        exerciseMetadata: { hasGps: kind === 'run' || kind === 'hike' || kind === 'ride' || kind === 'walk' },
+        exerciseMetadata: { hasGps: ['run', 'hike', 'ride', 'walk', 'paddle', 'skate', 'surf', 'ski'].includes(kind) },
       }));
     }
   });

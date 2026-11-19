@@ -282,7 +282,7 @@ function WhatYouDoCard({ workouts, wide }: { workouts: DatedWorkout[]; wide: boo
   // The span's main kinds: the few behind most of its zone minutes, four at most.
   const kinds = useMemo(() => mainKinds(workouts), [workouts]);
   const [pick, setPick] = useState<string | null>(null);
-  const keyOf = (k: { kind: WorkoutKind; label: string | null }) => `${k.kind}|${k.label ?? ''}`;
+  const keyOf = (k: { kind: WorkoutKind; type: string | null }) => `${k.kind}|${k.type ?? ''}`;
   const shown = kinds.find((k) => keyOf(k) === pick) ?? kinds[0];
   const total = useMemo(() => kindsIn(workouts).reduce((a, k) => a + k.zoneMinutes, 0), [workouts]);
   const progress = useMemo(() => (shown ? progressOf(shown.sessions) : null), [shown]);
@@ -309,7 +309,7 @@ function WhatYouDoCard({ workouts, wide }: { workouts: DatedWorkout[]; wide: boo
                 <WorkoutIcon kind={k.kind} />
                 <span className="block min-w-0 flex-1">
                   <span className="flex items-baseline justify-between gap-2">
-                    <span className="truncate text-body-sm font-medium text-zinc-100">{kindName(k.kind, k.label)}</span>
+                    <span className="truncate text-body-sm font-medium text-zinc-100">{kindName(k.kind, k.type)}</span>
                     <span className="font-display text-body tabular-nums text-zinc-50">{t('workouts.kindsCard.share', { percent: Math.round(share) })}</span>
                   </span>
                   <span className="mt-1.5 mb-1 block h-[5px] overflow-hidden rounded-[3px] bg-faint">
@@ -325,7 +325,7 @@ function WhatYouDoCard({ workouts, wide }: { workouts: DatedWorkout[]; wide: boo
         </div>
         {progress && (
           <div className="min-w-0 flex-[1.7_1_440px]">
-            <ProgressChart progress={progress} kind={kindName(shown.kind, shown.label)} wide={wide} />
+            <ProgressChart progress={progress} kind={kindName(shown.kind, shown.type)} wide={wide} />
           </div>
         )}
       </div>

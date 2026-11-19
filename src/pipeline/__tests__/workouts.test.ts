@@ -5,16 +5,52 @@ import { addDays, type CivilDate } from '../../lib/date';
 import { emptyRecord, normalize } from '../normalize';
 import { STREAMS } from '../registry';
 import {
-  LEVELS, calorieBurn, combineExercisePoints, familyOf, kindOf, kindsIn, levelHistory, levelIndex, loadAdvice, mainKinds, paceOf,
+  KINDS, KNOWN_TYPES, LEVELS, calorieBurn, combineExercisePoints, familyOf, kindOf, kindsIn, levelHistory, levelIndex, loadAdvice,
+  mainKinds, paceOf,
   parseWorkout, progressOf, restingKcalPerMinute, weeklyZoneMinutes, workoutHeart, workoutLevel, workoutLoad,
   workoutsIn, zoneMinutesOf,
 } from '../workouts';
 import { WHO_WEEK } from '../goals';
+import { hasMessage } from '../../i18n';
 import { DEMO_CLOCK, DEMO_DAYS, buildDemoPayloads } from '../demo';
 import { createFixtureFetch } from '../fixtures';
 import { HISTORY_QUERIES } from '../insights';
 import { DASHBOARD_WINDOW_DAYS, syncWithHistory, type SyncResult } from '../sync';
 import type { DailyRecord, IntradaySample, Workout } from '../../types/health';
+
+/**
+ * Google's exercise types, as its Health API v4 reference lists them (Exercise.ExerciseType at
+ * developers.google.com/health/reference/rest/v4/users.dataTypes.dataPoints, read 2026-11-19),
+ * EXERCISE_TYPE_UNSPECIFIED left out. If Google adds one, add it here and give it a kind.
+ */
+const GOOGLE_EXERCISE_TYPES = [
+  'AEROBIC_WORKOUT', 'ARCHERY', 'ASSAULT_BIKE', 'BACKPACKING', 'BADMINTON', 'BALLET', 'BALLROOM_DANCE',
+  'BARRE_CLASS', 'BASEBALL', 'BASKETBALL', 'BIKING', 'BILLIARDS', 'BODY_WEIGHT', 'BOOTCAMP', 'BOWLING', 'BOXING',
+  'BREAKDANCING', 'CALISTHENICS', 'CANOEING', 'CARDIO_SCULPT', 'CARDIO_WORKOUT', 'CARPENTRY', 'CHEERLEADING',
+  'CIRCUIT_TRAINING', 'CLEANING', 'CLIMBING', 'CORE_TRAINING', 'CRICKET', 'CROQUET', 'CROSS_COUNTRY_SKI',
+  'CROSS_TRAINING', 'CROSSFIT', 'CURLING', 'DANCING', 'DIVING', 'ELECTRIC_BIKE', 'ELECTRIC_SCOOTER', 'ELLIPTICAL',
+  'EQUESTRIAN_SPORTS', 'EXERCISE_CLASS', 'FENCING', 'FIELD_HOCKEY', 'FISHING', 'FITNESS_GAMING', 'FOILING',
+  'FOOTBALL_AMERICAN', 'FOOTBALL_AUSTRALIAN', 'FREE_WEIGHTS', 'FRISBEE_PLAYING_GENERAL',
+  'FUNCTIONAL_STRENGTH_TRAINING', 'GARDENING', 'GOLF', 'GYMNASTICS', 'HANDBALL', 'HAND_CYCLING', 'HIIT', 'HIKING',
+  'HIP_HOP', 'HOCKEY', 'HOEING', 'HOUSEHOLD_CHORES', 'HUNTING', 'ICE_SKATING', 'INCLINE_RUN', 'INCLINE_WALK',
+  'INDOOR_CLIMBING', 'INTERVAL_WORKOUT', 'JAZZ_DANCE', 'JIU_JITSU', 'JUMPING_ROPE', 'KARATE', 'KAYAKING',
+  'KICKBOXING', 'KITESURFING', 'LACROSSE', 'MARTIAL_ARTS', 'MEDITATE', 'MODERN_DANCE', 'MOTOCROSS', 'MOTORCYCLE',
+  'MOUNTAIN_BIKE', 'MOWING_LAWN', 'MUAY_THAI', 'MULTISPORT', 'MUSICAL_PERFORMANCE', 'NORDIC_WALKING',
+  'ORIENTEERING', 'OTHER', 'OUTDOOR_BIKE', 'OUTDOOR_WORKOUT', 'PADDLEBOARDING', 'PADEL', 'PAINTING',
+  'PARAGLIDING', 'PARKOUR', 'PICKELBALL', 'PILATES', 'POLO', 'POWERLIFTING', 'POWER_WALKING', 'RACKET_SPORTS',
+  'RACQUETBALL', 'RESISTANCE_BANDS', 'ROCK_CLIMBING', 'ROLLERBLADING', 'ROLLER_SKATING', 'ROWING',
+  'ROWING_MACHINE', 'RUCKING', 'RUGBY', 'RUNNING', 'SAILING', 'SCOOTERING', 'SCUBA_DIVING', 'SHOOTING',
+  'SHOVELING', 'SKATEBOARDING', 'SKATING', 'SKIING', 'SKYDIVING', 'SNORKELING', 'SNOWBOARDING', 'SNOWMOBILING',
+  'SNOWSHOEING', 'SNOW_SPORT', 'SOCCER', 'SOFTBALL', 'SPEED_SKATING', 'SPINNING', 'SPORT', 'SQUASH',
+  'STAIRCLIMBER', 'STATIONARY_BIKE', 'STEP_TRAINING', 'STRENGTH_TRAINING', 'STRETCHING', 'STROLLER_WALK',
+  'SURFING', 'SWIMMING', 'SWIMMING_OPEN_WATER', 'SWIMMING_POOL', 'SYNCHRONIZED_SWIMMING', 'TABATA_WORKOUT',
+  'TABLE_TENNIS', 'TAEKWONDO', 'TAI_CHI', 'TANGO', 'TENNIS', 'TRACK_AND_FIELD', 'TRAIL_RUN', 'TRAMPOLINE',
+  'TREADMILL', 'TREADMILL_WALK', 'TRX', 'ULTIMATE_FRISBEE', 'UNICYCLING', 'VOLLEYBALL', 'VOLLEYBALL_BEACH',
+  'WAKEBOARDING', 'WALKING', 'WALK_WITH_WEIGHTS', 'WATER_AEROBICS', 'WATER_JOGGING', 'WATER_POLO', 'WATER_SKIING',
+  'WATER_SPORT', 'WATER_VOLLEYBALL', 'WEEDING', 'WEIGHTLIFTING', 'WEIGHT_MACHINES', 'WEIGHTS', 'WHEELCHAIR',
+  'WINDSURFING', 'WORKOUT', 'WRESTLING', 'YOGA', 'YOGA_BIKRAM', 'YOGA_HATHA', 'YOGA_POWER', 'YOGA_VINYASA',
+  'ZUMBA',
+];
 
 const EXERCISE = STREAMS.find((s) => s.dataType === 'exercise')!;
 const WATCH = { recordingMethod: 'ACTIVELY_RECORDED', device: { displayName: 'Watch' }, platform: 'FITBIT' };
@@ -115,14 +151,39 @@ describe('workouts, as Google Health lists them', () => {
     assert.equal(combineExercisePoints(points).length, 2);
   });
 
-  it('puts every kind in a family, and names the rest as Google does', () => {
-    assert.equal(kindOf({ type: 'TRAIL_RUN' }), 'run');
-    assert.equal(familyOf({ type: 'MOUNTAIN_BIKE' }), 'bike');
+  it("places every one of Google's 181 exercise types in a kind, and makes none up", () => {
+    assert.equal(GOOGLE_EXERCISE_TYPES.length, 181);
+    assert.deepEqual(GOOGLE_EXERCISE_TYPES.filter((type) => !KNOWN_TYPES.has(type)), [], 'each of Google\'s types has a kind');
+    assert.deepEqual([...KNOWN_TYPES].filter((type) => !GOOGLE_EXERCISE_TYPES.includes(type)), [], 'no type Google doesn\'t have');
+    assert.ok(Object.keys(KINDS).every((kind) => GOOGLE_EXERCISE_TYPES.some((type) => kindOf({ type }) === kind)), 'and every kind has a type');
+  });
+
+  it('names every type in the language file, and every kind', () => {
+    assert.deepEqual(GOOGLE_EXERCISE_TYPES.filter((type) => !hasMessage(`workouts.types.${type}`)), []);
+    assert.deepEqual(Object.keys(KINDS).filter((kind) => !hasMessage(`workouts.kinds.${kind}`)), []);
+  });
+
+  it('puts each type where it belongs', () => {
+    const cases: [string, string][] = [
+      ['TRAIL_RUN', 'run'], ['TREADMILL', 'run'], ['RUCKING', 'walk'], ['WHEELCHAIR', 'walk'], ['BACKPACKING', 'hike'],
+      ['UNICYCLING', 'ride'], ['SPINNING', 'indoorRide'], ['ROWING_MACHINE', 'row'], ['KAYAKING', 'paddle'],
+      ['ROLLERBLADING', 'skate'], ['SWIMMING_OPEN_WATER', 'swim'], ['SURFING', 'waterSport'], ['SNOWBOARDING', 'winter'],
+      ['TRX', 'strength'], ['POWERLIFTING', 'strength'], ['WEIGHTS', 'strength'], ['BOULDERING', 'other'],
+      ['INDOOR_CLIMBING', 'climbing'], ['TABATA_WORKOUT', 'hiit'], ['ZUMBA', 'dance'], ['DANCING', 'dance'],
+      ['MUAY_THAI', 'martialArts'], ['PICKELBALL', 'sport'], ['SOCCER', 'sport'], ['BARRE_CLASS', 'pilates'],
+      ['TAI_CHI', 'mobility'], ['GARDENING', 'other'], ['OTHER', 'other'],
+    ];
+    assert.deepEqual(cases.map(([type]) => [type, kindOf({ type })]), cases, 'a type Google may add later is other until placed');
+  });
+
+  it('times each family by what suits it', () => {
+    assert.equal(familyOf({ type: 'MOUNTAIN_BIKE' }), 'speed');
+    assert.equal(familyOf({ type: 'KAYAKING' }), 'speed');
     assert.equal(familyOf({ type: 'SWIMMING_POOL' }), 'water');
     assert.equal(familyOf({ type: 'WEIGHTLIFTING' }), 'strength');
     assert.equal(familyOf({ type: 'HIIT' }), 'cardio');
     assert.equal(familyOf({ type: 'YOGA_VINYASA' }), 'mind');
-    assert.equal(kindOf({ type: 'UNICYCLING' }), 'other');
+    assert.equal(familyOf({ type: 'GARDENING' }), 'other');
   });
 
   it('times each family its own way: a run a kilometre, a ride by the hour, a swim a hundred metres', () => {
@@ -283,11 +344,9 @@ describe('the demo’s workouts', () => {
     }));
   });
 
-  it('does ten kinds of workout, with a run yesterday evening whose heart rate is in the window', () => {
-    const kinds = new Set(workoutsIn(history).map((w) => kindOf(w.workout)));
-    assert.deepEqual([...kinds].sort(), ['hiit', 'hike', 'indoorRide', 'ride', 'run', 'sport', 'strength', 'swim', 'walk', 'yoga']);
+  it('does every kind of workout in the last 90 days, with a run yesterday evening whose heart rate is in the window', () => {
     const recent = new Set(workoutsIn(history.slice(-90)).map((w) => kindOf(w.workout)));
-    assert.equal(recent.size, 10, 'all ten in the last 90 days, so the Workouts tab shows them all');
+    assert.deepEqual([...recent].sort(), Object.keys(KINDS).sort(), 'one of each kind at least, so every layout shows');
     const latest = workoutsIn(data.days)[0];
     assert.equal(latest.date, '2026-10-11');
     assert.equal(kindOf(latest.workout), 'run');

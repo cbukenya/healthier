@@ -356,6 +356,13 @@ activity scope Healthier already asks for.
   day first (`combineExercisePoints`), so the same run from a watch and from a phone app is two
   readings to choose between, never counted twice. Routes come only from Google's TCX export,
   which needs a location scope Healthier doesn't ask for, so they aren't read.
+- **Kinds.** Every one of Google's 181 exercise types is placed in one of 24 kinds (run, walk,
+  ride, swim, strength, HIIT, dance, martial arts, sport and so on), each with its own icon and
+  colour, and each kind in a family that sets its figures: pace a kilometre on foot, speed on
+  wheels, boats and skates, pace a hundred metres in the water, and time and effort for the rest.
+  A workout is named by its own type ("Trail run", "Kickboxing"). The tests hold the table to
+  Google's list, so a type is never missed or made up; one Google adds later is `other` until
+  it's placed.
 - **The level** is active zone minutes a week from workouts, over the last 4 weeks, on five steps
   set from the weekly target (`WHO_WEEK`): Embers under 30, Spark from 30, Flame from 75, Blaze from
   150 and Wildfire from 300. Its history is a bar a week (or the average week of each month, over a

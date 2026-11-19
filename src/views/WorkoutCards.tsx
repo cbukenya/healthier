@@ -1,10 +1,11 @@
 import React, { useId, useState } from 'react';
 import {
-  Activity, Bike, ChevronRight, Dumbbell, Flower2, Footprints, HeartPulse, Mountain, MountainSnow, Music, Sailboat,
-  Swords, TrendingUp, Trophy, Waves, Zap, type LucideIcon,
+  Activity, Bike, ChartNoAxesColumnIncreasing, ChevronRight, Dumbbell, Feather, Flower2, Footprints, Gauge, Hand,
+  HeartPulse, Infinity as Loop, Kayak, Leaf, Mountain, MountainSnow, Music, PersonStanding, Sailboat, Ship, Snowflake,
+  Volleyball, Waves, Wind, Zap, type LucideIcon,
 } from 'lucide-react';
 import { addDays, type CivilDate } from '../lib/date';
-import { t } from '../i18n';
+import { hasMessage, t } from '../i18n';
 import { rich } from '../i18n/react';
 import { formatCivilLong, formatClock, formatHours, formatInteger } from '../i18n/format';
 import { ZONE_NAMES, zoneOf, zoneStarts, zoneStops } from '../charts/heartRate';
@@ -40,38 +41,48 @@ export const levelName = (id: LevelId) => t(`workouts.level.names.${id}`);
 
 // ─────────────────────────────────────────────────────────────── words
 
+/** One icon a kind, none shared. */
 const ICONS: Record<WorkoutKind, LucideIcon> = {
   run: Footprints,
-  walk: Footprints,
+  walk: PersonStanding,
   hike: Mountain,
   ride: Bike,
-  indoorRide: Bike,
+  indoorRide: Gauge,
+  row: Ship,
+  paddle: Kayak,
+  skate: Wind,
   swim: Waves,
+  waterSport: Sailboat,
+  winter: Snowflake,
   strength: Dumbbell,
+  climbing: MountainSnow,
   hiit: Zap,
   cardio: HeartPulse,
-  row: Sailboat,
-  elliptical: TrendingUp,
-  stairs: TrendingUp,
+  elliptical: Loop,
+  stairs: ChartNoAxesColumnIncreasing,
   dance: Music,
-  boxing: Swords,
-  climbing: MountainSnow,
-  skiing: MountainSnow,
-  sport: Trophy,
+  martialArts: Hand,
+  sport: Volleyball,
   yoga: Flower2,
-  pilates: Flower2,
+  pilates: Feather,
+  mobility: Leaf,
   other: Activity,
 };
 
-/** A workout's name: the language file's for its kind, else Google's own, else just "Workout". */
-export function workoutName(w: Pick<Workout, 'type' | 'displayName'>): string {
-  const kind = kindOf(w);
-  if ((kind === 'other' || kind === 'sport') && w.displayName) return w.displayName;
-  return t(`workouts.kinds.${kind}`);
+/**
+ * A Google exercise type's name: the language file's (workouts.types), else Google's own for a
+ * type added since, else just "Workout".
+ */
+export function typeName(type: string, displayName: string | null = null): string {
+  const key = `workouts.types.${type}`;
+  return hasMessage(key) ? t(key) : displayName ?? t('workouts.types.OTHER');
 }
 
-/** The name of a kind as `kindsIn` groups it. */
-export const kindName = (kind: WorkoutKind, label: string | null) => label ?? t(`workouts.kinds.${kind}`);
+/** A workout's name: its own type's, so a trail run is a "Trail run". */
+export const workoutName = (w: Pick<Workout, 'type' | 'displayName'>) => typeName(w.type, w.displayName);
+
+/** The name of a kind as `kindsIn` groups it: the kind's, or the type's for a kind that gathers several sports. */
+export const kindName = (kind: WorkoutKind, type: string | null) => (type ? typeName(type) : t(`workouts.kinds.${kind}`));
 
 /**
  * Each kind's colour: the level's five colours in turn, down the list of kinds and round again,
@@ -180,7 +191,7 @@ export function latestFigures(w: Workout, heart: WorkoutHeart | null, restingPer
   const pace = paceOf(w);
   switch (familyOf(w)) {
     case 'foot':
-    case 'bike':
+    case 'speed':
     case 'water':
       if (pace) return [time, { label: t(pace.measure === 'speed' ? 'workouts.figures.speed' : 'workouts.figures.pace'), ...paceFigure(pace.measure, pace.value) }, avg, peak];
       return [time, burn, avg, peak];
