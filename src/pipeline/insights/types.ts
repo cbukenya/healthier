@@ -1,7 +1,7 @@
 export type Daypart = 'morning' | 'midday' | 'evening';
 
 /** Where a card lives: Today, or one of the pages with an insight carousel. The Cycle page has cards only while tracking is on. */
-export type Page = 'today' | 'activity' | 'sleep' | 'vitals' | 'body' | 'nutrition' | 'cycle';
+export type Page = 'today' | 'activity' | 'workouts' | 'sleep' | 'vitals' | 'body' | 'nutrition' | 'cycle';
 export type InsightPage = Exclude<Page, 'today'>;
 
 /** What sort of card it is; the page carousels show it as an icon chip. */

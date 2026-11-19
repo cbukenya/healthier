@@ -382,6 +382,17 @@ activity scope Healthier already asks for.
 - **Progress** for a kind of workout is its pace (a bike's speed, a swim's pace a hundred metres)
   on the sessions within 6 bpm of their median average heart rate, so an easy day and a race don't
   pass for progress; kinds without a distance show zone minutes a session.
+- **Insights** (`src/pipeline/insights/cards/workouts.ts`), in the Workouts tab's own carousel:
+  - the longest run, walk, hike, ride or swim, and the fastest 5 km (from the kilometre splits,
+    so it can sit inside a longer run), within the past year, through history queries on the
+    day's longest workout of each kind (`runKm` … `swimKm`, `run5kSeconds`);
+  - runs (or rides) at much the same pace taking 3 bpm or more less than in the 4 weeks before,
+    over 6 or more sessions each side;
+  - strength training on fewer than 2 days a week (`WHO_STRENGTH_DAYS`), only for people who
+    already lift;
+  - protein on strength days under 90% of the protein target, from whole days of food;
+  - on the evening of a hard workout that ended within 2 hours of the usual bedtime, how much
+    later this person has fallen asleep after such workouts, only when their own nights show it.
 
 ## Nutrition
 

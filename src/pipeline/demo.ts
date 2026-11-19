@@ -43,6 +43,11 @@ const TODAY: CivilDate = '2026-10-12';
 const AGE = 41;
 const MAX_HR = 220 - AGE;
 
+/** How many beats a minute easier the runs are at their hardest by the end of the minute heart rate's window. */
+const RUN_EASE = 20;
+/** Yesterday's run, a good one: its first 5 km this much faster a kilometre, so they're the year's fastest. */
+const GOOD_RUN = 20;
+
 /** Days ago the weights began (early June), the swims (January), the spin classes (November) and HIIT (late August). */
 const STRENGTH_SINCE = 130;
 const SWIM_SINCE = 280;
@@ -520,7 +525,10 @@ function minuteHeartRate(days: DemoDay[]): MinuteSeries {
         v = 94 + 4 * Math.sin(m / 6) + drift + r.normal(1.5);
       } else if (day.workout === 'run' && m >= 18 * 60 + 15 && m < 19 * 60) {
         const into = (m - 18 * 60 - 15) / 45;
-        v = 118 + 44 * Math.sin(Math.PI * Math.min(1, into * 1.15)) + drift * 0.6 + r.normal(2);
+        // Fitter over the window: the same runs take a few beats less each week, at their hardest most.
+        const ease = (RUN_EASE * k) / (window.length - 1);
+        const effort = Math.sin(Math.PI * Math.min(1, into * 1.15));
+        v = 118 + (44 - ease) * effort + drift * 0.6 + r.normal(2);
       } else if (day.workout === 'hike' && m >= 10 * 60 && m < 14 * 60 + 30) {
         v = 106 + 14 * Math.sin(m / 23) + drift + r.normal(2);
       } else if (day.extra && m >= SESSION[day.extra].start && m < SESSION[day.extra].start + SESSION[day.extra].minutes) {
@@ -724,7 +732,8 @@ function workoutLog(days: DemoDay[], minutes: MinuteSeries) {
       if (kind === 'run' && km) {
         let t = start;
         for (let j = 0; j < Math.floor(km); j++) {
-          const seconds = Math.round(pace + w.normal(7));
+          // Yesterday's run went out fast for 5 km and eased off after.
+          const seconds = Math.round(pace + w.normal(7) + (ago === 1 ? (j < 5 ? -GOOD_RUN : GOOD_RUN) : 0));
           const from = (t - start) / 60_000;
           splits.push({
             startTime: iso(t), endTime: iso(t + seconds * 1000), activeDuration: `${seconds}s`, splitType: 'DISTANCE',
@@ -803,7 +812,8 @@ function foodLog(days: DemoDay[]): any[] {
     // What the weight loss takes off each day, at 7,700 kcal a kilo: the same slopes the scale follows.
     const deficit = ago <= 120 ? 0.034 * 7700 : 0.007 * 7700;
     const kcal = clamp(2326 - deficit + (weekend ? 180 : -60) + (shortNight ? 300 : 0) + 0.35 * ((day.activeKcal ?? meanActive) - meanActive) + r.normal(130), 1400, 3400);
-    const proteinShare = clamp(0.2 + r.normal(0.025), 0.12, 0.3);
+    // A little less protein on lifting days, so the Workouts tab has something to say about it.
+    const proteinShare = clamp(0.2 + r.normal(0.025), 0.12, 0.3) * (day.extra === 'strength' ? 0.85 : 1);
     const fatShare = clamp(0.35 + r.normal(0.03), 0.25, 0.45);
     // Made to go with the night after, so the Nutrition page's patterns have something to find: more
     // fibre before more deep sleep, and late dinners before the mornings the heart rate sits higher.

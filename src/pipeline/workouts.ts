@@ -283,6 +283,41 @@ export function zoneMinutesOf(w: Pick<Workout, 'zoneMinutes' | 'zones'>): number
   return w.zones ? w.zones.moderate + 2 * (w.zones.vigorous + w.zones.peak) : 0;
 }
 
+/** A day's longest workout of one kind, in km, or null without one that went a distance. */
+export function longestOfKind(d: Pick<DailyRecord, 'workouts'>, kind: WorkoutKind): number | null {
+  let best: number | null = null;
+  for (const w of d.workouts ?? []) if (kindOf(w) === kind && w.distanceKm !== null && (best === null || w.distanceKm > best)) best = w.distanceKm;
+  return best;
+}
+
+/**
+ * A run's fastest stretch of `km` whole kilometres in a row, from its splits: the seconds, and the
+ * kilometre it starts at (1 for the first). Null without that many splits of about a kilometre.
+ */
+export function fastestStretch(w: Pick<Workout, 'splits'>, km: number): { seconds: number; from: number } | null {
+  const splits = w.splits;
+  let best: { seconds: number; from: number } | null = null;
+  for (let i = 0; i + km <= splits.length; i++) {
+    const run = splits.slice(i, i + km);
+    // Kilometre splits only: a mile's or a lap's would add up to something else.
+    if (!run.every((s) => Math.abs(s.distanceKm - 1) <= 0.05)) continue;
+    const seconds = run.reduce((a, s) => a + s.seconds, 0);
+    if (!best || seconds < best.seconds) best = { seconds, from: i + 1 };
+  }
+  return best;
+}
+
+/** A day's fastest 5 km on a run, in seconds, or null. */
+export function fastest5k(d: Pick<DailyRecord, 'workouts'>): number | null {
+  let best: number | null = null;
+  for (const w of d.workouts ?? []) {
+    if (kindOf(w) !== 'run') continue;
+    const s = fastestStretch(w, 5);
+    if (s && (best === null || s.seconds < best)) best = s.seconds;
+  }
+  return best;
+}
+
 /** Vigorous and peak minutes: how hard an interval session or a game was. */
 export const hardMinutesOf = (w: Pick<Workout, 'zones'>) => (w.zones ? w.zones.vigorous + w.zones.peak : null);
 

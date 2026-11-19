@@ -45,6 +45,13 @@ export const WHO_WEEK = 150;
 /** A day's share of the WHO's week, rounded up. */
 export const WHO_DAY = Math.ceil(WHO_WEEK / 7);
 
+/**
+ * The WHO's bar for muscle strengthening: activities that work all the major muscle groups on 2
+ * or more days a week, for the extra benefit they bring (WHO guidelines on physical activity,
+ * 2020). A guideline, not a setting, like WHO_WEEK.
+ */
+export const WHO_STRENGTH_DAYS = 2;
+
 export interface GoalLimit {
   min: number;
   max: number;

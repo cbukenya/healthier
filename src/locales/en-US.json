@@ -181,6 +181,10 @@
           "title": "Activity insights",
           "description": "What stands out in how you move: trends, streaks and records, worked out from your own data."
         },
+        "workouts": {
+          "title": "Workout insights",
+          "description": "What stands out in your workouts: records, fitness, and how they fit with your sleep and food, worked out from your own data."
+        },
         "sleep": {
           "title": "Sleep insights",
           "description": "What stands out in your nights: how long, how regular and which way they are heading, worked out from your own data."
@@ -321,6 +325,12 @@
         "title": "See {tab} for the latest",
         "text": "{count, plural, one {{titles} is on {tab} right now, so it isn't repeated here.} other {{titles} are on {tab} right now, so they aren't repeated here.}}",
         "quoted": "“{title}”"
+      },
+      "workoutsFloor": {
+        "titleEmpty": "No workouts lately",
+        "textEmpty": "Workouts you record on your devices show here, with what stands out in them.",
+        "title": "Nothing new in your workouts",
+        "text": "{count, plural, one {# workout} other {# workouts}} in the last 4 weeks, {minutes} zone minutes a week from them."
       },
       "activityFloor": {
         "titleEmpty": "No steps yet",
@@ -715,6 +725,32 @@
       },
       "common": {
         "bedtimeShift": "This week your average bedtime was {recent}. In the two weeks before, it was {prior}."
+      }
+    },
+    "workouts": {
+      "longest": {
+        "title": "{reach, select, year {Your longest {kind, select, run {run} walk {walk} hike {hike} ride {ride} other {swim}} in a year} other {Your longest {kind, select, run {run} walk {walk} hike {hike} ride {ride} other {swim}} yet}}",
+        "text": "{km} km on {date}. Your longest before that {span} was {previous} km."
+      },
+      "fastest5k": {
+        "title": "{reach, select, year {Your fastest 5 km in a year} other {Your fastest 5 km yet}}",
+        "text": "{whole, select, start {{time} for the first 5 km of your run on {date}.} other {{time} from kilometre {from} to {to} of your run on {date}.}} Your best before that {span} was {previous}."
+      },
+      "samePace": {
+        "title": "Same pace, less effort",
+        "text": "{kind, select, ride {Your rides at about {pace} km/h} other {Your runs at about {pace} /km}} took {now} bpm on average over the last 4 weeks, down from {before} in the 4 weeks before. Your heart is doing less work for the same speed."
+      },
+      "strengthDays": {
+        "title": "Strength on {target} days a week",
+        "text": "You did strength training on {count} days in the last 4 weeks. Guidelines suggest at least {target} days a week, or {total} in 4 weeks."
+      },
+      "strengthProtein": {
+        "title": "Protein on strength days",
+        "text": "On your strength days you ate {grams} g of protein on average, under your {target} g target.{others, select, reach { On other days you reach it.} other {}}"
+      },
+      "lateSleep": {
+        "title": "A late hard workout can push back sleep",
+        "text": "Tonight’s {name} ended at {time}. After hard workouts that end this late, you’ve fallen asleep about {minutes} minutes later than usual."
       }
     },
     "activity": {

@@ -18,6 +18,8 @@ import { SpanSelector, useSpan, type SpanId } from '../ui/span';
 import { useHistory } from '../hooks/useHistory';
 import { useGoals } from '../hooks/useGoals';
 import { useCycle } from '../hooks/useCycle';
+import { usePageInsights, type Clock } from '../hooks/usePageInsights';
+import { InsightsCarousel } from '../components/InsightsCarousel';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 import {
   FigureBox, HeartChart, HeartKey, LEVEL_COLOUR, kindColour, LatestWorkoutCard, LevelCard, LoadCard, Ruler, ScrubReadout, WORKOUT, WorkoutIcon,
@@ -31,9 +33,11 @@ import {
  * workouts were, and each workout with its heart rate, zones and splits. On a phone a workout
  * opens on a page of its own, with a way back.
  */
-export function WorkoutsView({ data, intraday, openId, onOpen }: {
+export function WorkoutsView({ data, intraday, clock, openId, onOpen }: {
   data: SyncResult;
   intraday?: IntradayDays;
+  /** Demo mode's clock, for the insights. */
+  clock?: Clock;
   /** The workout open, by id, from the address. */
   openId: string | null;
   /** Opens a workout, or closes it with null: `push` makes it a step Back returns from. */
@@ -48,6 +52,7 @@ export function WorkoutsView({ data, intraday, openId, onOpen }: {
   const spanState = useSpan(data, '90');
   const history = useHistory();
   const today = days.at(-1)?.date ?? null;
+  const insights = usePageInsights(data, 'workouts', clock, intraday);
 
   const level = useMemo(() => workoutLevel(days), [days]);
   const load = useMemo(() => workoutLoad(days), [days]);
@@ -120,6 +125,8 @@ export function WorkoutsView({ data, intraday, openId, onOpen }: {
         <WorkoutList workouts={inSpan} span={spanState.span} picked={picked?.id ?? null} onPick={(id) => onOpen(id, !split)} wide={split} />
         {split && picked && detail(picked)}
       </div>
+
+      <InsightsCarousel observations={insights} page="workouts" />
     </div>
   );
 }

@@ -88,7 +88,7 @@ export function ActivityView({ data, clock, intraday }: { data: SyncResult; cloc
       </div>
       </PageBar>
       {route.tab === 'workouts' ? (
-        <WorkoutsView data={data} intraday={intraday} openId={route.workout} onOpen={(id, push) => go('workouts', id, push)} />
+        <WorkoutsView data={data} intraday={intraday} clock={clock} openId={route.workout} onOpen={(id, push) => go('workouts', id, push)} />
       ) : (
         <ActivityOverview data={data} clock={clock} intraday={intraday} openWorkout={(id) => go('workouts', id, true)} />
       )}

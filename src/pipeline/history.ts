@@ -2,6 +2,7 @@ import { addDays, isoWeekdayIndex, type CivilDate } from '../lib/date';
 import type { DailyRecord } from '../types/health';
 import { scoreSleep, type SleepNorms } from './sleep';
 import { fillReading as fill, ownReading as own } from './sources';
+import { fastest5k, longestOfKind } from './workouts';
 
 /**
  * History queries: how anything that needs your older days asks for them.
@@ -70,6 +71,14 @@ export const MEASURES = {
   vo2Max: (d: DailyRecord) => d.vo2Max,
   weightKg: (d: DailyRecord) => d.weightKg,
   bodyFatPct: (d: DailyRecord) => d.bodyFatPct,
+  /** The day's longest workout of a kind that goes a distance, in km (pipeline/workouts.ts). */
+  runKm: (d: DailyRecord) => longestOfKind(d, 'run'),
+  walkKm: (d: DailyRecord) => longestOfKind(d, 'walk'),
+  hikeKm: (d: DailyRecord) => longestOfKind(d, 'hike'),
+  rideKm: (d: DailyRecord) => longestOfKind(d, 'ride'),
+  swimKm: (d: DailyRecord) => longestOfKind(d, 'swim'),
+  /** The day's fastest 5 km in a run, in seconds, from its kilometre splits. */
+  run5kSeconds: (d: DailyRecord) => fastest5k(d),
 } satisfies Record<string, (d: DailyRecord, norms?: SleepNorms) => number | null>;
 
 export type Measure = keyof typeof MEASURES;
