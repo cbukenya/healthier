@@ -98,7 +98,11 @@ function BatteryFigure({ score, gender, labelled, className }: {
     tag: stage.tag,
     offset: (stage.min + (i === 0 ? 100 : BATTERY_TIERS[i - 1].min)) / 200,
   })).reverse();
-  const rail = labelled ? { x: 240, width: 8, tickX: 235, tickWidth: 18, tickHeight: 3 } : { x: 236, width: 12, tickX: 229, tickWidth: 26, tickHeight: 5 };
+  // The rail draws about 8px wide on screen at either size, as the workout level's does, with a
+  // gap of about 2px between stages and the marker reaching past it on both sides.
+  const rail = labelled
+    ? { x: 237.75, width: 12.5, gap: 1.5, tickX: 230.75, tickWidth: 26.5, tickHeight: 3 }
+    : { x: 232.5, width: 19, gap: 2.4, tickX: 223.5, tickWidth: 37, tickHeight: 5 };
 
   return (
     <svg
@@ -155,8 +159,8 @@ function BatteryFigure({ score, gender, labelled, className }: {
           <g key={stage.tag}>
             <rect
               x={rail.x} width={rail.width} rx={rail.width / 2} fill={style.body} opacity={on ? 1 : 0.22}
-              y={top + (max === 100 ? 0 : 0.75)}
-              height={bottom - top - (max === 100 ? 0 : 0.75) - (stage.min === 0 ? 0 : 0.75)}
+              y={top + (max === 100 ? 0 : rail.gap)}
+              height={bottom - top - (max === 100 ? 0 : rail.gap) - (stage.min === 0 ? 0 : rail.gap)}
             />
             {labelled && (
               <>
