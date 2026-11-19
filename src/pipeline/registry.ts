@@ -6,6 +6,7 @@ import type { CycleLog } from './cycle';
 import type { SourcePrefs } from './sources';
 import { combineSleepPoints, parseSleepSession } from './sleep';
 import { combineNutritionPoints, entryTime } from './nutrition';
+import { combineExercisePoints, workoutDate } from './workouts';
 
 /**
  * THE REGISTRY — the one place field names live.
@@ -229,6 +230,27 @@ export const STREAMS: StreamDescriptor[] = [
     },
   },
 
+  {
+    dataType: 'exercise',
+    occasional: true,
+    label: 'Workouts',
+    domain: 'movement',
+    mode: 'list',
+    container: 'exercise',
+    scope: 'activity',
+    note:
+      'One point per workout, filed under the day it started. Each source\'s day is folded into one ' +
+      'point first (pipeline/workouts.ts), so a second app\'s copy of the same run is a second reading.',
+    prepare: combineExercisePoints,
+    rank: (c) => (Array.isArray(c?.workouts) ? c.workouts.reduce((a: number, w: any) => a + (w?.activeMin ?? 0), 0) : 0),
+    dateOf: (c) => c?.day ?? workoutDate(c),
+    apply(ctx, c) {
+      if (!Array.isArray(c?.workouts) || !c.workouts.length || ctx.row.workouts.length) return false;
+      ctx.row.workouts = c.workouts;
+      mark(ctx, 'exercise');
+      return true;
+    },
+  },
   // ───────────────────────────────────────────────────────────────── energy
   {
     dataType: 'total-calories',

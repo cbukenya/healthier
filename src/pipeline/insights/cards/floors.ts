@@ -5,6 +5,8 @@ import type { InsightContext } from '../context';
 import { sleepMins } from '../helpers';
 import { TREND_KG_PER_WEEK } from './body';
 import { isComplete } from '../../eating';
+import { workoutsIn, zoneMinutesOf } from '../../workouts';
+import { addDays } from '../../../lib/date';
 import { dayPlusMinus } from '../../cyclePhases';
 import type { Finding, InsightPage, Observation } from '../types';
 import { t } from '../../../i18n';
@@ -76,7 +78,7 @@ export function pageFloor(page: InsightPage, ctx: InsightContext, onToday: Obser
   return { ...floor, id: `${page}-floor`, page, domain: domainOf[page], ...floors[page](ctx) };
 }
 
-const domainOf = { activity: 'movement', sleep: 'sleep', vitals: 'cardio', body: 'body', nutrition: 'nutrition', cycle: 'cycle' } as const;
+const domainOf = { activity: 'movement', workouts: 'movement', sleep: 'sleep', vitals: 'cardio', body: 'body', nutrition: 'nutrition', cycle: 'cycle' } as const;
 
 type FloorCopy = { title: string; text: string };
 
@@ -93,6 +95,16 @@ const floors: Record<InsightPage, (ctx: InsightContext) => FloorCopy> = {
         weekBefore: sh.previous !== null ? 'known' : 'none',
         steps: Math.round(sh.current), previous: sh.previous !== null ? formatInteger(sh.previous) : '',
       }),
+    };
+  },
+
+  workouts(ctx) {
+    const recent = workoutsIn(ctx.days.filter((d) => d.date > addDays(ctx.today, -28)));
+    if (!recent.length) return { title: t('insights.floors.workoutsFloor.titleEmpty'), text: t('insights.floors.workoutsFloor.textEmpty') };
+    const zone = recent.reduce((a, w) => a + zoneMinutesOf(w.workout), 0);
+    return {
+      title: t('insights.floors.workoutsFloor.title'),
+      text: t('insights.floors.workoutsFloor.text', { count: recent.length, minutes: Math.round(zone / 4) }),
     };
   },
 

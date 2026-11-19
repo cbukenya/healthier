@@ -44,6 +44,7 @@ export function emptyRecord(date: CivilDate): DailyRecord {
     hydrationL: null,
     bloodGlucoseMgDl: null,
     nutrition: null,
+    workouts: [],
     present: [],
     sources: [],
     sourceByType: {},

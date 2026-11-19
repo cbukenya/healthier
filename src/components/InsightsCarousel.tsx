@@ -105,6 +105,7 @@ function KindIcon({ obs }: { obs: Observation }) {
 /** Each page's carousel: its title, what it covers, and its own disclaimer where the general one isn't enough. */
 const PAGE_COPY: Record<InsightPage, { title: MessageKey; description: MessageKey; disclaimer?: MessageKey }> = {
   activity: { title: 'insights.carousel.pages.activity.title', description: 'insights.carousel.pages.activity.description' },
+  workouts: { title: 'insights.carousel.pages.workouts.title', description: 'insights.carousel.pages.workouts.description' },
   sleep: { title: 'insights.carousel.pages.sleep.title', description: 'insights.carousel.pages.sleep.description' },
   vitals: { title: 'insights.carousel.pages.vitals.title', description: 'insights.carousel.pages.vitals.description' },
   body: { title: 'insights.carousel.pages.body.title', description: 'insights.carousel.pages.body.description' },

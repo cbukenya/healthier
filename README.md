@@ -70,7 +70,7 @@ place at a time: on Today while it matters, otherwise on its own page.
 
 <table>
   <tr>
-    <td width="50%" valign="top"><img src="docs/screenshots/activity.png" alt="The Activity page"><br><b>Activity.</b> Steps and brisk minutes against your goals and the WHO's 150 minutes a week. Energy, distance, intensity and weekly totals, from 14 days back to all your history.</td>
+    <td width="50%" valign="top"><img src="docs/screenshots/activity.png" alt="The Activity page"><br><b>Activity.</b> Steps and brisk minutes against your goals and the WHO's 150 minutes a week. Calorie burn, distance, intensity and weekly totals, from 14 days back to all your history. A Workouts tab shows your workout level, your load against your usual week, and each workout's heart rate and zones.</td>
     <td width="50%" valign="top"><img src="docs/screenshots/sleep.png" alt="The Sleep page"><br><b>Sleep.</b> A sleep score with its parts and your stages through the night. Your sleep window across the month, regularity, naps, and sleep debt against your own need.</td>
   </tr>
   <tr>

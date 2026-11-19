@@ -128,6 +128,7 @@ export function buildFixturePayloads(days: FixtureDay[] = parseFixtureSeries()):
   // Streams that exist but hold nothing — a 200 with an empty array, which must
   // read as "never logged", not as an error.
   out['floors'] = { rollupDataPoints: [] };
+  out['exercise'] = { dataPoints: [] };
   out['hydration-log'] = { rollupDataPoints: [] };
   out['blood-glucose'] = { rollupDataPoints: [] };
 

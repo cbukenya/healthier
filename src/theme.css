@@ -66,6 +66,17 @@
   --figure-ink-low: var(--figure-low);
   --figure-ink-drained: var(--figure-drained);
 
+  /*
+   * Workouts: the level's five steps climb from indigo embers through a lime blaze to a pink
+   * wildfire, and the lime marks the page's workouts: what's picked, a workout card's glow.
+   */
+  --level-embers: #43329f;
+  --level-spark: #6b5bd6;
+  --level-flame: #9e93f0;
+  --level-blaze: #c8f560;
+  --level-wildfire: #ff6bb5;
+  --workout: #c8f560;
+
   /* An insight card's glow in its far corner: good, worth watching, neither. */
   --glow-good: var(--emerald-400);
   --glow-watch: var(--amber-500);
@@ -262,6 +273,13 @@
   --figure-ink-low: #b45309;
   --figure-ink-drained: #be123c;
 
+  /* The level's steps and the workouts' lime, a shade darker, so they hold on white. */
+  --level-embers: #3b2c8c;
+  --level-spark: #5a4bc4;
+  --level-flame: #7d70de;
+  --level-blaze: #65a30d;
+  --level-wildfire: #db2777;
+  --workout: #4d7c0f;
   /* An insight card's glow takes dark's brighter shades too: on white the darker ones turn muddy. */
   --glow-good: #34d399;
   --glow-watch: #f59e0b;

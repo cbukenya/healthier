@@ -147,12 +147,12 @@ describe('the demo, every page on Monday 12 October', () => {
     }));
   });
 
-  it('reads 200 active zone minutes for 5–11 October on Today, Activity and the brisk activity card', () => {
+  it('reads 490 active zone minutes for 5–11 October on Today, Activity and the brisk activity card, its workouts included', () => {
     const days = data.days;
-    assert.equal(weekSummary(days)!.activeMinutes!.total, 200);
-    assert.equal(whoWeek(completedDays(days).slice(-7))!.total, 200);
+    assert.equal(weekSummary(days)!.activeMinutes!.total, 490);
+    assert.equal(whoWeek(completedDays(days).slice(-7))!.total, 490);
     const card = evaluate(data, DEMO_CLOCK.now, { timeZone: DEMO_CLOCK.timeZone })!.found.find((f) => f.id === 'mvpa-up')!;
-    assert.equal(card.text, 'You earned 200 active zone minutes over the last 7 days, up from 131 the week before. The WHO recommends 150 a week.');
+    assert.equal(card.text, 'You earned 490 active zone minutes over the last 7 days, up from 352 the week before. The WHO recommends 150 a week.');
   });
 
   it('gives Activity’s 30-day summary the figures Today’s month shows', () => {
@@ -164,7 +164,7 @@ describe('the demo, every page on Monday 12 October', () => {
     assert.equal(Math.round(mean(steps)), 10971, 'the steps chart’s average, today left out');
     assert.equal(month.steps!.atGoal, 17);
     assert.equal(steps.filter((s) => s >= DEFAULT_GOALS.steps).length, 17, 'days over 10,000');
-    assert.equal(Math.round(month.activeMinutes!.perWeek), 126);
-    assert.equal(Math.round(whoWeek(full)!.perWeek), 126, 'active zone minutes a week');
+    assert.equal(Math.round(month.activeMinutes!.perWeek), 334);
+    assert.equal(Math.round(whoWeek(full)!.perWeek), 334, 'active zone minutes a week');
   });
 });

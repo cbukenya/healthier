@@ -10,6 +10,7 @@ import { todayCards } from './cards/today';
 import { vitalsCards, vitalsQueries } from './cards/vitals';
 import { cycleCards } from './cards/cycle';
 import { nutritionCards } from './cards/nutrition';
+import { workoutCards, workoutQueries } from './cards/workouts';
 import type { Finding, InsightFeeds } from './types';
 
 /**
@@ -59,7 +60,7 @@ import type { Finding, InsightFeeds } from './types';
  * request. Each page's cards declare their own beside the code that reads the
  * answers.
  */
-export const HISTORY_QUERIES: HistoryQueries = { ...activityQueries, ...sleepQueries, ...vitalsQueries, ...bodyQueries, ...cycleQueries };
+export const HISTORY_QUERIES: HistoryQueries = { ...activityQueries, ...workoutQueries, ...sleepQueries, ...vitalsQueries, ...bodyQueries, ...cycleQueries };
 
 export function evaluate(ds: InsightDataset, now: Date = new Date(), extras?: InsightOptions) {
   const ctx = buildContext(ds, now, extras);
@@ -68,6 +69,7 @@ export function evaluate(ds: InsightDataset, now: Date = new Date(), extras?: In
   const add = (f: Finding) => found.push(f);
   todayCards(ctx, add);
   activityCards(ctx, add);
+  workoutCards(ctx, add);
   sleepCards(ctx, add);
   vitalsCards(ctx, cycleAware(ds, now, extras, ctx, add));
   bodyCards(ctx, add);
