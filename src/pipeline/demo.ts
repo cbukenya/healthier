@@ -22,8 +22,8 @@ import type { CycleDay, CycleLog, Flow } from './cycle';
  *   - minute heart rate for the whole 62-day window: commutes, runs, hikes, nights asleep, and a
  *     run yesterday evening, so the last 24 hours climb through the zones;
  *   - their workouts: runs on Tuesdays and Thursdays, getting longer and a little faster over the
- *     year, hikes on some Saturdays, rides on summer Sundays and, since June, weights on Mondays,
- *     so the workout level climbs from a Flame to a Blaze;
+ *     year, hikes on some Saturdays, and ten kinds in all: weights, swims, walks, HIIT and spin
+ *     classes, tennis, rides and yoga, so the workout level climbs from a Flame to a Blaze;
  *   - cycles all year, in their nights, three periods logged, and the demo morning on day 22.
  *
  * It goes through buildFixturePayloads and the fixture server like the test data, so demo mode
@@ -43,10 +43,16 @@ const TODAY: CivilDate = '2026-10-12';
 const AGE = 41;
 const MAX_HR = 220 - AGE;
 
-/** Days ago the weights began: early June. */
+/** Days ago the weights began (early June), the swims (January), the spin classes (November) and HIIT (late August). */
 const STRENGTH_SINCE = 130;
-/** A summer ride's calorie burn, added to its day's. */
-const RIDE_BURN = 760;
+const SWIM_SINCE = 280;
+const SPIN_SINCE = 330;
+const HIIT_SINCE = 48;
+/**
+ * Each extra workout's calorie burn, added to its day's, so a workout's burn stays part of its day's.
+ * The weights' fits in the day as it is.
+ */
+const EXTRA_BURN = { strength: 0, ride: 760, swim: 300, walk: 130, hiit: 330, spin: 380, tennis: 480, yoga: 110 } as const;
 
 const WATCH = { recordingMethod: 'DERIVED', device: { displayName: 'Google Fitbit Air' }, platform: 'FITBIT' };
 const WATCH_PASSIVE = { recordingMethod: 'PASSIVELY_MEASURED', device: { displayName: 'Google Fitbit Air' }, platform: 'FITBIT' };
@@ -98,7 +104,7 @@ interface DemoDay extends FixtureDay {
   rough: boolean;
   workout: 'run' | 'hike' | null;
   /** A workout beside the runs and hikes, chosen apart so the rest of the year's numbers stay as they were. */
-  extra: 'strength' | 'ride' | null;
+  extra: Exclude<SessionKind, 'run' | 'hike'> | null;
   weight: number | null;
   bodyFat: number | null;
 }
@@ -168,11 +174,19 @@ function demoDays(): DemoDay[] {
     // ── movement: weekdays to work and back, longer weekends, runs on Tuesday and Thursday.
     let workout: DemoDay['workout'] = date === hike || (wd === 5 && r.chance(0.35)) ? 'hike' : (wd === 1 || wd === 3) && r.chance(0.85) ? 'run' : null;
     if (ago === 1) workout = 'run'; // yesterday evening, so the last 24 hours of heart rate cross the zones
-    // Weights on Monday evenings since June, and a ride on summer Sundays.
+    // Beside the runs and hikes: weights on Mondays since June; a swim (since January) or a walk on
+    // Wednesdays; HIIT (since late August) or a spin class (since November) on Fridays; tennis on summer
+    // Saturdays without a hike; a ride on summer Sundays, or yoga. Mostly easier than the runs: they
+    // add kinds more than effort, so the level stays a Blaze.
+    const summer = month >= 5 && month <= 8;
     const extra: DemoDay['extra'] =
-      wd === 0 && ago >= 1 && ago <= STRENGTH_SINCE && g.chance(0.78) ? 'strength'
-        : wd === 6 && !workout && month >= 5 && month <= 9 && g.chance(0.45) ? 'ride'
-          : null;
+      ago < 1 ? null
+        : wd === 0 ? (ago <= STRENGTH_SINCE && g.chance(0.78) ? 'strength' : null)
+          : wd === 2 ? (ago <= SWIM_SINCE && g.chance(0.45) ? 'swim' : g.chance(0.4) ? 'walk' : null)
+            : wd === 4 ? (ago <= HIIT_SINCE && g.chance(0.35) ? 'hiit' : ago <= SPIN_SINCE && g.chance(0.3) ? 'spin' : null)
+              : wd === 5 ? (!workout && summer && g.chance(0.6) ? 'tennis' : null)
+                : wd === 6 ? (!workout && summer && g.chance(0.45) ? 'ride' : g.chance(0.4) ? 'yoga' : null)
+                  : null;
     let steps = wd <= 4 ? 8600 : wd === 5 ? 11000 : 7400;
     if (winter) steps *= 0.86;
     if (ago < 14) steps *= 1.18; // the last fortnight, more walking than usual
@@ -183,7 +197,7 @@ function demoDays(): DemoDay[] {
     const vigorous = workout === 'run' ? round(32 + r.normal(5)) : workout === 'hike' ? round(28 + r.normal(8)) : Math.max(0, round(r.normal(3)));
     const moderate = Math.max(0, round((workout === 'hike' ? 70 : 16) + r.normal(7)));
     const light = Math.max(40, round(170 + steps / 120 + r.normal(25)));
-    const activeKcal = round(steps * 0.042 + vigorous * 7 + moderate * 3) + (extra === 'ride' ? RIDE_BURN : 0);
+    const activeKcal = round(steps * 0.042 + vigorous * 7 + moderate * 3) + (extra ? EXTRA_BURN[extra] : 0);
     const floors = Math.max(0, round((workout === 'hike' ? 55 : 9) + r.normal(3)));
 
     // ── sleep: about 7h20 a night, later at weekends, a short busy week before a good last night.
@@ -362,6 +376,12 @@ const SESSION = {
   hike: { start: 10 * 60, minutes: 270, end: 110 },
   strength: { start: 18 * 60, minutes: 50, end: 112 },
   ride: { start: 10 * 60, minutes: 90, end: 126 },
+  swim: { start: 19 * 60, minutes: 40, end: 118 },
+  walk: { start: 12 * 60 + 15, minutes: 40, end: 100 },
+  hiit: { start: 18 * 60, minutes: 30, end: 132 },
+  spin: { start: 18 * 60, minutes: 45, end: 128 },
+  tennis: { start: 11 * 60, minutes: 75, end: 122 },
+  yoga: { start: 10 * 60, minutes: 50, end: 88 },
 } as const;
 type SessionKind = keyof typeof SESSION;
 
@@ -380,6 +400,19 @@ function sessionBpm(kind: SessionKind, k: number, length: number, clock: number)
       return k < 6 ? 92 + 3 * k : 104 + 18 * Math.max(0, Math.sin((Math.PI * ((k - 6) % 4)) / 2.2));
     case 'ride':
       return 122 + 10 * Math.sin(k / 7) + 6 * Math.sin(k / 19);
+    case 'swim':
+      return 100 + 16 * Math.sin(Math.PI * Math.min(1, (k / length) * 1.1)) + 5 * Math.sin(k / 2.5);
+    case 'walk':
+      return 96 + 6 * Math.sin(k / 6);
+    case 'hiit':
+      // Warm up, then hard and easy minutes in turn, then ease down.
+      return k < 5 ? 100 + 6 * k : k >= length - 4 ? 135 - 6 * (k - (length - 4)) : (k % 2 ? 134 : 158) + 4 * Math.sin(k / 3);
+    case 'spin':
+      return 106 + 20 * Math.sin(Math.PI * Math.min(1, (k / length) * 1.1)) + 6 * Math.sin(k / 3);
+    case 'tennis':
+      return 104 + 20 * Math.abs(Math.sin(k / 2.2));
+    case 'yoga':
+      return 84 + 5 * Math.sin(k / 7);
   }
 }
 
@@ -531,6 +564,12 @@ const EXERCISE = {
   hike: { type: 'HIKING', name: 'Hike' },
   strength: { type: 'WEIGHTLIFTING', name: 'Weights' },
   ride: { type: 'BIKING', name: 'Bike' },
+  swim: { type: 'SWIMMING_POOL', name: 'Pool swim' },
+  walk: { type: 'WALKING', name: 'Walk' },
+  hiit: { type: 'HIIT', name: 'HIIT' },
+  spin: { type: 'SPINNING', name: 'Spinning' },
+  tennis: { type: 'TENNIS', name: 'Tennis' },
+  yoga: { type: 'YOGA', name: 'Yoga' },
 } as const;
 
 /**
@@ -582,14 +621,24 @@ function workoutLog(days: DemoDay[], minutes: MinuteSeries) {
         kind === 'run' ? (active * 60) / pace
           : kind === 'hike' ? (day.steps ?? 18000) * 0.85 * 0.00071
             : kind === 'ride' ? ((23 + 3 * progress + w.normal(0.8)) * active) / 60
-              : null;
+              : kind === 'spin' ? ((27 + 2 * progress + w.normal(0.6)) * active) / 60
+                : kind === 'walk' ? ((5.2 + w.normal(0.2)) * active) / 60
+                  : kind === 'swim' ? (active * 60) / ((150 - 12 * progress + w.normal(3)) * 10) // a hundred metres in 2:30, down to 2:18
+                    : null;
+      // The whole burn: the run's, hike's and weights' a minute; the rest what their day was given, plus resting.
       const kcal =
         kind === 'run' ? length * (11.2 + w.normal(0.4))
           : kind === 'hike' ? length * (5.1 + w.normal(0.2))
-            : kind === 'ride' ? RIDE_BURN * (0.97 + w.next() * 0.03) + (length * 1740) / 1440
-              : length * (6.2 + w.normal(0.3));
-      const steps = kind === 'run' ? Math.round(length * (154 + w.normal(1.5))) : kind === 'hike' ? Math.round((day.steps ?? 18000) * 0.85) : null;
-      const climb = kind === 'run' ? 36 + w.next() * 10 : kind === 'hike' ? 120 + w.next() * 140 : kind === 'ride' ? 180 + w.next() * 150 : null;
+            : kind === 'strength' ? length * (6.2 + w.normal(0.3))
+              : EXTRA_BURN[kind] * (0.97 + w.next() * 0.03) + (length * 1740) / 1440;
+      const steps =
+        kind === 'run' ? Math.round(length * (154 + w.normal(1.5)))
+          : kind === 'hike' ? Math.round((day.steps ?? 18000) * 0.85)
+            : kind === 'walk' ? Math.round(length * (112 + w.normal(2)))
+              : kind === 'tennis' ? Math.round(length * (70 + w.normal(4)))
+                : null;
+      const climb =
+        kind === 'run' ? 36 + w.next() * 10 : kind === 'hike' ? 120 + w.next() * 140 : kind === 'ride' ? 180 + w.next() * 150 : kind === 'walk' ? 15 + w.next() * 15 : null;
       const mean = (from: number, to: number) => {
         const part = curve.slice(Math.floor(from), Math.max(Math.floor(from) + 1, Math.ceil(to)));
         return Math.round(part.reduce((a, b) => a + b, 0) / part.length);
@@ -623,9 +672,10 @@ function workoutLog(days: DemoDay[], minutes: MinuteSeries) {
           heartRateZoneDurations: { lightTime: `${z.light * 60}s`, moderateTime: `${z.moderate * 60}s`, vigorousTime: `${z.vigorous * 60}s`, peakTime: `${z.peak * 60}s` },
           ...(climb ? { elevationGainMillimeters: Math.round(climb * 1000) } : {}),
           ...(kind === 'run' ? { mobilityMetrics: { avgCadenceStepsPerMinute: Math.round(154 + 4 * progress + w.normal(1)) } } : {}),
+          ...(kind === 'swim' && km ? { totalSwimLengths: Math.round((km * 1000) / 25) } : {}),
         },
         ...(splits.length ? { splits } : {}),
-        exerciseMetadata: { hasGps: kind !== 'strength' },
+        exerciseMetadata: { hasGps: kind === 'run' || kind === 'hike' || kind === 'ride' || kind === 'walk' },
       }));
     }
   });

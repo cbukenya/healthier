@@ -1310,7 +1310,7 @@
       "readout": "{by, select, month {{date} · {minutes} zone min a week{partial, select, yes { so far} other {}}} other {Week of {date} · {minutes} zone min{partial, select, yes { so far} other {}}}}"
     },
     "kindsCard": {
-      "title": "What you do",
+      "title": "How you work out",
       "hint": "Where your zone minutes came from. Pick one to see how it’s going.",
       "tabs": "Kinds of workout",
       "share": "{percent}%",

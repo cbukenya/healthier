@@ -10,7 +10,7 @@ import { formatCivilLong, formatClock, formatHours, formatInteger } from '../i18
 import { ZONE_NAMES, zoneOf, zoneStarts, zoneStops } from '../charts/heartRate';
 import { batteryTier } from '../pipeline/derive';
 import {
-  COOL_DOWN_MIN, LEVELS, calorieBurn, familyOf, goesADistance, hardMinutesOf, kindOf, levelStarts, loadAdvice,
+  COOL_DOWN_MIN, KINDS, LEVELS, calorieBurn, familyOf, goesADistance, hardMinutesOf, kindOf, levelStarts, loadAdvice,
   paceOf, zoneMinutesOf, type DatedWorkout, type LevelId, type WorkoutHeart, type WorkoutKind, type WorkoutLevel,
   type WorkoutLoad,
 } from '../pipeline/workouts';
@@ -73,13 +73,23 @@ export function workoutName(w: Pick<Workout, 'type' | 'displayName'>): string {
 /** The name of a kind as `kindsIn` groups it. */
 export const kindName = (kind: WorkoutKind, label: string | null) => label ?? t(`workouts.kinds.${kind}`);
 
-/** The kind's icon in a small tinted square. */
+/**
+ * Each kind's colour: the level's five colours in turn, down the list of kinds and round again,
+ * starting from the Blaze lime with the run, so neighbouring kinds rarely share one.
+ */
+export function kindColour(kind: WorkoutKind): string {
+  const i = (Object.keys(KINDS) as WorkoutKind[]).indexOf(kind);
+  return LEVEL_COLOUR[LEVELS[(i + LEVELS.indexOf('blaze')) % LEVELS.length]];
+}
+
+/** The kind's icon in a small square tinted in its colour; the icon a touch toward the text, so the darkest colour still reads. */
 export function WorkoutIcon({ kind, size = 32 }: { kind: WorkoutKind; size?: number }) {
   const Icon = ICONS[kind];
+  const colour = kindColour(kind);
   return (
     <span
       className="flex shrink-0 items-center justify-center rounded-[10px]"
-      style={{ width: size, height: size, background: tint(WORKOUT, 12), color: WORKOUT }}
+      style={{ width: size, height: size, background: tint(colour, 16), color: `color-mix(in srgb, ${colour} 75%, var(--color-zinc-50))` }}
       aria-hidden="true"
     >
       <Icon size={Math.round(size / 2)} strokeWidth={2} />

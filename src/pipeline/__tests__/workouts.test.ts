@@ -272,9 +272,11 @@ describe('the demo’s workouts', () => {
     }));
   });
 
-  it('runs, hikes, rides and lifts, with a run yesterday evening whose heart rate is in the window', () => {
+  it('does ten kinds of workout, with a run yesterday evening whose heart rate is in the window', () => {
     const kinds = new Set(workoutsIn(history).map((w) => kindOf(w.workout)));
-    assert.deepEqual([...kinds].sort(), ['hike', 'ride', 'run', 'strength']);
+    assert.deepEqual([...kinds].sort(), ['hiit', 'hike', 'indoorRide', 'ride', 'run', 'sport', 'strength', 'swim', 'walk', 'yoga']);
+    const recent = new Set(workoutsIn(history.slice(-90)).map((w) => kindOf(w.workout)));
+    assert.equal(recent.size, 10, 'all ten in the last 90 days, so the Workouts tab shows them all');
     const latest = workoutsIn(data.days)[0];
     assert.equal(latest.date, '2026-10-11');
     assert.equal(kindOf(latest.workout), 'run');

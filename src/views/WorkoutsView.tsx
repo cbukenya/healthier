@@ -20,7 +20,7 @@ import { useGoals } from '../hooks/useGoals';
 import { useCycle } from '../hooks/useCycle';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 import {
-  FigureBox, HeartChart, HeartKey, LEVEL_COLOUR, LatestWorkoutCard, LevelCard, LoadCard, Ruler, ScrubReadout, WORKOUT, WorkoutIcon,
+  FigureBox, HeartChart, HeartKey, LEVEL_COLOUR, kindColour, LatestWorkoutCard, LevelCard, LoadCard, Ruler, ScrubReadout, WORKOUT, WorkoutIcon,
   ZONE_COLOURS, ZONE_KEYS, allFigures, bigFigure, formatPace, heartLabel, kindName, levelName, spanLabel, workoutName,
   workoutTime, zoneRange, type HeartScrub,
 } from './WorkoutCards';
@@ -312,7 +312,7 @@ function WhatYouDoCard({ workouts, wide }: { workouts: DatedWorkout[]; wide: boo
                     <span className="font-display text-body tabular-nums text-zinc-50">{t('workouts.kindsCard.share', { percent: Math.round(share) })}</span>
                   </span>
                   <span className="mt-1.5 mb-1 block h-[5px] overflow-hidden rounded-[3px] bg-faint">
-                    <span className="block h-full rounded-[3px]" style={{ width: `${share}%`, background: WORKOUT }} />
+                    <span className="block h-full rounded-[3px]" style={{ width: `${share}%`, background: kindColour(k.kind) }} />
                   </span>
                   <span className="block text-caption text-zinc-500">
                     {t('workouts.kindsCard.detail', { count: k.sessions.length, time: workoutTime(k.minutes) })}
