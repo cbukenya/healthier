@@ -1553,7 +1553,10 @@
       "title": "Your workouts",
       "count": "{span, select, all {{count} in all} year {{count} in the past year} other {{count} in {days} days}}",
       "row": "{time} · {minutes} zone min",
-      "none": "No workouts in this span."
+      "none": "No workouts in this span.",
+      "range": "{from}–{to} of {total}",
+      "newer": "Newer workouts",
+      "older": "Older workouts"
     },
     "splits": {
       "title": "Splits",

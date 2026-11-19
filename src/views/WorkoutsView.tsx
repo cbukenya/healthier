@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { CivilDate } from '../lib/date';
 import { t } from '../i18n';
 import { bucketLabel, formatCivil, formatCivilLong, formatInteger, formatMonthYear } from '../i18n/format';
@@ -463,10 +463,13 @@ function ProgressChart({ progress, kind, wide }: { progress: Progress; kind: str
 
 // ─────────────────────────────────────────────────────────────── the list
 
+/** Workouts a page of the list holds: ten beside a workout on wide screens, six on a phone. */
+const LIST_PAGE = { wide: 10, narrow: 6 } as const;
+
 /**
  * The span's workouts, newest first: a name, its big figure, when, how long, its zone minutes,
- * and the zones as a thin bar. On wide screens it's as tall as the workout beside it and scrolls
- * inside; on a phone it shows five and a half, so the next one peeks in.
+ * and the zones as a thin bar, a page at a time, with the pages turned at the card's foot rather
+ * than a scroll inside the page's own.
  */
 function WorkoutList({ workouts, span, picked, onPick, wide }: {
   workouts: DatedWorkout[];
@@ -475,6 +478,20 @@ function WorkoutList({ workouts, span, picked, onPick, wide }: {
   onPick: (id: string) => void;
   wide: boolean;
 }) {
+  const size = wide ? LIST_PAGE.wide : LIST_PAGE.narrow;
+  const pages = Math.max(1, Math.ceil(workouts.length / size));
+  const [page, setPage] = useState(0);
+  // A workout opened from elsewhere (the latest one, say) brings its page with it.
+  useEffect(() => {
+    const at = picked ? workouts.findIndex((w) => w.id === picked) : -1;
+    if (at >= 0) setPage(Math.floor(at / size));
+  }, [picked, workouts, size]);
+  // A new span starts again from the newest.
+  useEffect(() => setPage(0), [span]);
+  const shown = Math.min(page, pages - 1);
+  const from = shown * size;
+  const onPage = workouts.slice(from, from + size);
+  const turn = 'flex size-11 items-center justify-center rounded-xl border border-zinc-800 bg-zinc-950 text-zinc-400 transition-colors md:size-8 md:rounded-[10px] enabled:hover:bg-zinc-900 enabled:hover:text-zinc-100 disabled:opacity-40';
   return (
     <Card className="flex min-w-0 flex-col px-3 pt-4 pb-3">
       <div className="flex items-baseline justify-between gap-2 px-2 pb-2">
@@ -482,9 +499,9 @@ function WorkoutList({ workouts, span, picked, onPick, wide }: {
         <span className="text-detail text-zinc-500">{t('workouts.list.count', { count: workouts.length, span: span === 'all' ? 'all' : span === '365' ? 'year' : 'days', days: Number(span) || 0 })}</span>
       </div>
       {workouts.length ? (
-        <div className={`relative ${wide ? 'min-h-[360px] flex-1' : 'h-[372px]'}`}>
-          <div className={`absolute inset-0 overflow-y-auto ${wide ? '' : '[mask-image:linear-gradient(to_bottom,black_88%,transparent)]'}`}>
-            {workouts.map((dw) => {
+        <>
+          <div>
+            {onPage.map((dw) => {
               const w = dw.workout;
               const on = dw.id === picked;
               const big = bigFigure(w);
@@ -522,7 +539,22 @@ function WorkoutList({ workouts, span, picked, onPick, wide }: {
               );
             })}
           </div>
-        </div>
+          {pages > 1 && (
+            <div className="mt-auto flex items-center justify-between gap-3 px-2 pt-3">
+              <span className="text-caption text-zinc-500 tabular-nums">
+                {t('workouts.list.range', { from: from + 1, to: from + onPage.length, total: workouts.length })}
+              </span>
+              <div className="flex gap-2">
+                <button type="button" className={turn} disabled={shown === 0} onClick={() => setPage(shown - 1)} aria-label={t('workouts.list.newer')}>
+                  <ChevronLeft size={18} strokeWidth={2.5} aria-hidden="true" />
+                </button>
+                <button type="button" className={turn} disabled={shown >= pages - 1} onClick={() => setPage(shown + 1)} aria-label={t('workouts.list.older')}>
+                  <ChevronRight size={18} strokeWidth={2.5} aria-hidden="true" />
+                </button>
+              </div>
+            </div>
+          )}
+        </>
       ) : (
         <p className="px-2 pb-2 text-body-sm text-zinc-500">{t('workouts.list.none')}</p>
       )}
