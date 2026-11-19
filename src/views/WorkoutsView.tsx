@@ -204,15 +204,13 @@ function LevelShiftCard({ days, from, span, wide }: { days: DailyRecord[]; from:
             <div className="absolute inset-0 flex items-end" aria-hidden="true">
               {periods.map((p) => (
                 <div key={p.date} className="flex h-full flex-1 items-end justify-center">
-                  {/* The week (or month) under way is only an outline: what's done so far, not yet a level. */}
-                  <div
-                    className={`rounded-t-[5px] rounded-b-[1px] ${p.partial ? 'border-[1.5px] border-b-0 border-dashed border-zinc-500' : ''}`}
-                    style={{
-                      width: '58%',
-                      height: Math.max(p.partial ? 6 : 2, H - bandY(p.bar)),
-                      ...(p.partial ? {} : { background: LEVEL_COLOUR[LEVELS[levelIndex(p.bar)]], opacity: 0.45 }),
-                    }}
-                  />
+                  {/* The week (or month) under way gets no bar until it's over: only the dashed line to today. */}
+                  {!p.partial && (
+                    <div
+                      className="rounded-t-[5px] rounded-b-[1px]"
+                      style={{ width: '58%', height: Math.max(2, H - bandY(p.bar)), background: LEVEL_COLOUR[LEVELS[levelIndex(p.bar)]], opacity: 0.45 }}
+                    />
+                  )}
                 </div>
               ))}
             </div>
