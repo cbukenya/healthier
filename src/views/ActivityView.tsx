@@ -24,6 +24,7 @@ import { LastSevenDays, TodaySoFar, WeeklyTotals, type WeekTotal } from './Activ
 import { workoutsIn } from '../pipeline/workouts';
 import { LatestWorkoutCard, LevelCard, workoutTime } from './WorkoutCards';
 import { WorkoutsView, useWorkoutsOverview } from './WorkoutsView';
+import { PageBar } from '../ui/PageBar';
 
 type ActivityChart = 'steps' | 'energy' | 'intensity' | 'distance' | 'weekdays' | 'weekly';
 
@@ -67,6 +68,8 @@ export function ActivityView({ data, clock, intraday }: { data: SyncResult; cloc
   ];
   return (
     <div className="space-y-3">
+      {/* On the date's row, so the tabs don't push the cards down a row. */}
+      <PageBar>
       <div className="inline-flex gap-0.5 rounded-xl border border-card-edge bg-card p-[3px]" role="tablist" aria-label={t('workouts.tabs.label')}>
         {tabs.map((tab) => (
           <button
@@ -83,6 +86,7 @@ export function ActivityView({ data, clock, intraday }: { data: SyncResult; cloc
           </button>
         ))}
       </div>
+      </PageBar>
       {route.tab === 'workouts' ? (
         <WorkoutsView data={data} intraday={intraday} openId={route.workout} onOpen={(id, push) => go('workouts', id, push)} />
       ) : (

@@ -13,6 +13,7 @@ import { NutritionView } from './views/NutritionView';
 import { DASHBOARD_WINDOW_DAYS } from './pipeline/sync';
 import { DEMO_CLOCK } from './pipeline/demo';
 import { formatCivilDay } from './i18n/format';
+import { PageBarContext } from './ui/PageBar';
 import { t } from './i18n';
 import { streamName } from './i18n/streams';
 import { failureText } from './i18n/sync';
@@ -111,6 +112,8 @@ export default function App() {
 
   // The page is in the address (#sleep), so Back returns to the last page and a reload stays on it.
   const [view, setViewState] = useState<View>(viewInAddress);
+  // The date's row, where a page can put its own controls (PageBar).
+  const [pageBar, setPageBar] = useState<HTMLDivElement | null>(null);
   /** Open a page, as a new step in the browser's history, or in place of this one. */
   const setView = useCallback((next: View, replace = false) => {
     if (viewInAddress() !== next) {
@@ -208,9 +211,13 @@ export default function App() {
   const shell = (
       <div className="max-w-5xl mx-auto px-4 pt-2 pb-6 md:pt-3">
         {today && (
-          <time dateTime={today} className="block px-3 text-right text-detail text-page-ink">
-            {formatCivilDay(today)}
-          </time>
+          // The page's own controls, if it has any, sit at the left of the date's row.
+          <div className="flex items-center justify-between gap-3">
+            <div ref={setPageBar} className="min-w-0" />
+            <time dateTime={today} className="block px-3 text-right text-detail text-page-ink">
+              {formatCivilDay(today)}
+            </time>
+          </div>
         )}
 
         {health.error && health.phase === 'error' && (
@@ -262,6 +269,7 @@ export default function App() {
         {health.data && (
           <GoalsProvider saved={savedGoals} save={demo ? undefined : saveGoals}>
           <HistoryProvider data={health.data} info={health.history} live={!demo} local={health.localHistory}>
+          <PageBarContext.Provider value={pageBar}>
           <main className="mt-3 md:mt-6 animate-in fade-in duration-500">
             {view === 'today' && <TodayView data={health.data} gender={gender} intraday={intradayDays} clock={demo ? DEMO_CLOCK : undefined} />}
             {view === 'activity' && <ActivityView data={health.data} intraday={intradayDays} clock={demo ? DEMO_CLOCK : undefined} />}
@@ -289,6 +297,7 @@ export default function App() {
               />
             )}
           </main>
+          </PageBarContext.Provider>
           </HistoryProvider>
           </GoalsProvider>
         )}
