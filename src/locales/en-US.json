@@ -1300,7 +1300,7 @@
       "title": "How your level has shifted",
       "byWeek": "Zone minutes from workouts, week by week",
       "byMonth": "Zone minutes from workouts, in the average week of each month",
-      "from": "{moved, select, up {Up from {level} on {date}} down {Down from {level} on {date}} other {Steady since {date}}}",
+      "from": "{moved, select, up {Up from {level} since {date}} down {Down from {level} since {date}} other {Steady since {date}}}",
       "barWeek": "Zone minutes each week",
       "barMonth": "Average week of each month",
       "line": "4-week average, which sets your level",

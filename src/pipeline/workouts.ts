@@ -335,6 +335,8 @@ export interface LevelPeriod {
   bar: number;
   /** The 4-week average at its end, which sets the level; null without 4 weeks before it. */
   line: number | null;
+  /** Still under way: the week or month today is in, its bar only what's done so far. */
+  partial: boolean;
 }
 
 /**
@@ -361,7 +363,7 @@ export function levelHistory(days: DailyRecord[], from: CivilDate, by: 'week' | 
     for (let start = addDays(from, -weekday); start <= last; start = addDays(start, 7)) {
       const end = addDays(start, 6) < last ? addDays(start, 6) : last;
       const a = start < first ? first : start;
-      out.push({ date: start, bar: sum(a, end), line: lineAt(end) });
+      out.push({ date: start, bar: sum(a, end), line: lineAt(end), partial: addDays(start, 6) > last });
     }
   } else {
     for (let month = from.slice(0, 7); `${month}-01` <= last; ) {
@@ -371,7 +373,7 @@ export function levelHistory(days: DailyRecord[], from: CivilDate, by: 'week' | 
       const monthEnd = addDays(`${nextMonth}-01`, -1);
       const end = monthEnd < last ? monthEnd : last;
       const a = start < first ? first : start;
-      if (a <= end) out.push({ date: start, bar: (sum(a, end) / (daysBetween(a, end) + 1)) * 7, line: lineAt(end) });
+      if (a <= end) out.push({ date: start, bar: (sum(a, end) / (daysBetween(a, end) + 1)) * 7, line: lineAt(end), partial: monthEnd > last });
       month = nextMonth;
     }
   }

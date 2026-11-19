@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { ChevronLeft } from 'lucide-react';
 import type { CivilDate } from '../lib/date';
 import { t } from '../i18n';
-import { bucketLabel, formatCivil, formatCivilLong, formatInteger } from '../i18n/format';
+import { bucketLabel, formatCivil, formatCivilLong, formatInteger, formatMonthYear } from '../i18n/format';
 import { ZONE_NAMES } from '../charts/heartRate';
 import { readiness } from '../pipeline/derive';
 import {
@@ -151,7 +151,11 @@ function LevelShiftCard({ days, from, span, wide }: { days: DailyRecord[]; from:
   const H = LEVELS.length * BAND;
   const n = periods.length;
   const lined = periods.map((p, i) => ({ p, i })).filter((x): x is { p: LevelPeriod & { line: number }; i: number } => x.p.line !== null);
-  const path = lined.map(({ p, i }, k) => `${k ? 'L' : 'M'}${(((i + 0.5) / n) * 1000).toFixed(1)} ${bandY(p.line).toFixed(1)}`).join(' ');
+  const at = ({ p, i }: (typeof lined)[number]) => `${(((i + 0.5) / n) * 1000).toFixed(1)} ${bandY(p.line).toFixed(1)}`;
+  // The settled weeks as a solid line; the week under way dashed, since today's level can still move either way by its end.
+  const settled = lined.filter((x) => !x.p.partial);
+  const path = settled.map((x, k) => `${k ? 'L' : 'M'}${at(x)}`).join(' ');
+  const moving = lined.at(-1)?.p.partial && settled.length ? `M${at(settled.at(-1)!)} L${at(lined.at(-1)!)}` : null;
   const first = lined[0]?.p.line ?? null;
   const last = lined.at(-1)?.p.line ?? null;
   const moved = first === null || last === null ? 0 : levelIndex(last) - levelIndex(first);
@@ -169,7 +173,7 @@ function LevelShiftCard({ days, from, span, wide }: { days: DailyRecord[]; from:
             <div className="font-display text-number-xs text-zinc-50">{levelName(LEVELS[levelIndex(last)])}</div>
             <div className="text-caption text-zinc-500">
               {first !== null &&
-                t('workouts.shift.from', { moved: moved > 0 ? 'up' : moved < 0 ? 'down' : 'same', level: levelName(LEVELS[levelIndex(first)]), date: formatCivil(from) })}
+                t('workouts.shift.from', { moved: moved > 0 ? 'up' : moved < 0 ? 'down' : 'same', level: levelName(LEVELS[levelIndex(first)]), date: by === 'month' ? formatMonthYear(lined[0].p.date) : formatCivil(lined[0].p.date) })}
             </div>
           </div>
         )}
@@ -200,15 +204,21 @@ function LevelShiftCard({ days, from, span, wide }: { days: DailyRecord[]; from:
             <div className="absolute inset-0 flex items-end" aria-hidden="true">
               {periods.map((p) => (
                 <div key={p.date} className="flex h-full flex-1 items-end justify-center">
+                  {/* The week (or month) under way is only an outline: what's done so far, not yet a level. */}
                   <div
-                    className="rounded-t-[5px] rounded-b-[1px]"
-                    style={{ width: '58%', height: Math.max(2, H - bandY(p.bar)), background: LEVEL_COLOUR[LEVELS[levelIndex(p.bar)]], opacity: 0.45 }}
+                    className={`rounded-t-[5px] rounded-b-[1px] ${p.partial ? 'border-[1.5px] border-b-0 border-dashed border-zinc-500' : ''}`}
+                    style={{
+                      width: '58%',
+                      height: Math.max(p.partial ? 6 : 2, H - bandY(p.bar)),
+                      ...(p.partial ? {} : { background: LEVEL_COLOUR[LEVELS[levelIndex(p.bar)]], opacity: 0.45 }),
+                    }}
                   />
                 </div>
               ))}
             </div>
             <svg viewBox={`0 0 1000 ${H}`} preserveAspectRatio="none" className="absolute inset-0 h-full w-full" aria-hidden="true">
               <path d={path} fill="none" stroke="var(--color-zinc-200)" strokeWidth={2} vectorEffect="non-scaling-stroke" strokeLinejoin="round" />
+              {moving && <path d={moving} fill="none" stroke="var(--color-zinc-200)" strokeWidth={2} strokeDasharray="4 4" vectorEffect="non-scaling-stroke" />}
             </svg>
             {lined.map(({ p, i }, k) => {
               const size = k === lined.length - 1 ? 14 : 9;

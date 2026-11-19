@@ -165,9 +165,11 @@ describe('the workout level', () => {
     const weeks = levelHistory(days, addDays(end, -27), 'week');
     assert.equal(weeks.length, 4);
     assert.equal(weeks[0].date, '2026-09-14', 'from the Monday');
-    assert.ok(weeks.every((w) => w.bar === 70 && w.line === 70));
+    assert.ok(weeks.every((w) => w.bar === 70 && w.line === 70 && !w.partial), 'the last week ends today, a Sunday');
+    assert.equal(levelHistory(days.slice(0, -2), addDays(end, -27), 'week').at(-1)!.partial, true, 'on a Friday the week is under way');
     const months = levelHistory(days, '2026-07-01', 'month');
     assert.deepEqual(months.map((m) => m.date), ['2026-07-01', '2026-08-01', '2026-09-01', '2026-10-01']);
+    assert.deepEqual(months.map((m) => m.partial), [false, false, false, true]);
     assert.ok(Math.abs(months[2].bar - (70 * 4 * 7) / 30) < 1e-9, "September's average week");
   });
 });
