@@ -534,14 +534,16 @@ export function LevelCard({ level, hero = false, className = '' }: { level: Work
             <div className="font-display text-number-xl text-zinc-50">{levelName(id)}</div>
             <LevelMeter index={level.index} tall={false} />
           </div>
-          <p className="mt-2 font-display text-insight-body text-zinc-400">{levelLine(level)}</p>
+          {/* The line takes the space the card has, centred between the name and the rail, which sits just above the figures. */}
+          <div className="flex flex-1 items-center py-4">
+            <p className="font-display text-insight-body text-zinc-400">{levelLine(level)}</p>
+          </div>
         </>
       )}
-      <div className={hero ? 'mt-6' : 'mt-5'}>
+      <div className={hero ? 'mt-6' : ''}>
         <LevelRail level={level} />
       </div>
-      {!hero && <div className="min-h-4 flex-1" />}
-      <div className={hero ? 'mt-[18px]' : 'mt-4'}>{figures}</div>
+      <div className={hero ? 'mt-[18px]' : 'mt-5'}>{figures}</div>
     </Card>
   );
 }
