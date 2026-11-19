@@ -1534,16 +1534,16 @@
     },
     "kindsCard": {
       "title": "How you work out",
-      "hint": "Where your zone minutes came from. Pick one to see how it’s going.",
+      "hint": "Where your zone minutes came from. Pick one to see your progression.",
       "tabs": "Kinds of workout",
       "share": "{percent}%",
       "detail": "{count, plural, one {# session} other {# sessions}} · {time}"
     },
     "progress": {
-      "pace": "Pace",
-      "swimPace": "Pace per 100 m",
-      "speed": "Speed",
-      "zoneMinutes": "Zone minutes a session",
+      "pace": "Pace progression",
+      "swimPace": "Swim pace progression",
+      "speed": "Speed progression",
+      "zoneMinutes": "Zone minutes progression",
       "band": "{kind} at {from}–{to} bpm, a dot a session",
       "each": "{kind}, a dot a session",
       "latest": "latest",
