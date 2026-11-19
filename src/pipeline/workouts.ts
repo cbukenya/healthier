@@ -506,8 +506,8 @@ export function calorieBurn(w: Workout, restingPerMinute: number | null): number
 export interface Progress {
   /** What each session's figure is. */
   measure: 'pace' | 'speed' | 'swimPace' | 'zoneMinutes';
-  /** Each session counted, oldest first. */
-  points: { date: CivilDate; value: number }[];
+  /** Each session counted, oldest first, with its average heart rate. */
+  points: { date: CivilDate; value: number; avgHr: number | null }[];
   /** The band of average heart rate the sessions were kept within, for a pace or speed. */
   band: [number, number] | null;
   /** A straight line through them, at the first session and the last. */
@@ -529,7 +529,7 @@ export function progressOf(sessions: DatedWorkout[]): Progress | null {
     return p ? [{ s, p }] : [];
   });
   let measure: Progress['measure'] = 'zoneMinutes';
-  let points: { date: CivilDate; value: number }[];
+  let points: Progress['points'];
   let band: [number, number] | null = null;
   if (paced.length >= Math.max(2, oldestFirst.length / 2)) {
     measure = paced[0].p.measure;
@@ -543,9 +543,9 @@ export function progressOf(sessions: DatedWorkout[]): Progress | null {
         band = [median - SAME_HEART_RATE, median + SAME_HEART_RATE];
       }
     }
-    points = kept.map(({ s, p }) => ({ date: s.date, value: p.value }));
+    points = kept.map(({ s, p }) => ({ date: s.date, value: p.value, avgHr: s.workout.avgHr }));
   } else {
-    points = oldestFirst.map((s) => ({ date: s.date, value: zoneMinutesOf(s.workout) }));
+    points = oldestFirst.map((s) => ({ date: s.date, value: zoneMinutesOf(s.workout), avgHr: s.workout.avgHr }));
   }
   if (!points.length) return null;
   return { measure, points, band, trend: fitLine(points) };

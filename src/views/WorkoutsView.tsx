@@ -20,9 +20,9 @@ import { useGoals } from '../hooks/useGoals';
 import { useCycle } from '../hooks/useCycle';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 import {
-  FigureBox, HeartChart, HeartKey, LEVEL_COLOUR, LatestWorkoutCard, LevelCard, LoadCard, Ruler, WORKOUT, WorkoutIcon,
+  FigureBox, HeartChart, HeartKey, LEVEL_COLOUR, LatestWorkoutCard, LevelCard, LoadCard, Ruler, ScrubReadout, WORKOUT, WorkoutIcon,
   ZONE_COLOURS, ZONE_KEYS, allFigures, bigFigure, formatPace, heartLabel, kindName, levelName, spanLabel, workoutName,
-  workoutTime, zoneRange,
+  workoutTime, zoneRange, type HeartScrub,
 } from './WorkoutCards';
 
 /**
@@ -147,6 +147,7 @@ function bandY(v: number): number {
 function LevelShiftCard({ days, from, span, wide }: { days: DailyRecord[]; from: CivilDate; span: SpanId; wide: boolean }) {
   const by = span === '365' || span === 'all' ? 'month' : 'week';
   const periods = useMemo(() => levelHistory(days, from, by), [days, from, by]);
+  const [hover, setHover] = useState<number | null>(null);
   if (!periods.length) return null;
   const H = LEVELS.length * BAND;
   const n = periods.length;
@@ -168,7 +169,20 @@ function LevelShiftCard({ days, from, span, wide }: { days: DailyRecord[]; from:
           <h3 className="card-title-detail text-zinc-50">{t('workouts.shift.title')}</h3>
           <div className="mt-0.5 text-detail text-zinc-500">{t(by === 'month' ? 'workouts.shift.byMonth' : 'workouts.shift.byWeek')}</div>
         </div>
-        {last !== null && (
+        {hover !== null ? (
+          // The period under the pointer: the level its 4-week average reached, and its own zone minutes.
+          <div className="text-right">
+            <div className="font-display text-number-xs text-zinc-50">{periods[hover].line === null ? '—' : levelName(LEVELS[levelIndex(periods[hover].line!)])}</div>
+            <div className="text-caption text-zinc-500">
+              {t('workouts.shift.readout', {
+                by,
+                date: by === 'month' ? formatMonthYear(periods[hover].date) : formatCivil(periods[hover].date),
+                minutes: formatInteger(periods[hover].bar),
+                partial: periods[hover].partial ? 'yes' : 'no',
+              })}
+            </div>
+          </div>
+        ) : last !== null && (
           <div className="text-right">
             <div className="font-display text-number-xs text-zinc-50">{levelName(LEVELS[levelIndex(last)])}</div>
             <div className="text-caption text-zinc-500">
@@ -189,8 +203,12 @@ function LevelShiftCard({ days, from, span, wide }: { days: DailyRecord[]; from:
         </div>
         <div className="min-w-0 flex-1">
           <div
-            className="relative"
+            className="relative cursor-crosshair touch-pan-y"
             style={{ height: H }}
+            onPointerMove={(e) => setHover(periodAt(e, n))}
+            onPointerDown={(e) => setHover(periodAt(e, n))}
+            onPointerLeave={() => setHover(null)}
+            onPointerUp={(e) => e.pointerType !== 'mouse' && setHover(null)}
             role="img"
             aria-label={t('workouts.shift.label', {
               periods: periods
@@ -201,6 +219,9 @@ function LevelShiftCard({ days, from, span, wide }: { days: DailyRecord[]; from:
             <div className="absolute inset-0 flex flex-col" aria-hidden="true">
               {LEVELS.map((id) => <div key={id} className="border-t border-rule" style={{ height: BAND }} />)}
             </div>
+            {hover !== null && (
+              <div className="absolute inset-y-0 rounded-md bg-panel-raised" style={{ left: `${(hover / n) * 100}%`, width: `${100 / n}%` }} aria-hidden="true" />
+            )}
             <div className="absolute inset-0 flex items-end" aria-hidden="true">
               {periods.map((p) => (
                 <div key={p.date} className="flex h-full flex-1 items-end justify-center">
@@ -330,6 +351,7 @@ function progressValue(p: Progress, v: number): { value: string; unit: string } 
  * drawn faster upward, so up is better on every one of these charts.
  */
 function ProgressChart({ progress, kind, wide }: { progress: Progress; kind: string; wide: boolean }) {
+  const [hover, setHover] = useState<number | null>(null);
   const { points, trend } = progress;
   const vals = points.map((p) => p.value);
   const lower = progress.measure === 'pace' || progress.measure === 'swimPace';
@@ -357,16 +379,38 @@ function ProgressChart({ progress, kind, wide }: { progress: Progress; kind: str
             {progress.band ? t('workouts.progress.band', { kind, from: progress.band[0], to: progress.band[1] }) : t('workouts.progress.each', { kind })}
           </div>
         </div>
-        <div className="text-right">
-          <div className="whitespace-nowrap font-display text-number-xs text-zinc-50">
-            {latest.value}
-            <span className="font-sans text-caption font-normal text-zinc-400"> {latest.unit}</span>
-          </div>
-          <div className="text-caption text-zinc-500">{t('workouts.progress.latest')}</div>
-        </div>
+        {(() => {
+          // The session under the pointer, else the latest.
+          const p = hover === null ? null : points[hover];
+          const shown = p ? progressValue(progress, p.value) : latest;
+          return (
+            <div className="text-right">
+              <div className="whitespace-nowrap font-display text-number-xs text-zinc-50">
+                {shown.value}
+                <span className="font-sans text-caption font-normal text-zinc-400"> {shown.unit}</span>
+              </div>
+              <div className="whitespace-nowrap text-caption text-zinc-500">
+                {p
+                  ? p.avgHr === null
+                    ? formatCivilLong(p.date)
+                    : t('workouts.progress.session', { date: formatCivilLong(p.date), bpm: p.avgHr })
+                  : t('workouts.progress.latest')}
+              </div>
+            </div>
+          );
+        })()}
       </div>
       <div className="relative mt-3.5 pr-11" style={{ height: wide ? 200 : 170 }}>
-        <div className="absolute inset-y-0 left-0 right-11">
+        <div
+          className="absolute inset-y-0 left-0 right-11 cursor-crosshair touch-pan-y"
+          onPointerMove={(e) => setHover(nearestPoint(e, points.map((p) => xOf(p.date))))}
+          onPointerDown={(e) => setHover(nearestPoint(e, points.map((p) => xOf(p.date))))}
+          onPointerLeave={() => setHover(null)}
+          onPointerUp={(e) => e.pointerType !== 'mouse' && setHover(null)}
+        >
+          {hover !== null && (
+            <div className="pointer-events-none absolute inset-y-0 w-px bg-zinc-400" style={{ left: `${xOf(points[hover].date)}%` }} aria-hidden="true" />
+          )}
           {ticks.map((v) => (
             <div key={v} className="absolute inset-x-0 border-t border-rule" style={{ top: `${yOf(v)}%` }} />
           ))}
@@ -378,8 +422,8 @@ function ProgressChart({ progress, kind, wide }: { progress: Progress; kind: str
           {points.map((p, i) => (
             <span
               key={i}
-              className="absolute -ml-[4.5px] -mt-[4.5px] size-[9px] rounded-full"
-              style={{ left: `${xOf(p.date)}%`, top: `${yOf(p.value)}%`, background: WORKOUT, opacity: 0.85 }}
+              className={`pointer-events-none absolute rounded-full ${i === hover ? '-ml-[6px] -mt-[6px] size-3 ring-2 ring-zinc-950' : '-ml-[4.5px] -mt-[4.5px] size-[9px]'}`}
+              style={{ left: `${xOf(p.date)}%`, top: `${yOf(p.value)}%`, background: WORKOUT, opacity: i === hover ? 1 : 0.85 }}
               aria-hidden="true"
             />
           ))}
@@ -490,6 +534,7 @@ function WorkoutDetail({ dw, days, intraday, wide }: { dw: DatedWorkout; days: D
   const zones = day?.hrZones ?? null;
   const heart = workoutHeart(w, dw.date, intraday, zones);
   const figures = allFigures(w, heart, restingKcalPerMinute(days, dw.date));
+  const [scrub, setScrub] = useState<HeartScrub | null>(null);
   const z = w.zones;
   const zoneMax = z ? Math.max(1, ...ZONE_KEYS.map((k) => z[k])) : 1;
   return (
@@ -504,9 +549,12 @@ function WorkoutDetail({ dw, days, intraday, wide }: { dw: DatedWorkout; days: D
 
       {heart && (
         <div className="mt-3.5">
-          <span className="text-eyebrow uppercase text-zinc-400">{t('workouts.heart.title')}</span>
+          <div className="flex h-[18px] items-center justify-between gap-3">
+            <span className="text-eyebrow uppercase text-zinc-400">{t('workouts.heart.title')}</span>
+            <ScrubReadout scrub={scrub} startMin={w.startMin} zones={zones} />
+          </div>
           <div className="mt-6">
-            <HeartChart heart={heart} zones={zones} height={wide ? 230 : 180} marks ticks startMin={w.startMin} label={heartLabel(heart)} />
+            <HeartChart heart={heart} zones={zones} height={wide ? 230 : 180} marks ticks startMin={w.startMin} onScrub={setScrub} label={heartLabel(heart)} />
           </div>
           <div className="mt-2.5">
             <HeartKey />
@@ -559,6 +607,19 @@ function WorkoutDetail({ dw, days, intraday, wide }: { dw: DatedWorkout; days: D
       )}
     </Card>
   );
+}
+
+/** Which of `n` equal columns the pointer is over. */
+function periodAt(e: React.PointerEvent<HTMLElement>, n: number): number {
+  const box = e.currentTarget.getBoundingClientRect();
+  return Math.min(n - 1, Math.max(0, Math.floor(((e.clientX - box.left) / box.width) * n)));
+}
+
+/** The point nearest the pointer, by its position across in percent. */
+function nearestPoint(e: React.PointerEvent<HTMLElement>, xs: number[]): number {
+  const box = e.currentTarget.getBoundingClientRect();
+  const x = ((e.clientX - box.left) / box.width) * 100;
+  return xs.reduce((best, v, i) => (Math.abs(v - x) < Math.abs(xs[best] - x) ? i : best), 0);
 }
 
 /** Today's latest workout and the level, for the Overview tab: the same cards, a little smaller. */

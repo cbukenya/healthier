@@ -1306,7 +1306,8 @@
       "line": "4-week average, which sets your level",
       "label": "How your workout level has shifted: {periods}.",
       "period": "{level, select, none {{date}, {minutes} zone minutes} other {{date}, {minutes} zone minutes, {level}}}",
-      "separator": "; "
+      "separator": "; ",
+      "readout": "{by, select, month {{date} · {minutes} zone min a week{partial, select, yes { so far} other {}}} other {Week of {date} · {minutes} zone min{partial, select, yes { so far} other {}}}}"
     },
     "kindsCard": {
       "title": "What you do",
@@ -1322,7 +1323,8 @@
       "zoneMinutes": "Zone minutes a session",
       "band": "{kind} at {from}–{to} bpm, a dot a session",
       "each": "{kind}, a dot a session",
-      "latest": "latest"
+      "latest": "latest",
+      "session": "{date} · {bpm} bpm"
     },
     "list": {
       "title": "Your workouts",
