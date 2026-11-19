@@ -18,6 +18,7 @@ The health measurements associated with one civil day, with absent readings kept
 - **Movement** — Steps, distance, floors, energy, active minutes and zone minutes, when recorded.
 - **Vitals** — Resting and non-REM heart rate, HRV, deep-sleep HRV, HRV entropy, breathing, oxygen, skin-temperature deviation and cardio fitness, when recorded.
 - **Body** — Weight and body-fat percentage, when recorded.
+- **Workouts** — Each workout logged that day, from one source: its kind, start and end, time moving, and, when recorded, distance, calories, steps, average heart rate, minutes in each heart rate zone, zone minutes, climb, cadence, pool lengths, splits and whether a route was recorded.
 - **Logged** — Food eaten (energy, protein, carbohydrate, fat, fibre when the app records it, and each meal's time and amounts), water and blood glucose, when logged.
 - **Notifications** — Count of device irregular rhythm notifications, when recorded.
 - **Zones** — Heart-rate zone bounds supplied for the day.

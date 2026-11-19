@@ -166,6 +166,10 @@ export interface DailyRecord {
   /** What was logged as eaten, from one food-logging source (pipeline/nutrition.ts); null on days with no log. */
   nutrition: DayNutrition | null;
 
+  // workouts
+  /** The day's workouts, from one source (pipeline/workouts.ts), earliest first; empty when none was logged. */
+  workouts: Workout[];
+
   /** Which dataTypes contributed to this row, for the coverage matrix. */
   present: string[];
   /** Sources that touched this day. */
@@ -214,6 +218,58 @@ export interface DayNutrition {
   meals: Meal[];
   /** The main meals the log names (breakfast, lunch, dinner), for judging whether the day is complete. */
   mealKinds: MealKind[];
+}
+
+/** Minutes in each heart rate zone, as the device counted them. */
+export interface ZoneMinutes {
+  light: number;
+  moderate: number;
+  vigorous: number;
+  peak: number;
+}
+
+/** One automatic split of a workout: usually a kilometre or a mile. */
+export interface WorkoutSplit {
+  distanceKm: number;
+  /** Time moving over it. */
+  seconds: number;
+  avgHr: number | null;
+}
+
+/**
+ * One workout, as Google Health logged it (its `exercise` data, read in pipeline/workouts.ts).
+ * Its day is the day it started.
+ */
+export interface Workout {
+  /** Google's kind of exercise, such as RUNNING or WEIGHTLIFTING. */
+  type: string;
+  /** Google's own name for it, in the account's language: shown for kinds the language file doesn't name. */
+  displayName: string | null;
+  startIso: string;
+  endIso: string;
+  /** Local clock at the start, minutes past midnight. */
+  startMin: number;
+  /** Start to end, pauses included. */
+  elapsedMin: number;
+  /** Time moving, pauses left out. */
+  activeMin: number;
+  distanceKm: number | null;
+  /** Google's calories for the whole workout, resting burn included. */
+  kcal: number | null;
+  steps: number | null;
+  avgHr: number | null;
+  /** Active zone minutes the workout earned. */
+  zoneMinutes: number | null;
+  /** Minutes in each heart rate zone. */
+  zones: ZoneMinutes | null;
+  climbM: number | null;
+  /** Steps a minute: only runs with advanced running metrics have it. */
+  cadence: number | null;
+  /** Pool lengths, on swims. */
+  swimLengths: number | null;
+  splits: WorkoutSplit[];
+  /** Whether the device recorded a route. */
+  hasGps: boolean;
 }
 
 /** Intraday samples, fetched separately because they're high-volume. */

@@ -1152,6 +1152,197 @@
       "showAll": "{count, plural, one {Show all # week} other {Show all # weeks}}"
     }
   },
+  "workouts": {
+    "tabs": {
+      "label": "Activity views",
+      "overview": "Overview",
+      "workouts": "Workouts"
+    },
+    "empty": {
+      "title": "No workouts in this window",
+      "detail": "Workouts you record on your devices show here, with their heart rate and zones."
+    },
+    "kinds": {
+      "run": "Run",
+      "walk": "Walk",
+      "hike": "Hike",
+      "ride": "Ride",
+      "indoorRide": "Indoor ride",
+      "swim": "Swim",
+      "strength": "Strength training",
+      "hiit": "Intervals",
+      "cardio": "Cardio",
+      "row": "Rowing",
+      "elliptical": "Elliptical",
+      "stairs": "Stair climber",
+      "dance": "Dance",
+      "boxing": "Boxing",
+      "climbing": "Climbing",
+      "skiing": "Skiing",
+      "sport": "Sport",
+      "yoga": "Yoga",
+      "pilates": "Pilates",
+      "other": "Workout"
+    },
+    "units": {
+      "minutes": "{minutes} min",
+      "paceValue": "{minutes}:{seconds}",
+      "perKm": "/km",
+      "per100m": "/100 m",
+      "kmh": "km/h",
+      "metres": "m",
+      "spm": "spm",
+      "zoneMin": "zone min"
+    },
+    "when": {
+      "today": "Today, {time}",
+      "yesterday": "Yesterday, {time}",
+      "day": "{date}, {time}",
+      "span": "{date} · {start}–{end}"
+    },
+    "figures": {
+      "time": "Time",
+      "distance": "Distance",
+      "pace": "Pace",
+      "speed": "Speed",
+      "burn": "Calorie burn",
+      "avgHr": "Avg HR",
+      "lowHr": "Low HR",
+      "peakHr": "Peak HR",
+      "recovery": "Recovery",
+      "zoneMinutes": "Zone min",
+      "climb": "Climb",
+      "cadence": "Cadence",
+      "steps": "Steps",
+      "lengths": "Lengths",
+      "hard": "Hard minutes"
+    },
+    "zones": {
+      "title": "Heart rate zones",
+      "total": "{minutes} zone min",
+      "below": "under {bpm}",
+      "between": "{from}–{to}",
+      "above": "{bpm}+"
+    },
+    "heart": {
+      "title": "Heart rate",
+      "coolDown": "Cool-down",
+      "readout": "{time} · <strong>{bpm} bpm</strong>",
+      "readoutZone": "{time} · <strong>{bpm} bpm</strong> · {zone}",
+      "label": "{recovery, select, none {Heart rate through the workout: lowest {low}, highest {peak} bpm.} other {Heart rate through the workout: lowest {low}, highest {peak} bpm, and down {recovery} in the first minute after.}}"
+    },
+    "level": {
+      "title": "Workout level",
+      "span": "Last 4 weeks",
+      "names": {
+        "embers": "Embers",
+        "spark": "Spark",
+        "flame": "Flame",
+        "blaze": "Blaze",
+        "wildfire": "Wildfire"
+      },
+      "lines": {
+        "embers": "Banked for now. One brisk session this week is all it takes to catch a Spark.",
+        "spark": "Something’s catching. Add one more session a week and it takes hold as a Flame.",
+        "flame": "A steady flame. You’re working out most weeks; a little more and you’ll reach your weekly target.",
+        "blaze": "Burning bright. Your workouts alone hit your weekly target most weeks.",
+        "wildfire": "Running hot. You’re at twice your weekly target; easy days keep a fire this big from burning out."
+      },
+      "up": {
+        "spark": "Caught a spark. That’s the hardest part done.",
+        "flame": "It’s taken hold. Your Spark is now a steady Flame.",
+        "blaze": "You’ve fanned it into a Blaze.",
+        "wildfire": "Wildfire. The top of the scale."
+      },
+      "down": {
+        "embers": "Banked, not out.",
+        "spark": "Cooled to a Spark. One extra session gets the flame back.",
+        "flame": "Settled to a Flame. Still burning, just a little lower.",
+        "blaze": "Down from Wildfire to a Blaze, and still well past your weekly target."
+      },
+      "from": "{minutes}+",
+      "perWeek": "Zone minutes a week",
+      "toNext": "To reach {level}",
+      "more": "{minutes}<muted> more a week</muted>"
+    },
+    "load": {
+      "title": "Workout load",
+      "span": "Last 7 days",
+      "times": "{ratio}×",
+      "usual": "your usual week",
+      "headline": {
+        "push": "Room to push",
+        "keep": "Keep it going",
+        "easy": "Take today easy",
+        "recover": "Time to recover",
+        "none": "Finding your usual week"
+      },
+      "advice": {
+        "push": "{battery, select, none {This week is lighter than your usual one, so there’s room for a harder session.} other {This week is lighter than your usual one and your battery is at {battery}, so there’s room for a harder session.}}",
+        "keep": "{battery, select, none {You’re close to your usual week. Keep the same mix of hard and easy days.} other {You’re close to your usual week and your battery is at {battery}. Keep the same mix of hard and easy days.}}",
+        "easy": "Your week is close to usual, but your battery is {tier, select, drained {drained} other {low}} at {battery}. Keep today’s workout easy, or rest.",
+        "recover": "{battery, select, none {That’s a big jump on your usual week. Keep the next sessions easy and leave out anything extra.} other {That’s a big jump on your usual week, with your battery at {battery}. Keep the next sessions easy and leave out anything extra.}}",
+        "none": "Once there are 4 weeks of workouts, this compares your last 7 days with your usual week."
+      },
+      "week": "Last 7 days",
+      "usualWeek": "Usual week",
+      "battery": "Body battery",
+      "zoneMinutes": "{minutes}<muted> zone min</muted>",
+      "batteryValue": "{score}<muted> {tier}</muted>"
+    },
+    "latest": {
+      "title": "Latest workout"
+    },
+    "overTime": {
+      "title": "Your workouts over time"
+    },
+    "shift": {
+      "title": "How your level has shifted",
+      "byWeek": "Zone minutes from workouts, week by week",
+      "byMonth": "Zone minutes from workouts, in the average week of each month",
+      "from": "{moved, select, up {Up from {level} on {date}} down {Down from {level} on {date}} other {Steady since {date}}}",
+      "barWeek": "Zone minutes each week",
+      "barMonth": "Average week of each month",
+      "line": "4-week average, which sets your level",
+      "label": "How your workout level has shifted: {periods}.",
+      "period": "{level, select, none {{date}, {minutes} zone minutes} other {{date}, {minutes} zone minutes, {level}}}",
+      "separator": "; "
+    },
+    "kindsCard": {
+      "title": "What you do",
+      "hint": "Where your zone minutes came from. Pick one to see how it’s going.",
+      "tabs": "Kinds of workout",
+      "share": "{percent}%",
+      "detail": "{count, plural, one {# session} other {# sessions}} · {time}"
+    },
+    "progress": {
+      "pace": "Pace",
+      "swimPace": "Pace per 100 m",
+      "speed": "Speed",
+      "zoneMinutes": "Zone minutes a session",
+      "band": "{kind} at {from}–{to} bpm, a dot a session",
+      "each": "{kind}, a dot a session",
+      "latest": "latest"
+    },
+    "list": {
+      "title": "Your workouts",
+      "count": "{span, select, all {{count} in all} year {{count} in the past year} other {{count} in {days} days}}",
+      "row": "{time} · {minutes} zone min",
+      "none": "No workouts in this span."
+    },
+    "splits": {
+      "title": "Splits",
+      "km": "Km {n}",
+      "bpm": "{bpm} bpm"
+    },
+    "detail": {
+      "back": "Workouts"
+    },
+    "summary": {
+      "workouts": "Workouts",
+      "value": "{count}<muted> · {time}</muted>"
+    }
+  },
   "sleep": {
     "stages": {
       "deep": "Deep",
@@ -2648,6 +2839,7 @@
     "floors": "Floors climbed",
     "active-minutes": "Active minutes",
     "active-zone-minutes": "Active Zone Minutes",
+    "exercise": "Workouts",
     "total-calories": "Total calories",
     "active-energy-burned": "Calorie burn",
     "sleep": "Sleep sessions",
@@ -2675,6 +2867,7 @@
     "floors": "floors climbed",
     "active-minutes": "active minutes",
     "active-zone-minutes": "Active Zone Minutes",
+    "exercise": "workouts",
     "total-calories": "total calories",
     "active-energy-burned": "calorie burn",
     "sleep": "sleep sessions",

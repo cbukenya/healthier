@@ -344,6 +344,38 @@ Google Health lets apps add periods but not read them back, so cycles are found 
 `cycle.test.ts` holds it to both kinds of error on noisy nights: most starts found in people who
 have cycles, and almost no cycle shown to people who don't.
 
+## Workouts
+
+The Activity page's Workouts tab reads the workouts Google Health logs (`exercise`), under the
+activity scope Healthier already asks for.
+
+- **Reading** (`src/pipeline/workouts.ts`). The stream is listed: one point per workout, with its
+  kind (`exerciseType`), times, time moving, and a summary of distance, calories, steps, average
+  heart rate, minutes in each heart rate zone, active zone minutes, climb, cadence and splits. A
+  workout is filed under the day it started. Each source's workouts on a day are folded into one
+  day first (`combineExercisePoints`), so the same run from a watch and from a phone app is two
+  readings to choose between, never counted twice. Routes come only from Google's TCX export,
+  which needs a location scope Healthier doesn't ask for, so they aren't read.
+- **The level** is active zone minutes a week from workouts, over the last 4 weeks, on five steps
+  set from the weekly target (`WHO_WEEK`): Embers under 30, Spark from 30, Flame from 75, Blaze from
+  150 and Wildfire from 300. Its history is a bar a week (or the average week of each month, over a
+  year or more) under the 4-week average at the end of each.
+- **The load** sets the last 7 days of those zone minutes against a week's worth of the 21 days
+  before, with no overlap, as the Activity ramp does (`loadRatio`), and makes no claim about
+  injury. With today's body battery it gives one of four suggestions: time to recover past 1.5×,
+  take today easy when the battery is low or drained, room to push under 0.8×, keep it going
+  between.
+- **Heart rate** for a workout comes from the minute heart rate the app already keeps for the
+  window, from its start to 5 minutes after its end, coloured by the day's zones. Recovery is the
+  last minute's average less the next minute's, shown only when the workout ended in the moderate
+  zone or above. Older workouts keep their summary figures but have no chart.
+- **Calorie burn** is Google's calories for a workout less the resting burn for its length (the
+  day's total less its active burn, over the day), so it reads like the day's calorie burn and is
+  part of it.
+- **Progress** for a kind of workout is its pace (a bike's speed, a swim's pace a hundred metres)
+  on the sessions within 6 bpm of their median average heart rate, so an easy day and a race don't
+  pass for progress; kinds without a distance show zone minutes a session.
+
 ## Nutrition
 
 The Nutrition page reads the food log in Google Health (`nutrition-log`): what people log in the

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { t } from '../i18n';
 import { rich } from '../i18n/react';
 import { formatCivilLong, formatInteger, formatThousands } from '../i18n/format';
@@ -21,11 +21,80 @@ import { InsightsCarousel } from '../components/InsightsCarousel';
 import { usePageInsights, type Clock } from '../hooks/usePageInsights';
 import type { IntradayDays } from '../pipeline/labs';
 import { LastSevenDays, TodaySoFar, WeeklyTotals, type WeekTotal } from './ActivityCards';
+import { workoutsIn } from '../pipeline/workouts';
+import { LatestWorkoutCard, LevelCard, workoutTime } from './WorkoutCards';
+import { WorkoutsView, useWorkoutsOverview } from './WorkoutsView';
 
 type ActivityChart = 'steps' | 'energy' | 'intensity' | 'distance' | 'weekdays' | 'weekly';
 
+type Tab = 'overview' | 'workouts';
+
+/** The tab and the workout open, from the address: #activity, #activity/workouts, #activity/workouts/<id>. */
+function routeInAddress(): { tab: Tab; workout: string | null } {
+  const [, tab, ...rest] = window.location.hash.slice(1).split('/');
+  if (tab !== 'workouts') return { tab: 'overview', workout: null };
+  const id = rest.join('/');
+  return { tab: 'workouts', workout: id ? decodeURIComponent(id) : null };
+}
+
+const addressOf = (tab: Tab, workout: string | null) =>
+  `${window.location.pathname}${window.location.search}#activity${tab === 'workouts' ? `/workouts${workout ? `/${encodeURIComponent(workout)}` : ''}` : ''}`;
+
+/**
+ * The Activity page: an Overview of movement, and the Workouts. The tab, and a workout opened on
+ * it, are in the address, so Back steps out of a workout and a reload stays on it.
+ */
 export function ActivityView({ data, clock, intraday }: { data: SyncResult; clock?: Clock; intraday?: IntradayDays }) {
+  const [route, setRoute] = useState(routeInAddress);
+  useEffect(() => {
+    const onPop = () => setRoute(routeInAddress());
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
+  const go = useCallback((tab: Tab, workout: string | null, push: boolean) => {
+    const next = addressOf(tab, workout);
+    const here = window.location.pathname + window.location.search + window.location.hash;
+    // A workout opened as a step of its own is marked, so its back link can step back to the list.
+    if (next !== here) window.history[push ? 'pushState' : 'replaceState'](push && workout ? { workout } : null, '', next);
+    setRoute({ tab, workout });
+    // A workout opened on a page of its own starts at its top.
+    if (push && workout) window.scrollTo({ top: 0 });
+  }, []);
+
+  const tabs: { id: Tab; label: string }[] = [
+    { id: 'overview', label: t('workouts.tabs.overview') },
+    { id: 'workouts', label: t('workouts.tabs.workouts') },
+  ];
+  return (
+    <div className="space-y-3">
+      <div className="inline-flex gap-0.5 rounded-xl border border-card-edge bg-card p-[3px]" role="tablist" aria-label={t('workouts.tabs.label')}>
+        {tabs.map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            role="tab"
+            aria-selected={route.tab === tab.id}
+            onClick={() => go(tab.id, null, true)}
+            className={`rounded-[9px] px-3.5 py-1.5 text-body-sm font-medium transition-colors ${
+              route.tab === tab.id ? 'bg-panel-raised text-zinc-50' : 'text-zinc-400 hover:text-zinc-200'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+      {route.tab === 'workouts' ? (
+        <WorkoutsView data={data} intraday={intraday} openId={route.workout} onOpen={(id, push) => go('workouts', id, push)} />
+      ) : (
+        <ActivityOverview data={data} clock={clock} intraday={intraday} openWorkout={(id) => go('workouts', id, true)} />
+      )}
+    </div>
+  );
+}
+
+function ActivityOverview({ data, clock, intraday, openWorkout }: { data: SyncResult; clock?: Clock; intraday?: IntradayDays; openWorkout: (id: string) => void }) {
   const days = data.days;
+  const workouts = useWorkoutsOverview(data, intraday);
   const insights = usePageInsights(data, 'activity', clock, intraday);
   const goal = useGoals().steps;
   const spanState = useSpan(data, '30');
@@ -194,6 +263,18 @@ export function ActivityView({ data, clock, intraday }: { data: SyncResult; cloc
             })}
           </Row>
         )}
+        {workouts.latest && (() => {
+          const done = workoutsIn(spanFull);
+          return (
+            <Row dense={!wide} label={t('workouts.summary.workouts')}>
+              {rich('workouts.summary.value', {
+                count: formatInteger(done.length),
+                time: workoutTime(done.reduce((a, w) => a + w.workout.activeMin, 0)),
+                muted: (w) => <span className="text-zinc-500">{w}</span>,
+              })}
+            </Row>
+          );
+        })()}
         {spanSteps.length >= 14 && (
           <Row dense={!wide} label={t('activity.summary.firstToLast')}>
             <Delta
@@ -239,6 +320,20 @@ export function ActivityView({ data, clock, intraday }: { data: SyncResult; cloc
           <LastSevenDays days={lastWeek} shift={periodShift(stepsDone, 7)} ratio={loadRatio(stepsDone).ratio} wide={wide} glow={DOMAIN.movement.hex} />
         )}
       </div>
+      {workouts.latest && (
+        <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+          <LatestWorkoutCard
+            dw={workouts.latest}
+            heart={workouts.heart}
+            zones={workouts.zones}
+            restingPerMinute={workouts.restingPerMinute}
+            today={today}
+            onOpen={() => openWorkout(workouts.latest!.id)}
+            wide={wide}
+          />
+          {workouts.level && <LevelCard level={workouts.level} />}
+        </div>
+      )}
 
       <div className="flex items-center justify-between px-1">
         <h2 className="text-section uppercase text-page-ink">
