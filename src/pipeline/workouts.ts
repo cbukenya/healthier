@@ -572,7 +572,7 @@ function fitLine(points: { date: CivilDate; value: number }[]): [number, number]
 /** The share of the zone minutes the kinds listed must make up between them: the rest are left out. */
 export const MAIN_SHARE = 0.95;
 /** And never more kinds than this, for the rare person who does a bit of everything. */
-export const MAIN_MAX = 5;
+export const MAIN_MAX = 4;
 
 /**
  * The kinds that make up most of the workouts: biggest share first, until they come to MAIN_SHARE

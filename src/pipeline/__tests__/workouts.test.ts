@@ -260,7 +260,7 @@ describe('how a kind of workout is going', () => {
     const easy = [at('YOGA', 0, 0, 60), at('WALKING', 0, 1, 30), at('PILATES', 0, 2, 2)];
     assert.deepEqual(mainKinds(easy).map((k) => k.kind), ['yoga', 'walk'], 'by time, when none earned zone minutes');
     const everything = ['RUNNING', 'BIKING', 'SWIMMING', 'YOGA', 'HIIT', 'WEIGHTLIFTING', 'TENNIS'].map((type, i) => at(type, 10, i));
-    assert.equal(mainKinds(everything).length, 5, 'never more than five');
+    assert.equal(mainKinds(everything).length, 4, 'never more than four');
   });
 
   it('shares out zone minutes by kind, the biggest first', () => {

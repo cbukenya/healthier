@@ -1,12 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ChevronLeft } from 'lucide-react';
-import { addDays, type CivilDate } from '../lib/date';
+import type { CivilDate } from '../lib/date';
 import { t } from '../i18n';
 import { bucketLabel, formatCivil, formatCivilLong, formatInteger, formatMonthYear } from '../i18n/format';
 import { ZONE_NAMES } from '../charts/heartRate';
 import { readiness } from '../pipeline/derive';
 import {
-  LEVELS, LEVEL_DAYS, kindOf, kindsIn, levelHistory, mainKinds, levelIndex, levelStarts, progressOf, restingKcalPerMinute, workoutHeart,
+  LEVELS, kindOf, kindsIn, levelHistory, mainKinds, levelIndex, levelStarts, progressOf, restingKcalPerMinute, workoutHeart,
   workoutLevel, workoutLoad, workoutsIn, zoneMinutesOf, type DatedWorkout, type LevelPeriod, type Progress,
   type WorkoutKind,
 } from '../pipeline/workouts';
@@ -53,7 +53,6 @@ export function WorkoutsView({ data, intraday, openId, onOpen }: {
   const load = useMemo(() => workoutLoad(days), [days]);
   const battery = useMemo(() => readiness(days, goals.sleepNeed, judged, data.profile?.age ?? null).score, [days, goals.sleepNeed, judged, data.profile]);
   const recent = useMemo(() => workoutsIn(days), [days]);
-  const lastFourWeeks = useMemo(() => (today ? recent.filter((w) => w.date > addDays(today, -LEVEL_DAYS)) : []), [recent, today]);
 
   // Every day there is, for the span's workouts and for the 4 weeks before its first week.
   const source = history.days && history.days.length > days.length ? history.days : days;
@@ -115,7 +114,7 @@ export function WorkoutsView({ data, intraday, openId, onOpen }: {
       </div>
 
       <LevelShiftCard days={source} from={spanFrom ?? days[0].date} span={spanState.span} wide={wide} />
-      {inSpan.length > 0 && <WhatYouDoCard workouts={inSpan} recent={lastFourWeeks} wide={wide} />}
+      {inSpan.length > 0 && <WhatYouDoCard workouts={inSpan} wide={wide} />}
 
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] lg:items-stretch">
         <WorkoutList workouts={inSpan} span={spanState.span} picked={picked?.id ?? null} onPick={(id) => onOpen(id, !split)} wide={split} />
@@ -279,34 +278,18 @@ function LevelShiftCard({ days, from, span, wide }: { days: DailyRecord[]; from:
  * Where the span's zone minutes came from, kind by kind, biggest share first. Each kind is a tab:
  * the chart beside the list shows how it's going, a dot a session.
  */
-function WhatYouDoCard({ workouts, recent, wide }: {
-  /** The span's workouts, for how each kind is going. */
-  workouts: DatedWorkout[];
-  /** The last 4 weeks', for which kinds make up most of them now. */
-  recent: DatedWorkout[];
-  wide: boolean;
-}) {
-  // The kinds behind most of the last 4 weeks' zone minutes; the span's, when there were none lately.
-  const lately = recent.length > 0;
-  const kinds = useMemo(() => mainKinds(lately ? recent : workouts), [lately, recent, workouts]);
+function WhatYouDoCard({ workouts, wide }: { workouts: DatedWorkout[]; wide: boolean }) {
+  // The span's main kinds: the few behind most of its zone minutes, four at most.
+  const kinds = useMemo(() => mainKinds(workouts), [workouts]);
   const [pick, setPick] = useState<string | null>(null);
   const keyOf = (k: { kind: WorkoutKind; label: string | null }) => `${k.kind}|${k.label ?? ''}`;
   const shown = kinds.find((k) => keyOf(k) === pick) ?? kinds[0];
-  const all = useMemo(() => kindsIn(lately ? recent : workouts), [lately, recent, workouts]);
-  const total = all.reduce((a, k) => a + k.zoneMinutes, 0);
-  // How the picked kind is going over the whole span, not just the last 4 weeks.
-  const progress = useMemo(() => {
-    if (!shown) return null;
-    const over = kindsIn(workouts).find((k) => keyOf(k) === keyOf(shown));
-    return progressOf(over && over.sessions.length >= shown.sessions.length ? over.sessions : shown.sessions);
-  }, [shown, workouts]);
+  const total = useMemo(() => kindsIn(workouts).reduce((a, k) => a + k.zoneMinutes, 0), [workouts]);
+  const progress = useMemo(() => (shown ? progressOf(shown.sessions) : null), [shown]);
   if (!shown) return null;
   return (
     <Card className="px-[18px] pt-4 pb-[18px] md:px-5">
-      <div className="flex items-baseline justify-between gap-2">
-        <h3 className="card-title-detail text-zinc-50">{t('workouts.kindsCard.title')}</h3>
-        {lately && <span className="text-detail text-zinc-500">{t('workouts.level.span')}</span>}
-      </div>
+      <h3 className="card-title-detail text-zinc-50">{t('workouts.kindsCard.title')}</h3>
       <div className="mt-0.5 text-detail text-zinc-500">{t('workouts.kindsCard.hint')}</div>
       <div className="mt-4 flex flex-wrap gap-7">
         <div className="flex min-w-0 flex-[1_1_280px] flex-col gap-1" role="tablist" aria-label={t('workouts.kindsCard.tabs')}>
