@@ -171,34 +171,58 @@ function LevelShiftCard({ days, from, span, wide }: { days: DailyRecord[]; from:
   const label = (p: LevelPeriod) => (by === 'month' ? bucketLabel(p.date, 'month') : formatCivil(p.date));
   return (
     <Card className="px-[18px] pt-4 pb-[18px] md:px-5">
-      <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-1">
-        <div>
-          <h3 className="card-title-detail text-zinc-50">{t('workouts.shift.title')}</h3>
-          <div className="mt-0.5 text-detail text-zinc-500">{t(by === 'month' ? 'workouts.shift.byMonth' : 'workouts.shift.byWeek')}</div>
-        </div>
-        {hover !== null ? (
-          // The period under the pointer: the level its 4-week average reached, and its own zone minutes.
-          <div className="text-right">
-            <div className="font-display text-number-xs text-zinc-50">{periods[hover].line === null ? '—' : levelName(LEVELS[levelIndex(periods[hover].line!)])}</div>
-            <div className="text-caption text-zinc-500">
-              {t('workouts.shift.readout', {
-                by,
-                date: by === 'month' ? formatMonthYear(periods[hover].date) : formatCivil(periods[hover].date),
-                minutes: formatInteger(periods[hover].bar),
-                partial: periods[hover].partial ? 'yes' : 'no',
-              })}
-            </div>
+      {(() => {
+        // The level now and how it has moved, or, under the pointer, the period's level and zone minutes.
+        const summary =
+          hover !== null
+            ? {
+                level: periods[hover].line === null ? '—' : levelName(LEVELS[levelIndex(periods[hover].line!)]),
+                note: t('workouts.shift.readout', {
+                  by,
+                  date: by === 'month' ? formatMonthYear(periods[hover].date) : formatCivil(periods[hover].date),
+                  minutes: formatInteger(periods[hover].bar),
+                  partial: periods[hover].partial ? 'yes' : 'no',
+                }),
+              }
+            : last !== null
+              ? {
+                  level: levelName(LEVELS[levelIndex(last)]),
+                  note: first === null ? '' : t('workouts.shift.from', {
+                    moved: moved > 0 ? 'up' : moved < 0 ? 'down' : 'same',
+                    level: levelName(LEVELS[levelIndex(first)]),
+                    date: by === 'month' ? formatMonthYear(lined[0].p.date) : formatCivil(lined[0].p.date),
+                  }),
+                }
+              : null;
+        const heading = (
+          <div>
+            <h3 className="card-title-detail text-zinc-50">{t('workouts.shift.title')}</h3>
+            <div className="mt-0.5 text-detail text-zinc-500">{t(by === 'month' ? 'workouts.shift.byMonth' : 'workouts.shift.byWeek')}</div>
           </div>
-        ) : last !== null && (
-          <div className="text-right">
-            <div className="font-display text-number-xs text-zinc-50">{levelName(LEVELS[levelIndex(last)])}</div>
-            <div className="text-caption text-zinc-500">
-              {first !== null &&
-                t('workouts.shift.from', { moved: moved > 0 ? 'up' : moved < 0 ? 'down' : 'same', level: levelName(LEVELS[levelIndex(first)]), date: by === 'month' ? formatMonthYear(lined[0].p.date) : formatCivil(lined[0].p.date) })}
-            </div>
+        );
+        // Beside the title where there's room; under it on a phone, the level and its note on one line.
+        return wide ? (
+          <div className="flex items-start justify-between gap-4">
+            {heading}
+            {summary && (
+              <div className="shrink-0 text-right">
+                <div className="font-display text-number-xs text-zinc-50">{summary.level}</div>
+                <div className="text-caption text-zinc-500">{summary.note}</div>
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        ) : (
+          <div>
+            {heading}
+            {summary && (
+              <div className="mt-2.5 flex flex-wrap items-baseline gap-x-2">
+                <span className="font-display text-number-xs text-zinc-50">{summary.level}</span>
+                <span className="text-caption text-zinc-500">{summary.note}</span>
+              </div>
+            )}
+          </div>
+        );
+      })()}
       <div className="mt-4 flex gap-2.5">
         <div className="flex w-[70px] shrink-0 flex-col" aria-hidden="true">
           {[...LEVELS].reverse().map((id) => (
