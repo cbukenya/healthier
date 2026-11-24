@@ -1,6 +1,6 @@
 import type { DailyRecord, IntradaySample, SleepSession } from '../types/health';
 import {
-  BASELINE_DAYS, BASELINE_MIN_READINGS, NOISE_FLOOR, VITALS, WARM_C, activeHeartRate, asleepSpans, compareToBaseline, compareVitalOn, isOff, series, stats, values,
+  BASELINE_DAYS, BASELINE_MIN_READINGS, NOISE_FLOOR, VITALS, WARM_C, activeHeartRate, asleepSpans, compareToBaseline, compareVitalOn, isBeyond, isOff, series, stats, values,
 } from './derive';
 import { addDays } from '../lib/date';
 import { t } from '../i18n';
@@ -37,14 +37,18 @@ export type StrainKey = 'restingHr' | 'breathing' | 'hrv' | 'skinTemp';
 
 export interface StrainSignal {
   key: StrainKey;
-  /** 'none' when the latest day has no reading, or too little history to judge it. */
-  status: 'none' | 'in' | 'off';
+  /**
+   * 'none' when the latest day has no reading, or too little history to judge it. 'beyond' when it's
+   * past the usual range on the side that isn't strain (HRV above it, resting HR below it): the card
+   * says so, as the Vitals pill does, and never counts it.
+   */
+  status: 'none' | 'in' | 'beyond' | 'off';
 }
 
 export interface StrainToday {
   status: 'collecting' | 'waiting' | 'ready';
   signals: StrainSignal[];
-  /** Off in the readings, but only by as much as this part of the person's cycle moves them, so counted as in. */
+  /** Off in the readings, but only by as much as this part of the person's cycle moves them, so not counted. */
   explained: StrainKey[];
   /** How many of the four have a reading on the latest day. */
   arrived: number;
@@ -66,19 +70,22 @@ const STRAIN_INPUTS: { key: StrainKey; get: (d: DailyRecord) => number | null }[
  * never as yesterday's. It compares once two of them have a usual range
  * (8 readings in the four weeks before) and a reading today.
  *
- * With `judged` (cycle tracking on, see cycleAdjusted), a signal that's off only by as much as
- * this part of the person's cycle moves it counts as in. The cycle can explain a signal away,
- * never make one off.
+ * With `judged` (cycle tracking on, see cycleAdjusted), a signal that's off or beyond only by as
+ * much as this part of the person's cycle moves it takes its verdict against the cycle. The cycle can
+ * explain a signal away, never make one off.
  */
 export function strainToday(days: DailyRecord[], judged: DailyRecord[] | null = null): StrainToday {
   const raw = strainOf(days);
   if (!judged) return raw;
   const aware = strainOf(judged);
-  const explained = raw.signals
-    .filter((s, i) => s.status === 'off' && aware.signals[i].status === 'in')
-    .map((s) => s.key);
-  if (!explained.length) return raw;
-  const signals = raw.signals.map((s) => (explained.includes(s.key) ? { ...s, status: 'in' as const } : s));
+  const signals = raw.signals.map((s, i): StrainSignal => {
+    const cycle = aware.signals[i].status;
+    if (s.status === 'off' && (cycle === 'in' || cycle === 'beyond')) return { ...s, status: cycle };
+    if (s.status === 'beyond' && cycle === 'in') return { ...s, status: 'in' };
+    return s;
+  });
+  if (signals.every((s, i) => s.status === raw.signals[i].status)) return raw;
+  const explained = raw.signals.filter((s, i) => s.status === 'off' && signals[i].status !== 'off').map((s) => s.key);
   const off = signals.filter((s) => s.status === 'off').length;
   return { ...raw, signals, off, level: raw.status !== 'ready' ? null : levelOf(off), explained };
 }
@@ -94,7 +101,7 @@ function strainOf(days: DailyRecord[]): StrainToday {
   const judge = (key: StrainKey): StrainSignal['status'] => {
     if (key === 'skinTemp') return latest.skinTempDeviationC! >= WARM_C ? 'off' : 'in';
     const c = compareVitalOn(days, key, days.length - 1);
-    return c === null || c.z === null ? 'none' : isOff(key, c) ? 'off' : 'in';
+    return c === null || c.z === null ? 'none' : isOff(key, c) ? 'off' : isBeyond(key, c) ? 'beyond' : 'in';
   };
 
   const signals = STRAIN_INPUTS.map(({ key, get }): StrainSignal => ({ key, status: today(get) ? judge(key) : 'none' }));

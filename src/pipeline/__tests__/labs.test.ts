@@ -2,7 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { addDays } from '../../lib/date';
-import { compareVital, readiness, sleepDebt, estimatedSleepTarget } from '../derive';
+import { compareVital, compareVitalOn, pillSide, readiness, sleepDebt, estimatedSleepTarget } from '../derive';
 import { insightFeeds, observations } from '../insights';
 import {
   calculateOffSignals, dipping, entropyShift, illnessDates, nocturnalTachycardia, sdbScreen, strainToday, type IntradayDays, type StrainKey,
@@ -390,6 +390,33 @@ describe('system strain', () => {
     // Judged days that look worse than the readings change nothing.
     const worse = days.map((d, i) => (i === days.length - 1 ? { ...d, hrv: 5 } : d));
     assert.deepEqual(strainToday(days, worse), strainToday(days));
+  });
+
+  it("says when a reading is past its usual range the way that isn't strain, and never counts it", () => {
+    const days = nights(40);
+    const last = days[days.length - 1];
+    last.hrv = 70;
+    last.restingHr = 52;
+    const r = strainToday(days);
+    const status = (key: StrainKey) => r.signals.find((s) => s.key === key)!.status;
+    assert.equal(status('hrv'), 'beyond');
+    assert.equal(status('restingHr'), 'beyond');
+    assert.equal(status('breathing'), 'in');
+    assert.equal(r.off, 0);
+    assert.equal(r.level, 'baseline');
+    // The Vitals pill calls both unusual too, on the same sides.
+    assert.equal(pillSide(compareVitalOn(days, 'hrv', days.length - 1)), 'above');
+    assert.equal(pillSide(compareVitalOn(days, 'restingHr', days.length - 1)), 'below');
+  });
+
+  it('with cycle tracking, a reading past its range only as much as the cycle moves it is in', () => {
+    const days = nights(40);
+    const last = days[days.length - 1];
+    last.hrv = 70;
+    const judged = days.map((d, i) => (i === days.length - 1 ? { ...d, hrv: days[i - 1].hrv } : d));
+    const r = strainToday(days, judged);
+    assert.equal(r.signals.find((s) => s.key === 'hrv')!.status, 'in');
+    assert.deepEqual(r.explained, [], 'only signals off are explained in words');
   });
 });
 
