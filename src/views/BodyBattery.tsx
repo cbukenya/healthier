@@ -300,8 +300,8 @@ export function BodyBatteryCompact({ score, parts, label, missing, calibrating, 
       className={`bg-card border border-card-edge rounded-[24px] p-5 flex flex-col gap-4 ${z.tier ? 'glow-score' : ''} ${className}`}
       style={z.tier ? glowStyle(z.status.color) : undefined}
     >
-      {/* A card title, as This week's is, with the tier to its right, as on wider screens. */}
-      <h1 className="card-title-detail flex items-center gap-3 flex-wrap text-zinc-50">
+      {/* A card title, with the tier at the card's right edge, where the score's glow starts from its dot. */}
+      <h1 className="card-title-detail flex items-center justify-between gap-3 flex-wrap text-zinc-50">
         {t('today.battery.title')}
         <StatusPill name={z.status.text} dot={z.status.color} dotRef={dot} />
       </h1>

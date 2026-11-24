@@ -49,6 +49,8 @@ interface Lab {
   glance: string;
   /** The card's picture, cut down to sit in a tile. */
   graph: React.ReactNode;
+  /** The glance sits beside the graph rather than under it, for a small square one (the strain gauge). */
+  inline?: boolean;
   parts: React.ReactNode;
 }
 
@@ -422,24 +424,30 @@ const STRAIN_WORDS: Record<StrainKey, MessageKey> = {
 };
 const STRAIN_DIR: Record<StrainKey, 'above' | 'below'> = { restingHr: 'above', breathing: 'above', hrv: 'below', skinTemp: 'above' };
 
-/** Each tile says only how its signal stands today; which way counts as off is in "How it works". */
-function StrainTiles({ signals, rose }: { signals: StrainSignal[]; rose: boolean }) {
+/** The side a reading is on when it's past its usual range the way that isn't strain. */
+const STRAIN_OTHER_SIDE: Record<StrainKey, 'above' | 'below'> = { restingHr: 'below', breathing: 'below', hrv: 'above', skinTemp: 'below' };
+
+/** Each signal says only how it stands today; which way counts as off is in "How it works". */
+function StrainSignals({ signals, rose }: { signals: StrainSignal[]; rose: boolean }) {
   // The label names all four in order, each as "resting HR off" or the like.
   const today = Object.fromEntries(signals.map((s) => [s.key, t('labs.strain.tiles.status', { signal: t(STRAIN_WORDS[s.key]), status: s.status })]));
   return (
-    <div role="img" aria-label={t('labs.strain.tiles.aria', today)} className="grid grid-cols-2 gap-2">
+    <div role="img" aria-label={t('labs.strain.tiles.aria', today)} className="grid grid-cols-2 gap-x-4 gap-y-2.5 w-full md:w-72">
       {signals.map((s) => {
         const off = s.status === 'off';
+        const outside = off || s.status === 'beyond';
         return (
-          <div key={s.key} className={`rounded-xl border px-[11px] py-[9px] ${off ? (rose ? 'border-rose-500/40' : 'border-amber-400/35') : 'border-zinc-800/80'}`}>
-            <div className="flex items-center justify-between gap-1.5">
-              <span className="text-detail font-semibold text-zinc-200">{t(STRAIN_NAME[s.key])}</span>
+          <div key={s.key} className="min-w-0">
+            <div className="flex items-center gap-1.5">
               <span className={`shrink-0 w-2 h-2 rounded-full ${
                 s.status === 'none' ? 'border-[1.5px] border-zinc-600' : off ? (rose ? 'bg-rose-400' : 'bg-amber-400') : 'bg-emerald-400/70'}`}
               />
+              <span className="truncate text-detail font-semibold text-zinc-200">{t(STRAIN_NAME[s.key])}</span>
             </div>
-            <div className={`mt-0.5 text-note ${off ? (rose ? 'text-rose-300' : 'text-amber-300') : 'text-zinc-500'}`}>
-              {off ? t('labs.strain.tiles.off', { direction: STRAIN_DIR[s.key] }) : s.status === 'in' ? t('labs.strain.tiles.in') : t('labs.strain.tiles.none')}
+            <div className={`mt-0.5 pl-3.5 text-note ${outside ? 'text-zinc-300' : 'text-zinc-500'}`}>
+              {outside
+                ? t('labs.strain.tiles.off', { direction: off ? STRAIN_DIR[s.key] : STRAIN_OTHER_SIDE[s.key] })
+                : s.status === 'in' ? t('labs.strain.tiles.in') : t('labs.strain.tiles.none')}
             </div>
           </div>
         );
@@ -448,50 +456,79 @@ function StrainTiles({ signals, rose }: { signals: StrainSignal[]; rose: boolean
   );
 }
 
-const LEVELS = [
-  { key: 'baseline', name: 'labs.strain.scale.baseline', label: 'labs.strain.scale.baselineRange', bar: 'bg-emerald-400 rounded-l', today: 'text-emerald-400 text-left', align: 'text-left' },
-  { key: 'elevated', name: 'labs.strain.scale.elevated', label: 'labs.strain.scale.elevatedRange', bar: 'bg-amber-400', today: 'text-amber-400 text-center', align: 'text-center' },
-  { key: 'high', name: 'labs.strain.scale.high', label: 'labs.strain.scale.highRange', bar: 'bg-rose-500 rounded-r', today: 'text-rose-400 text-right', align: 'text-right' },
-] as const;
+/** A point on a gauge's half circle, from 0 at its left end to 1 at its right. */
+function onGauge(cx: number, cy: number, r: number, at: number): [number, number] {
+  const a = Math.PI * (1 + at);
+  return [cx + r * Math.cos(a), cy + r * Math.sin(a)];
+}
 
-/** The stages; on a tile, just their names, with today's in bold. */
-function StrainScale({ level, compact = false }: { level: StrainToday['level']; compact?: boolean }) {
+function gaugeArc(cx: number, cy: number, r: number, from: number, to: number) {
+  const [x1, y1] = onGauge(cx, cy, r, from);
+  const [x2, y2] = onGauge(cx, cy, r, to);
+  return `M${x1.toFixed(1)},${y1.toFixed(1)} A${r},${r} 0 0,1 ${x2.toFixed(1)},${y2.toFixed(1)}`;
+}
+
+/** The stages as the gauge's quarters: one off is still baseline, two elevated, three and four high. */
+const GAUGE_QUARTERS = [HEX.emerald, HEX.amber, HEX.rose, HEX.rose];
+
+/**
+ * How many of the four are off today, on a gauge from 0 to 4: the quarters up to the count light in
+ * their stage's colour and the needle points at it. Until today can be judged, no needle. On a tile,
+ * a small one beside the glance, which says it in words.
+ */
+function StrainGauge({ off, level, compact = false }: { off: number; level: StrainToday['level']; compact?: boolean }) {
+  const [W, H, cx, cy, r, stroke, needle, gap] = compact ? [76, 42, 38, 37, 29, 7, 21, 0.014] : [300, 160, 150, 128, 100, 14, 78, 0.008];
+  const ready = level !== null;
+  const [nx, ny] = onGauge(cx, cy, needle, Math.min(Math.max(off / 4, 0.015), 0.985));
   return (
-    <div
+    <svg
+      viewBox={`0 0 ${W} ${H}`}
+      width={compact ? W : undefined}
+      height={compact ? H : undefined}
+      className={compact ? 'block shrink-0' : 'block w-full max-w-[300px] h-auto shrink-0'}
       role={compact ? undefined : 'img'}
       aria-hidden={compact || undefined}
-      aria-label={compact ? undefined : level
-        ? t('labs.strain.scale.aria', { level })
-        : t('labs.strain.scale.ariaEmpty')}
+      aria-label={compact ? undefined : ready ? t('labs.strain.gauge.aria', { count: off, level }) : t('labs.strain.gauge.ariaEmpty')}
     >
-      {level && !compact && (
-        <div className="grid grid-cols-3 mb-1 text-eyebrow-sm font-bold">
-          {LEVELS.map((l) => <span key={l.key} className={l.today}>{l.key === level ? t('labs.strain.scale.today') : ''}</span>)}
-        </div>
+      {GAUGE_QUARTERS.map((colour, k) => (
+        <path
+          key={k} d={gaugeArc(cx, cy, r, k / 4 + gap, (k + 1) / 4 - gap)}
+          fill="none" stroke={colour} strokeWidth={stroke} strokeOpacity={ready && k < off ? 0.85 : 0.16}
+        />
+      ))}
+      {!compact && [0, 1, 2, 3, 4].map((k) => {
+        const [x, y] = onGauge(cx, cy, r + 18, k / 4);
+        return <text key={k} x={x} y={y + 4} textAnchor="middle" fontSize={10} fill={HEX.zinc500}>{formatRounded(k, 0)}</text>;
+      })}
+      {ready && (
+        <>
+          <line x1={cx} y1={cy} x2={nx} y2={ny} stroke={HEX.zinc50} strokeWidth={compact ? 2 : 2.5} strokeLinecap="round" />
+          <circle cx={cx} cy={cy} r={compact ? 3.5 : 6} fill={HEX.zinc50} />
+        </>
       )}
-      <div className={`grid grid-cols-3 ${compact ? 'gap-[3px]' : 'gap-1'}`}>
-        {LEVELS.map((l) => <span key={l.key} className={`${compact ? 'h-1.5' : 'h-2'} ${l.bar} ${l.key === level ? 'opacity-65' : 'opacity-20'}`} />)}
-      </div>
-      <div className={`${compact ? 'mt-[5px] text-note leading-tight text-zinc-600' : 'mt-1.5 text-note text-zinc-500'} grid grid-cols-3`}>
-        {LEVELS.map((l) => (
-          <span key={l.key} className={`${l.align} ${l.key === level ? 'font-semibold text-zinc-200' : ''}`}>{t(compact ? l.name : l.label)}</span>
-        ))}
-      </div>
-    </div>
+      {!compact && ready && (
+        <text x={cx} y={cy + 26} textAnchor="middle" fontSize={11} fill={HEX.zinc400}>{t('labs.strain.gauge.count', { count: off })}</text>
+      )}
+    </svg>
   );
 }
 
 /** `cycleDays`: with cycle tracking on, the days judged against the person's own cycle (see cycleAdjusted). */
 function strainLab(days: Days, cycleDays: Days | null): Lab {
   const r = strainToday(days, cycleDays);
-  const base = { key: 'strain' as const, title: t('labs.strain.title'), gloss: t('labs.strain.gloss'), graph: <StrainScale level={r.level} compact /> };
+  const base = {
+    key: 'strain' as const, title: t('labs.strain.title'), gloss: t('labs.strain.gloss'),
+    graph: <StrainGauge off={r.off} level={r.level} compact />, inline: true,
+  };
   const rose = r.level === 'high';
   const off = r.signals.filter((s) => s.status === 'off');
   const offWords = formatList(off.map((s) => t(STRAIN_WORDS[s.key])));
   const picture = (
     <>
-      <StrainTiles signals={r.signals} rose={rose} />
-      <StrainScale level={r.level} />
+      <div className="flex flex-col items-center gap-4 md:flex-row md:justify-center md:gap-10">
+        <StrainGauge off={r.off} level={r.level} />
+        <StrainSignals signals={r.signals} rose={rose} />
+      </div>
       {r.explained.length > 0 && (
         <p className="text-caption leading-normal text-zinc-400">
           {t('labs.strain.cycle', { signals: capitalize(formatList(r.explained.map((k) => t(STRAIN_WORDS[k])))), count: r.explained.length })}
@@ -549,9 +586,19 @@ function strainLab(days: Days, cycleDays: Days | null): Lab {
     };
   }
   const judged = r.signals.filter((s) => s.status !== 'none').length;
+  const inside = r.signals.filter((s) => s.status === 'in').length;
+  // Past the usual range the way that isn't strain: said, as the Vitals pill says it, and not counted.
+  const beyond = r.signals.filter((s) => s.status === 'beyond');
+  const besides = beyond.length === 0 ? null : t('labs.strain.baseline.beyond', {
+    count: beyond.length,
+    signals: capitalize(formatList(beyond.map((s) => t(STRAIN_WORDS[s.key])))),
+    direction: STRAIN_OTHER_SIDE[beyond[0].key],
+  });
   const sub = r.off === 1
-    ? t('labs.strain.baseline.one', { signal: off[0].key })
-    : judged === 4 ? t('labs.strain.baseline.allIn') : t('labs.strain.baseline.someIn', { count: judged });
+    ? [t('labs.strain.baseline.one', { signal: off[0].key }), besides].filter(Boolean).join(' ')
+    : besides
+      ? [besides, inside > 0 ? t('labs.strain.baseline.rest', { count: inside }) : null].filter(Boolean).join(' ')
+      : judged === 4 ? t('labs.strain.baseline.allIn') : t('labs.strain.baseline.someIn', { count: judged });
   return {
     ...base, tone: 'quiet', mark: 'quiet', chip: t('labs.strain.baseline.chip'), glance: t('labs.strain.baseline.glance', { count: r.off }),
     parts: <><Answer text={t('labs.strain.baseline.text')} sub={sub} />{picture}</>,
@@ -1216,8 +1263,14 @@ function LabRow({ lab }: { lab: Lab }) {
           chevron={<ChevronDown size={14} aria-hidden className="shrink-0 text-zinc-600 transition-transform group-open:rotate-180" />}
         />
         {/* The full picture is in the card once the tile is open. */}
-        <span className="block mt-2.5 group-open:hidden">{lab.graph}</span>
-        <TileGlance lab={lab} className="mt-2 group-open:hidden" />
+        {lab.inline ? (
+          <span className="flex items-center gap-3 mt-2.5 group-open:hidden">{lab.graph}<TileGlance lab={lab} /></span>
+        ) : (
+          <>
+            <span className="block mt-2.5 group-open:hidden">{lab.graph}</span>
+            <TileGlance lab={lab} className="mt-2 group-open:hidden" />
+          </>
+        )}
       </summary>
       <div className="border-t border-zinc-800/80 pt-3 flex flex-col gap-3">
         {lab.parts}
@@ -1247,8 +1300,14 @@ function Overview({ labs, picked, onPick }: { labs: Lab[]; picked: LabKey; onPic
             }`}
           >
             <TileHead lab={lab} chevron={<ChevronRight size={14} aria-hidden className="self-start mt-0.5 shrink-0 text-zinc-600" />} />
-            <span className="block mt-auto">{lab.graph}</span>
-            <TileGlance lab={lab} className="-mt-1" />
+            {lab.inline ? (
+              <span className="mt-auto flex items-center gap-3">{lab.graph}<TileGlance lab={lab} /></span>
+            ) : (
+              <>
+                <span className="block mt-auto">{lab.graph}</span>
+                <TileGlance lab={lab} className="-mt-1" />
+              </>
+            )}
           </button>
         );
       })}

@@ -602,7 +602,8 @@ screen. The note is shown as text, with its email addresses and links made into 
 - the kind of source for daily totals goes to Google with every rollup.
 
 `src/pipeline/__tests__/labs.test.ts`: a reading the Vitals pill calls unusual is off in the strain
-radar and the breathing lab, and the other way round; Today's several-signals card shows exactly
+radar and the breathing lab, and the other way round; one it calls unusual on the side that isn't
+strain (HRV above usual, say) shows in the radar as outside its range, without counting; Today's several-signals card shows exactly
 when the radar reads Elevated or High.
 
 `src/pipeline/__tests__/normalize.test.ts`: a day comes out the same whatever order its readings

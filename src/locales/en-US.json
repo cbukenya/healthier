@@ -2256,7 +2256,9 @@
         "text": "Baseline today",
         "one": "{signal, select, restingHr {Only resting HR is above usual.} breathing {Only breathing rate is above usual.} hrv {Only HRV is below usual.} other {Only skin temperature is above usual.}} One on its own doesn't count.",
         "allIn": "All four are inside your usual range.",
-        "someIn": "{count, plural, one {Today's # reading so far is inside your usual range.} other {Today's # readings so far are inside your usual range.}}"
+        "someIn": "{count, plural, one {Today's # reading so far is inside your usual range.} other {Today's # readings so far are inside your usual range.}}",
+        "beyond": "{count, plural, one {{signals} is {direction, select, below {below} other {above}} your usual range, which doesn't count as strain.} other {{signals} are outside your usual range on the side that doesn't count as strain.}}",
+        "rest": "{count, plural, one {The other one is inside its usual range.} =2 {The other two are inside theirs.} other {The other three are inside theirs.}}"
       },
       "signals": {
         "restingHr": {
@@ -2278,21 +2280,15 @@
       },
       "tiles": {
         "aria": "Today: {restingHr}, {breathing}, {hrv}, {skinTemp}",
-        "status": "{status, select, off {{signal} off} in {{signal} normal} other {{signal} no data}}",
-        "off": "{direction, select, below {Below usual today} other {Above usual today}}",
+        "status": "{status, select, off {{signal} off} beyond {{signal} outside its usual range, not counted} in {{signal} normal} other {{signal} no data}}",
+        "off": "{direction, select, below {Below usual} other {Above usual}}",
         "in": "Normal",
         "none": "No data"
       },
-      "scale": {
-        "aria": "{level, select, baseline {Today sits at baseline.} elevated {Today sits at elevated.} other {Today sits at high.}} Baseline is 0 or 1 signals off, Elevated 2, High 3 or 4",
-        "ariaEmpty": "Baseline is 0 or 1 signals off, Elevated 2, High 3 or 4; no position until today's readings arrive",
-        "today": "TODAY",
-        "baseline": "Baseline",
-        "elevated": "Elevated",
-        "high": "High",
-        "baselineRange": "Baseline · 0–1 off",
-        "elevatedRange": "Elevated · 2 off",
-        "highRange": "High · 3–4 off"
+      "gauge": {
+        "aria": "{count} of 4 signals off today. {level, select, baseline {That's baseline.} elevated {That's elevated.} other {That's high.}} Baseline is 0 or 1 signals off, Elevated 2, High 3 or 4",
+        "ariaEmpty": "Baseline is 0 or 1 signals off, Elevated 2, High 3 or 4; no reading until today's arrive",
+        "count": "{count} of 4 signals off"
       },
       "watch": "<b>Watches</b> resting HR, breathing rate, HRV and skin temperature on the latest day.",
       "light": "<b>Lights up</b> when 2 are off together (Elevated) or 3–4 (High), marking which ones.",

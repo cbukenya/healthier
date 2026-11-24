@@ -865,6 +865,13 @@ export const isOff = (key: VitalKey, c: { z: number | null } | null) =>
   !!c && c.z !== null && (VITALS[key].off === 'above' ? c.z >= OFF_Z : c.z <= -OFF_Z);
 
 /**
+ * Past the usual range on the other side, the one that isn't off (HRV above it, say). The Vitals pill
+ * calls it unusual too, so a card that only counts what's off can still say where it is.
+ */
+export const isBeyond = (key: VitalKey, c: { z: number | null } | null) =>
+  !!c && c.z !== null && (VITALS[key].off === 'above' ? c.z <= -OFF_Z : c.z >= OFF_Z);
+
+/**
  * The side of its usual range a reading's pill puts it on, either way: null inside it, without a
  * usual range yet, or when `cycle` (the same reading judged against this part of the cycle) is
  * usual. BandPill reads it, so words that call a reading higher or lower than usual can agree with
