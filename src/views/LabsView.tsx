@@ -49,8 +49,6 @@ interface Lab {
   glance: string;
   /** The card's picture, cut down to sit in a tile. */
   graph: React.ReactNode;
-  /** The glance sits beside the graph rather than under it, for a small square one (the strain gauge). */
-  inline?: boolean;
   parts: React.ReactNode;
 }
 
@@ -474,10 +472,10 @@ const GAUGE_QUARTERS = [HEX.emerald, HEX.amber, HEX.rose, HEX.rose];
 /**
  * How many of the four are off today, on a gauge from 0 to 4: the quarters up to the count light in
  * their stage's colour and the needle points at it. Until today can be judged, no needle. On a tile,
- * a small one beside the glance, which says it in words.
+ * a small one over the glance, its band as thick as the other tiles' bars.
  */
 function StrainGauge({ off, level, compact = false }: { off: number; level: StrainToday['level']; compact?: boolean }) {
-  const [W, H, cx, cy, r, stroke, needle, gap] = compact ? [76, 42, 38, 37, 29, 7, 21, 0.014] : [300, 160, 150, 128, 100, 14, 78, 0.008];
+  const [W, H, cx, cy, r, stroke, needle, gap] = compact ? [84, 47, 42, 42, 32, 10, 22, 0.02] : [300, 160, 150, 128, 100, 14, 78, 0.008];
   const ready = level !== null;
   const [nx, ny] = onGauge(cx, cy, needle, Math.min(Math.max(off / 4, 0.015), 0.985));
   return (
@@ -502,8 +500,8 @@ function StrainGauge({ off, level, compact = false }: { off: number; level: Stra
       })}
       {ready && (
         <>
-          <line x1={cx} y1={cy} x2={nx} y2={ny} stroke={HEX.zinc50} strokeWidth={compact ? 2 : 2.5} strokeLinecap="round" />
-          <circle cx={cx} cy={cy} r={compact ? 3.5 : 6} fill={HEX.zinc50} />
+          <line x1={cx} y1={cy} x2={nx} y2={ny} stroke={HEX.zinc50} strokeWidth={2.5} strokeLinecap="round" />
+          <circle cx={cx} cy={cy} r={compact ? 4 : 6} fill={HEX.zinc50} />
         </>
       )}
       {!compact && ready && (
@@ -518,7 +516,7 @@ function strainLab(days: Days, cycleDays: Days | null): Lab {
   const r = strainToday(days, cycleDays);
   const base = {
     key: 'strain' as const, title: t('labs.strain.title'), gloss: t('labs.strain.gloss'),
-    graph: <StrainGauge off={r.off} level={r.level} compact />, inline: true,
+    graph: <StrainGauge off={r.off} level={r.level} compact />,
   };
   const rose = r.level === 'high';
   const off = r.signals.filter((s) => s.status === 'off');
@@ -1263,14 +1261,8 @@ function LabRow({ lab }: { lab: Lab }) {
           chevron={<ChevronDown size={14} aria-hidden className="shrink-0 text-zinc-600 transition-transform group-open:rotate-180" />}
         />
         {/* The full picture is in the card once the tile is open. */}
-        {lab.inline ? (
-          <span className="flex items-center gap-3 mt-2.5 group-open:hidden">{lab.graph}<TileGlance lab={lab} /></span>
-        ) : (
-          <>
-            <span className="block mt-2.5 group-open:hidden">{lab.graph}</span>
-            <TileGlance lab={lab} className="mt-2 group-open:hidden" />
-          </>
-        )}
+        <span className="block mt-2.5 group-open:hidden">{lab.graph}</span>
+        <TileGlance lab={lab} className="mt-2 group-open:hidden" />
       </summary>
       <div className="border-t border-zinc-800/80 pt-3 flex flex-col gap-3">
         {lab.parts}
@@ -1300,14 +1292,8 @@ function Overview({ labs, picked, onPick }: { labs: Lab[]; picked: LabKey; onPic
             }`}
           >
             <TileHead lab={lab} chevron={<ChevronRight size={14} aria-hidden className="self-start mt-0.5 shrink-0 text-zinc-600" />} />
-            {lab.inline ? (
-              <span className="mt-auto flex items-center gap-3">{lab.graph}<TileGlance lab={lab} /></span>
-            ) : (
-              <>
-                <span className="block mt-auto">{lab.graph}</span>
-                <TileGlance lab={lab} className="-mt-1" />
-              </>
-            )}
+            <span className="block mt-auto">{lab.graph}</span>
+            <TileGlance lab={lab} className="-mt-1" />
           </button>
         );
       })}
