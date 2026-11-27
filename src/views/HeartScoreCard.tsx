@@ -466,7 +466,7 @@ export function HeartScoreCard({ data, wide }: { data: SyncResult; wide: boolean
           <Ring s={now} since={since} phone={phone} />
         </div>
         <div className="flex flex-col gap-4">
-          <p className="font-display text-headline md:text-display leading-snug text-zinc-50">
+          <p className="font-display text-headline md:text-display leading-snug text-zinc-50 text-center md:text-left">
             {learning ? t(key('learning.headline')) : headline(now, dir, today)}
           </p>
           {learning ? (
