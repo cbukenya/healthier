@@ -473,13 +473,13 @@ function levelLine(level: WorkoutLevel): string {
  * The level's entrance, in steps: the bars light one by one from Embers up to Wildfire, then go out
  * again from the top down to the level, and only then does the rail mark where it is.
  */
-const LEVEL_STEP_MS = 160;
-const LEVEL_START_MS = 200;
-const LEVEL_HOLD_MS = 250;
+const LEVEL_STEP_MS = 240;
+const LEVEL_START_MS = 250;
+const LEVEL_HOLD_MS = 400;
 const levelTimes = (index: number) => {
   const fall = LEVEL_START_MS + (LEVELS.length - 1) * LEVEL_STEP_MS + LEVEL_HOLD_MS;
-  const rail = fall + (LEVELS.length - 1 - index) * LEVEL_STEP_MS + 150;
-  return { fall, rail, end: rail + 450 };
+  const rail = fall + (LEVELS.length - 1 - index) * LEVEL_STEP_MS + 200;
+  return { fall, rail, end: rail + 600 };
 };
 
 /** A bar's opacity `elapsed` ms into the entrance: lit on the way up, then dimmed from the top down to the level. */
@@ -498,7 +498,7 @@ function LevelMeter({ index, tall, elapsed }: { index: number; tall: boolean; el
       {LEVELS.map((id, i) => (
         <span
           key={id}
-          className="rounded-[5px] transition-opacity duration-150"
+          className="rounded-[5px] transition-opacity duration-200"
           style={{
             width: tall ? 18 : 14,
             height: (tall ? 30 : 20) + i * (tall ? 16 : 11),
@@ -520,18 +520,18 @@ function LevelRail({ level, marked }: { level: WorkoutLevel; marked: boolean }) 
   return (
     <div className="relative">
       <div
-        className={`absolute -top-[9px] h-6 w-0.5 -translate-x-px rounded-[1px] bg-zinc-50 transition-[opacity,transform] duration-300 ease-out ${marked ? 'opacity-100' : 'opacity-0 -translate-y-1'}`}
+        className={`absolute -top-[9px] h-6 w-0.5 -translate-x-px rounded-[1px] bg-zinc-50 transition-[opacity,transform] duration-500 ease-out ${marked ? 'opacity-100' : 'opacity-0 -translate-y-1'}`}
         style={{ left: `${level.position * 100}%` }}
       />
       <div className="flex gap-[3px]">
         {LEVELS.map((id, i) => (
-          <span key={id} className="h-2 flex-1 rounded transition-opacity duration-300" style={{ background: LEVEL_COLOUR[id], opacity: marked && i === level.index ? 1 : 0.45 }} />
+          <span key={id} className="h-2 flex-1 rounded transition-opacity duration-500" style={{ background: LEVEL_COLOUR[id], opacity: marked && i === level.index ? 1 : 0.45 }} />
         ))}
       </div>
       <div className="mt-2 flex gap-[3px]">
         {LEVELS.map((id, i) => (
           <div key={id} className="min-w-0 flex-1">
-            <div className={`truncate text-detail transition-colors duration-300 ${marked && i === level.index ? 'font-semibold text-zinc-50' : 'text-zinc-500'}`}>{levelName(id)}</div>
+            <div className={`truncate text-detail transition-colors duration-500 ${marked && i === level.index ? 'font-semibold text-zinc-50' : 'text-zinc-500'}`}>{levelName(id)}</div>
             <div className="text-caption text-zinc-500">{i === LEVELS.length - 1 ? t('workouts.level.from', { minutes: starts[id] }) : formatInteger(starts[id])}</div>
           </div>
         ))}

@@ -82,19 +82,19 @@ const yOf = (level: number) => BOTTOM - (level / 100) * (BOTTOM - TOP);
  * figure leaves that to the text beside it and draws the rail heavier to stay legible.
  */
 /** How long the figure takes to fill from empty to a full 100; a lower score takes its share of it, eased. */
-const FILL_MS = 1600;
+const FILL_MS = 2400;
 
 /**
  * The battery's level as the figure fills: from the feet to the score when the card shows, and
  * whether it has got there. The stage it lands in, its bar and its name, lights only then.
  */
 function useBatteryFill(score: number | null): { level: number; arrived: boolean } {
-  const level = useTween(score ?? 0, { ms: (distance) => Math.max(400, (distance / 100) * FILL_MS) });
+  const level = useTween(score ?? 0, { ms: (distance) => Math.max(600, (distance / 100) * FILL_MS) });
   return { level, arrived: score !== null && Math.abs(level - score) < 0.05 };
 }
 
 /** How a stage on the rail lights once the fill reaches it: its bar and name fade up, briefly. */
-const LIGHT_UP = 'transition-[opacity,fill] duration-500 ease-out';
+const LIGHT_UP = 'transition-[opacity,fill] duration-700 ease-out';
 
 function BatteryFigure({ score, fill, gender, labelled, className }: {
   score: number | null;
@@ -353,8 +353,8 @@ export function BodyBatteryCompact({ score, parts, label, missing, calibrating, 
               const on = fill.arrived && z.tier?.tag === stage.tag;
               return (
                 <div key={stage.tag} className="absolute left-0 -translate-y-1/2 leading-tight" style={{ top: `${(centre / 480) * 100}%` }}>
-                  <div className="text-detail leading-tight font-bold transition-colors duration-500 ease-out" style={{ color: on ? 'var(--color-zinc-50)' : 'var(--color-zinc-500)' }}>{t(style.name)}</div>
-                  <div className="hidden min-[320px]:block text-note leading-tight tabular-nums transition-colors duration-500 ease-out" style={{ color: on ? 'var(--color-zinc-300)' : 'var(--color-zinc-600)' }}>
+                  <div className="text-detail leading-tight font-bold transition-colors duration-700 ease-out" style={{ color: on ? 'var(--color-zinc-50)' : 'var(--color-zinc-500)' }}>{t(style.name)}</div>
+                  <div className="hidden min-[320px]:block text-note leading-tight tabular-nums transition-colors duration-700 ease-out" style={{ color: on ? 'var(--color-zinc-300)' : 'var(--color-zinc-600)' }}>
                     {t('today.battery.rangeNarrow', { min: stage.min, max: tierMax(i) })}
                   </div>
                 </div>

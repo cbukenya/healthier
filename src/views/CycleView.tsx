@@ -335,8 +335,8 @@ function placeLabels(labels: StripLabel[], cells: number, width: number): StripL
  * the days the next period is likely on dashed.
  */
 /** How the strip fills: a day at a time, slower for a short cycle so far, never past the whole. */
-const STRIP_DAY_MS = 60;
-const STRIP_MS = 1400;
+const STRIP_DAY_MS = 90;
+const STRIP_MS = 2100;
 const STRIP_DELAY_MS = 150;
 
 function CycleStrip({ summary }: { summary: CycleSummary }) {
@@ -409,7 +409,7 @@ function CycleStrip({ summary }: { summary: CycleSummary }) {
       </div>
       <div aria-hidden="true" className="mt-1 flex gap-[3px] items-end h-[34px]">
         {cells.map((x) => (
-          <div key={x.d} className="relative flex-1 min-w-0 rounded-[4px] box-border transition-[background-color,height] duration-200 ease-out" style={{ ...x.style, height: x.height }}>
+          <div key={x.d} className="relative flex-1 min-w-0 rounded-[4px] box-border transition-[background-color,height] duration-300 ease-out" style={{ ...x.style, height: x.height }}>
             <OvulationBar alpha={x.ovulation} />
           </div>
         ))}

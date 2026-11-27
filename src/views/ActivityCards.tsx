@@ -233,7 +233,7 @@ function rampOf(ratio: number | null): { change: string; verdict: string } | nul
 /** Concentric goal rings, outermost first, each filling clockwise from the top until its goal. */
 /** One ring, closing from the top to its share of the goal when the card shows. */
 function GoalRing({ c, r, length, stroke, color, share }: { c: number; r: number; length: number; stroke: number; color: string; share: number }) {
-  const shown = useTween(share, { ms: 900 + share * 500 });
+  const shown = useTween(share, { ms: 1300 + share * 800 });
   return (
     <g>
       <circle cx={c} cy={c} r={r} fill="none" stroke={color} strokeOpacity={0.16} strokeWidth={stroke} />

@@ -225,8 +225,8 @@ function TargetBar({ label, got, target, colour, inLitres = false, stacked = fal
 
 /** A grid of squares in the macros' colours, then empty ones. */
 /** How often the next square fills as the plate fills in, from the top left: slower for a few, never past the whole. */
-const SQUARE_MS = 40;
-const SQUARES_MS = 1600;
+const SQUARE_MS = 60;
+const SQUARES_MS = 2400;
 const squareMs = (filled: number) => Math.min(SQUARE_MS, SQUARES_MS / Math.max(1, filled));
 
 /**
@@ -251,7 +251,7 @@ function Squares({ protein, carbs, fat, empty, size, delay = 0 }: { protein: num
         return (
           <span
             key={i}
-            className={`rounded-[3px] border transition-colors duration-150 ${on ? 'border-transparent' : 'border-[var(--rule-strong)]'}`}
+            className={`rounded-[3px] border transition-colors duration-200 ${on ? 'border-transparent' : 'border-[var(--rule-strong)]'}`}
             style={{ width: size, height: size, background: on ? c : undefined }}
           />
         );

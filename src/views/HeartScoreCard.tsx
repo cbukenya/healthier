@@ -142,7 +142,7 @@ function Ring({ s, since, phone }: { s: HeartScore; since: string | null; phone:
   const fs = phone ? 11 : 11.5;
   const learning = s.score === null;
   // The score ring closes from the top as the number counts up with it, and settles on the score.
-  const shown = useTween(s.score ?? 0, { ms: 1400 });
+  const shown = useTween(s.score ?? 0, { ms: 2000 });
   const out: React.ReactNode[] = [];
 
   out.push(<circle key="track" cx={cx} cy={cy} r={r2} fill="none" stroke={TRACK} strokeWidth={6} />);
