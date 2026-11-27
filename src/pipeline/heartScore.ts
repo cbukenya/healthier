@@ -129,7 +129,11 @@ export interface HeartScore {
   gains: Partial<Record<HeartPart, number>>;
   /** The part with the most points still to gain: what would help most. */
   lever: HeartPart | null;
-  /** From Thriving with every part at 70 or more, the strongest part instead: what keeps it there. */
+  /**
+   * From Thriving, the strongest part instead: what keeps it there. Always, even with a weaker part:
+   * a Thriving score is news to celebrate, and the part most often weak at the top is the HRV trend,
+   * the noisiest and smallest, which would flip the card between praise and advice month to month.
+   */
   keep: HeartPart | null;
 }
 
@@ -196,7 +200,7 @@ export function heartScoreOn(days: DailyRecord[], end: CivilDate): HeartScore {
 
   // Ties go to the earlier part: reduce keeps the first of equals, compared to a hundredth of a point.
   const best = (by: (p: HeartPart) => number) => present.reduce((a, p) => (Math.round(by(p) * 100) > Math.round(by(a) * 100) ? p : a));
-  const settled = stage === 'thriving' && present.every((p) => points(p) >= 70);
+  const settled = stage === 'thriving';
   return {
     date: end, score, stage, parts, shares, gains,
     lever: settled ? null : best((p) => gains[p]!),

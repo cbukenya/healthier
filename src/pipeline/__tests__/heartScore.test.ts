@@ -77,13 +77,22 @@ describe('heart score', () => {
   });
 
   it('gives ties to activity, the part that changes fastest', () => {
-    // Activity at 95 minutes leaves 35% × 20 = 7; HRV down 16% (30 points) leaves 10% × 70 = 7.
-    const s = heartScoreOn(days({ brisk: 95, level: 'EXCELLENT' }, (d, i) => { d.hrv = i >= 42 ? 42 : 50; }), END);
+    // Activity at 95 minutes leaves 35% × 20 = 7; HRV down 16% (30 points) leaves 10% × 70 = 7. Strong, at 80.
+    const s = heartScoreOn(days({ brisk: 95, rhr: 70, level: 'EXCELLENT' }, (d, i) => { d.hrv = i >= 42 ? 42 : 50; }), END);
+    assert.equal(s.stage, 'strong');
     assert.equal(Math.round(s.gains.activity! * 100), Math.round(s.gains.hrv! * 100));
     assert.equal(s.lever, 'activity');
   });
 
-  it('from Thriving with every part at 70 or more, says what keeps it there instead', () => {
+  it('from Thriving, says what keeps it there even with a weaker part', () => {
+    // HRV down 16% scores 30, but the score is still Thriving.
+    const s = heartScoreOn(days({ level: 'EXCELLENT' }, (d, i) => { d.hrv = i >= 42 ? 42 : 50; }), END);
+    assert.equal(s.stage, 'thriving');
+    assert.equal(s.lever, null);
+    assert.equal(s.keep, 'activity');
+  });
+
+  it('from Thriving, says what keeps it there: the strongest part', () => {
     const s = heartScoreOn(days({ level: 'EXCELLENT' }, (d, i) => { d.hrv = i >= 42 ? 60 : 50; }), END);
     assert.equal(s.stage, 'thriving');
     assert.equal(s.lever, null);
