@@ -350,6 +350,29 @@ body::before {
 }
 
 /*
+ * Settings › Animations › Reduce blur: no glass blurs what's behind it. The cards keep their tint over
+ * the soft backdrop; the bar and a sheet go almost solid, since page content scrolls under them.
+ */
+:root[data-blur='off'] {
+  --frost: none;
+}
+:root[data-blur='off'] :is(.backdrop-blur-xl, .backdrop-blur-2xl) {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+:root[data-blur='off']:not([data-theme='light']) {
+  --bar: rgb(17 19 22 / 0.95);
+  --sheet: rgb(24 24 27 / 0.98);
+}
+:root[data-blur='off'][data-theme='light'] {
+  --bar: rgb(245 245 246 / 0.96);
+}
+/* Settings › Animations off: the night's stars hold still too. */
+:root[data-motion='off'] .twinkle {
+  animation: none;
+}
+
+/*
  * A faint glow in a card's own colour (--glow), in the dark theme only: from the card's top right,
  * or, for a score, around the dot in its pill (--glow-x and --glow-y, set where the dot sits). The
  * light theme leaves its cards plain.

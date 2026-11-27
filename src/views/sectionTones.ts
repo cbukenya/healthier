@@ -43,6 +43,10 @@ const tone = {
     tile: 'bg-amber-400/12 text-amber-400', picked: 'bg-amber-400/8', text: 'text-amber-400', fill: 'bg-amber-400',
     choice: 'border-amber-400/50 bg-amber-400/8', mark: 'border-amber-400', focus: 'focus-visible:outline-amber-400',
   },
+  indigo: {
+    tile: 'bg-indigo-400/12 text-indigo-400', picked: 'bg-indigo-400/8', text: 'text-indigo-400', fill: 'bg-indigo-400',
+    choice: 'border-indigo-400/50 bg-indigo-400/8', mark: 'border-indigo-400', focus: 'focus-visible:outline-indigo-400',
+  },
   zinc: {
     tile: 'bg-zinc-800 text-zinc-300', picked: 'bg-zinc-800/80', text: 'text-zinc-300', fill: 'bg-zinc-300',
     choice: 'border-zinc-600 bg-zinc-800/60', mark: 'border-zinc-300', focus: 'focus-visible:outline-zinc-400',
@@ -54,6 +58,7 @@ export const SECTION_TONE: Record<SectionId, SectionTone> = {
   streams: tone.sky,
   goals: tone.emerald,
   cycle: tone.pink,
+  motion: tone.indigo,
   facts: tone.amber,
   account: tone.zinc,
 };

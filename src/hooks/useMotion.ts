@@ -6,8 +6,72 @@ import { useEffect, useRef, useState } from 'react';
  * in the same session, the card is simply where it ends, as it is with reduced motion asked for.
  */
 
-export const reducedMotion = (): boolean =>
+/** The device's own ask for less motion. */
+export const systemReducedMotion = (): boolean =>
   typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+
+// ───────────────────────────────────────────── Settings › Animations, kept on this device
+
+const PREF = { animations: 'healthier.animations', blur: 'healthier.blur' } as const;
+const read = (key: string): string | null => {
+  try {
+    return window.localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+};
+const write = (key: string, value: string | null) => {
+  try {
+    if (value === null) window.localStorage.removeItem(key);
+    else window.localStorage.setItem(key, value);
+  } catch {
+    // Without storage the choice lasts until the page reloads.
+  }
+};
+/** Animations turned off in Settings. */
+export const animationsOff = (): boolean => read(PREF.animations) === 'off';
+/** Blur reduced in Settings: glass shows as plain panels. */
+export const blurReduced = (): boolean => read(PREF.blur) === 'reduced';
+
+/** Marks the page for theme.css: whether glass blurs and stars twinkle. On start, and on every change. */
+export function applyMotionPrefs(): void {
+  const root = document.documentElement;
+  root.dataset.blur = blurReduced() ? 'off' : 'on';
+  root.dataset.motion = animationsOff() ? 'off' : 'on';
+}
+
+const listeners = new Set<() => void>();
+const changed = () => {
+  applyMotionPrefs();
+  listeners.forEach((l) => l());
+};
+
+/** The two choices, and setting them, for the Settings card. */
+export function useMotionPrefs() {
+  const [, bump] = useState(0);
+  useEffect(() => {
+    const l = () => bump((n) => n + 1);
+    listeners.add(l);
+    return () => {
+      listeners.delete(l);
+    };
+  }, []);
+  return {
+    animations: !animationsOff(),
+    reduceBlur: blurReduced(),
+    setAnimations(on: boolean) {
+      write(PREF.animations, on ? null : 'off');
+      changed();
+    },
+    setReduceBlur(on: boolean) {
+      write(PREF.blur, on ? 'reduced' : null);
+      changed();
+    },
+  };
+}
+
+/** No entrances: the device asks for less motion, or they're turned off in Settings. */
+export const reducedMotion = (): boolean => systemReducedMotion() || animationsOff();
 
 const easeOut = (k: number) => 1 - (1 - k) ** 3;
 

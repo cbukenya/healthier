@@ -6,6 +6,7 @@ import {
 import type { InsightPage, Kind, Observation } from '../pipeline/insights';
 import { t, type MessageKey } from '../i18n';
 import { tint } from '../ui/primitives';
+import { reducedMotion } from '../hooks/useMotion';
 
 const DOMAIN_LABELS: Record<string, MessageKey> = {
   cardio: 'insights.carousel.domains.cardio',
@@ -141,8 +142,7 @@ export function InsightsCarousel({ observations, page }: { observations: Observa
   }, [observations.length, activeIndex]);
 
   useEffect(() => {
-    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
-    if (mq.matches || isHovered || observations.length <= 1) return;
+    if (reducedMotion() || isHovered || observations.length <= 1) return;
 
     const timer = setInterval(() => {
       setActiveIndex((curr) => {
