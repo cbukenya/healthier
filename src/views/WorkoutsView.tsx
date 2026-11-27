@@ -97,7 +97,7 @@ export function WorkoutsView({ data, intraday, clock, openId, onOpen }: {
 
   return (
     <div className="space-y-3">
-      {level && <LevelCard level={level} hero={wide} place="workouts" />}
+      {level && <LevelCard level={level} hero={wide} />}
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
         {load && <LoadCard load={load} battery={battery} wide={wide} />}
         {latest && (
@@ -686,20 +686,4 @@ function nearestPoint(e: React.PointerEvent<HTMLElement>, xs: number[]): number 
   const box = e.currentTarget.getBoundingClientRect();
   const x = ((e.clientX - box.left) / box.width) * 100;
   return xs.reduce((best, v, i) => (Math.abs(v - x) < Math.abs(xs[best] - x) ? i : best), 0);
-}
-
-/** Today's latest workout and the level, for the Overview tab: the same cards, a little smaller. */
-export function useWorkoutsOverview(data: SyncResult, intraday?: IntradayDays) {
-  const days = data.days;
-  return useMemo(() => {
-    const latest = workoutsIn(days)[0] ?? null;
-    const day = latest ? days.find((d) => d.date === latest.date) ?? null : null;
-    return {
-      latest,
-      zones: day?.hrZones ?? null,
-      heart: latest ? workoutHeart(latest.workout, latest.date, intraday, day?.hrZones ?? null) : null,
-      restingPerMinute: latest ? restingKcalPerMinute(days, latest.date) : null,
-      level: latest ? workoutLevel(days) : null,
-    };
-  }, [days, intraday]);
 }
