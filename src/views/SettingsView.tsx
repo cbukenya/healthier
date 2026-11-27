@@ -1,5 +1,5 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { BookOpen, ChevronLeft, ChevronRight, CircleDotDashed, CircleUserRound, Database, Sparkles, Target, Watch, type LucideIcon } from 'lucide-react';
+import { Accessibility, BookOpen, ChevronLeft, ChevronRight, CircleDotDashed, CircleUserRound, Database, Target, Watch, type LucideIcon } from 'lucide-react';
 import { t, type MessageKey } from '../i18n';
 import { estimatedSleepTarget, latestBody, needFloor } from '../pipeline/derive';
 import { DEFAULT_GOALS, proteinTarget } from '../pipeline/goals';
@@ -10,7 +10,6 @@ import { useCycle } from '../hooks/useCycle';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 import { Card } from '../ui/primitives';
 import { AccountCard, CycleCard, DataFacts, GoalsCard, MotionCard, SectionScreen } from './DataCards';
-import { useMotionPrefs } from '../hooks/useMotion';
 import { DataStreams, streamsSummary } from './DataStreams';
 import { StatusCard } from './DataStatus';
 import { SourcesCard, sourcesSummary, useSources } from './SourcesCard';
@@ -41,7 +40,7 @@ const LOOK: Record<SectionId, { title: MessageKey; icon: LucideIcon }> = {
   streams: { title: 'data.streams.title', icon: Database },
   goals: { title: 'data.goals.title', icon: Target },
   cycle: { title: 'data.cycle.title', icon: CircleDotDashed },
-  motion: { title: 'data.motion.title', icon: Sparkles },
+  motion: { title: 'data.motion.title', icon: Accessibility },
   facts: { title: 'data.facts.title', icon: BookOpen },
   account: { title: 'data.account.title', icon: CircleUserRound },
 };
@@ -152,14 +151,14 @@ export function SettingsView({
     else setSection(null);
   };
 
-  const motion = useMotionPrefs();
   const summaries: Record<SectionId, string> = {
     devices: sources.view ? sourcesSummary(sources.view) : '',
     streams: streamsSummary(data),
     // The goals there are by name, not their numbers.
     goals: [t('data.goals.steps.label'), t('data.goals.brisk.label'), t('data.goals.sleepNeed.label')].join(' · '),
     cycle: t('data.overview.summaries.cycle', { tracking: log.settings.tracking ? 'on' : 'off' }),
-    motion: t('data.overview.summaries.motion', { animations: motion.animations ? 'on' : 'off', blur: motion.reduceBlur ? 'yes' : 'no' }),
+    // What's in it by name, as Goals lists its goals.
+    motion: [t('data.motion.animations'), t('data.motion.blur')].join(' · '),
     facts: t('data.overview.summaries.facts'),
     account: t(live ? 'data.overview.summaries.account' : 'data.overview.summaries.accountDemo'),
   };

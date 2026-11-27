@@ -335,8 +335,8 @@ export function CycleCard({ kept }: {
 }
 
 /**
- * Settings › Animations: whether the cards' entrances play, and whether glass blurs what's behind it.
- * Both are kept on this device, so a phone and a laptop can differ.
+ * Settings › Accessibility: whether the cards' entrances play, and whether glass blurs what's behind
+ * it. Both on by default, and kept on this device, so a phone and a laptop can differ.
  */
 export function MotionCard() {
   const prefs = useMotionPrefs();
@@ -355,7 +355,7 @@ export function MotionCard() {
           <SwitchRow
             label={t('data.motion.blur')}
             note={t('data.motion.blurNote')}
-            on={prefs.reduceBlur}
+            on={!prefs.reduceBlur}
             onToggle={() => prefs.setReduceBlur(!prefs.reduceBlur)}
             tone={SECTION_TONE.motion}
           />

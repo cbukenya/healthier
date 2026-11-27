@@ -2827,12 +2827,12 @@
       "loading": "Reading your devices and apps…"
     },
     "motion": {
-      "title": "Animations",
+      "title": "Accessibility",
       "hint": "How cards move and how glass looks.",
       "animations": "Animations",
       "animationsNote": "Cards fill in and settle the first time you open each page after starting the app.",
-      "blur": "Reduce blur",
-      "blurNote": "Cards and the bar at the top stop blurring what’s behind them. Easier on older phones.",
+      "blur": "Motion blur",
+      "blurNote": "Cards and the bar at the top blur what’s behind them. Turning it off can help older phones.",
       "device": "Kept on this device only, so a phone and a laptop can differ."
     },
     "cycle": {
@@ -2863,7 +2863,6 @@
         "devicesNone": "Nothing reported yet",
         "streams": "{count, plural, one {# data type} other {# data types}}",
         "cycle": "{tracking, select, on {On} other {Off}}",
-      "motion": "{animations, select, on {On} other {Off}}{blur, select, yes { · Less blur} other {}}",
         "facts": "Data processing in Healthier",
         "account": "Theme · Sign out · Delete",
         "accountDemo": "Theme · Leave the demo"
