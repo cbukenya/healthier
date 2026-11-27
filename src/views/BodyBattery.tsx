@@ -1,4 +1,4 @@
-import React, { useId, useRef } from 'react';
+import React, { useEffect, useId, useRef, useState } from 'react';
 import { BATTERY_START, BATTERY_TIERS, batteryTier, type Readiness, type ReadinessPart, type ReadinessSignal } from '../pipeline/derive';
 import { t, type MessageKey } from '../i18n';
 import { formatFixed, formatList } from '../i18n/format';
@@ -80,6 +80,44 @@ const yOf = (level: number) => BOTTOM - (level / 100) * (BOTTOM - TOP);
  * height and the current one lit. `labelled` names each stage and its range; the small phone
  * figure leaves that to the text beside it and draws the rail heavier to stay legible.
  */
+/** How long the figure takes to fill from empty to a full 100; a lower score takes its share of it, eased. */
+const FILL_MS = 1600;
+
+const reducedMotion = () => typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+
+/**
+ * The battery's level as it fills: from empty to `score` the first time it shows, and from where it
+ * was to the new score when that changes, easing out as it arrives. At once with reduced motion.
+ */
+function useFill(score: number | null): number {
+  const [shown, setShown] = useState(() => (score !== null && reducedMotion() ? score : 0));
+  const at = useRef(shown);
+  useEffect(() => {
+    const target = score ?? 0;
+    if (reducedMotion()) {
+      at.current = target;
+      setShown(target);
+      return;
+    }
+    const from = at.current;
+    const ms = Math.max(400, (Math.abs(target - from) / 100) * FILL_MS);
+    const start = performance.now();
+    let frame = 0;
+    const step = (now: number) => {
+      const k = Math.min(1, (now - start) / ms);
+      at.current = from + (target - from) * (1 - (1 - k) ** 3);
+      setShown(at.current);
+      if (k < 1) frame = requestAnimationFrame(step);
+    };
+    frame = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(frame);
+  }, [score]);
+  return shown;
+}
+
+/** How quickly a stage on the rail lights once the fill reaches it. */
+const LIGHT_UP = { transition: 'opacity 450ms ease-out, fill 450ms ease-out' } as const;
+
 function BatteryFigure({ score, gender, labelled, className }: {
   score: number | null;
   gender: Gender | null;
@@ -90,7 +128,10 @@ function BatteryFigure({ score, gender, labelled, className }: {
   const id = useId().replace(/[^\w-]/g, '');
   const body = silhouette(gender);
   const tier = score === null ? null : batteryTier(score);
-  const level = score ?? 0;
+  // The fill rises from the feet to the score and the marker rides up with it; the stage it lands
+  // in lights up, its bar and its name, only once the fill gets there.
+  const level = useFill(score);
+  const arrived = score !== null && Math.abs(level - score) < 0.05;
   const fillY = yOf(level);
   const fillHeight = (level / 100) * (BOTTOM - TOP);
   // The figure's gradient: each stage's colour at the middle of its band, blending across the thresholds.
@@ -154,18 +195,18 @@ function BatteryFigure({ score, gender, labelled, className }: {
         const bottom = yOf(stage.min);
         const centre = (top + bottom) / 2;
         const style = TIER_STYLE[stage.tag];
-        const on = tier?.tag === stage.tag;
+        const on = arrived && tier?.tag === stage.tag;
         return (
           <g key={stage.tag}>
             <rect
-              x={rail.x} width={rail.width} rx={rail.width / 2} fill={style.body} opacity={on ? 1 : 0.22}
+              x={rail.x} width={rail.width} rx={rail.width / 2} fill={style.body} opacity={on ? 1 : 0.22} style={LIGHT_UP}
               y={top + (max === 100 ? 0 : rail.gap)}
               height={bottom - top - (max === 100 ? 0 : rail.gap) - (stage.min === 0 ? 0 : rail.gap)}
             />
             {labelled && (
               <>
-                <text fontSize={18} fontWeight={700} x="264" y={centre - 2} fill={on ? 'var(--color-zinc-50)' : 'var(--color-zinc-500)'}>{t(style.name)}</text>
-                <text className="tabular-nums" fontSize={13.5} x="264" y={centre + 17} fill={on ? 'var(--color-zinc-300)' : 'var(--color-zinc-600)'}>
+                <text fontSize={18} fontWeight={700} x="264" y={centre - 2} fill={on ? 'var(--color-zinc-50)' : 'var(--color-zinc-500)'} style={LIGHT_UP}>{t(style.name)}</text>
+                <text className="tabular-nums" fontSize={13.5} x="264" y={centre + 17} fill={on ? 'var(--color-zinc-300)' : 'var(--color-zinc-600)'} style={LIGHT_UP}>
                   {t('today.battery.range', { min: stage.min, max: tierMax(i) })}
                 </text>
               </>
