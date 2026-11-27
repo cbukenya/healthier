@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { CivilDate } from '../lib/date';
 import type { DailyRecord, DayNutrition } from '../types/health';
 import { t } from '../i18n';
@@ -165,20 +165,46 @@ function StandingPill({ standing }: { standing: Standing }) {
   );
 }
 
+/**
+ * Whether the targets' figures should all go under their names: true when any one of them doesn't
+ * fit beside its name, so the rows always read alike. Measured on the rows marked data-target-row.
+ */
+function useStackedTargets() {
+  const ref = useRef<HTMLDivElement>(null);
+  const [stacked, setStacked] = useState(false);
+  useLayoutEffect(() => {
+    const box = ref.current;
+    if (!box) return;
+    const measure = () => {
+      const tight = [...box.querySelectorAll<HTMLElement>('[data-target-row]')].some((row) => {
+        const [name, figure] = [...row.children] as HTMLElement[];
+        return name.getBoundingClientRect().width + figure.getBoundingClientRect().width + 8 > row.clientWidth;
+      });
+      setStacked(tight);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(box);
+    return () => observer.disconnect();
+  }, []);
+  return { ref, stacked };
+}
+
 /** A target's progress bar: what's in, against the target, in grams or, for water, litres. */
-function TargetBar({ label, got, target, colour, inLitres = false }: {
+function TargetBar({ label, got, target, colour, inLitres = false, stacked = false }: {
   label: string;
   got: number;
   target: number | null;
   colour: string;
   inLitres?: boolean;
+  /** The figure under the name instead of beside it, as for every target when one doesn't fit. */
+  stacked?: boolean;
 }) {
   const b = (w: React.ReactNode) => <span className="text-zinc-100">{w}</span>;
   return (
     <div className="mt-2">
-      {/* Where the figure doesn't fit beside its name, it goes whole onto the line under it, at the start. */}
-      <div className="flex flex-wrap items-baseline justify-between gap-x-2 text-detail text-zinc-400">
-        <span>{label}</span>
+      <div data-target-row className={`flex text-detail text-zinc-400 ${stacked ? 'flex-col items-start' : 'items-baseline justify-between gap-x-2'}`}>
+        <span className="whitespace-nowrap">{label}</span>
         <span className="whitespace-nowrap text-zinc-500">
           {target === null
             ? rich('nutrition.plate.grams', { grams: grams(got), b })
@@ -241,6 +267,7 @@ function PlateCard({ day, maintenance, devices, proteinTarget, fibreTarget, wate
   const over = squares && squares.total > 100 ? plateSquares(eaten - ref!, ref!, shares) : null;
   const inside = over ? plateSquares(ref!, ref!, shares) : squares;
   const size = wide ? 14 : 12;
+  const targets = useStackedTargets();
   const vsRef = ref === null ? null : eaten > ref
     ? t('nutrition.plate.over', { kcal: kcal(eaten - ref), devices: maintenance === null ? 'yes' : 'no' })
     : t('nutrition.plate.of', { kcal: kcal(ref), devices: maintenance === null ? 'yes' : 'no' });
@@ -277,11 +304,13 @@ function PlateCard({ day, maintenance, devices, proteinTarget, fibreTarget, wate
           </div>
           {vsRef && <div className="text-caption text-zinc-500">{vsRef}</div>}
           <div className="mt-3 text-eyebrow uppercase text-zinc-500">{t('nutrition.plate.targets')}</div>
-          <TargetBar label={t('nutrition.macros.protein')} got={day?.proteinG ?? 0} target={proteinTarget} colour={MACRO.protein} />
-          {day?.fibreG !== null && (
-            <TargetBar label={t('nutrition.macros.fibre')} got={day?.fibreG ?? 0} target={fibreTarget} colour={MACRO.fibre} />
-          )}
-          <TargetBar label={t('nutrition.water.title')} got={water} target={waterTarget} colour={MACRO.water} inLitres />
+          <div ref={targets.ref}>
+            <TargetBar label={t('nutrition.macros.protein')} got={day?.proteinG ?? 0} target={proteinTarget} colour={MACRO.protein} stacked={targets.stacked} />
+            {day?.fibreG !== null && (
+              <TargetBar label={t('nutrition.macros.fibre')} got={day?.fibreG ?? 0} target={fibreTarget} colour={MACRO.fibre} stacked={targets.stacked} />
+            )}
+            <TargetBar label={t('nutrition.water.title')} got={water} target={waterTarget} colour={MACRO.water} inLitres stacked={targets.stacked} />
+          </div>
         </div>
       </div>
       {note && (
