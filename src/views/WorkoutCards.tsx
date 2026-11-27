@@ -473,12 +473,12 @@ function levelLine(level: WorkoutLevel): string {
  * The level's entrance, in steps: the bars light one by one from Embers up to Wildfire, then go out
  * again from the top down to the level, and only then does the rail mark where it is.
  */
-const LEVEL_STEP_MS = 240;
+const LEVEL_STEP_MS = 340;
 const LEVEL_START_MS = 250;
-const LEVEL_HOLD_MS = 400;
+const LEVEL_HOLD_MS = 700;
 const levelTimes = (index: number) => {
   const fall = LEVEL_START_MS + (LEVELS.length - 1) * LEVEL_STEP_MS + LEVEL_HOLD_MS;
-  const rail = fall + (LEVELS.length - 1 - index) * LEVEL_STEP_MS + 200;
+  const rail = fall + (LEVELS.length - 1 - index) * LEVEL_STEP_MS + 400;
   return { fall, rail, end: rail + 600 };
 };
 
