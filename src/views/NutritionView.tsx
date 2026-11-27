@@ -176,9 +176,10 @@ function TargetBar({ label, got, target, colour, inLitres = false }: {
   const b = (w: React.ReactNode) => <span className="text-zinc-100">{w}</span>;
   return (
     <div className="mt-2">
-      <div className="flex items-baseline justify-between gap-2 text-detail text-zinc-400">
+      {/* Where the figure doesn't fit beside its name, it goes whole onto the line under it, at the start. */}
+      <div className="flex flex-wrap items-baseline justify-between gap-x-2 text-detail text-zinc-400">
         <span>{label}</span>
-        <span className="text-zinc-500">
+        <span className="whitespace-nowrap text-zinc-500">
           {target === null
             ? rich('nutrition.plate.grams', { grams: grams(got), b })
             : inLitres
