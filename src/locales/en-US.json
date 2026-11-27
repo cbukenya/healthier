@@ -1782,9 +1782,9 @@
       },
       "headline": {
         "thriving": {
-          "rising": "Your heart is thriving, up {n} points since {month}.",
-          "steady": "Your heart is thriving, and holding steady.",
-          "falling": "Still thriving, though it’s eased {n} points since {month}."
+          "rising": "Your heart is thriving, and still climbing. Whatever you’ve been doing since {month} is working.",
+          "steady": "Your heart is thriving. The habits behind this are worth protecting.",
+          "falling": "Still thriving, though it’s eased {n} points since {month}. {pointer}"
         },
         "strong": {
           "rising": "Strong and rising: {n, plural, one {# more point} other {# more points}} and you’re thriving.",
@@ -1821,10 +1821,10 @@
       },
       "keep": {
         "title": "What keeps it here",
-        "activity": "Your {minutes} brisk minutes a week are doing the heavy lifting.",
-        "fitness": "Your cardio fitness is doing the heavy lifting.",
-        "restingHr": "A low, steady resting heart rate is doing the heavy lifting.",
-        "hrv": "A rising HRV is doing the heavy lifting."
+        "activity": "The {minutes} brisk minutes you fit in most weeks are doing the heavy lifting. Keep them going.",
+        "fitness": "Your cardio fitness is carrying it. One hard session a week is enough to hold on to it.",
+        "restingHr": "Your resting heart rate is low and steady. Keep the routine that got it there.",
+        "hrv": "Your HRV is rising. Regular sleep and easy days after hard ones are paying off."
       },
       "parts": {
         "activity": "Activity",
