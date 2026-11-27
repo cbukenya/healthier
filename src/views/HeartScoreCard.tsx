@@ -102,6 +102,27 @@ function arc(cx: number, cy: number, r: number, a0: number, a1: number): string 
   return `M${x0.toFixed(1)},${y0.toFixed(1)} A${r.toFixed(1)},${r.toFixed(1)} 0 ${a1 - a0 > 180 ? 1 : 0},1 ${x1.toFixed(1)},${y1.toFixed(1)}`;
 }
 
+/** About how wide a line of 12px DM Sans is: wide enough to keep clear of the ring, never exact. */
+const lineWidth = (text: string) => text.length * 6.4;
+
+/**
+ * A line inside a circle of radius `r`, `dy` below its centre: as it is when it fits the circle's
+ * width there, else split between words into the two most even lines.
+ */
+function fitLines(text: string, r: number, dy: number): string[] {
+  const room = 2 * Math.sqrt(Math.max(0, r * r - dy * dy));
+  const words = text.split(' ');
+  if (lineWidth(text) <= room || words.length < 2) return [text];
+  let best = [text];
+  let worst = Infinity;
+  for (let i = 1; i < words.length; i++) {
+    const pair = [words.slice(0, i).join(' '), words.slice(i).join(' ')];
+    const longest = Math.max(...pair.map(lineWidth));
+    if (longest < worst) [best, worst] = [pair, longest];
+  }
+  return best;
+}
+
 /**
  * The score in the middle, its stages' starts ticked round a thin ring, and the four parts round
  * the outside, each as long as it counts and filled to its points in its own stage's colour. The
@@ -181,8 +202,11 @@ function Ring({ s, since, phone }: { s: HeartScore; since: string | null; phone:
     out.push(<text key="c1" x={cx} y={cy + 8} textAnchor="middle" fontFamily="var(--font-display)" fontSize={phone ? 26 : 32} fontWeight={600} fill={INK}>{t(key('learning.centre'), { count: counting })}</text>);
     out.push(<text key="c2" x={cx} y={cy + 30} textAnchor="middle" fontSize={12} fill={SOFT}>{t(key('learning.centreSub'))}</text>);
   } else {
-    out.push(<text key="c1" x={cx} y={cy + (since ? 14 : 20)} textAnchor="middle" fontFamily="var(--font-display)" fontSize={size * 0.2} fontWeight={600} fill={INK}>{formatInteger(s.score!)}</text>);
-    if (since) out.push(<text key="c2" x={cx} y={cy + 36} textAnchor="middle" fontSize={12} fill={SOFT}>{since}</text>);
+    // The change under the score, on two lines when one would run into the ring.
+    const lines = since ? fitLines(since, r2 - 10, 36) : [];
+    const lift = lines.length > 1 ? 7 : 0;
+    out.push(<text key="c1" x={cx} y={cy + (since ? 14 : 20) - lift} textAnchor="middle" fontFamily="var(--font-display)" fontSize={size * 0.2} fontWeight={600} fill={INK}>{formatInteger(s.score!)}</text>);
+    lines.forEach((line, i) => out.push(<text key={`c2${i}`} x={cx} y={cy + 36 - lift + i * 15} textAnchor="middle" fontSize={12} fill={SOFT}>{line}</text>));
   }
 
   const parts = formatList(RING.map((p) => t(key('ariaPart'), { name: t(key(`parts.${p}`)), points: s.parts[p] ? formatInteger(s.parts[p]!.points) : 'none' })));
@@ -433,10 +457,7 @@ export function HeartScoreCard({ data, wide }: { data: SyncResult; wide: boolean
       style={learning ? undefined : glowStyle(colour)}
     >
       <div className="flex items-center justify-between gap-3">
-        <h2 className="card-title-detail flex items-center gap-2 text-zinc-50">
-          <Heart size={18} aria-hidden className="text-rose-400" />
-          {t(key('title'))}
-        </h2>
+        <h2 className="card-title-detail text-zinc-50">{t(key('title'))}</h2>
         <StatusPill name={learning ? t(key('stage.learning')) : stageName(now.stage!)} dot={colour} dotRef={dot} />
       </div>
 
