@@ -1,4 +1,5 @@
-import React, { useEffect, useId, useRef, useState } from 'react';
+import React, { useId, useRef } from 'react';
+import { useTween } from '../hooks/useMotion';
 import { BATTERY_START, BATTERY_TIERS, batteryTier, type Readiness, type ReadinessPart, type ReadinessSignal } from '../pipeline/derive';
 import { t, type MessageKey } from '../i18n';
 import { formatFixed, formatList } from '../i18n/format';
@@ -83,38 +84,6 @@ const yOf = (level: number) => BOTTOM - (level / 100) * (BOTTOM - TOP);
 /** How long the figure takes to fill from empty to a full 100; a lower score takes its share of it, eased. */
 const FILL_MS = 1600;
 
-const reducedMotion = () => typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-
-/**
- * The battery's level as it fills: from empty to `score` the first time it shows, and from where it
- * was to the new score when that changes, easing out as it arrives. At once with reduced motion.
- */
-function useFill(score: number | null): number {
-  const [shown, setShown] = useState(() => (score !== null && reducedMotion() ? score : 0));
-  const at = useRef(shown);
-  useEffect(() => {
-    const target = score ?? 0;
-    if (reducedMotion()) {
-      at.current = target;
-      setShown(target);
-      return;
-    }
-    const from = at.current;
-    const ms = Math.max(400, (Math.abs(target - from) / 100) * FILL_MS);
-    const start = performance.now();
-    let frame = 0;
-    const step = (now: number) => {
-      const k = Math.min(1, (now - start) / ms);
-      at.current = from + (target - from) * (1 - (1 - k) ** 3);
-      setShown(at.current);
-      if (k < 1) frame = requestAnimationFrame(step);
-    };
-    frame = requestAnimationFrame(step);
-    return () => cancelAnimationFrame(frame);
-  }, [score]);
-  return shown;
-}
-
 /** How a stage on the rail lights once the fill reaches it: its bar and name fade up, briefly. */
 const LIGHT_UP = 'transition-[opacity,fill] duration-500 ease-out';
 
@@ -130,7 +99,7 @@ function BatteryFigure({ score, gender, labelled, className }: {
   const tier = score === null ? null : batteryTier(score);
   // The fill rises from the feet to the score and the marker rides up with it; the stage it lands
   // in lights up, its bar and its name, only once the fill gets there.
-  const level = useFill(score);
+  const level = useTween(score ?? 0, { ms: (distance) => Math.max(400, (distance / 100) * FILL_MS) });
   const arrived = score !== null && Math.abs(level - score) < 0.05;
   const fillY = yOf(level);
   const fillHeight = (level / 100) * (BOTTOM - TOP);

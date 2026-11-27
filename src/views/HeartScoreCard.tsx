@@ -8,6 +8,7 @@ import {
 } from '../pipeline/heartScore';
 import { WHO_WEEK } from '../pipeline/goals';
 import { useHistory } from '../hooks/useHistory';
+import { useTween } from '../hooks/useMotion';
 import { t, type MessageKey } from '../i18n';
 import { capitalize, formatCivil, formatInteger, formatList, formatMonth, formatMonthShort, formatNumber } from '../i18n/format';
 import { Contributors, StatusPill, tint, glowStyle, useGlowFrom } from '../ui/primitives';
@@ -140,6 +141,8 @@ function Ring({ s, since, phone }: { s: HeartScore; since: string | null; phone:
   const gap = 3;
   const fs = phone ? 11 : 11.5;
   const learning = s.score === null;
+  // The score ring closes from the top as the number counts up with it, and settles on the score.
+  const shown = useTween(s.score ?? 0, { ms: 1400 });
   const out: React.ReactNode[] = [];
 
   out.push(<circle key="track" cx={cx} cy={cy} r={r2} fill="none" stroke={TRACK} strokeWidth={6} />);
@@ -150,7 +153,7 @@ function Ring({ s, since, phone }: { s: HeartScore; since: string | null; phone:
     );
   }
   if (!learning) {
-    const a1 = -90 + 3.6 * Math.max(1, s.score!);
+    const a1 = -90 + 3.6 * Math.max(1, shown);
     const colour = STAGE_COLOUR[s.stage!];
     const ex = cx + r2 * Math.cos((a1 * Math.PI) / 180);
     const ey = cy + r2 * Math.sin((a1 * Math.PI) / 180);
@@ -205,7 +208,7 @@ function Ring({ s, since, phone }: { s: HeartScore; since: string | null; phone:
     // The change under the score, on two lines when one would run into the ring.
     const lines = since ? fitLines(since, r2 - 10, 36) : [];
     const lift = lines.length > 1 ? 7 : 0;
-    out.push(<text key="c1" x={cx} y={cy + (since ? 14 : 20) - lift} textAnchor="middle" fontFamily="var(--font-display)" fontSize={size * 0.2} fontWeight={600} fill={INK}>{formatInteger(s.score!)}</text>);
+    out.push(<text key="c1" x={cx} y={cy + (since ? 14 : 20) - lift} textAnchor="middle" fontFamily="var(--font-display)" fontSize={size * 0.2} fontWeight={600} fill={INK} className="tabular-nums">{formatInteger(Math.round(shown))}</text>);
     lines.forEach((line, i) => out.push(<text key={`c2${i}`} x={cx} y={cy + 36 - lift + i * 15} textAnchor="middle" fontSize={12} fill={SOFT}>{line}</text>));
   }
 

@@ -10,6 +10,7 @@ import type { DailyRecord } from '../types/health';
 import { WHO_WEEK } from '../pipeline/goals';
 import { whoWeek } from '../pipeline/insights/helpers';
 import { useGoals } from '../hooks/useGoals';
+import { useTween } from '../hooks/useMotion';
 
 const BRISK_HEX = 'var(--orange-400)';
 
@@ -230,6 +231,24 @@ function rampOf(ratio: number | null): { change: string; verdict: string } | nul
 }
 
 /** Concentric goal rings, outermost first, each filling clockwise from the top until its goal. */
+/** One ring, closing from the top to its share of the goal when the card shows. */
+function GoalRing({ c, r, length, stroke, color, share }: { c: number; r: number; length: number; stroke: number; color: string; share: number }) {
+  const shown = useTween(share, { ms: 900 + share * 500 });
+  return (
+    <g>
+      <circle cx={c} cy={c} r={r} fill="none" stroke={color} strokeOpacity={0.16} strokeWidth={stroke} />
+      {shown >= 0.999 ? (
+        <circle cx={c} cy={c} r={r} fill="none" stroke={color} strokeWidth={stroke} />
+      ) : shown > 0.002 && (
+        <circle
+          cx={c} cy={c} r={r} fill="none" stroke={color} strokeWidth={stroke} strokeLinecap="round"
+          strokeDasharray={`${shown * length} ${length}`} transform={`rotate(-90 ${c} ${c})`}
+        />
+      )}
+    </g>
+  );
+}
+
 function GoalRings({ rings, size, label }: {
   rings: { value: number | null; goal: number; color: string }[];
   size: number;
@@ -244,19 +263,7 @@ function GoalRings({ rings, size, label }: {
           const r = c - 2 - stroke / 2 - i * (stroke + 4);
           const length = 2 * Math.PI * r;
           const share = ring.value === null ? 0 : Math.min(1, Math.max(0, ring.value / ring.goal));
-          return (
-            <g key={i}>
-              <circle cx={c} cy={c} r={r} fill="none" stroke={ring.color} strokeOpacity={0.16} strokeWidth={stroke} />
-              {share >= 1 ? (
-                <circle cx={c} cy={c} r={r} fill="none" stroke={ring.color} strokeWidth={stroke} />
-              ) : share > 0 && (
-                <circle
-                  cx={c} cy={c} r={r} fill="none" stroke={ring.color} strokeWidth={stroke} strokeLinecap="round"
-                  strokeDasharray={`${share * length} ${length}`} transform={`rotate(-90 ${c} ${c})`}
-                />
-              )}
-            </g>
-          );
+          return <GoalRing key={i} c={c} r={r} length={length} stroke={stroke} color={ring.color} share={share} />;
         })}
       </svg>
       <Footprints size={18} aria-hidden="true" className="absolute inset-0 m-auto text-zinc-500" />

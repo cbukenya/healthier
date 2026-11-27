@@ -1,4 +1,5 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useElapsed } from '../hooks/useMotion';
 import type { CivilDate } from '../lib/date';
 import type { DailyRecord, DayNutrition } from '../types/health';
 import { t } from '../i18n';
@@ -223,22 +224,38 @@ function TargetBar({ label, got, target, colour, inLitres = false, stacked = fal
 }
 
 /** A grid of squares in the macros' colours, then empty ones. */
-function Squares({ protein, carbs, fat, empty, size }: { protein: number; carbs: number; fat: number; empty: number; size: number }) {
+/** How often the next square fills as the plate fills in, from the top left: slower for a few, never past the whole. */
+const SQUARE_MS = 40;
+const SQUARES_MS = 1600;
+const squareMs = (filled: number) => Math.min(SQUARE_MS, SQUARES_MS / Math.max(1, filled));
+
+/**
+ * A grid of squares in the macros' colours, then empty ones. They fill in one by one from the top
+ * left when the card shows, after `delay`, so a second grid can wait for the first.
+ */
+function Squares({ protein, carbs, fat, empty, size, delay = 0 }: { protein: number; carbs: number; fat: number; empty: number; size: number; delay?: number }) {
   const cells = [
     ...Array.from({ length: protein }, () => MACRO.protein),
     ...Array.from({ length: carbs }, () => MACRO.carbs),
     ...Array.from({ length: fat }, () => MACRO.fat),
     ...Array.from({ length: empty }, () => null),
   ];
+  const filled = protein + carbs + fat;
+  const step = squareMs(filled);
+  const elapsed = useElapsed(delay + filled * step);
+  const lit = Math.floor((elapsed - delay) / step) + 1;
   return (
     <div className="grid gap-[3px]" style={{ gridTemplateColumns: `repeat(10, ${size}px)` }} aria-hidden="true">
-      {cells.map((c, i) => (
-        <span
-          key={i}
-          className={`rounded-[3px] ${c ? '' : 'border border-[var(--rule-strong)]'}`}
-          style={{ width: size, height: size, background: c ?? undefined }}
-        />
-      ))}
+      {cells.map((c, i) => {
+        const on = c && i < lit;
+        return (
+          <span
+            key={i}
+            className={`rounded-[3px] border transition-colors duration-150 ${on ? 'border-transparent' : 'border-[var(--rule-strong)]'}`}
+            style={{ width: size, height: size, background: on ? c : undefined }}
+          />
+        );
+      })}
     </div>
   );
 }
@@ -292,7 +309,7 @@ function PlateCard({ day, maintenance, devices, proteinTarget, fibreTarget, wate
                   <span className="absolute right-0 top-1 text-note text-zinc-300">{t('nutrition.plate.maintenanceLine')}</span>
                   <span className="absolute -left-1 -right-1 top-[17px] border-t border-dashed border-zinc-400" />
                 </div>
-                <Squares protein={over.protein} carbs={over.carbs} fat={over.fat} empty={0} size={size} />
+                <Squares protein={over.protein} carbs={over.carbs} fat={over.fat} empty={0} size={size} delay={SQUARES_MS} />
               </>
             )}
           </div>
