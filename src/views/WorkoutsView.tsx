@@ -537,7 +537,7 @@ function WorkoutList({ workouts, span, picked, onPick, wide }: {
                   type="button"
                   aria-pressed={wide ? on : undefined}
                   onClick={() => onPick(dw.id)}
-                  className={`flex w-full items-center gap-3 rounded-xl border px-3 py-[11px] text-left transition-colors ${on ? '' : 'border-transparent hover:bg-panel'}`}
+                  className={`flex w-full items-center gap-3 rounded-xl border px-3 py-[11px] text-left transition-colors ${on ? '' : 'border-transparent hover:bg-panel active:bg-panel'}`}
                   style={on ? { background: `color-mix(in srgb, ${WORKOUT} 7%, transparent)`, borderColor: `color-mix(in srgb, ${WORKOUT} 28%, transparent)` } : undefined}
                 >
                   <WorkoutIcon kind={kindOf(w)} />
@@ -559,6 +559,8 @@ function WorkoutList({ workouts, span, picked, onPick, wide }: {
                       </span>
                     )}
                   </span>
+                  {/* Where a workout opens on a page of its own, a chevron says the row leads somewhere. */}
+                  {!wide && <ChevronRight size={16} strokeWidth={2.25} aria-hidden="true" className="-mr-1 shrink-0 text-zinc-500" />}
                 </button>
               );
             })}
