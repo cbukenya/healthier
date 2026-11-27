@@ -19,6 +19,7 @@ import { usePageInsights, type Clock } from '../hooks/usePageInsights';
 import { useCycle } from '../hooks/useCycle';
 import type { IntradayDays } from '../pipeline/labs';
 import { HeartRateCard } from './HeartRateCard';
+import { HeartScoreCard } from './HeartScoreCard';
 
 const BREATHING_HEX = 'var(--purple-500)';
 const SPO2_HEX = 'var(--sky-500)';
@@ -166,7 +167,8 @@ export function VitalsView({ data, clock, intraday }: { data: SyncResult; clock?
   return (
     <div className="space-y-3">
       <div className="flex flex-col gap-3">
-        {/* The latest readings first, then today's heart rate. */}
+        {/* The heart score on top, then the latest readings, then today's heart rate. */}
+        <HeartScoreCard data={data} wide={wide} />
         <div>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 md:gap-3">
             <Tile

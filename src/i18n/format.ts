@@ -111,6 +111,9 @@ export function formatMonthYearShort(monthOrDate: string): string {
   return t('format.date.monthYear', { month: names('format.monthsShort')[m - 1], year: y });
 }
 
+/** "Sep", from a 'YYYY-MM' month or a date: a chart axis's month. */
+export const formatMonthShort = (monthOrDate: string): string => names('format.monthsShort')[parts(monthOrDate)[1] - 1];
+
 /** "September" in `today`'s year, "March 2025" in another, from a 'YYYY-MM' month or a date. */
 export function formatMonth(monthOrDate: string, today: CivilDate): string {
   const [y, m] = parts(monthOrDate);
