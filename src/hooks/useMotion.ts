@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 
 /**
  * The hero cards' small entrances: a figure filling, a ring closing, a cloud drifting in. Each plays
- * once when its card first shows and eases as it arrives; with reduced motion asked for, everything
- * is simply where it ends.
+ * the first time its card shows after the app starts, and eases as it arrives. Back on a page later
+ * in the same session, the card is simply where it ends, as it is with reduced motion asked for.
  */
 
 export const reducedMotion = (): boolean =>
@@ -11,18 +11,37 @@ export const reducedMotion = (): boolean =>
 
 const easeOut = (k: number) => 1 - (1 - k) ** 3;
 
+/** The entrances already played since the app started: kept in memory, so a relaunch plays them again. */
+const played = new Set<string>();
+
+/**
+ * Whether the entrance called `key` should play: the first time a card with it shows this session,
+ * and never with reduced motion. Cards drawn together, two rings say, share a key and all play.
+ */
+export function usePlayOnce(key: string): boolean {
+  const [play] = useState(() => !played.has(key) && !reducedMotion());
+  useEffect(() => {
+    played.add(key);
+  }, [key]);
+  return play;
+}
+
 /**
  * A number easing to `target`: from `from` when the card first shows, then from wherever it was
  * whenever `target` changes. `ms` is how long the move takes, or works it out from the distance.
  */
 export function useTween(
   target: number,
-  { ms = 1000, from = 0, delay = 0 }: { ms?: number | ((distance: number) => number); from?: number; delay?: number } = {},
+  { ms = 1000, from = 0, delay = 0, play = true }: { ms?: number | ((distance: number) => number); from?: number; delay?: number; play?: boolean } = {},
 ): number {
-  const [shown, setShown] = useState(() => (reducedMotion() ? target : from));
+  const [shown, setShown] = useState(() => (play && !reducedMotion() ? from : target));
   const at = useRef(shown);
+  const first = useRef(true);
   useEffect(() => {
-    if (reducedMotion()) {
+    // Not playing this time: it starts where it ends; a later change still moves.
+    const still = first.current && !play;
+    first.current = false;
+    if (still || reducedMotion()) {
       at.current = target;
       setShown(target);
       return;
@@ -48,10 +67,10 @@ export function useTween(
  * Milliseconds since the card first showed, counting up to `until` and then holding there; `until`
  * at once with reduced motion. For entrances played as a sequence of steps.
  */
-export function useElapsed(until: number): number {
-  const [elapsed, setElapsed] = useState(() => (reducedMotion() ? until : 0));
+export function useElapsed(until: number, play = true): number {
+  const [elapsed, setElapsed] = useState(() => (play && !reducedMotion() ? 0 : until));
   useEffect(() => {
-    if (reducedMotion()) {
+    if (!play || reducedMotion()) {
       setElapsed(until);
       return;
     }

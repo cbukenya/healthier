@@ -1,5 +1,5 @@
 import React, { useId, useRef } from 'react';
-import { useTween } from '../hooks/useMotion';
+import { usePlayOnce, useTween } from '../hooks/useMotion';
 import { BATTERY_START, BATTERY_TIERS, batteryTier, type Readiness, type ReadinessPart, type ReadinessSignal } from '../pipeline/derive';
 import { t, type MessageKey } from '../i18n';
 import { formatFixed, formatList } from '../i18n/format';
@@ -88,8 +88,9 @@ const FILL_MS = 2400;
  * The battery's level as the figure fills: from the feet to the score when the card shows, and
  * whether it has got there. The stage it lands in, its bar and its name, lights only then.
  */
-function useBatteryFill(score: number | null): { level: number; arrived: boolean } {
-  const level = useTween(score ?? 0, { ms: (distance) => Math.max(600, (distance / 100) * FILL_MS) });
+function useBatteryFill(score: number | null, motion: string): { level: number; arrived: boolean } {
+  const play = usePlayOnce(motion);
+  const level = useTween(score ?? 0, { ms: (distance) => Math.max(600, (distance / 100) * FILL_MS), play });
   return { level, arrived: score !== null && Math.abs(level - score) < 0.05 };
 }
 
@@ -251,7 +252,7 @@ export function BodyBattery({ score, parts, label, missing, calibrating, gender,
   const cautions = parts.filter((p) => p.note);
 
   const maxAbs = Math.max(...parts.map(p => Math.abs(p.contribution)), 1);
-  const fill = useBatteryFill(score);
+  const fill = useBatteryFill(score, 'battery');
   const card = useRef<HTMLDivElement>(null);
   const dot = useRef<HTMLSpanElement>(null);
   useGlowFrom(card, dot);
@@ -310,7 +311,7 @@ export function BodyBatteryCompact({ score, parts, label, missing, calibrating, 
   const z = batteryText({ score, missing, calibrating });
   const cautions = parts.filter((p) => p.note);
   const maxAbs = Math.max(...parts.map((p) => Math.abs(p.contribution)), 1);
-  const fill = useBatteryFill(score);
+  const fill = useBatteryFill(score, 'battery-phone');
   const card = useRef<HTMLElement>(null);
   const dot = useRef<HTMLSpanElement>(null);
   useGlowFrom(card, dot);

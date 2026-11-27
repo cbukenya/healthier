@@ -7,7 +7,7 @@ import { scoreSleep, type SleepNorms } from '../pipeline/sleep';
 import { Card, CardHead, DURATION_UNIT, Delta, Row, fmtDuration, tint, withUnits } from '../ui/primitives';
 import type { DailyRecord, SleepSession } from '../types/health';
 import { useGoals } from '../hooks/useGoals';
-import { useTween } from '../hooks/useMotion';
+import { usePlayOnce, useTween } from '../hooks/useMotion';
 import { Stat, statUnit } from './ActivityCards';
 
 /** A four-pointed star, centred on (x, y), `r` from the centre to each point. */
@@ -26,7 +26,7 @@ export function NightSky({ className = '' }: { className?: string }) {
   // Spread over the sky beside and above the moon, never below it. Those above the drawing's box reach
   // up toward the top of the card, right of its title, so the drawing lets them show outside its box.
   // The cloud drifts in from the right and settles over the foot of the moon.
-  const drift = useTween(0, { from: CLOUD_FROM, ms: 2600 });
+  const drift = useTween(0, { from: CLOUD_FROM, ms: 2600, play: usePlayOnce('night-cloud') });
   const stars: [number, number, number][] = [
     [-18, -26, 4], [62, -18, 6], [104, -36, 5], [8, 20, 5], [108, 14, 7],
   ];

@@ -1,5 +1,5 @@
 import React, { useId, useMemo, useState } from 'react';
-import { useElapsed } from '../hooks/useMotion';
+import { useElapsed, usePlayOnce } from '../hooks/useMotion';
 import { addDays, daysBetween, isoWeekdayIndex, type CivilDate } from '../lib/date';
 import { names, t, type MessageKey } from '../i18n';
 import { rich } from '../i18n/react';
@@ -352,7 +352,7 @@ function CycleStrip({ summary }: { summary: CycleSummary }) {
   // The days so far fill in their colours one by one from day 1 when the card shows, and today's
   // bar stands up, with its name over it, when the fill reaches it.
   const step = Math.min(STRIP_DAY_MS, STRIP_MS / Math.max(1, c.day));
-  const elapsed = useElapsed(STRIP_DELAY_MS + c.day * step);
+  const elapsed = useElapsed(STRIP_DELAY_MS + c.day * step, usePlayOnce('cycle-strip'));
   const filledTo = Math.floor((elapsed - STRIP_DELAY_MS) / step) + 1;
   const cells = Array.from({ length }, (_, i) => {
     const d = i + 1;

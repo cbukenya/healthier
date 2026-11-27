@@ -1,5 +1,5 @@
 import React, { useId, useState } from 'react';
-import { useElapsed } from '../hooks/useMotion';
+import { useElapsed, usePlayOnce } from '../hooks/useMotion';
 import {
   Activity, Bike, ChartNoAxesColumnIncreasing, ChevronRight, Dumbbell, Feather, Flower2, Footprints, Gauge, Hand,
   HeartPulse, Infinity as Loop, Kayak, Leaf, Mountain, MountainSnow, Music, PersonStanding, Sailboat, Ship, Snowflake,
@@ -545,10 +545,16 @@ function LevelRail({ level, marked }: { level: WorkoutLevel; marked: boolean }) 
  * steps, and the zone minutes a week with how many more reach the next. `hero` is the Workouts
  * tab's wide card; otherwise it's the narrower card the Overview and phones show.
  */
-export function LevelCard({ level, hero = false, className = '' }: { level: WorkoutLevel; hero?: boolean; className?: string }) {
+export function LevelCard({ level, hero = false, place, className = '' }: {
+  level: WorkoutLevel;
+  hero?: boolean;
+  /** Which page shows it: each plays its entrance once a session. */
+  place: 'overview' | 'workouts';
+  className?: string;
+}) {
   const id = LEVELS[level.index];
   const times = levelTimes(level.index);
-  const elapsed = useElapsed(times.end);
+  const elapsed = useElapsed(times.end, usePlayOnce(`level-${place}`));
   const next = LEVELS[level.index + 1];
   const figures = (
     <div className="flex flex-wrap gap-x-9 gap-y-3 border-t border-rule pt-3.5">

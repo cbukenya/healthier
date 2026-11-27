@@ -8,7 +8,7 @@ import {
 } from '../pipeline/heartScore';
 import { WHO_WEEK } from '../pipeline/goals';
 import { useHistory } from '../hooks/useHistory';
-import { useTween } from '../hooks/useMotion';
+import { usePlayOnce, useTween } from '../hooks/useMotion';
 import { t, type MessageKey } from '../i18n';
 import { capitalize, formatCivil, formatInteger, formatList, formatMonth, formatMonthShort, formatNumber } from '../i18n/format';
 import { Contributors, StatusPill, tint, glowStyle, useGlowFrom } from '../ui/primitives';
@@ -142,7 +142,7 @@ function Ring({ s, since, phone }: { s: HeartScore; since: string | null; phone:
   const fs = phone ? 11 : 11.5;
   const learning = s.score === null;
   // The score ring closes from the top; the number and its change fade in once it has settled, never counting up.
-  const shown = useTween(s.score ?? 0, { ms: 2000 });
+  const shown = useTween(s.score ?? 0, { ms: 2000, play: usePlayOnce('heart-score') });
   // Within a point of it, the ring looks closed: the last of the easing would only hold the number back.
   const settled = s.score === null || Math.abs(shown - s.score) < 1;
   const reveal = `transition-opacity duration-500 ease-out ${settled ? 'opacity-100' : 'opacity-0'}`;

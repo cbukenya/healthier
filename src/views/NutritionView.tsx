@@ -1,5 +1,5 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { useElapsed } from '../hooks/useMotion';
+import { useElapsed, usePlayOnce } from '../hooks/useMotion';
 import type { CivilDate } from '../lib/date';
 import type { DailyRecord, DayNutrition } from '../types/health';
 import { t } from '../i18n';
@@ -242,7 +242,7 @@ function Squares({ protein, carbs, fat, empty, size, delay = 0 }: { protein: num
   ];
   const filled = protein + carbs + fat;
   const step = squareMs(filled);
-  const elapsed = useElapsed(delay + filled * step);
+  const elapsed = useElapsed(delay + filled * step, usePlayOnce(delay ? 'plate-over' : 'plate'));
   const lit = Math.floor((elapsed - delay) / step) + 1;
   return (
     <div className="grid gap-[3px]" style={{ gridTemplateColumns: `repeat(10, ${size}px)` }} aria-hidden="true">

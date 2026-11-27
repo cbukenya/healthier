@@ -335,7 +335,7 @@ function ActivityOverview({ data, clock, intraday, openWorkout }: { data: SyncRe
             onOpen={() => openWorkout(workouts.latest!.id)}
             wide={wide}
           />
-          {workouts.level && <LevelCard level={workouts.level} />}
+          {workouts.level && <LevelCard level={workouts.level} place="overview" />}
         </div>
       )}
 

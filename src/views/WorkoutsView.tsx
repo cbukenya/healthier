@@ -97,7 +97,7 @@ export function WorkoutsView({ data, intraday, clock, openId, onOpen }: {
 
   return (
     <div className="space-y-3">
-      {level && <LevelCard level={level} hero={wide} />}
+      {level && <LevelCard level={level} hero={wide} place="workouts" />}
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
         {load && <LoadCard load={load} battery={battery} wide={wide} />}
         {latest && (
