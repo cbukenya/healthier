@@ -115,8 +115,8 @@ function useFill(score: number | null): number {
   return shown;
 }
 
-/** How quickly a stage on the rail lights once the fill reaches it. */
-const LIGHT_UP = { transition: 'opacity 450ms ease-out, fill 450ms ease-out' } as const;
+/** How a stage on the rail lights once the fill reaches it: its bar and name fade up, briefly. */
+const LIGHT_UP = 'transition-[opacity,fill] duration-500 ease-out';
 
 function BatteryFigure({ score, gender, labelled, className }: {
   score: number | null;
@@ -199,14 +199,14 @@ function BatteryFigure({ score, gender, labelled, className }: {
         return (
           <g key={stage.tag}>
             <rect
-              x={rail.x} width={rail.width} rx={rail.width / 2} fill={style.body} opacity={on ? 1 : 0.22} style={LIGHT_UP}
+              x={rail.x} width={rail.width} rx={rail.width / 2} fill={style.body} opacity={on ? 1 : 0.22} className={LIGHT_UP}
               y={top + (max === 100 ? 0 : rail.gap)}
               height={bottom - top - (max === 100 ? 0 : rail.gap) - (stage.min === 0 ? 0 : rail.gap)}
             />
             {labelled && (
               <>
-                <text fontSize={18} fontWeight={700} x="264" y={centre - 2} fill={on ? 'var(--color-zinc-50)' : 'var(--color-zinc-500)'} style={LIGHT_UP}>{t(style.name)}</text>
-                <text className="tabular-nums" fontSize={13.5} x="264" y={centre + 17} fill={on ? 'var(--color-zinc-300)' : 'var(--color-zinc-600)'} style={LIGHT_UP}>
+                <text fontSize={18} fontWeight={700} x="264" y={centre - 2} fill={on ? 'var(--color-zinc-50)' : 'var(--color-zinc-500)'} className={LIGHT_UP}>{t(style.name)}</text>
+                <text className={`tabular-nums ${LIGHT_UP}`} fontSize={13.5} x="264" y={centre + 17} fill={on ? 'var(--color-zinc-300)' : 'var(--color-zinc-600)'}>
                   {t('today.battery.range', { min: stage.min, max: tierMax(i) })}
                 </text>
               </>
