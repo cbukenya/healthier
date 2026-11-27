@@ -2831,6 +2831,17 @@
       "blurNote": "Cards and the bar at the top blur what’s behind them. Turning it off can help older phones.",
       "device": "Kept on this device only, so a phone and a laptop can differ."
     },
+    "customize": {
+      "title": "Customization",
+      "hint": "Which tabs show in the bar, in what order, and where Activity opens.",
+      "showHide": "Show/hide tabs",
+      "ordering": "Ordering",
+      "activityMode": "Activity mode",
+      "defaultActivityMode": "Default Activity mode",
+      "activityModeNote": "The tab Activity opens on.",
+      "move": "Move {page}",
+      "device": "Kept on this device only, so a phone and a laptop can differ."
+    },
     "cycle": {
       "title": "Cycle tracking",
       "hint": "Off until you turn it on. Google Health doesn't share periods with other apps, so Healthier finds your cycles in your nights and keeps a log of its own.",

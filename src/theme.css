@@ -233,6 +233,7 @@
   --color-amber-300: var(--color-amber-800);
   --color-amber-400: var(--color-amber-700);
   --color-amber-500: var(--color-amber-600);
+  --color-orange-400: var(--color-orange-700);
 
   /*
    * The shades drawn in code, turned the same way from the same previous palette. Charts write

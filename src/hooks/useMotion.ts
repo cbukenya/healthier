@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { readPref, usePrefsVersion, writePref } from '../lib/devicePrefs';
 
 /**
  * The hero cards' small entrances: a figure filling, a ring closing, a cloud drifting in. Each plays
@@ -13,25 +14,10 @@ export const systemReducedMotion = (): boolean =>
 // ───────────────────────────────────────────── Settings › Animations, kept on this device
 
 const PREF = { animations: 'healthier.animations', blur: 'healthier.blur' } as const;
-const read = (key: string): string | null => {
-  try {
-    return window.localStorage.getItem(key);
-  } catch {
-    return null;
-  }
-};
-const write = (key: string, value: string | null) => {
-  try {
-    if (value === null) window.localStorage.removeItem(key);
-    else window.localStorage.setItem(key, value);
-  } catch {
-    // Without storage the choice lasts until the page reloads.
-  }
-};
 /** Animations turned off in Settings. */
-export const animationsOff = (): boolean => read(PREF.animations) === 'off';
+export const animationsOff = (): boolean => readPref(PREF.animations) === 'off';
 /** Blur reduced in Settings: glass shows as plain panels. */
-export const blurReduced = (): boolean => read(PREF.blur) === 'reduced';
+export const blurReduced = (): boolean => readPref(PREF.blur) === 'reduced';
 
 /** Marks the page for theme.css: whether glass blurs and stars twinkle. On start, and on every change. */
 export function applyMotionPrefs(): void {
@@ -40,32 +26,19 @@ export function applyMotionPrefs(): void {
   root.dataset.motion = animationsOff() ? 'off' : 'on';
 }
 
-const listeners = new Set<() => void>();
-const changed = () => {
-  applyMotionPrefs();
-  listeners.forEach((l) => l());
-};
-
 /** The two choices, and setting them, for the Settings card. */
 export function useMotionPrefs() {
-  const [, bump] = useState(0);
-  useEffect(() => {
-    const l = () => bump((n) => n + 1);
-    listeners.add(l);
-    return () => {
-      listeners.delete(l);
-    };
-  }, []);
+  usePrefsVersion();
   return {
     animations: !animationsOff(),
     reduceBlur: blurReduced(),
     setAnimations(on: boolean) {
-      write(PREF.animations, on ? null : 'off');
-      changed();
+      writePref(PREF.animations, on ? null : 'off');
+      applyMotionPrefs();
     },
     setReduceBlur(on: boolean) {
-      write(PREF.blur, on ? 'reduced' : null);
-      changed();
+      writePref(PREF.blur, on ? 'reduced' : null);
+      applyMotionPrefs();
     },
   };
 }

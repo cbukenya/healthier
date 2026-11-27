@@ -22,22 +22,29 @@ import { usePageInsights, type Clock } from '../hooks/usePageInsights';
 import type { IntradayDays } from '../pipeline/labs';
 import { LastSevenDays, TodaySoFar, WeeklyTotals, type WeekTotal } from './ActivityCards';
 import { WorkoutsView } from './WorkoutsView';
+import { activityOpensOn, type ActivityTab } from '../hooks/useCustomization';
 import { PageBar } from '../ui/PageBar';
 
 type ActivityChart = 'steps' | 'energy' | 'intensity' | 'distance' | 'weekdays' | 'weekly';
 
-type Tab = 'steps' | 'workouts';
+type Tab = ActivityTab;
 
-/** The tab and the workout open, from the address: #activity, #activity/workouts, #activity/workouts/<id>. */
+/**
+ * The tab and the workout open, from the address: #activity/steps, #activity/workouts and
+ * #activity/workouts/<id>, with plain #activity for the tab chosen in Settings › Customization.
+ */
 function routeInAddress(): { tab: Tab; workout: string | null } {
   const [, tab, ...rest] = window.location.hash.slice(1).split('/');
-  if (tab !== 'workouts') return { tab: 'steps', workout: null };
+  if (tab === 'steps') return { tab: 'steps', workout: null };
+  if (tab !== 'workouts') return { tab: activityOpensOn(), workout: null };
   const id = rest.join('/');
   return { tab: 'workouts', workout: id ? decodeURIComponent(id) : null };
 }
 
-const addressOf = (tab: Tab, workout: string | null) =>
-  `${window.location.pathname}${window.location.search}#activity${tab === 'workouts' ? `/workouts${workout ? `/${encodeURIComponent(workout)}` : ''}` : ''}`;
+function addressOf(tab: Tab, workout: string | null): string {
+  const path = workout ? `/workouts/${encodeURIComponent(workout)}` : tab === activityOpensOn() ? '' : `/${tab}`;
+  return `${window.location.pathname}${window.location.search}#activity${path}`;
+}
 
 /**
  * The Activity page: Steps, for everyday movement, and the Workouts. The tab, and a workout opened on
