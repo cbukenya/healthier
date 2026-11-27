@@ -27,7 +27,7 @@ export type SectionId = 'devices' | 'streams' | 'goals' | 'cycle' | 'motion' | '
 
 const GROUPS: { title: MessageKey; sections: SectionId[] }[] = [
   { title: 'data.overview.groups.data', sections: ['devices', 'streams'] },
-  { title: 'data.overview.groups.preferences', sections: ['goals', 'cycle', 'motion', 'customize'] },
+  { title: 'data.overview.groups.preferences', sections: ['goals', 'cycle', 'customize', 'motion'] },
   { title: 'data.overview.groups.about', sections: ['facts', 'account'] },
 ];
 const SECTIONS = GROUPS.flatMap((g) => g.sections);
