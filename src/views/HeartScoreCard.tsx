@@ -141,8 +141,11 @@ function Ring({ s, since, phone }: { s: HeartScore; since: string | null; phone:
   const gap = 3;
   const fs = phone ? 11 : 11.5;
   const learning = s.score === null;
-  // The score ring closes from the top as the number counts up with it, and settles on the score.
+  // The score ring closes from the top; the number and its change fade in once it has settled, never counting up.
   const shown = useTween(s.score ?? 0, { ms: 2000 });
+  // Within a point of it, the ring looks closed: the last of the easing would only hold the number back.
+  const settled = s.score === null || Math.abs(shown - s.score) < 1;
+  const reveal = `transition-opacity duration-500 ease-out ${settled ? 'opacity-100' : 'opacity-0'}`;
   const out: React.ReactNode[] = [];
 
   out.push(<circle key="track" cx={cx} cy={cy} r={r2} fill="none" stroke={TRACK} strokeWidth={6} />);
@@ -208,8 +211,8 @@ function Ring({ s, since, phone }: { s: HeartScore; since: string | null; phone:
     // The change under the score, on two lines when one would run into the ring.
     const lines = since ? fitLines(since, r2 - 10, 36) : [];
     const lift = lines.length > 1 ? 7 : 0;
-    out.push(<text key="c1" x={cx} y={cy + (since ? 14 : 20) - lift} textAnchor="middle" fontFamily="var(--font-display)" fontSize={size * 0.2} fontWeight={600} fill={INK} className="tabular-nums">{formatInteger(Math.round(shown))}</text>);
-    lines.forEach((line, i) => out.push(<text key={`c2${i}`} x={cx} y={cy + 36 - lift + i * 15} textAnchor="middle" fontSize={12} fill={SOFT}>{line}</text>));
+    out.push(<text key="c1" x={cx} y={cy + (since ? 14 : 20) - lift} textAnchor="middle" fontFamily="var(--font-display)" fontSize={size * 0.2} fontWeight={600} fill={INK} className={`tabular-nums ${reveal}`}>{formatInteger(s.score!)}</text>);
+    lines.forEach((line, i) => out.push(<text key={`c2${i}`} x={cx} y={cy + 36 - lift + i * 15} textAnchor="middle" fontSize={12} fill={SOFT} className={reveal}>{line}</text>));
   }
 
   const parts = formatList(RING.map((p) => t(key('ariaPart'), { name: t(key(`parts.${p}`)), points: s.parts[p] ? formatInteger(s.parts[p]!.points) : 'none' })));
