@@ -145,7 +145,7 @@ function Ring({ s, since, phone }: { s: HeartScore; since: string | null; phone:
   const shown = useTween(s.score ?? 0, { ms: 2000, play: usePlayOnce('heart-score') });
   // Within a point of it, the ring looks closed: the last of the easing would only hold the number back.
   const settled = s.score === null || Math.abs(shown - s.score) < 1;
-  const reveal = `transition-opacity duration-500 ease-out ${settled ? 'opacity-100' : 'opacity-0'}`;
+  const reveal = `transition-opacity duration-[1400ms] ease-in-out ${settled ? 'opacity-100' : 'opacity-0'}`;
   const out: React.ReactNode[] = [];
 
   out.push(<circle key="track" cx={cx} cy={cy} r={r2} fill="none" stroke={TRACK} strokeWidth={6} />);
