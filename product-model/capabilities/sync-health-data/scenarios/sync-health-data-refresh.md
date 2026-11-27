@@ -97,7 +97,7 @@ references:
 
 ## Trigger
 
-The person opens Healthier, or comes back to its tab, and the last sync was more than 15 minutes ago. Settings has no refresh button; its status card offers Full sync, Retry or Sign in again.
+The person opens Healthier, or comes back to its tab, and the last sync was more than 15 minutes ago. Settings has no refresh button; its status card offers Resync data, Retry or Sign in again.
 
 ## Outcome
 

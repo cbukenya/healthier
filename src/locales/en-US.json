@@ -2885,7 +2885,7 @@
       },
       "syncing": "Syncing now",
       "syncFailed": "Sync failed",
-      "fullSync": "Full sync",
+      "fullSync": "Resync data",
       "fullSyncHint": "Fetch the whole window from Google again, not just the last few days",
       "signIn": "Sign in again",
       "current": {

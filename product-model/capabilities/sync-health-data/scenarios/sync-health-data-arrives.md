@@ -49,4 +49,4 @@ A daily stream had nothing for three days or more, and the device records it aga
 
 ## Outcome
 
-The status leaves Behind as soon as a sync stores a newer reading. Only the last three days fill in by themselves, because earlier syncs already settled the older days of the gap while they were empty. Those wait for the next full sync, at most a week away, or a Full sync from Settings.
+The status leaves Behind as soon as a sync stores a newer reading. Only the last three days fill in by themselves, because earlier syncs already settled the older days of the gap while they were empty. Those wait for the next full sync, at most a week away, or Resync data in Settings.

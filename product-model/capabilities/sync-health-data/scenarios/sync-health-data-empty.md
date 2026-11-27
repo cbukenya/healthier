@@ -3,7 +3,7 @@ kind: alternate
 routes:
   personal: Connected profile
 steps:
-- text: The person chooses Full sync.
+- text: The person chooses Resync data.
   kind: actor
   entities: []
   actor: person
