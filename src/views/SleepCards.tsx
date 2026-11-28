@@ -7,6 +7,7 @@ import { scoreSleep, type SleepNorms } from '../pipeline/sleep';
 import { Card, CardHead, DURATION_UNIT, Delta, Row, fmtDuration, tint, withUnits } from '../ui/primitives';
 import type { DailyRecord, SleepSession } from '../types/health';
 import { useGoals } from '../hooks/useGoals';
+import { usePlayOnce, useTween } from '../hooks/useMotion';
 import { Stat, statUnit } from './ActivityCards';
 
 /** A four-pointed star, centred on (x, y), `r` from the centre to each point. */
@@ -18,9 +19,14 @@ const sparkle = (x: number, y: number, r: number) =>
  * only, in its own colours (--night-*). The stars twinkle very slowly and faintly, one after another,
  * unless motion is reduced.
  */
+/** How far right of where it settles the cloud starts, in the drawing's units. */
+const CLOUD_FROM = 70;
+
 export function NightSky({ className = '' }: { className?: string }) {
   // Spread over the sky beside and above the moon, never below it. Those above the drawing's box reach
   // up toward the top of the card, right of its title, so the drawing lets them show outside its box.
+  // The cloud drifts in from the right and settles over the foot of the moon.
+  const drift = useTween(0, { from: CLOUD_FROM, ms: 2600, play: usePlayOnce('night-cloud') });
   const stars: [number, number, number][] = [
     [-18, -26, 4], [62, -18, 6], [104, -36, 5], [8, 20, 5], [108, 14, 7],
   ];
@@ -32,7 +38,7 @@ export function NightSky({ className = '' }: { className?: string }) {
         <path key={i} d={sparkle(x, y, r)} className="twinkle fill-(--night-star)" style={{ animationDelay: `${i * 1.6}s` }} />
       ))}
       {/* One cloud across the foot of the moon, a little see-through, faded as a whole so its puffs don't show their overlaps. */}
-      <g className="fill-(--night-cloud)" opacity={0.8}>
+      <g className="fill-(--night-cloud)" opacity={0.8 * (1 - drift / CLOUD_FROM)} transform={`translate(${drift} 0)`}>
         <circle cx={42} cy={86} r={9} />
         <circle cx={55} cy={78} r={13} />
         <circle cx={69} cy={85} r={8} />

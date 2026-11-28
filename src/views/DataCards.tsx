@@ -15,6 +15,7 @@ import { SPANS, spanLabel } from '../ui/span';
 import { Card, CardHead, DURATION_UNIT, fmtDuration, withUnits } from '../ui/primitives';
 import { Switch } from '../ui/Switch';
 import { SECTION_TONE } from './sectionTones';
+import { useMotionPrefs } from '../hooks/useMotion';
 
 // ─────────────────────────────────────────────────────────── section frame
 
@@ -333,8 +334,46 @@ export function CycleCard({ kept }: {
   );
 }
 
-/** A cycle setting that's on or off: its name, a line on what it does, and a switch in the section's colour. */
-function SwitchRow({ label, note, on, onToggle }: { label: string; note: string; on: boolean; onToggle: () => void }) {
+/**
+ * Settings › Accessibility: whether the cards' entrances play, and whether glass blurs what's behind
+ * it. Both on by default, and kept on this device, so a phone and a laptop can differ.
+ */
+export function MotionCard() {
+  const prefs = useMotionPrefs();
+  const screen = useSectionScreen();
+  return (
+    <SectionCard title={t('data.motion.title')} hint={t('data.motion.hint')}>
+      <div className="@container px-5 pb-4">
+        <div className={`grid grid-cols-1 @2xl:grid-cols-2 @2xl:gap-x-8 ${screen ? '[&>:first-child]:border-t-0 @2xl:[&>:nth-child(2)]:border-t-0' : ''}`}>
+          <SwitchRow
+            label={t('data.motion.animations')}
+            note={t('data.motion.animationsNote')}
+            on={prefs.animations}
+            onToggle={() => prefs.setAnimations(!prefs.animations)}
+            tone={SECTION_TONE.motion}
+          />
+          <SwitchRow
+            label={t('data.motion.blur')}
+            note={t('data.motion.blurNote')}
+            on={!prefs.reduceBlur}
+            onToggle={() => prefs.setReduceBlur(!prefs.reduceBlur)}
+            tone={SECTION_TONE.motion}
+          />
+        </div>
+        <p className="pt-3 border-t border-zinc-800/60 text-caption leading-relaxed text-zinc-500">{t('data.motion.device')}</p>
+      </div>
+    </SectionCard>
+  );
+}
+
+/** A setting that's on or off: its name, a line on what it does, and a switch in the section's colour. */
+function SwitchRow({ label, note, on, onToggle, tone = SECTION_TONE.cycle }: {
+  label: string;
+  note: string;
+  on: boolean;
+  onToggle: () => void;
+  tone?: { fill: string; focus: string };
+}) {
   const id = useId();
   return (
     <div className="py-3 border-t border-zinc-800/60 flex items-start justify-between gap-4">
@@ -342,7 +381,7 @@ function SwitchRow({ label, note, on, onToggle }: { label: string; note: string;
         <div id={id} className="text-body text-zinc-200">{label}</div>
         <p className="mt-0.5 text-caption leading-relaxed text-zinc-500">{note}</p>
       </div>
-      <Switch on={on} onToggle={onToggle} tone={SECTION_TONE.cycle} labelledBy={id} />
+      <Switch on={on} onToggle={onToggle} tone={tone} labelledBy={id} />
     </div>
   );
 }

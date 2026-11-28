@@ -21,28 +21,33 @@ import { InsightsCarousel } from '../components/InsightsCarousel';
 import { usePageInsights, type Clock } from '../hooks/usePageInsights';
 import type { IntradayDays } from '../pipeline/labs';
 import { LastSevenDays, TodaySoFar, WeeklyTotals, type WeekTotal } from './ActivityCards';
-import { workoutsIn } from '../pipeline/workouts';
-import { LatestWorkoutCard, LevelCard, workoutTime } from './WorkoutCards';
-import { WorkoutsView, useWorkoutsOverview } from './WorkoutsView';
+import { WorkoutsView } from './WorkoutsView';
+import { activityOpensOn, type ActivityTab } from '../hooks/useCustomization';
 import { PageBar } from '../ui/PageBar';
 
 type ActivityChart = 'steps' | 'energy' | 'intensity' | 'distance' | 'weekdays' | 'weekly';
 
-type Tab = 'overview' | 'workouts';
+type Tab = ActivityTab;
 
-/** The tab and the workout open, from the address: #activity, #activity/workouts, #activity/workouts/<id>. */
+/**
+ * The tab and the workout open, from the address: #activity/steps, #activity/workouts and
+ * #activity/workouts/<id>, with plain #activity for the tab chosen in Settings › Customization.
+ */
 function routeInAddress(): { tab: Tab; workout: string | null } {
   const [, tab, ...rest] = window.location.hash.slice(1).split('/');
-  if (tab !== 'workouts') return { tab: 'overview', workout: null };
+  if (tab === 'steps') return { tab: 'steps', workout: null };
+  if (tab !== 'workouts') return { tab: activityOpensOn(), workout: null };
   const id = rest.join('/');
   return { tab: 'workouts', workout: id ? decodeURIComponent(id) : null };
 }
 
-const addressOf = (tab: Tab, workout: string | null) =>
-  `${window.location.pathname}${window.location.search}#activity${tab === 'workouts' ? `/workouts${workout ? `/${encodeURIComponent(workout)}` : ''}` : ''}`;
+function addressOf(tab: Tab, workout: string | null): string {
+  const path = workout ? `/workouts/${encodeURIComponent(workout)}` : tab === activityOpensOn() ? '' : `/${tab}`;
+  return `${window.location.pathname}${window.location.search}#activity${path}`;
+}
 
 /**
- * The Activity page: an Overview of movement, and the Workouts. The tab, and a workout opened on
+ * The Activity page: Steps, for everyday movement, and the Workouts. The tab, and a workout opened on
  * it, are in the address, so Back steps out of a workout and a reload stays on it.
  */
 export function ActivityView({ data, clock, intraday }: { data: SyncResult; clock?: Clock; intraday?: IntradayDays }) {
@@ -63,7 +68,7 @@ export function ActivityView({ data, clock, intraday }: { data: SyncResult; cloc
   }, []);
 
   const tabs: { id: Tab; label: string }[] = [
-    { id: 'overview', label: t('workouts.tabs.overview') },
+    { id: 'steps', label: t('workouts.tabs.steps') },
     { id: 'workouts', label: t('workouts.tabs.workouts') },
   ];
   return (
@@ -90,15 +95,14 @@ export function ActivityView({ data, clock, intraday }: { data: SyncResult; cloc
       {route.tab === 'workouts' ? (
         <WorkoutsView data={data} intraday={intraday} clock={clock} openId={route.workout} onOpen={(id, push) => go('workouts', id, push)} />
       ) : (
-        <ActivityOverview data={data} clock={clock} intraday={intraday} openWorkout={(id) => go('workouts', id, true)} />
+        <ActivitySteps data={data} clock={clock} intraday={intraday} />
       )}
     </div>
   );
 }
 
-function ActivityOverview({ data, clock, intraday, openWorkout }: { data: SyncResult; clock?: Clock; intraday?: IntradayDays; openWorkout: (id: string) => void }) {
+function ActivitySteps({ data, clock, intraday }: { data: SyncResult; clock?: Clock; intraday?: IntradayDays }) {
   const days = data.days;
-  const workouts = useWorkoutsOverview(data, intraday);
   const insights = usePageInsights(data, 'activity', clock, intraday);
   const goal = useGoals().steps;
   const spanState = useSpan(data, '30');
@@ -267,18 +271,6 @@ function ActivityOverview({ data, clock, intraday, openWorkout }: { data: SyncRe
             })}
           </Row>
         )}
-        {workouts.latest && (() => {
-          const done = workoutsIn(spanFull);
-          return (
-            <Row dense={!wide} label={t('workouts.summary.workouts')}>
-              {rich('workouts.summary.value', {
-                count: formatInteger(done.length),
-                time: workoutTime(done.reduce((a, w) => a + w.workout.activeMin, 0)),
-                muted: (w) => <span className="text-zinc-500">{w}</span>,
-              })}
-            </Row>
-          );
-        })()}
         {spanSteps.length >= 14 && (
           <Row dense={!wide} label={t('activity.summary.firstToLast')}>
             <Delta
@@ -324,20 +316,6 @@ function ActivityOverview({ data, clock, intraday, openWorkout }: { data: SyncRe
           <LastSevenDays days={lastWeek} shift={periodShift(stepsDone, 7)} ratio={loadRatio(stepsDone).ratio} wide={wide} glow={DOMAIN.movement.hex} />
         )}
       </div>
-      {workouts.latest && (
-        <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-          <LatestWorkoutCard
-            dw={workouts.latest}
-            heart={workouts.heart}
-            zones={workouts.zones}
-            restingPerMinute={workouts.restingPerMinute}
-            today={today}
-            onOpen={() => openWorkout(workouts.latest!.id)}
-            wide={wide}
-          />
-          {workouts.level && <LevelCard level={workouts.level} />}
-        </div>
-      )}
 
       <div className="flex items-center justify-between px-1">
         <h2 className="text-section uppercase text-page-ink">

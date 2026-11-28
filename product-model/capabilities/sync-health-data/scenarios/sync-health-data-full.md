@@ -3,7 +3,7 @@ kind: alternate
 routes:
   personal: Connected profile
 steps:
-- text: The person chooses Full sync.
+- text: The person chooses Resync data.
   kind: actor
   entities: []
   actor: person
@@ -97,7 +97,7 @@ references:
 
 ## Trigger
 
-The person chooses Full sync on the status card in Settings.
+The person chooses Resync data on the status card in Settings.
 
 ## Outcome
 

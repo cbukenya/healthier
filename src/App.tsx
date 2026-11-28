@@ -1,12 +1,14 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { IntradaySample } from './types/health';
-import { ChevronLeft, ChevronRight, CircleDotDashed, FlaskConical, Footprints, Heart, Moon, RefreshCw, Settings, User, ShieldAlert, PersonStanding, Utensils } from 'lucide-react';
+import { ChevronLeft, ChevronRight, RefreshCw, Settings, ShieldAlert, User } from 'lucide-react';
 import { useAuth } from './hooks/useAuth';
 import { useInstance } from './hooks/useInstance';
 import { useHealth } from './hooks/useHealth';
 import { HistoryProvider } from './hooks/useHistory';
 import { GoalsProvider } from './hooks/useGoals';
 import { CycleProvider, useCycleTracking } from './hooks/useCycle';
+import { useCustomization } from './hooks/useCustomization';
+import { PAGE_LOOK } from './ui/pages';
 import { ThemeProvider } from './hooks/useTheme';
 import { CycleView } from './views/CycleView';
 import { NutritionView } from './views/NutritionView';
@@ -22,7 +24,7 @@ import type { Gender } from './pipeline/registry';
 import { readGoals, type Goals } from './pipeline/goals';
 import type { ApiUser, GoalsResponse, ProfileResponse } from './types/api';
 
-import { DOMAIN, NavButton } from './ui/primitives';
+import { NavButton } from './ui/primitives';
 import { TodayView } from './views/TodayView';
 import { ActivityView } from './views/ActivityView';
 import { SleepView } from './views/SleepView';
@@ -450,8 +452,8 @@ function usePinnedHeight() {
 const EDGE = 48;
 
 /**
- * The pages, the Cycle page among them while cycle tracking is on; Settings is the gear in the
- * bar. When they don't all fit, on the narrowest phones or with large text, the row scrolls
+ * The pages, in the order chosen in Settings › Customization and without the ones hidden there, the
+ * Cycle page among them while cycle tracking is on; Settings is the gear in the bar. When they don't all fit, on the narrowest phones or with large text, the row scrolls
  * sideways on its own, by swipe, trackpad or mouse wheel, and an edge with pages past it shows a
  * small arrow that slides the row along.
  */
@@ -464,6 +466,9 @@ function PageNav({ view, setView, loaded, food }: {
   food: boolean;
 }) {
   const tracking = useCycleTracking();
+  const { order, hidden } = useCustomization();
+  const pages = order.filter((p) => !hidden.has(p) && (p !== 'cycle' || tracking) && (p !== 'nutrition' || food));
+  const shownKey = pages.join(' ');
   // Turning tracking off on the Settings page takes the Cycle page away; never leave anyone on it,
   // nor on an address naming a page that isn't there. Until the data arrives, neither is known.
   useEffect(() => {
@@ -493,7 +498,7 @@ function PageNav({ view, setView, loaded, food }: {
     }
     measure();
   }, [measure]);
-  useLayoutEffect(reveal, [view, tracking, food, reveal]);
+  useLayoutEffect(reveal, [view, shownKey, reveal]);
 
   // A turned phone, a new text size or the fonts arriving change what fits, and how wide the open page is.
   useEffect(() => {
@@ -504,7 +509,7 @@ function PageNav({ view, setView, loaded, food }: {
     for (const child of el.children) observer.observe(child);
     void document.fonts?.ready.then(reveal);
     return () => observer.disconnect();
-  }, [tracking, food, reveal]);
+  }, [shownKey, reveal]);
 
   // A mouse wheel turns the row while it has pages past an edge, then hands back to the page.
   useEffect(() => {
@@ -534,42 +539,10 @@ function PageNav({ view, setView, loaded, food }: {
         className="relative flex items-center justify-between md:justify-start gap-0.5 md:gap-1 overflow-x-auto overscroll-x-contain pb-2 no-scrollbar"
       >
         {edges.before && <RowEdge side="start" onClick={() => slide(-1)} />}
-        <NavButton
-          active={view === 'today'} onClick={() => setView('today')}
-          icon={<User size={14} />} label={t('app.nav.today')}
-        />
-        <NavButton
-          active={view === 'activity'} onClick={() => setView('activity')}
-          icon={<Footprints size={14} />} label={t('app.nav.activity')} color={DOMAIN.movement.text}
-        />
-        <NavButton
-          active={view === 'sleep'} onClick={() => setView('sleep')}
-          icon={<Moon size={14} />} label={t('app.nav.sleep')} color={DOMAIN.sleep.text}
-        />
-        <NavButton
-          active={view === 'vitals'} onClick={() => setView('vitals')}
-          icon={<Heart size={14} />} label={t('app.nav.vitals')} color={DOMAIN.cardio.text}
-        />
-        <NavButton
-          active={view === 'body'} onClick={() => setView('body')}
-          icon={<PersonStanding size={14} />} label={t('app.nav.body')} color={DOMAIN.body.text}
-        />
-        {food && (
-          <NavButton
-            active={view === 'nutrition'} onClick={() => setView('nutrition')}
-            icon={<Utensils size={14} />} label={t('app.nav.nutrition')} color={DOMAIN.nutrition.text}
-          />
-        )}
-        {tracking && (
-          <NavButton
-            active={view === 'cycle'} onClick={() => setView('cycle')}
-            icon={<CircleDotDashed size={14} />} label={t('app.nav.cycle')} color={DOMAIN.cycle.text}
-          />
-        )}
-        <NavButton
-          active={view === 'labs'} onClick={() => setView('labs')}
-          icon={<FlaskConical size={14} />} label={t('app.nav.labs')} color="text-yellow-400"
-        />
+        {pages.map((p) => {
+          const { label, icon: Icon, color } = PAGE_LOOK[p];
+          return <NavButton key={p} active={view === p} onClick={() => setView(p)} icon={<Icon size={14} />} label={t(label)} color={color} />;
+        })}
         {edges.after && <RowEdge side="end" onClick={() => slide(1)} />}
       </div>
     </nav>

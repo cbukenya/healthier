@@ -61,7 +61,7 @@ The person opens Settings.
 
 ## Outcome
 
-Only the first thing worth saying is shown: Google access has expired, the last sync failed, history is on its way, some readings couldn't be fetched, some haven't come in for days, or the data is up to date. Beside it is the one action that fits: Sign in again, Retry, or Full sync.
+Only the first thing worth saying is shown: Google access has expired, the last sync failed, history is on its way, some readings couldn't be fetched, some haven't come in for days, or the data is up to date. Beside it is the one action that fits: Sign in again, Retry, or Resync data.
 
 ## Edge cases
 

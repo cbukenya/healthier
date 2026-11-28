@@ -1,4 +1,5 @@
 import React, { useId, useMemo, useState } from 'react';
+import { useElapsed, usePlayOnce } from '../hooks/useMotion';
 import { addDays, daysBetween, isoWeekdayIndex, type CivilDate } from '../lib/date';
 import { names, t, type MessageKey } from '../i18n';
 import { rich } from '../i18n/react';
@@ -333,6 +334,11 @@ function placeLabels(labels: StripLabel[], cells: number, width: number): StripL
  * a found period dimmer, ovulation as a mark inside the days it could be, days to come muted, and
  * the days the next period is likely on dashed.
  */
+/** How the strip fills: a day at a time, slower for a short cycle so far, never past the whole. */
+const STRIP_DAY_MS = 90;
+const STRIP_MS = 2100;
+const STRIP_DELAY_MS = 150;
+
 function CycleStrip({ summary }: { summary: CycleSummary }) {
   const colours = useCyclePalette();
   const c = summary.current!;
@@ -343,15 +349,20 @@ function CycleStrip({ summary }: { summary: CycleSummary }) {
   const to = next ? dayOf(next.to) : null;
   const likely = next ? dayOf(next.likely) : null;
   const length = Math.min(MAX_CYCLE, Math.max(28, c.day + 2, to ?? 0));
+  // The days so far fill in their colours one by one from day 1 when the card shows, and today's
+  // bar stands up, with its name over it, when the fill reaches it.
+  const step = Math.min(STRIP_DAY_MS, STRIP_MS / Math.max(1, c.day));
+  const elapsed = useElapsed(STRIP_DELAY_MS + c.day * step, usePlayOnce('cycle-strip'));
+  const filledTo = Math.floor((elapsed - STRIP_DELAY_MS) / step) + 1;
   const cells = Array.from({ length }, (_, i) => {
     const d = i + 1;
-    const past = d <= c.day;
+    const past = d <= c.day && d <= filledTo;
     const inNext = from !== null && to !== null && d >= from && d <= to;
     const colour = dayColour(d, shape, colours);
     const style: React.CSSProperties = inNext
       ? { background: d === likely ? tint('var(--pink-400)', 28) : 'transparent', border: `1px dashed ${PINK}` }
       : { background: past ? colour : mix(colour, colours.page, 0.62) };
-    return { d, style, height: d === c.day ? 34 : 24, ovulation: inNext ? 0 : ovulationAlpha(d, shape, !past) };
+    return { d, style, height: d === c.day && past ? 34 : 24, ovulation: inNext ? 0 : ovulationAlpha(d, shape, !past) };
   });
 
   const phase = phaseOn(c.day, shape);
@@ -392,13 +403,13 @@ function CycleStrip({ summary }: { summary: CycleSummary }) {
       <div aria-hidden="true" className="flex gap-[3px] h-4">
         {cells.map((x) => (
           <div key={x.d} className="flex-1 min-w-0 whitespace-nowrap overflow-visible text-note font-semibold text-zinc-50">
-            {x.d === c.day ? t('cycle.strip.today') : ''}
+            {x.d === c.day && filledTo >= c.day ? t('cycle.strip.today') : ''}
           </div>
         ))}
       </div>
       <div aria-hidden="true" className="mt-1 flex gap-[3px] items-end h-[34px]">
         {cells.map((x) => (
-          <div key={x.d} className="relative flex-1 min-w-0 rounded-[4px] box-border" style={{ ...x.style, height: x.height }}>
+          <div key={x.d} className="relative flex-1 min-w-0 rounded-[4px] box-border transition-[background-color,height] duration-300 ease-out" style={{ ...x.style, height: x.height }}>
             <OvulationBar alpha={x.ovulation} />
           </div>
         ))}

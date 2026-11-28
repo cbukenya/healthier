@@ -237,12 +237,26 @@ describe('the workout level', () => {
 
 describe('the workout load', () => {
   it('sets the last 7 days against the 3 weeks before, without overlap', () => {
-    const days = daysWith('2026-10-11', 28, (k) => (k < 7 ? 60 : k % 7 === 0 ? 120 : 0));
+    const days = daysWith('2026-10-11', 28, (k) => (k < 7 ? 60 : k % 7 === 0 ? 200 : 0));
     const load = workoutLoad(days)!;
     assert.equal(load.week, 420);
-    assert.equal(load.usual, 120);
-    assert.equal(load.ratio, 3.5);
+    assert.equal(load.usual, 200);
+    assert.equal(load.base, 'usual');
+    assert.equal(load.ratio, 2.1);
     assert.equal(workoutLoad(days.slice(-20))!.ratio, null, 'not without the 3 weeks before');
+  });
+
+  it('sets a usual week under the weekly target against the target instead', () => {
+    // A usual week of 20 and a week of 50: 2.5× the usual week, but a third of the target.
+    const days = daysWith('2026-10-11', 28, (k) => (k === 0 ? 50 : k >= 7 && k % 7 === 3 ? 20 : 0));
+    const load = workoutLoad(days)!;
+    assert.equal(load.usual, 20);
+    assert.equal(load.base, 'target');
+    assert.equal(load.ratio, 50 / WHO_WEEK);
+    // From nothing at all, twice the target is still a big jump.
+    const jump = workoutLoad(daysWith('2026-10-11', 28, (k) => (k < 7 ? 300 / 7 : 0)))!;
+    assert.equal(jump.usual, 0);
+    assert.ok(Math.abs(jump.ratio! - 2) < 1e-9);
   });
 
   it('says what to do with it and the body battery together', () => {

@@ -3,7 +3,7 @@ kind: edge
 routes:
   personal: Connected profile
 steps:
-- text: 'A sync runs: the person opens Healthier, comes back to it, chooses Full sync or Retry, or the schedule starts one.'
+- text: 'A sync runs: the person opens Healthier, comes back to it, chooses Resync data or Retry, or the schedule starts one.'
   kind: actor
   entities: []
   actor: person

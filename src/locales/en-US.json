@@ -1191,7 +1191,7 @@
   "workouts": {
     "tabs": {
       "label": "Activity views",
-      "overview": "Overview",
+      "steps": "Steps",
       "workouts": "Workouts"
     },
     "empty": {
@@ -1493,6 +1493,7 @@
       "span": "Last 7 days",
       "times": "{ratio}×",
       "usual": "your usual week",
+      "target": "your weekly target",
       "headline": {
         "push": "Room to push",
         "keep": "Keep it going",
@@ -1506,6 +1507,11 @@
         "easy": "Your week is close to usual, but your battery is {tier, select, drained {drained} other {low}} at {battery}. Keep today’s workout easy, or rest.",
         "recover": "{battery, select, none {That’s a big jump on your usual week. Keep the next sessions easy and leave out anything extra.} other {That’s a big jump on your usual week, with your battery at {battery}. Keep the next sessions easy and leave out anything extra.}}",
         "none": "Once there are 4 weeks of workouts, this compares your last 7 days with your usual week."
+      },
+      "underTarget": {
+        "push": "{battery, select, none {You’re under your weekly target, so there’s room for a harder session.} other {You’re under your weekly target and your battery is at {battery}, so there’s room for a harder session.}}",
+        "keep": "{battery, select, none {You’re close to your weekly target. Keep the same mix of hard and easy days.} other {You’re close to your weekly target and your battery is at {battery}. Keep the same mix of hard and easy days.}}",
+        "easy": "Your battery is {tier, select, drained {drained} other {low}} at {battery}. Keep today’s workout easy, or rest."
       },
       "week": "Last 7 days",
       "usualWeek": "Usual week",
@@ -1565,10 +1571,6 @@
     },
     "detail": {
       "back": "Workouts"
-    },
-    "summary": {
-      "workouts": "Workouts",
-      "value": "{count}<muted> · {time}</muted>"
     }
   },
   "sleep": {
@@ -1760,6 +1762,113 @@
     }
   },
   "vitals": {
+    "heartScore": {
+      "title": "Heart score",
+      "stage": {
+        "thriving": "Thriving",
+        "strong": "Strong",
+        "building": "Building",
+        "low": "Low",
+        "learning": "Learning"
+      },
+      "since": "{change, select, same {Same as in {month}} other {{change} since {month}}}",
+      "aria": "Heart score {score} out of 100, {stage}: {parts}",
+      "ariaLearning": "Heart score still learning: {parts}",
+      "ariaPart": "{name} {points, select, none {not counted yet} other {{points}}}",
+      "learning": {
+        "centre": "{count} of 4",
+        "centreSub": "parts counting",
+        "headline": "Getting to know your heart. Your score starts once 3 of its 4 parts have enough readings.",
+        "counting": "{parts} {count, plural, one {is} other {are}} counting already.",
+        "joins": "{part, select, activity {Activity joins after a week of readings.} fitness {Cardio fitness joins once your devices estimate a VO2 max.} restingHr {Resting heart rate joins after 2 weeks of readings.} other {The HRV trend joins after 8 weeks of readings.}}"
+      },
+      "headline": {
+        "thriving": {
+          "rising": "Your heart is thriving, and still climbing. Whatever you’ve been doing since {month} is working.",
+          "steady": "Your heart is thriving. The habits behind this are worth protecting.",
+          "falling": "Still thriving, though it’s eased {n} points since {month}. {pointer}"
+        },
+        "strong": {
+          "rising": "Strong and rising: {n, plural, one {# more point} other {# more points}} and you’re thriving.",
+          "steady": "Strong and steady. {pointer}",
+          "falling": "Still strong, but down {n} since {month}. {pointer}"
+        },
+        "building": {
+          "rising": "Your heart score is building, and moving the right way. Keep the momentum going.",
+          "steady": "Your heart score is building. {pointer}",
+          "falling": "Your heart score has slipped {n} since {month}. {pointer}"
+        },
+        "low": {
+          "rising": "Up {n} since {month}. Small steps are adding up, so keep going.",
+          "steady": "Plenty of room to grow, and small steps count most from here.",
+          "falling": "Down {n} since {month}. A cold, a rough patch or a busy stretch can do this, and it climbs back as things settle."
+        },
+        "close": "{n, plural, one {# point} other {# points}} from {stage}. {pointer}"
+      },
+      "pointer": {
+        "activity": "A little more brisk movement each week would lift it most.",
+        "fitness": "Getting out of breath a few times a week would lift it most.",
+        "restingHr": "Bringing your resting heart rate down would lift it most.",
+        "hrv": "A few easier evenings would bring your HRV back up."
+      },
+      "help": {
+        "title": "What would help most",
+        "gain": "up to +{n}",
+        "activity": "You’re doing {minutes} brisk minutes a week, and 150 is where the WHO’s advice starts. A brisk walk, a bike ride or a swim on {days, plural, one {# more day} other {# more days}} a week would close the gap.",
+        "activityLow": "A 10-minute brisk walk on most days is the single biggest step. It adds up to 70 minutes a week, and your heart notices within weeks.",
+        "fitness": "Your cardio fitness has the most room to grow. Two or three sessions a week that leave you out of breath, like a hill walk, a bike ride or intervals, raise it within a couple of months.",
+        "restingHr": "Your resting heart rate, {bpm} bpm, has the most room to come down. Regular cardio does most of the work, and steady sleep and fewer drinks help too. It moves over weeks, not days.",
+        "hrv": "{direction, select, down {Your HRV is down {pct}% on the month before.} other {Your HRV has room to rise.}} Regular bedtimes, easier days after hard ones and fewer drinks help it recover.",
+        "meter": "{minutes} brisk minutes a week"
+      },
+      "keep": {
+        "title": "What keeps it here",
+        "activity": "The {minutes} brisk minutes you fit in most weeks are doing the heavy lifting. Keep them going.",
+        "fitness": "Your cardio fitness is carrying it. One hard session a week is enough to hold on to it.",
+        "restingHr": "Your resting heart rate is low and steady. Keep the routine that got it there.",
+        "hrv": "Your HRV is rising. Regular sleep and easy days after hard ones are paying off."
+      },
+      "parts": {
+        "activity": "Activity",
+        "fitness": "Cardio fitness",
+        "restingHr": "Resting heart rate",
+        "hrv": "HRV trend"
+      },
+      "inText": {
+        "activity": "activity",
+        "fitness": "cardio fitness",
+        "restingHr": "resting heart rate",
+        "hrv": "the HRV trend"
+      },
+      "short": {
+        "activity": "Activity",
+        "fitness": "Cardio fitness",
+        "restingHr": "Resting HR",
+        "hrv": "HRV"
+      },
+      "detail": {
+        "activity": "{done, select, yes {{minutes} brisk minutes a week} other {{minutes} of 150 brisk minutes a week}}",
+        "fitness": "VO2 max {value}, {level, select, POOR {poor} FAIR {fair} AVERAGE {average} GOOD {good} VERY_GOOD {very good} other {excellent}} for your age",
+        "restingHr": "{bpm} bpm over the last 60 days",
+        "hrv": "{direction, select, up {Up {pct}% on the month before} down {Down {pct}% on the month before} other {Steady on the month before}}",
+        "missing": {
+          "activity": "Needs a week of readings",
+          "fitness": "Your devices haven’t estimated it yet",
+          "restingHr": "Needs 2 weeks of readings",
+          "hrv": "Needs 8 weeks of readings"
+        }
+      },
+      "counts": "counts {n}%",
+      "trend": {
+        "title": "Heart score trend",
+        "toNext": "{n} to {stage}",
+        "readout": "Week to {date}: {score}",
+        "aria": "Heart score by week: {weeks}",
+        "week": "{date} {score, select, none {no score} other {{score}}}",
+        "separator": ", ",
+        "range": "{from}–{to}"
+      }
+    },
     "empty": {
       "title": "No vitals data in this window",
       "detail": "Metrics come from the health_metrics_and_measurements scope."
@@ -2719,6 +2828,26 @@
       "failed": "Couldn't save that. Try again.",
       "loading": "Reading your devices and apps…"
     },
+    "motion": {
+      "title": "Accessibility",
+      "hint": "How cards move and how glass looks.",
+      "animations": "Animations",
+      "animationsNote": "Cards fill in and settle the first time you open each page after starting the app.",
+      "blur": "Motion blur",
+      "blurNote": "Cards and the bar at the top blur what’s behind them. Turning it off can help older phones.",
+      "device": "Kept on this device only, so a phone and a laptop can differ."
+    },
+    "customize": {
+      "title": "Customization",
+      "hint": "Which tabs show in the bar, in what order, and where Activity opens.",
+      "showHide": "Show/hide tabs",
+      "ordering": "Ordering",
+      "activityMode": "Activity mode",
+      "defaultActivityMode": "Default Activity mode",
+      "activityModeNote": "The tab Activity opens on.",
+      "move": "Move {page}",
+      "device": "Kept on this device only, so a phone and a laptop can differ."
+    },
     "cycle": {
       "title": "Cycle tracking",
       "hint": "Off until you turn it on. Google Health doesn't share periods with other apps, so Healthier finds your cycles in your nights and keeps a log of its own.",
@@ -2762,7 +2891,7 @@
       },
       "syncing": "Syncing now",
       "syncFailed": "Sync failed",
-      "fullSync": "Full sync",
+      "fullSync": "Resync data",
       "fullSyncHint": "Fetch the whole window from Google again, not just the last few days",
       "signIn": "Sign in again",
       "current": {

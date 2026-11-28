@@ -3,7 +3,7 @@ kind: edge
 routes:
   personal: Connected profile
 steps:
-- text: 'A full sync runs: the weekly one, the first after sign-in, or Full sync from Settings.'
+- text: 'A full sync runs: the weekly one, the first after sign-in, or Resync data from Settings.'
   kind: actor
   entities: []
   actor: person

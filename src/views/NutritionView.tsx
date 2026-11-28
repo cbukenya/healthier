@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useElapsed, usePlayOnce } from '../hooks/useMotion';
 import type { CivilDate } from '../lib/date';
 import type { DailyRecord, DayNutrition } from '../types/health';
 import { t } from '../i18n';
@@ -165,20 +166,47 @@ function StandingPill({ standing }: { standing: Standing }) {
   );
 }
 
+/**
+ * Whether the targets' figures should all go under their names: true when any one of them doesn't
+ * fit beside its name, so the rows always read alike. Measured on the rows marked data-target-row.
+ */
+function useStackedTargets() {
+  const ref = useRef<HTMLDivElement>(null);
+  const [stacked, setStacked] = useState(false);
+  useLayoutEffect(() => {
+    const box = ref.current;
+    if (!box) return;
+    const measure = () => {
+      const tight = [...box.querySelectorAll<HTMLElement>('[data-target-row]')].some((row) => {
+        const [name, figure] = [...row.children] as HTMLElement[];
+        return name.getBoundingClientRect().width + figure.getBoundingClientRect().width + 8 > row.clientWidth;
+      });
+      setStacked(tight);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(box);
+    return () => observer.disconnect();
+  }, []);
+  return { ref, stacked };
+}
+
 /** A target's progress bar: what's in, against the target, in grams or, for water, litres. */
-function TargetBar({ label, got, target, colour, inLitres = false }: {
+function TargetBar({ label, got, target, colour, inLitres = false, stacked = false }: {
   label: string;
   got: number;
   target: number | null;
   colour: string;
   inLitres?: boolean;
+  /** The figure under the name instead of beside it, as for every target when one doesn't fit. */
+  stacked?: boolean;
 }) {
   const b = (w: React.ReactNode) => <span className="text-zinc-100">{w}</span>;
   return (
     <div className="mt-2">
-      <div className="flex items-baseline justify-between gap-2 text-detail text-zinc-400">
-        <span>{label}</span>
-        <span className="text-zinc-500">
+      <div data-target-row className={`flex text-detail text-zinc-400 ${stacked ? 'flex-col items-start' : 'items-baseline justify-between gap-x-2'}`}>
+        <span className="whitespace-nowrap">{label}</span>
+        <span className="whitespace-nowrap text-zinc-500">
           {target === null
             ? rich('nutrition.plate.grams', { grams: grams(got), b })
             : inLitres
@@ -196,22 +224,38 @@ function TargetBar({ label, got, target, colour, inLitres = false }: {
 }
 
 /** A grid of squares in the macros' colours, then empty ones. */
-function Squares({ protein, carbs, fat, empty, size }: { protein: number; carbs: number; fat: number; empty: number; size: number }) {
+/** How often the next square fills as the plate fills in, from the top left: slower for a few, never past the whole. */
+const SQUARE_MS = 140;
+const SQUARES_MS = 3000;
+const squareMs = (filled: number) => Math.min(SQUARE_MS, SQUARES_MS / Math.max(1, filled));
+
+/**
+ * A grid of squares in the macros' colours, then empty ones. They fill in one by one from the top
+ * left when the card shows, after `delay`, so a second grid can wait for the first.
+ */
+function Squares({ protein, carbs, fat, empty, size, delay = 0 }: { protein: number; carbs: number; fat: number; empty: number; size: number; delay?: number }) {
   const cells = [
     ...Array.from({ length: protein }, () => MACRO.protein),
     ...Array.from({ length: carbs }, () => MACRO.carbs),
     ...Array.from({ length: fat }, () => MACRO.fat),
     ...Array.from({ length: empty }, () => null),
   ];
+  const filled = protein + carbs + fat;
+  const step = squareMs(filled);
+  const elapsed = useElapsed(delay + filled * step, usePlayOnce(delay ? 'plate-over' : 'plate'));
+  const lit = Math.floor((elapsed - delay) / step) + 1;
   return (
     <div className="grid gap-[3px]" style={{ gridTemplateColumns: `repeat(10, ${size}px)` }} aria-hidden="true">
-      {cells.map((c, i) => (
-        <span
-          key={i}
-          className={`rounded-[3px] ${c ? '' : 'border border-[var(--rule-strong)]'}`}
-          style={{ width: size, height: size, background: c ?? undefined }}
-        />
-      ))}
+      {cells.map((c, i) => {
+        const on = c && i < lit;
+        return (
+          <span
+            key={i}
+            className={`rounded-[3px] border transition-colors duration-300 ${on ? 'border-transparent' : 'border-[var(--rule-strong)]'}`}
+            style={{ width: size, height: size, background: on ? c : undefined }}
+          />
+        );
+      })}
     </div>
   );
 }
@@ -240,6 +284,7 @@ function PlateCard({ day, maintenance, devices, proteinTarget, fibreTarget, wate
   const over = squares && squares.total > 100 ? plateSquares(eaten - ref!, ref!, shares) : null;
   const inside = over ? plateSquares(ref!, ref!, shares) : squares;
   const size = wide ? 14 : 12;
+  const targets = useStackedTargets();
   const vsRef = ref === null ? null : eaten > ref
     ? t('nutrition.plate.over', { kcal: kcal(eaten - ref), devices: maintenance === null ? 'yes' : 'no' })
     : t('nutrition.plate.of', { kcal: kcal(ref), devices: maintenance === null ? 'yes' : 'no' });
@@ -264,7 +309,7 @@ function PlateCard({ day, maintenance, devices, proteinTarget, fibreTarget, wate
                   <span className="absolute right-0 top-1 text-note text-zinc-300">{t('nutrition.plate.maintenanceLine')}</span>
                   <span className="absolute -left-1 -right-1 top-[17px] border-t border-dashed border-zinc-400" />
                 </div>
-                <Squares protein={over.protein} carbs={over.carbs} fat={over.fat} empty={0} size={size} />
+                <Squares protein={over.protein} carbs={over.carbs} fat={over.fat} empty={0} size={size} delay={SQUARES_MS} />
               </>
             )}
           </div>
@@ -276,11 +321,13 @@ function PlateCard({ day, maintenance, devices, proteinTarget, fibreTarget, wate
           </div>
           {vsRef && <div className="text-caption text-zinc-500">{vsRef}</div>}
           <div className="mt-3 text-eyebrow uppercase text-zinc-500">{t('nutrition.plate.targets')}</div>
-          <TargetBar label={t('nutrition.macros.protein')} got={day?.proteinG ?? 0} target={proteinTarget} colour={MACRO.protein} />
-          {day?.fibreG !== null && (
-            <TargetBar label={t('nutrition.macros.fibre')} got={day?.fibreG ?? 0} target={fibreTarget} colour={MACRO.fibre} />
-          )}
-          <TargetBar label={t('nutrition.water.title')} got={water} target={waterTarget} colour={MACRO.water} inLitres />
+          <div ref={targets.ref}>
+            <TargetBar label={t('nutrition.macros.protein')} got={day?.proteinG ?? 0} target={proteinTarget} colour={MACRO.protein} stacked={targets.stacked} />
+            {day?.fibreG !== null && (
+              <TargetBar label={t('nutrition.macros.fibre')} got={day?.fibreG ?? 0} target={fibreTarget} colour={MACRO.fibre} stacked={targets.stacked} />
+            )}
+            <TargetBar label={t('nutrition.water.title')} got={water} target={waterTarget} colour={MACRO.water} inLitres stacked={targets.stacked} />
+          </div>
         </div>
       </div>
       {note && (

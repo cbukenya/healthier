@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 
 /**
  * The row at the top of every page, with the date on its right. A page can put its own controls at
- * its left, as Activity does its Overview and Workouts tabs, so they don't push the cards down a row.
+ * its left, as Activity does its Steps and Workouts tabs, so they don't push the cards down a row.
  */
 export const PageBarContext = createContext<HTMLElement | null>(null);
 

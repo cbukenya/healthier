@@ -1,5 +1,5 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { BookOpen, ChevronLeft, ChevronRight, CircleDotDashed, CircleUserRound, Database, Target, Watch, type LucideIcon } from 'lucide-react';
+import { Accessibility, BookOpen, ChevronLeft, ChevronRight, CircleDotDashed, CircleUserRound, Database, SlidersHorizontal, Target, Watch, type LucideIcon } from 'lucide-react';
 import { t, type MessageKey } from '../i18n';
 import { estimatedSleepTarget, latestBody, needFloor } from '../pipeline/derive';
 import { DEFAULT_GOALS, proteinTarget } from '../pipeline/goals';
@@ -9,7 +9,8 @@ import { useHistory } from '../hooks/useHistory';
 import { useCycle } from '../hooks/useCycle';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 import { Card } from '../ui/primitives';
-import { AccountCard, CycleCard, DataFacts, GoalsCard, SectionScreen } from './DataCards';
+import { AccountCard, CycleCard, DataFacts, GoalsCard, MotionCard, SectionScreen } from './DataCards';
+import { CustomizeCard } from './CustomizeCard';
 import { DataStreams, streamsSummary } from './DataStreams';
 import { StatusCard } from './DataStatus';
 import { SourcesCard, sourcesSummary, useSources } from './SourcesCard';
@@ -22,11 +23,11 @@ import { SECTION_TONE } from './sectionTones';
  * open section fills the right, Devices and sources until another is picked.
  */
 
-export type SectionId = 'devices' | 'streams' | 'goals' | 'cycle' | 'facts' | 'account';
+export type SectionId = 'devices' | 'streams' | 'goals' | 'cycle' | 'motion' | 'customize' | 'facts' | 'account';
 
 const GROUPS: { title: MessageKey; sections: SectionId[] }[] = [
   { title: 'data.overview.groups.data', sections: ['devices', 'streams'] },
-  { title: 'data.overview.groups.preferences', sections: ['goals', 'cycle'] },
+  { title: 'data.overview.groups.preferences', sections: ['goals', 'cycle', 'customize', 'motion'] },
   { title: 'data.overview.groups.about', sections: ['facts', 'account'] },
 ];
 const SECTIONS = GROUPS.flatMap((g) => g.sections);
@@ -40,6 +41,8 @@ const LOOK: Record<SectionId, { title: MessageKey; icon: LucideIcon }> = {
   streams: { title: 'data.streams.title', icon: Database },
   goals: { title: 'data.goals.title', icon: Target },
   cycle: { title: 'data.cycle.title', icon: CircleDotDashed },
+  motion: { title: 'data.motion.title', icon: Accessibility },
+  customize: { title: 'data.customize.title', icon: SlidersHorizontal },
   facts: { title: 'data.facts.title', icon: BookOpen },
   account: { title: 'data.account.title', icon: CircleUserRound },
 };
@@ -156,6 +159,9 @@ export function SettingsView({
     // The goals there are by name, not their numbers.
     goals: [t('data.goals.steps.label'), t('data.goals.brisk.label'), t('data.goals.sleepNeed.label')].join(' · '),
     cycle: t('data.overview.summaries.cycle', { tracking: log.settings.tracking ? 'on' : 'off' }),
+    // What's in it by name, as Goals lists its goals.
+    motion: [t('data.motion.animations'), t('data.motion.blur')].join(' · '),
+    customize: [t('data.customize.showHide'), t('data.customize.ordering'), t('data.customize.activityMode')].join(' · '),
     facts: t('data.overview.summaries.facts'),
     account: t(live ? 'data.overview.summaries.account' : 'data.overview.summaries.accountDemo'),
   };
@@ -170,6 +176,10 @@ export function SettingsView({
         return <GoalsCard autoNeed={autoNeed} autoNeedFloor={needFloor(age)} autoProtein={autoProtein} />;
       case 'cycle':
         return <CycleCard kept={!!data.profile?.cycleKept} />;
+      case 'motion':
+        return <MotionCard />;
+      case 'customize':
+        return <CustomizeCard food={data.days.some((d) => d.nutrition)} />;
       case 'facts':
         return <DataFacts windowDays={data.days.length} windowFrom={data.meta.from} historyFrom={history?.from ?? null} />;
       case 'account':

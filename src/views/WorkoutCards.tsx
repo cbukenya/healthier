@@ -1,4 +1,5 @@
 import React, { useId, useState } from 'react';
+import { useElapsed, usePlayOnce } from '../hooks/useMotion';
 import {
   Activity, Bike, ChartNoAxesColumnIncreasing, ChevronRight, Dumbbell, Feather, Flower2, Footprints, Gauge, Hand,
   HeartPulse, Infinity as Loop, Kayak, Leaf, Mountain, MountainSnow, Music, PersonStanding, Sailboat, Ship, Snowflake,
@@ -468,19 +469,41 @@ function levelLine(level: WorkoutLevel): string {
   return t(`workouts.level.lines.${id}`);
 }
 
+/**
+ * The level's entrance, in steps: the bars light one by one from Embers up to Wildfire, then go out
+ * again from the top down to the level, and only then does the rail mark where it is.
+ */
+const LEVEL_STEP_MS = 340;
+const LEVEL_START_MS = 250;
+const LEVEL_HOLD_MS = 700;
+const levelTimes = (index: number) => {
+  const fall = LEVEL_START_MS + (LEVELS.length - 1) * LEVEL_STEP_MS + LEVEL_HOLD_MS;
+  const rail = fall + (LEVELS.length - 1 - index) * LEVEL_STEP_MS + 400;
+  return { fall, rail, end: rail + 600 };
+};
+
+/** A bar's opacity `elapsed` ms into the entrance: lit on the way up, then dimmed from the top down to the level. */
+function barOpacity(i: number, index: number, elapsed: number): number {
+  const { fall } = levelTimes(index);
+  const settled = i === index ? 1 : i < index ? 0.85 : 0.3;
+  if (elapsed < fall) return elapsed >= LEVEL_START_MS + i * LEVEL_STEP_MS ? 1 : 0.3;
+  if (i <= index) return settled;
+  return elapsed >= fall + (LEVELS.length - 1 - i) * LEVEL_STEP_MS ? settled : 1;
+}
+
 /** Five bars rising beside the level's name, lit to where it is. */
-function LevelMeter({ index, tall }: { index: number; tall: boolean }) {
+function LevelMeter({ index, tall, elapsed }: { index: number; tall: boolean; elapsed: number }) {
   return (
     <div className="flex shrink-0 items-end gap-1.5" aria-hidden="true">
       {LEVELS.map((id, i) => (
         <span
           key={id}
-          className="rounded-[5px]"
+          className="rounded-[5px] transition-opacity duration-200"
           style={{
             width: tall ? 18 : 14,
             height: (tall ? 30 : 20) + i * (tall ? 16 : 11),
             background: LEVEL_COLOUR[id],
-            opacity: i === index ? 1 : i < index ? 0.85 : 0.3,
+            opacity: barOpacity(i, index, elapsed),
           }}
         />
       ))}
@@ -488,21 +511,27 @@ function LevelMeter({ index, tall }: { index: number; tall: boolean }) {
   );
 }
 
-/** The five steps as a rail, with a marker where the level is and each step's name and start under it. */
-function LevelRail({ level }: { level: WorkoutLevel }) {
+/**
+ * The five steps as a rail, with a marker where the level is and each step's name and start under it.
+ * `marked` false keeps the marker and the level's step unlit, while the bars beside the name play.
+ */
+function LevelRail({ level, marked }: { level: WorkoutLevel; marked: boolean }) {
   const starts = levelStarts();
   return (
     <div className="relative">
-      <div className="absolute -top-[9px] h-6 w-0.5 -translate-x-px rounded-[1px] bg-zinc-50" style={{ left: `${level.position * 100}%` }} />
+      <div
+        className={`absolute -top-[9px] h-6 w-0.5 -translate-x-px rounded-[1px] bg-zinc-50 transition-[opacity,transform] duration-500 ease-out ${marked ? 'opacity-100' : 'opacity-0 -translate-y-1'}`}
+        style={{ left: `${level.position * 100}%` }}
+      />
       <div className="flex gap-[3px]">
         {LEVELS.map((id, i) => (
-          <span key={id} className="h-2 flex-1 rounded" style={{ background: LEVEL_COLOUR[id], opacity: i === level.index ? 1 : 0.45 }} />
+          <span key={id} className="h-2 flex-1 rounded transition-opacity duration-500" style={{ background: LEVEL_COLOUR[id], opacity: marked && i === level.index ? 1 : 0.45 }} />
         ))}
       </div>
       <div className="mt-2 flex gap-[3px]">
         {LEVELS.map((id, i) => (
           <div key={id} className="min-w-0 flex-1">
-            <div className={`truncate text-detail ${i === level.index ? 'font-semibold text-zinc-50' : 'text-zinc-500'}`}>{levelName(id)}</div>
+            <div className={`truncate text-detail transition-colors duration-500 ${marked && i === level.index ? 'font-semibold text-zinc-50' : 'text-zinc-500'}`}>{levelName(id)}</div>
             <div className="text-caption text-zinc-500">{i === LEVELS.length - 1 ? t('workouts.level.from', { minutes: starts[id] }) : formatInteger(starts[id])}</div>
           </div>
         ))}
@@ -513,11 +542,17 @@ function LevelRail({ level }: { level: WorkoutLevel }) {
 
 /**
  * The workout level: the step the last 4 weeks of workouts reach, its line, the rail of all five
- * steps, and the zone minutes a week with how many more reach the next. `hero` is the Workouts
- * tab's wide card; otherwise it's the narrower card the Overview and phones show.
+ * steps, and the zone minutes a week with how many more reach the next. `hero` is the wide card;
+ * otherwise it's the narrower card phones show.
  */
-export function LevelCard({ level, hero = false, className = '' }: { level: WorkoutLevel; hero?: boolean; className?: string }) {
+export function LevelCard({ level, hero = false, className = '' }: {
+  level: WorkoutLevel;
+  hero?: boolean;
+  className?: string;
+}) {
   const id = LEVELS[level.index];
+  const times = levelTimes(level.index);
+  const elapsed = useElapsed(times.end, usePlayOnce('workout-level'));
   const next = LEVELS[level.index + 1];
   const figures = (
     <div className="flex flex-wrap gap-x-9 gap-y-3 border-t border-rule pt-3.5">
@@ -547,13 +582,13 @@ export function LevelCard({ level, hero = false, className = '' }: { level: Work
             <div className="font-display text-number-2xl text-zinc-50">{levelName(id)}</div>
             <p className="mt-3 max-w-[460px] font-display text-insight-body text-zinc-400">{levelLine(level)}</p>
           </div>
-          <LevelMeter index={level.index} tall />
+          <LevelMeter index={level.index} tall elapsed={elapsed} />
         </div>
       ) : (
         <>
           <div className="mt-2.5 flex items-end justify-between gap-4">
             <div className="font-display text-number-xl text-zinc-50">{levelName(id)}</div>
-            <LevelMeter index={level.index} tall={false} />
+            <LevelMeter index={level.index} tall={false} elapsed={elapsed} />
           </div>
           {/* The line takes the space the card has, centred between the name and the rail, which sits just above the figures. */}
           <div className="flex flex-1 items-center py-4">
@@ -562,7 +597,7 @@ export function LevelCard({ level, hero = false, className = '' }: { level: Work
         </>
       )}
       <div className={hero ? 'mt-6' : ''}>
-        <LevelRail level={level} />
+        <LevelRail level={level} marked={elapsed >= times.rail} />
       </div>
       <div className={hero ? 'mt-[18px]' : 'mt-5'}>{figures}</div>
     </Card>
@@ -577,8 +612,8 @@ const STRETCHES = [
   { from: 1.5, to: 2, colour: EFFORT.vigorous },
 ] as const;
 
-/** The load on a dial of 270°, from nothing to twice the usual week, in its three stretches. */
-function LoadDial({ ratio, size }: { ratio: number | null; size: number }) {
+/** The load on a dial of 270°, from nothing to twice its base (the usual week or the weekly target), in its three stretches. */
+function LoadDial({ ratio, target, size }: { ratio: number | null; target: boolean; size: number }) {
   const C = 120;
   const R = 96;
   const pt = (r: number, deg: number) => {
@@ -614,7 +649,7 @@ function LoadDial({ ratio, size }: { ratio: number | null; size: number }) {
       })}
       <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
         <div className="font-display text-number-lg leading-none text-zinc-50">{ratio === null ? '—' : t('workouts.load.times', { ratio: fmtNum(ratio, 1) })}</div>
-        <div className="mt-1 text-caption text-zinc-500">{t('workouts.load.usual')}</div>
+        <div className="mt-1 text-caption text-zinc-500">{t(target ? 'workouts.load.target' : 'workouts.load.usual')}</div>
       </div>
     </div>
   );
@@ -622,12 +657,16 @@ function LoadDial({ ratio, size }: { ratio: number | null; size: number }) {
 
 /**
  * The workout load: the last 7 days of zone minutes from workouts against the usual week before,
- * on a dial, with what to do about it, read together with today's body battery.
+ * or the weekly target while the usual week is below it, on a dial, with what to do about it, read
+ * together with today's body battery. Against the target, the words say so; a big jump keeps its
+ * words, as it's a big jump on the usual week too.
  */
 export function LoadCard({ load, battery, wide, className = '' }: { load: WorkoutLoad; battery: number | null; wide: boolean; className?: string }) {
   const tier = battery === null ? null : batteryTier(battery);
   const low = tier !== null && (tier.tag === 'LOW' || tier.tag === 'DRAINED');
   const advice = load.ratio === null ? null : loadAdvice(load.ratio, low);
+  const target = load.base === 'target';
+  const battered = { battery: battery === null ? 'none' : battery };
   const words = (
     <div className="min-w-0 flex-1">
       <div className="font-display text-number-sm text-zinc-50">{t(advice ? `workouts.load.headline.${advice}` : 'workouts.load.headline.none')}</div>
@@ -635,8 +674,10 @@ export function LoadCard({ load, battery, wide, className = '' }: { load: Workou
         {advice === null
           ? t('workouts.load.advice.none')
           : advice === 'easy'
-            ? t('workouts.load.advice.easy', { battery: battery!, tier: tier!.tag === 'DRAINED' ? 'drained' : 'low' })
-            : t(`workouts.load.advice.${advice}`, { battery: battery === null ? 'none' : battery })}
+            ? t(target ? 'workouts.load.underTarget.easy' : 'workouts.load.advice.easy', { battery: battery!, tier: tier!.tag === 'DRAINED' ? 'drained' : 'low' })
+            : advice === 'recover' || !target
+              ? t(`workouts.load.advice.${advice}`, battered)
+              : t(`workouts.load.underTarget.${advice}`, battered)}
       </p>
     </div>
   );
@@ -649,12 +690,12 @@ export function LoadCard({ load, battery, wide, className = '' }: { load: Workou
       </div>
       {wide ? (
         <div className="mt-1.5 flex flex-1 items-center gap-5">
-          <LoadDial ratio={load.ratio} size={196} />
+          <LoadDial ratio={load.ratio} target={target} size={196} />
           {words}
         </div>
       ) : (
         <div className="mt-2 flex flex-col items-center gap-3">
-          <LoadDial ratio={load.ratio} size={180} />
+          <LoadDial ratio={load.ratio} target={target} size={180} />
           <div className="self-stretch">{words}</div>
         </div>
       )}

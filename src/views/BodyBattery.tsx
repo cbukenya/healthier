@@ -1,4 +1,5 @@
 import React, { useId, useRef } from 'react';
+import { usePlayOnce, useTween } from '../hooks/useMotion';
 import { BATTERY_START, BATTERY_TIERS, batteryTier, type Readiness, type ReadinessPart, type ReadinessSignal } from '../pipeline/derive';
 import { t, type MessageKey } from '../i18n';
 import { formatFixed, formatList } from '../i18n/format';
@@ -80,8 +81,26 @@ const yOf = (level: number) => BOTTOM - (level / 100) * (BOTTOM - TOP);
  * height and the current one lit. `labelled` names each stage and its range; the small phone
  * figure leaves that to the text beside it and draws the rail heavier to stay legible.
  */
-function BatteryFigure({ score, gender, labelled, className }: {
+/** How long the figure takes to fill from empty to a full 100; a lower score takes its share of it, eased. */
+const FILL_MS = 2400;
+
+/**
+ * The battery's level as the figure fills: from the feet to the score when the card shows, and
+ * whether it has got there. The stage it lands in, its bar and its name, lights only then.
+ */
+function useBatteryFill(score: number | null, motion: string): { level: number; arrived: boolean } {
+  const play = usePlayOnce(motion);
+  const level = useTween(score ?? 0, { ms: (distance) => Math.max(600, (distance / 100) * FILL_MS), play });
+  return { level, arrived: score !== null && Math.abs(level - score) < 0.05 };
+}
+
+/** How a stage on the rail lights once the fill reaches it: its bar and name fade up, briefly. */
+const LIGHT_UP = 'transition-[opacity,fill] duration-700 ease-out';
+
+function BatteryFigure({ score, fill, gender, labelled, className }: {
   score: number | null;
+  /** Where the fill is, and whether it has reached the score: from useBatteryFill, shared with the card's own labels. */
+  fill: { level: number; arrived: boolean };
   gender: Gender | null;
   labelled: boolean;
   className?: string;
@@ -90,7 +109,9 @@ function BatteryFigure({ score, gender, labelled, className }: {
   const id = useId().replace(/[^\w-]/g, '');
   const body = silhouette(gender);
   const tier = score === null ? null : batteryTier(score);
-  const level = score ?? 0;
+  // The fill rises from the feet to the score and the marker rides up with it; the stage it lands
+  // in lights up, its bar and its name, only once the fill gets there.
+  const { level, arrived } = fill;
   const fillY = yOf(level);
   const fillHeight = (level / 100) * (BOTTOM - TOP);
   // The figure's gradient: each stage's colour at the middle of its band, blending across the thresholds.
@@ -154,18 +175,18 @@ function BatteryFigure({ score, gender, labelled, className }: {
         const bottom = yOf(stage.min);
         const centre = (top + bottom) / 2;
         const style = TIER_STYLE[stage.tag];
-        const on = tier?.tag === stage.tag;
+        const on = arrived && tier?.tag === stage.tag;
         return (
           <g key={stage.tag}>
             <rect
-              x={rail.x} width={rail.width} rx={rail.width / 2} fill={style.body} opacity={on ? 1 : 0.22}
+              x={rail.x} width={rail.width} rx={rail.width / 2} fill={style.body} opacity={on ? 1 : 0.22} className={LIGHT_UP}
               y={top + (max === 100 ? 0 : rail.gap)}
               height={bottom - top - (max === 100 ? 0 : rail.gap) - (stage.min === 0 ? 0 : rail.gap)}
             />
             {labelled && (
               <>
-                <text fontSize={18} fontWeight={700} x="264" y={centre - 2} fill={on ? 'var(--color-zinc-50)' : 'var(--color-zinc-500)'}>{t(style.name)}</text>
-                <text className="tabular-nums" fontSize={13.5} x="264" y={centre + 17} fill={on ? 'var(--color-zinc-300)' : 'var(--color-zinc-600)'}>
+                <text fontSize={18} fontWeight={700} x="264" y={centre - 2} fill={on ? 'var(--color-zinc-50)' : 'var(--color-zinc-500)'} className={LIGHT_UP}>{t(style.name)}</text>
+                <text className={`tabular-nums ${LIGHT_UP}`} fontSize={13.5} x="264" y={centre + 17} fill={on ? 'var(--color-zinc-300)' : 'var(--color-zinc-600)'}>
                   {t('today.battery.range', { min: stage.min, max: tierMax(i) })}
                 </text>
               </>
@@ -231,6 +252,7 @@ export function BodyBattery({ score, parts, label, missing, calibrating, gender,
   const cautions = parts.filter((p) => p.note);
 
   const maxAbs = Math.max(...parts.map(p => Math.abs(p.contribution)), 1);
+  const fill = useBatteryFill(score, 'battery');
   const card = useRef<HTMLDivElement>(null);
   const dot = useRef<HTMLSpanElement>(null);
   useGlowFrom(card, dot);
@@ -264,7 +286,7 @@ export function BodyBattery({ score, parts, label, missing, calibrating, gender,
         </div>
 
         <div className="w-full max-w-[340px] md:max-w-none mx-auto md:mx-0 mt-2 md:mt-0">
-          <BatteryFigure score={score} gender={gender} labelled className="w-full h-auto block" />
+          <BatteryFigure score={score} fill={fill} gender={gender} labelled className="w-full h-auto block" />
         </div>
       </div>
 
@@ -289,6 +311,7 @@ export function BodyBatteryCompact({ score, parts, label, missing, calibrating, 
   const z = batteryText({ score, missing, calibrating });
   const cautions = parts.filter((p) => p.note);
   const maxAbs = Math.max(...parts.map((p) => Math.abs(p.contribution)), 1);
+  const fill = useBatteryFill(score, 'battery-phone');
   const card = useRef<HTMLElement>(null);
   const dot = useRef<HTMLSpanElement>(null);
   useGlowFrom(card, dot);
@@ -323,16 +346,16 @@ export function BodyBatteryCompact({ score, parts, label, missing, calibrating, 
         </div>
         {/* The figure and its rail on the right, as on desktop, with each stage's range beside its band; under 320px, where the figure is too short for two lines a stage, just the names. */}
         <div className="flex items-stretch gap-1 min-w-0">
-          <BatteryFigure score={score} gender={gender} labelled={false} className="w-[104px] min-w-10 h-auto block" />
+          <BatteryFigure score={score} fill={fill} gender={gender} labelled={false} className="w-[104px] min-w-10 h-auto block" />
           <div aria-hidden="true" className="relative w-[56px] shrink-0">
             {BATTERY_TIERS.map((stage, i) => {
               const centre = (yOf(i === 0 ? 100 : BATTERY_TIERS[i - 1].min) + yOf(stage.min)) / 2;
               const style = TIER_STYLE[stage.tag];
-              const on = z.tier?.tag === stage.tag;
+              const on = fill.arrived && z.tier?.tag === stage.tag;
               return (
                 <div key={stage.tag} className="absolute left-0 -translate-y-1/2 leading-tight" style={{ top: `${(centre / 480) * 100}%` }}>
-                  <div className="text-detail leading-tight font-bold" style={{ color: on ? 'var(--color-zinc-50)' : 'var(--color-zinc-500)' }}>{t(style.name)}</div>
-                  <div className="hidden min-[320px]:block text-note leading-tight tabular-nums" style={{ color: on ? 'var(--color-zinc-300)' : 'var(--color-zinc-600)' }}>
+                  <div className="text-detail leading-tight font-bold transition-colors duration-700 ease-out" style={{ color: on ? 'var(--color-zinc-50)' : 'var(--color-zinc-500)' }}>{t(style.name)}</div>
+                  <div className="hidden min-[320px]:block text-note leading-tight tabular-nums transition-colors duration-700 ease-out" style={{ color: on ? 'var(--color-zinc-300)' : 'var(--color-zinc-600)' }}>
                     {t('today.battery.rangeNarrow', { min: stage.min, max: tierMax(i) })}
                   </div>
                 </div>
