@@ -265,14 +265,10 @@ function Trend({ trend, phone }: { trend: HeartTrendPoint[]; phone: boolean }) {
     if (st.min > 0) o.push(<line key={`e${st.id}`} x1={pl} x2={W - pr} y1={H - bot - i * band} y2={H - bot - i * band} stroke={colour} strokeOpacity={0.7} />);
     const name = stageName(st.id).toLocaleUpperCase();
     const range = t(key('trend.range'), { from: formatInteger(st.min), to: formatInteger(hi - 1) });
-    const w = name.length * 7.6 + range.length * 6.2 + 12;
     labels.push(
-      <g key={`l${st.id}`}>
-        <rect x={pl + 3} y={yTop + 3} width={w} height={17} rx={5} fill="var(--card)" fillOpacity={0.72} />
-        <text x={pl + 8} y={yTop + 15} fontSize={11} fontWeight={on ? 700 : 600} letterSpacing="0.06em" fill={on ? INK : SOFT}>
-          {name} <tspan fontWeight={500} letterSpacing={0}>{range}</tspan>
-        </text>
-      </g>,
+      <text key={`l${st.id}`} x={pl + 8} y={yTop + 15} fontSize={11} fontWeight={on ? 700 : 600} letterSpacing="0.06em" fill={on ? INK : SOFT}>
+        {name} <tspan fontWeight={500} letterSpacing={0}>{range}</tspan>
+      </text>,
     );
   });
   for (let i = 0; i < n - 1; i++) {
