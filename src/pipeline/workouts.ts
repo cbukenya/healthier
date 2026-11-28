@@ -492,7 +492,7 @@ export interface WorkoutLoad {
  * morning is part of the load now.
  *
  * The usual week counts for no less than the weekly target. A ratio of small numbers swings: from
- * a usual week of 25 zone minutes, a week of 60 is 2.4×, and someone building up from little was
+ * a usual week of 20 zone minutes, a week of 50 is 2.5×, and someone building up from little was
  * told to recover for a week still under half the target. The 1.5× line comes from people who
  * already train a lot (Gabbett 2016), and the ratio is known to mislead on small loads
  * (Impellizzeri et al. 2020). On mcPHASES workouts (62 rounds, 4,025 days), this took "Time to

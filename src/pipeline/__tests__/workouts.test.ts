@@ -247,12 +247,12 @@ describe('the workout load', () => {
   });
 
   it('sets a usual week under the weekly target against the target instead', () => {
-    // A usual week of 25 and a week of 60: 2.4× the usual week, but 0.4× the target.
-    const days = daysWith('2026-10-11', 28, (k) => (k === 0 ? 60 : k >= 7 && k % 7 === 3 ? 25 : 0));
+    // A usual week of 20 and a week of 50: 2.5× the usual week, but a third of the target.
+    const days = daysWith('2026-10-11', 28, (k) => (k === 0 ? 50 : k >= 7 && k % 7 === 3 ? 20 : 0));
     const load = workoutLoad(days)!;
-    assert.equal(load.usual, 25);
+    assert.equal(load.usual, 20);
     assert.equal(load.base, 'target');
-    assert.equal(load.ratio, 60 / WHO_WEEK);
+    assert.equal(load.ratio, 50 / WHO_WEEK);
     // From nothing at all, twice the target is still a big jump.
     const jump = workoutLoad(daysWith('2026-10-11', 28, (k) => (k < 7 ? 300 / 7 : 0)))!;
     assert.equal(jump.usual, 0);
