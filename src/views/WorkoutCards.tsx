@@ -612,8 +612,8 @@ const STRETCHES = [
   { from: 1.5, to: 2, colour: EFFORT.vigorous },
 ] as const;
 
-/** The load on a dial of 270°, from nothing to twice the usual week, in its three stretches. */
-function LoadDial({ ratio, size }: { ratio: number | null; size: number }) {
+/** The load on a dial of 270°, from nothing to twice its base (the usual week or the weekly target), in its three stretches. */
+function LoadDial({ ratio, target, size }: { ratio: number | null; target: boolean; size: number }) {
   const C = 120;
   const R = 96;
   const pt = (r: number, deg: number) => {
@@ -649,7 +649,7 @@ function LoadDial({ ratio, size }: { ratio: number | null; size: number }) {
       })}
       <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
         <div className="font-display text-number-lg leading-none text-zinc-50">{ratio === null ? '—' : t('workouts.load.times', { ratio: fmtNum(ratio, 1) })}</div>
-        <div className="mt-1 text-caption text-zinc-500">{t('workouts.load.usual')}</div>
+        <div className="mt-1 text-caption text-zinc-500">{t(target ? 'workouts.load.target' : 'workouts.load.usual')}</div>
       </div>
     </div>
   );
@@ -657,12 +657,16 @@ function LoadDial({ ratio, size }: { ratio: number | null; size: number }) {
 
 /**
  * The workout load: the last 7 days of zone minutes from workouts against the usual week before,
- * on a dial, with what to do about it, read together with today's body battery.
+ * or the weekly target while the usual week is below it, on a dial, with what to do about it, read
+ * together with today's body battery. Against the target, the words say so; a big jump keeps its
+ * words, as it's a big jump on the usual week too.
  */
 export function LoadCard({ load, battery, wide, className = '' }: { load: WorkoutLoad; battery: number | null; wide: boolean; className?: string }) {
   const tier = battery === null ? null : batteryTier(battery);
   const low = tier !== null && (tier.tag === 'LOW' || tier.tag === 'DRAINED');
   const advice = load.ratio === null ? null : loadAdvice(load.ratio, low);
+  const target = load.base === 'target';
+  const battered = { battery: battery === null ? 'none' : battery };
   const words = (
     <div className="min-w-0 flex-1">
       <div className="font-display text-number-sm text-zinc-50">{t(advice ? `workouts.load.headline.${advice}` : 'workouts.load.headline.none')}</div>
@@ -670,8 +674,10 @@ export function LoadCard({ load, battery, wide, className = '' }: { load: Workou
         {advice === null
           ? t('workouts.load.advice.none')
           : advice === 'easy'
-            ? t('workouts.load.advice.easy', { battery: battery!, tier: tier!.tag === 'DRAINED' ? 'drained' : 'low' })
-            : t(`workouts.load.advice.${advice}`, { battery: battery === null ? 'none' : battery })}
+            ? t(target ? 'workouts.load.underTarget.easy' : 'workouts.load.advice.easy', { battery: battery!, tier: tier!.tag === 'DRAINED' ? 'drained' : 'low' })
+            : advice === 'recover' || !target
+              ? t(`workouts.load.advice.${advice}`, battered)
+              : t(`workouts.load.underTarget.${advice}`, battered)}
       </p>
     </div>
   );
@@ -684,12 +690,12 @@ export function LoadCard({ load, battery, wide, className = '' }: { load: Workou
       </div>
       {wide ? (
         <div className="mt-1.5 flex flex-1 items-center gap-5">
-          <LoadDial ratio={load.ratio} size={196} />
+          <LoadDial ratio={load.ratio} target={target} size={196} />
           {words}
         </div>
       ) : (
         <div className="mt-2 flex flex-col items-center gap-3">
-          <LoadDial ratio={load.ratio} size={180} />
+          <LoadDial ratio={load.ratio} target={target} size={180} />
           <div className="self-stretch">{words}</div>
         </div>
       )}

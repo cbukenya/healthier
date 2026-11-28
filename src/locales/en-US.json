@@ -1493,6 +1493,7 @@
       "span": "Last 7 days",
       "times": "{ratio}×",
       "usual": "your usual week",
+      "target": "your weekly target",
       "headline": {
         "push": "Room to push",
         "keep": "Keep it going",
@@ -1506,6 +1507,11 @@
         "easy": "Your week is close to usual, but your battery is {tier, select, drained {drained} other {low}} at {battery}. Keep today’s workout easy, or rest.",
         "recover": "{battery, select, none {That’s a big jump on your usual week. Keep the next sessions easy and leave out anything extra.} other {That’s a big jump on your usual week, with your battery at {battery}. Keep the next sessions easy and leave out anything extra.}}",
         "none": "Once there are 4 weeks of workouts, this compares your last 7 days with your usual week."
+      },
+      "underTarget": {
+        "push": "{battery, select, none {You’re under your weekly target, so there’s room for a harder session.} other {You’re under your weekly target and your battery is at {battery}, so there’s room for a harder session.}}",
+        "keep": "{battery, select, none {You’re close to your weekly target. Keep the same mix of hard and easy days.} other {You’re close to your weekly target and your battery is at {battery}. Keep the same mix of hard and easy days.}}",
+        "easy": "Your battery is {tier, select, drained {drained} other {low}} at {battery}. Keep today’s workout easy, or rest."
       },
       "week": "Last 7 days",
       "usualWeek": "Usual week",

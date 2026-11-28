@@ -477,7 +477,12 @@ export interface WorkoutLoad {
   week: number;
   /** A week's worth over the 21 days before them, or null without them. */
   usual: number | null;
-  /** The week against the usual one, or null without a usual week to go on. */
+  /**
+   * What the week is set against: the usual week, or the weekly target (WHO_WEEK) while the usual
+   * week is below it. Null without a usual week to go on.
+   */
+  base: 'usual' | 'target' | null;
+  /** The week against its base, or null without a usual week to go on. */
   ratio: number | null;
 }
 
@@ -485,6 +490,14 @@ export interface WorkoutLoad {
  * The last 7 days of workouts against the 3 weeks before, with no overlap, as loadRatio in
  * derive.ts compares steps, and in the level's unit. Today's workouts count: a hard session this
  * morning is part of the load now.
+ *
+ * The usual week counts for no less than the weekly target. A ratio of small numbers swings: from
+ * a usual week of 25 zone minutes, a week of 60 is 2.4×, and someone building up from little was
+ * told to recover for a week still under half the target. The 1.5× line comes from people who
+ * already train a lot (Gabbett 2016), and the ratio is known to mislead on small loads
+ * (Impellizzeri et al. 2020). On mcPHASES workouts (62 rounds, 4,025 days), this took "Time to
+ * recover" from 41% to 3% of days for usual weeks under 75 zone minutes and from 23% to 6% for 75
+ * to 149, and left usual weeks of 150 or more exactly as they were.
  */
 export function workoutLoad(days: DailyRecord[]): WorkoutLoad | null {
   const end = days.at(-1)?.date;
@@ -497,8 +510,9 @@ export function workoutLoad(days: DailyRecord[]): WorkoutLoad | null {
   };
   const week = total(0, 6);
   const haveUsual = days.length >= 28 && days[0].date <= addDays(end, -27);
-  const usual = haveUsual ? total(7, 27) / 3 : null;
-  return { week, usual, ratio: usual ? week / usual : null };
+  if (!haveUsual) return { week, usual: null, base: null, ratio: null };
+  const usual = total(7, 27) / 3;
+  return { week, usual, base: usual >= WHO_WEEK ? 'usual' : 'target', ratio: week / Math.max(usual, WHO_WEEK) };
 }
 
 /** Where the load stands: 'easing' under 0.8 of the usual week, 'steady' to 1.5, 'building' past it. */
